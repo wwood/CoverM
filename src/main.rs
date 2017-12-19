@@ -18,10 +18,10 @@ fn main(){
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            let fasta_files: Vec<&str> = m.values_of("fasta-files").unwrap().collect();
+            let separator: u8 = m.value_of("separator").unwrap().as_bytes()[0];
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
-            coverm::genome_coverage(&bam_files, &fasta_files, &mut std::io::stdout());
+            coverm::genome_coverage(&bam_files, separator, &mut std::io::stdout());
         },
         _ => {
             app.print_help().unwrap();
@@ -47,8 +47,9 @@ fn set_log_level(matches: &clap::ArgMatches) {
 }
 
 fn build_cli() -> App<'static, 'static> {
-    let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted, indexed BAM files contain reads mapped to target contigs'
-                      -f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
+    //-f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
+    let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
+                      -s, --separator=<CHARACTER>         'Character used in contig name to separate genome (first) from contig (second) e.g. ~ for BAM reference names like genome1~contig2'
 
                       -v, --verbose       'Print extra debug logging information'
                       -q, --quiet         'Unless there is an error, do not print logging information'";

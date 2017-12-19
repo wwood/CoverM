@@ -5,78 +5,182 @@ extern crate log;
 extern crate rust_htslib;
 use self::rust_htslib::bam;
 use self::rust_htslib::bam::Read as bamRead;
-use self::rust_htslib::bam::HeaderView;
 
-use std::collections::HashMap;
 use std::str;
 
-pub fn genome_coverage(bam_files: &Vec<&str>, fasta_files: &Vec<&str>, print_stream: &mut std::io::Write){
-    // Read in fasta files into a map of contig -> genome
-    let contig_to_genome = read_contig_to_genome_from_fasta_files(fasta_files);
-    println!("contig_to_genome: {:?}", contig_to_genome);
-
-    let mut process_contig = |bam_file, total_coverage, bases_seen, tid, header: &HeaderView, genome_to_total_coverage: &mut HashMap<String, u32>, contig_to_genome: &HashMap<String, String>| {
-        debug!("For {} in bam {}, found {} total coverage", tid, bam_file, total_coverage);
-        let total_bases = header.target_len(tid).unwrap() as f32;
-        let target_names = header.target_names();
-        let contig_name = target_names.get(tid as usize).unwrap();
-        let contig_name_str = str::from_utf8(contig_name).unwrap();
-        let genome: String = contig_to_genome.get(contig_name_str).unwrap().clone();
-        let cov = genome_to_total_coverage.entry(genome).or_insert(0);
-        *cov += total_coverage;
-        writeln!(print_stream, "{}\t{}", bam_file, total_coverage as f32/total_bases).unwrap();
-    };
-
-    let mut genome_to_total_coverage: HashMap<String, u32> = HashMap::new();
-
+pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut std::io::Write){
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
-        let bam = bam::Reader::from_path(bam_file).unwrap();
+        let bam = bam::Reader::from_path(bam_file).expect(
+            &format!("Unable to find BAM file {}", bam_file));
         let header = bam.header();
+        let target_names = header.target_names();
 
-        let mut total_coverage = 0;
-        let mut bases_covered = 0;
+        let mut print_genome = |stoit_name, genome, total_coverage, current_genome_length| {
+            debug!("{:?} {:?} {:?}", str::from_utf8(genome).unwrap(), total_coverage, current_genome_length);
+            writeln!(print_stream, "{}\t{}\t{}",
+                     stoit_name,
+                     str::from_utf8(genome).unwrap(),
+                     total_coverage as f32/current_genome_length as f32).unwrap();
+        };
+        let extract_genome = |tid| {
+            let target_name = target_names[tid as usize];
+            let offset = find_first(target_name, split_char).expect(
+                &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+                         str::from_utf8(target_name).unwrap()));
+            return &target_name[(0..offset)];
+        };
+        let fill_genome_length_forwards = |current_tid, target_genome| {
+            // pileup skips over contigs with no mapped reads, but the length of
+            // these contigs is required to calculate the average across all
+            // contigs. This closure returns the number of bases in contigs with
+            // tid > current_tid that are part of the current genome.
+            let mut extra: u32 = 0;
+            let total_refs = header.target_count();
+            let mut my_tid = current_tid + 1;
+            while my_tid < total_refs {
+                let my_genome = extract_genome(my_tid);
+                if my_genome == target_genome {
+                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
+                    my_tid += 1;
+                } else {
+                    break;
+                }
+            }
+            return extra
+        };
+        let fill_genome_length_backwards = |current_tid, target_genome| {
+            if current_tid == 0 {return 0}
+            let mut extra: u32 = 0;
+            let mut my_tid = current_tid - 1;
+            loop { //my_tid >= 0 unnecessary due to type limits
+                let my_genome = extract_genome(my_tid);
+                if my_genome == target_genome {
+                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
+                    if my_tid == 0 {
+                        break
+                    } else {
+                        my_tid -= 1;
+                    }
+                } else {
+                    break;
+                }
+            }
+            return extra
+        };
+        let fill_genome_length_backwards_to_last = |current_tid, last_tid, target_genome| {
+            if current_tid == 0 {return 0};
+            let mut extra: u32 = 0;
+            let mut my_tid = current_tid - 1;
+            while my_tid > last_tid {
+                let my_genome = extract_genome(my_tid);
+                if my_genome == target_genome {
+                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
+                    my_tid -= 1;
+                } else {
+                    break;
+                }
+            }
+            return extra
+        };
+
+        let mut current_genome_total_coverage: u32 = 0;
+        let mut current_genome_length: u32 = 0;
         let mut last_tid: u32 = 0;
+        let mut doing_first = true;
+        let mut last_genome: &[u8] = "error genome".as_bytes();
+        let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
+            "failure to convert bam file name to stoit name - UTF8 error maybe?");
         for p in bam.pileup() {
             let pileup = p.unwrap();
 
             let tid = pileup.tid();
-            if tid != last_tid {
-                process_contig(bam_file, total_coverage, bases_covered, tid, header, &mut genome_to_total_coverage, &contig_to_genome);
-                last_tid = tid;
-                total_coverage = 0;
-                bases_covered = 0;
-            }
-            bases_covered += 1; //TODO: What happens with indels?
-            total_coverage += pileup.depth();
-        }
-        process_contig(bam_file, total_coverage, bases_covered, last_tid, header, &mut genome_to_total_coverage, &contig_to_genome);
-        println!("{:?}", genome_to_total_coverage);
-    }
+            if tid != last_tid || doing_first {
+                // find the new name of the genome
+                let current_genome = extract_genome(tid);
+                debug!("Found current genome {:?}", str::from_utf8(current_genome).unwrap());
 
+                if doing_first == true {
+                    last_genome = current_genome;
+                    current_genome_total_coverage = 0;
+                    current_genome_length = fill_genome_length_backwards(tid, current_genome);
+                    doing_first = false;
+                } else if current_genome == last_genome {
+                    current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
+                } else {
+                    current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
+                    print_genome(stoit_name, last_genome, current_genome_total_coverage, current_genome_length);
+                    last_genome = current_genome;
+                    current_genome_total_coverage = 0;
+                    current_genome_length = fill_genome_length_backwards(tid, current_genome);
+                }
+
+                current_genome_length += header.target_len(tid).expect("malformed bam header");
+                debug!("genome length now {}", current_genome_length);
+                last_tid = tid;
+            }
+            current_genome_total_coverage += pileup.depth();
+        }
+        current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
+        print_genome(stoit_name, last_genome, current_genome_total_coverage, current_genome_length);
+        //process_contig(bam_file, total_coverage, bases_covered, last_tid, header, &mut genome_to_total_coverage, &contig_to_genome);
+        //println!("{:?}", genome_to_total_coverage);
+    };
 }
 
-fn read_contig_to_genome_from_fasta_files(fasta_files: &Vec<&str>) -> HashMap<String, String> {
-    let mut contig_to_genome: HashMap<String, String> = HashMap::new();
+/// Finds the first occurence of element in a slice
+fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
+    where T: std::cmp::PartialEq<T> {
 
-    for fasta_file in fasta_files {
-        let fasta_reader = bio::io::fasta::Reader::from_file(fasta_file).expect("Error opening FASTA file"); //TODO: Say which fasta file failed
-        let genome = fasta_file;
-        for record in fasta_reader.records() {
-            let contig: String = String::from(record.unwrap().id());
-            if contig_to_genome.contains_key(&contig) {
-                let found_genome = contig_to_genome.get(&contig).unwrap();
-                if genome != found_genome {
-                    panic!(
-                        "The contig '{}' is found in at least two genomes: '{}' and '{}",
-                        contig, found_genome, genome)
-                }
-            } else {
-                let genome_string: String = genome.to_string();
-                contig_to_genome.insert(contig, genome_string);
-            };
+    let mut index: usize = 0;
+    for el in slice {
+        if *el == element {
+            return Ok(index)
+            //let res: Result<usize, None> = Ok(index)
         }
+        index += 1;
+    }
+    return Err("Element not found in slice")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_one_genome_two_contigs_first_covered(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1.bam"],
+            'q' as u8,
+            &mut stream);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tse\t0.6\n",
+            str::from_utf8(stream.get_ref()).unwrap())
     }
 
-    return contig_to_genome;
+    #[test]
+    fn test_one_genome_two_contigs_second_covered(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq2.bam"],
+            'q' as u8,
+            &mut stream);
+        assert_eq!(
+            "2seqs.reads_for_seq2\tse\t0.6\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_one_genome_two_contigs_both_covered(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
+            'e' as u8,
+            &mut stream);
+        assert_eq!(
+            "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
 }
