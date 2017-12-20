@@ -8,6 +8,34 @@ use self::rust_htslib::bam::Read as bamRead;
 
 use std::str;
 
+pub trait PileupGenomeCoverageEstimator {
+    #[inline]
+    fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup);
+
+    #[inline]
+    fn finish_genome(&mut self, total_bases: u32) -> f32;
+}
+
+struct PileupMeanEstimator {
+    total_count: u32
+}
+impl PileupMeanEstimator {
+    fn new() -> PileupMeanEstimator {
+        PileupMeanEstimator {total_count: 0}
+    }
+}
+impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
+    fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
+        self.total_count += pileup.depth()
+    }
+    fn finish_genome(&mut self, total_bases: u32) -> f32 {
+        match total_bases {
+            0 => 0.0,
+            _ => self.total_count as f32 / total_bases as f32
+        }
+    }
+}
+
 pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut std::io::Write){
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -16,12 +44,12 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
         let header = bam.header();
         let target_names = header.target_names();
 
-        let mut print_genome = |stoit_name, genome, total_coverage, current_genome_length| {
-            debug!("{:?} {:?} {:?}", str::from_utf8(genome).unwrap(), total_coverage, current_genome_length);
+        let mut print_genome = |stoit_name, genome, coverage| {
+            debug!("{:?} {:?}", str::from_utf8(genome).unwrap(), coverage);
             writeln!(print_stream, "{}\t{}\t{}",
                      stoit_name,
                      str::from_utf8(genome).unwrap(),
-                     total_coverage as f32/current_genome_length as f32).unwrap();
+                     coverage).unwrap();
         };
         let extract_genome = |tid| {
             let target_name = target_names[tid as usize];
@@ -84,13 +112,13 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
             return extra
         };
 
-        let mut current_genome_total_coverage: u32 = 0;
         let mut current_genome_length: u32 = 0;
         let mut last_tid: u32 = 0;
         let mut doing_first = true;
         let mut last_genome: &[u8] = "error genome".as_bytes();
         let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
             "failure to convert bam file name to stoit name - UTF8 error maybe?");
+        let mut current_estimator = PileupMeanEstimator::new();
         for p in bam.pileup() {
             let pileup = p.unwrap();
 
@@ -102,16 +130,15 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
 
                 if doing_first == true {
                     last_genome = current_genome;
-                    current_genome_total_coverage = 0;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                     doing_first = false;
                 } else if current_genome == last_genome {
                     current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
                 } else {
                     current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-                    print_genome(stoit_name, last_genome, current_genome_total_coverage, current_genome_length);
+                    print_genome(stoit_name, last_genome, current_estimator.finish_genome(current_genome_length));
                     last_genome = current_genome;
-                    current_genome_total_coverage = 0;
+                    current_estimator = PileupMeanEstimator::new();
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                 }
 
@@ -119,12 +146,10 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
                 debug!("genome length now {}", current_genome_length);
                 last_tid = tid;
             }
-            current_genome_total_coverage += pileup.depth();
+            current_estimator.process_pileup(pileup);
         }
         current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-        print_genome(stoit_name, last_genome, current_genome_total_coverage, current_genome_length);
-        //process_contig(bam_file, total_coverage, bases_covered, last_tid, header, &mut genome_to_total_coverage, &contig_to_genome);
-        //println!("{:?}", genome_to_total_coverage);
+        print_genome(stoit_name, last_genome, current_estimator.finish_genome(current_genome_length));
     };
 }
 
