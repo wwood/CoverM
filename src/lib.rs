@@ -16,11 +16,11 @@ pub trait PileupGenomeCoverageEstimator {
     fn finish_genome(&mut self, total_bases: u32) -> f32;
 }
 
-struct PileupMeanEstimator {
+pub struct PileupMeanEstimator {
     total_count: u32
 }
 impl PileupMeanEstimator {
-    fn new() -> PileupMeanEstimator {
+    pub fn new() -> PileupMeanEstimator {
         PileupMeanEstimator {total_count: 0}
     }
 }
@@ -29,14 +29,21 @@ impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
         self.total_count += pileup.depth()
     }
     fn finish_genome(&mut self, total_bases: u32) -> f32 {
-        match total_bases {
+        let answer = match total_bases {
             0 => 0.0,
             _ => self.total_count as f32 / total_bases as f32
-        }
+        };
+        self.total_count = 0;
+        return answer
     }
 }
 
-pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut std::io::Write){
+pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
+    bam_files: &Vec<&str>,
+    split_char: u8,
+    print_stream: &mut std::io::Write,
+    pileup_coverage_estimator: &mut T) {
+
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
         let bam = bam::Reader::from_path(bam_file).expect(
@@ -118,7 +125,6 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
         let mut last_genome: &[u8] = "error genome".as_bytes();
         let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
             "failure to convert bam file name to stoit name - UTF8 error maybe?");
-        let mut current_estimator = PileupMeanEstimator::new();
         for p in bam.pileup() {
             let pileup = p.unwrap();
 
@@ -136,9 +142,8 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
                     current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
                 } else {
                     current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-                    print_genome(stoit_name, last_genome, current_estimator.finish_genome(current_genome_length));
+                    print_genome(stoit_name, last_genome, pileup_coverage_estimator.finish_genome(current_genome_length));
                     last_genome = current_genome;
-                    current_estimator = PileupMeanEstimator::new();
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                 }
 
@@ -146,10 +151,10 @@ pub fn genome_coverage(bam_files: &Vec<&str>, split_char: u8, print_stream: &mut
                 debug!("genome length now {}", current_genome_length);
                 last_tid = tid;
             }
-            current_estimator.process_pileup(pileup);
+            pileup_coverage_estimator.process_pileup(pileup);
         }
         current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-        print_genome(stoit_name, last_genome, current_estimator.finish_genome(current_genome_length));
+        print_genome(stoit_name, last_genome, pileup_coverage_estimator.finish_genome(current_genome_length));
     };
 }
 
@@ -179,7 +184,8 @@ mod tests {
         genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             'q' as u8,
-            &mut stream);
+            &mut stream,
+            &mut PileupMeanEstimator::new());
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -191,7 +197,8 @@ mod tests {
         genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             'q' as u8,
-            &mut stream);
+            &mut stream,
+            &mut PileupMeanEstimator::new());
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -203,7 +210,8 @@ mod tests {
         genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream);
+            &mut stream,
+            &mut PileupMeanEstimator::new());
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
