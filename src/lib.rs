@@ -9,7 +9,6 @@ use self::rust_htslib::bam::Read as bamRead;
 use std::str;
 
 extern crate env_logger;
-use env_logger::LogBuilder;
 
 pub trait PileupGenomeCoverageEstimator {
     #[inline]
@@ -77,6 +76,87 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
     }
 }
 
+/// Potentially optimised version of PileupTrimmedMeanEstimator, where the
+/// internal storage is a vector of "count counts"
+pub struct PileupTrimmedMeanEstimator2 {
+    counts: Vec<u32>,
+    min: f32,
+    max: f32
+}
+impl PileupTrimmedMeanEstimator2 {
+    pub fn new() -> PileupTrimmedMeanEstimator2 {
+        PileupTrimmedMeanEstimator2 {
+            counts: vec!(),
+            max: 0.9,
+            min: 0.1}
+    }
+}
+impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
+    fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
+        let depth = pileup.depth() as usize;
+        if self.counts.len() <= depth {
+            self.counts.resize(depth+1, 0);
+        }
+        self.counts[depth] += 1;
+    }
+    fn finish_genome(&mut self, total_bases: u32) -> f32 {
+        debug!("{:?}", self.counts);
+        let answer = match total_bases {
+            0 => 0.0,
+            _ => {
+                let min_index: usize = (self.min * total_bases as f32).floor() as usize;
+                let max_index: usize = (self.max * total_bases as f32).ceil() as usize;
+                let num_bases_covered = self.counts.iter().fold(0, |acc, &x| acc + x);
+                if num_bases_covered == 0 {return 0.0;}
+                let num_zeroes = total_bases - num_bases_covered;
+                self.counts[0] = num_zeroes;
+                debug!("{:?}", self.counts);
+
+                let mut num_accounted_for: usize = 0;
+                let mut total: usize = 0;
+                let mut started = false;
+                let mut i = 0;
+                for num_covered in self.counts.iter() {
+                    num_accounted_for += *num_covered as usize;
+                    debug!("start: i {}, num_accounted_for {}, total {}, min {}, max {}", i, num_accounted_for, total, min_index, max_index);
+                    if num_accounted_for >= min_index {
+                        debug!("inside");
+                        if started {
+                            if num_accounted_for > max_index {
+                                let num_wanted = max_index - (num_accounted_for - *num_covered as usize) + 1;
+                                debug!("num wanted1: {}", num_wanted);
+                                total += num_wanted * i;
+                                break;
+                            } else {
+                                total += *num_covered as usize * i;
+                            }
+                        } else {
+                            if num_accounted_for > max_index {
+                                // all coverages are the same in the trimmed set
+                                total = (max_index-min_index+1) * i;
+                                started = true
+                            } else if num_accounted_for < min_index {
+                                debug!("too few on first")
+                            } else {
+                                let num_wanted = num_accounted_for - min_index + 1;
+                                debug!("num wanted2: {}", num_wanted);
+                                total = num_wanted * i;
+                                started = true;
+                            }
+                        }
+                    }
+                    debug!("end i {}, num_accounted_for {}, total {}", i, num_accounted_for, total);
+
+                    i += 1;
+                }
+                total as f32 / (max_index-min_index) as f32
+            }
+        };
+        self.counts = vec!();
+        return answer
+    }
+}
+
 pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
     split_char: u8,
@@ -99,6 +179,7 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
         };
         let extract_genome = |tid| {
             let target_name = target_names[tid as usize];
+            debug!("target name {:?}, separator {:?}", target_name, split_char);
             let offset = find_first(target_name, split_char).expect(
                 &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                          str::from_utf8(target_name).unwrap()));
@@ -269,6 +350,19 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut PileupTrimmedMeanEstimator::new());
+        assert_eq!(
+            "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_two_contigs_trimmed_mean2(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
+            'e' as u8,
+            &mut stream,
+            &mut PileupTrimmedMeanEstimator2::new());
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())

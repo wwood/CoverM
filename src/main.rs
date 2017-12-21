@@ -33,6 +33,11 @@ fn main(){
                     separator,
                     &mut std::io::stdout(),
                     &mut coverm::PileupTrimmedMeanEstimator::new()),
+                "trimmed_mean_optimisation_test" => coverm::genome_coverage(
+                    &bam_files,
+                    separator,
+                    &mut std::io::stdout(),
+                    &mut coverm::PileupTrimmedMeanEstimator2::new()),
                 _ => panic!("programming error")
             }
         },
@@ -82,6 +87,6 @@ fn build_cli() -> App<'static, 'static> {
                      .long("method")
                      .help("Method for calculating coverage")
                      .takes_value(true)
-                     .possible_values(&["mean", "trimmed_mean"])
+                     .possible_values(&["mean", "trimmed_mean", "trimmed_mean_optimisation_test"])
                      .default_value("mean")));
 }
