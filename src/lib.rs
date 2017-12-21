@@ -8,6 +8,9 @@ use self::rust_htslib::bam::Read as bamRead;
 
 use std::str;
 
+extern crate env_logger;
+use env_logger::LogBuilder;
+
 pub trait PileupGenomeCoverageEstimator {
     #[inline]
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup);
@@ -34,6 +37,42 @@ impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
             _ => self.total_count as f32 / total_bases as f32
         };
         self.total_count = 0;
+        return answer
+    }
+}
+
+pub struct PileupTrimmedMeanEstimator {
+    counts: Vec<u32>,
+    min: f32,
+    max: f32
+}
+impl PileupTrimmedMeanEstimator {
+    pub fn new() -> PileupTrimmedMeanEstimator {
+        PileupTrimmedMeanEstimator {
+            counts: vec!(),
+            max: 0.9,
+            min: 0.1}
+    }
+}
+impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
+    fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
+        self.counts.push(pileup.depth())
+    }
+    fn finish_genome(&mut self, total_bases: u32) -> f32 {
+        let answer = match total_bases {
+            0 => 0.0,
+            _ => {
+                let num_zeroes = total_bases - self.counts.len() as u32;
+                self.counts.extend(vec![0; num_zeroes as usize]);
+                self.counts.sort_unstable();
+                let min_index: usize = (self.min * self.counts.len() as f32).floor() as usize;
+                let max_index: usize = (self.max * self.counts.len() as f32).ceil() as usize;
+                let total = self.counts[min_index..(max_index+1)].iter().fold(0, |acc, &x| acc + x);
+                debug!("Min {}, Max {} total {}", min_index, max_index, total);
+                total as f32 / (max_index-min_index) as f32
+            }
+        };
+        self.counts = vec!();
         return answer
     }
 }
@@ -179,6 +218,11 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    fn initialize_logger() {
+        env_logger::init().unwrap();
+    }
+
+    #[test]
     fn test_one_genome_two_contigs_first_covered(){
         let mut stream = Cursor::new(Vec::new());
         genome_coverage(
@@ -214,6 +258,19 @@ mod tests {
             &mut PileupMeanEstimator::new());
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_two_contigs_trimmed_mean(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
+            'e' as u8,
+            &mut stream,
+            &mut PileupTrimmedMeanEstimator::new());
+        assert_eq!(
+            "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }

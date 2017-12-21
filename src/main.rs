@@ -21,11 +21,20 @@ fn main(){
             let separator: u8 = m.value_of("separator").unwrap().as_bytes()[0];
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
-            coverm::genome_coverage(
-                &bam_files,
-                separator,
-                &mut std::io::stdout(),
-                &mut coverm::PileupMeanEstimator::new());
+            let method = m.value_of("method").unwrap();
+            match method {
+                "mean" => coverm::genome_coverage(
+                    &bam_files,
+                    separator,
+                    &mut std::io::stdout(),
+                    &mut coverm::PileupMeanEstimator::new()),
+                "trimmed_mean" => coverm::genome_coverage(
+                    &bam_files,
+                    separator,
+                    &mut std::io::stdout(),
+                    &mut coverm::PileupTrimmedMeanEstimator::new()),
+                _ => panic!("programming error")
+            }
         },
         _ => {
             app.print_help().unwrap();
@@ -67,5 +76,12 @@ fn build_cli() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
-                .args_from_usage(&genome_args));
+                .args_from_usage(&genome_args)
+                .arg(Arg::with_name("method")
+                     .short("m")
+                     .long("method")
+                     .help("Method for calculating coverage")
+                     .takes_value(true)
+                     .possible_values(&["mean", "trimmed_mean"])
+                     .default_value("mean")));
 }
