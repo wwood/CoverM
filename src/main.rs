@@ -2,6 +2,7 @@ extern crate coverm;
 
 use std::env;
 use std::str;
+use std::process;
 
 extern crate clap;
 use clap::*;
@@ -18,7 +19,15 @@ fn main(){
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            let separator: u8 = m.value_of("separator").unwrap().as_bytes()[0];
+            let separator_str = m.value_of("separator").unwrap().as_bytes();
+            if separator_str.len() != 1 {
+                eprintln!(
+                    "error: Separator can only be a single character, found {} ({}).",
+                    separator_str.len(),
+                    str::from_utf8(separator_str).unwrap());
+                process::exit(1);
+            }
+            let separator: u8 = separator_str[0];
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
             let method = m.value_of("method").unwrap();
@@ -67,7 +76,7 @@ fn set_log_level(matches: &clap::ArgMatches) {
 fn build_cli() -> App<'static, 'static> {
     //-f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
     let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
-                      -s, --separator=<CHARACTER>         'Character used in contig name to separate genome (first) from contig (second) e.g. ~ for BAM reference names like genome1~contig2'
+                      -s, --separator=<CHARACTER>         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
 
                       -v, --verbose       'Print extra debug logging information'
                       -q, --quiet         'Unless there is an error, do not print logging information'";
