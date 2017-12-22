@@ -37,17 +37,27 @@ fn main(){
                     separator,
                     &mut std::io::stdout(),
                     &mut coverm::PileupMeanEstimator::new()),
-                "trimmed_mean" => coverm::genome_coverage(
-                    &bam_files,
-                    separator,
-                    &mut std::io::stdout(),
-                    &mut coverm::PileupTrimmedMeanEstimator::new()),
-                "trimmed_mean_optimisation_test" => coverm::genome_coverage(
-                    &bam_files,
-                    separator,
-                    &mut std::io::stdout(),
-                    &mut coverm::PileupTrimmedMeanEstimator2::new()),
-                _ => panic!("programming error")
+                _ => {
+                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+                        process::exit(1)
+                    }
+                    match method {
+                        "trimmed_mean" => coverm::genome_coverage(
+                            &bam_files,
+                            separator,
+                            &mut std::io::stdout(),
+                            &mut coverm::PileupTrimmedMeanEstimator::new(min,max)),
+                        "trimmed_mean_optimisation_test" => coverm::genome_coverage(
+                            &bam_files,
+                            separator,
+                            &mut std::io::stdout(),
+                            &mut coverm::PileupTrimmedMeanEstimator2::new(min,max)),
+                        _ => panic!("programming error")
+                    }
+                }
             }
         },
         _ => {
@@ -97,5 +107,13 @@ fn build_cli() -> App<'static, 'static> {
                      .help("Method for calculating coverage")
                      .takes_value(true)
                      .possible_values(&["mean", "trimmed_mean", "trimmed_mean_optimisation_test"])
-                     .default_value("mean")));
+                     .default_value("mean"))
+                .arg(Arg::with_name("trim-min")
+                     .long("trim-min")
+                     .help("Minimum for trimmed mean calculations")
+                     .default_value("0.05"))
+                .arg(Arg::with_name("trim-max")
+                     .long("trim-max")
+                     .help("Maximum for trimmed mean calculations")
+                     .default_value("0.95")));
 }

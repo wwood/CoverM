@@ -46,11 +46,11 @@ pub struct PileupTrimmedMeanEstimator {
     max: f32
 }
 impl PileupTrimmedMeanEstimator {
-    pub fn new() -> PileupTrimmedMeanEstimator {
+    pub fn new(min: f32, max: f32) -> PileupTrimmedMeanEstimator {
         PileupTrimmedMeanEstimator {
             counts: vec!(),
-            max: 0.9,
-            min: 0.1}
+            min: min,
+            max: max}
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
@@ -84,11 +84,11 @@ pub struct PileupTrimmedMeanEstimator2 {
     max: f32
 }
 impl PileupTrimmedMeanEstimator2 {
-    pub fn new() -> PileupTrimmedMeanEstimator2 {
+    pub fn new(min: f32, max: f32) -> PileupTrimmedMeanEstimator2 {
         PileupTrimmedMeanEstimator2 {
             counts: vec!(),
-            max: 0.9,
-            min: 0.1}
+            min: min,
+            max: max}
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
@@ -349,7 +349,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator::new());
+            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -362,7 +362,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator2::new());
+            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
