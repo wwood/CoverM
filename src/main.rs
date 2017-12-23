@@ -31,12 +31,17 @@ fn main(){
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
             let method = m.value_of("method").unwrap();
+            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+            if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+                eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+                process::exit(1)
+            }
             match method {
                 "mean" => coverm::genome_coverage(
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
-                    &mut coverm::PileupMeanEstimator::new()),
+                    &mut coverm::PileupMeanEstimator::new(min_fraction_covered)),
                 _ => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                     let max = value_t!(m.value_of("trim-max"), f32).unwrap();
@@ -49,12 +54,14 @@ fn main(){
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::PileupTrimmedMeanEstimator::new(min,max)),
+                            &mut coverm::PileupTrimmedMeanEstimator::new(
+                                min, max, min_fraction_covered)),
                         "trimmed_mean_optimisation_test" => coverm::genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::PileupTrimmedMeanEstimator2::new(min,max)),
+                            &mut coverm::PileupTrimmedMeanEstimator2::new(
+                                min, max, min_fraction_covered)),
                         _ => panic!("programming error")
                     }
                 }
@@ -115,5 +122,9 @@ fn build_cli() -> App<'static, 'static> {
                 .arg(Arg::with_name("trim-max")
                      .long("trim-max")
                      .help("Maximum for trimmed mean calculations")
-                     .default_value("0.95")));
+                     .default_value("0.95"))
+                .arg(Arg::with_name("min-covered-fraction")
+                     .long("min-covered-fraction")
+                     .help("Minimum fraction of the genome covered (when less than this, coverage is set to zero)")
+                     .default_value("0.02")));
 }

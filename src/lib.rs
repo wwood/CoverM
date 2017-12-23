@@ -19,23 +19,36 @@ pub trait PileupGenomeCoverageEstimator {
 }
 
 pub struct PileupMeanEstimator {
-    total_count: u32
+    total_count: u32,
+    min_num_covered_bases: f32,
+    num_covered_bases: u32
 }
 impl PileupMeanEstimator {
-    pub fn new() -> PileupMeanEstimator {
-        PileupMeanEstimator {total_count: 0}
+    pub fn new(min_num_covered_bases: f32) -> PileupMeanEstimator {
+        PileupMeanEstimator {
+            total_count: 0,
+            min_num_covered_bases: min_num_covered_bases,
+            num_covered_bases: 0}
     }
 }
 impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
-        self.total_count += pileup.depth()
+        self.total_count += pileup.depth();
+        self.num_covered_bases += 1;
     }
     fn finish_genome(&mut self, total_bases: u32) -> f32 {
         let answer = match total_bases {
             0 => 0.0,
-            _ => self.total_count as f32 / total_bases as f32
+            _ => {
+                if self.num_covered_bases as f32 / total_bases as f32 >= self.min_num_covered_bases {
+                    self.total_count as f32 / total_bases as f32
+                } else {
+                    0.0
+                }
+            }
         };
         self.total_count = 0;
+        self.num_covered_bases = 0;
         return answer
     }
 }
@@ -43,32 +56,38 @@ impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
 pub struct PileupTrimmedMeanEstimator {
     counts: Vec<u32>,
     min: f32,
-    max: f32
+    max: f32,
+    min_fraction_covered_bases: f32
 }
 impl PileupTrimmedMeanEstimator {
-    pub fn new(min: f32, max: f32) -> PileupTrimmedMeanEstimator {
+    pub fn new(min: f32, max: f32, min_fraction_covered_bases: f32) -> PileupTrimmedMeanEstimator {
         PileupTrimmedMeanEstimator {
             counts: vec!(),
             min: min,
-            max: max}
+            max: max,
+            min_fraction_covered_bases: min_fraction_covered_bases}
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
-        self.counts.push(pileup.depth())
+        self.counts.push(pileup.depth());
     }
     fn finish_genome(&mut self, total_bases: u32) -> f32 {
         let answer = match total_bases {
             0 => 0.0,
             _ => {
-                let num_zeroes = total_bases - self.counts.len() as u32;
-                self.counts.extend(vec![0; num_zeroes as usize]);
-                self.counts.sort_unstable();
-                let min_index: usize = (self.min * self.counts.len() as f32).floor() as usize;
-                let max_index: usize = (self.max * self.counts.len() as f32).ceil() as usize;
-                let total = self.counts[min_index..(max_index+1)].iter().fold(0, |acc, &x| acc + x);
-                debug!("Min {}, Max {} total {}", min_index, max_index, total);
-                total as f32 / (max_index-min_index) as f32
+                if (self.counts.len() as f32 / total_bases as f32) < self.min_fraction_covered_bases {
+                    0.0
+                } else {
+                    let num_zeroes = total_bases - self.counts.len() as u32;
+                    self.counts.extend(vec![0; num_zeroes as usize]);
+                    self.counts.sort_unstable();
+                    let min_index: usize = (self.min * self.counts.len() as f32).floor() as usize;
+                    let max_index: usize = (self.max * self.counts.len() as f32).ceil() as usize;
+                    let total = self.counts[min_index..(max_index+1)].iter().fold(0, |acc, &x| acc + x);
+                    debug!("Min {}, Max {} total {}", min_index, max_index, total);
+                    total as f32 / (max_index-min_index) as f32
+                }
             }
         };
         self.counts = vec!();
@@ -81,14 +100,16 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
 pub struct PileupTrimmedMeanEstimator2 {
     counts: Vec<u32>,
     min: f32,
-    max: f32
+    max: f32,
+    min_fraction_covered_bases: f32
 }
 impl PileupTrimmedMeanEstimator2 {
-    pub fn new(min: f32, max: f32) -> PileupTrimmedMeanEstimator2 {
+    pub fn new(min: f32, max: f32, min_fraction_covered_bases: f32) -> PileupTrimmedMeanEstimator2 {
         PileupTrimmedMeanEstimator2 {
             counts: vec!(),
             min: min,
-            max: max}
+            max: max,
+            min_fraction_covered_bases: min_fraction_covered_bases}
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
@@ -104,52 +125,56 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
         let answer = match total_bases {
             0 => 0.0,
             _ => {
-                let min_index: usize = (self.min * total_bases as f32).floor() as usize;
-                let max_index: usize = (self.max * total_bases as f32).ceil() as usize;
                 let num_bases_covered = self.counts.iter().fold(0, |acc, &x| acc + x);
-                if num_bases_covered == 0 {return 0.0;}
-                let num_zeroes = total_bases - num_bases_covered;
-                self.counts[0] = num_zeroes;
-                debug!("{:?}", self.counts);
+                if (num_bases_covered as f32 / total_bases as f32) < self.min_fraction_covered_bases {
+                    0.0
+                } else {
+                    let min_index: usize = (self.min * total_bases as f32).floor() as usize;
+                    let max_index: usize = (self.max * total_bases as f32).ceil() as usize;
+                    if num_bases_covered == 0 {return 0.0;}
+                    let num_zeroes = total_bases - num_bases_covered;
+                    self.counts[0] = num_zeroes;
+                    debug!("{:?}", self.counts);
 
-                let mut num_accounted_for: usize = 0;
-                let mut total: usize = 0;
-                let mut started = false;
-                let mut i = 0;
-                for num_covered in self.counts.iter() {
-                    num_accounted_for += *num_covered as usize;
-                    debug!("start: i {}, num_accounted_for {}, total {}, min {}, max {}", i, num_accounted_for, total, min_index, max_index);
-                    if num_accounted_for >= min_index {
-                        debug!("inside");
-                        if started {
-                            if num_accounted_for > max_index {
-                                let num_wanted = max_index - (num_accounted_for - *num_covered as usize) + 1;
-                                debug!("num wanted1: {}", num_wanted);
-                                total += num_wanted * i;
-                                break;
+                    let mut num_accounted_for: usize = 0;
+                    let mut total: usize = 0;
+                    let mut started = false;
+                    let mut i = 0;
+                    for num_covered in self.counts.iter() {
+                        num_accounted_for += *num_covered as usize;
+                        debug!("start: i {}, num_accounted_for {}, total {}, min {}, max {}", i, num_accounted_for, total, min_index, max_index);
+                        if num_accounted_for >= min_index {
+                            debug!("inside");
+                            if started {
+                                if num_accounted_for > max_index {
+                                    let num_wanted = max_index - (num_accounted_for - *num_covered as usize) + 1;
+                                    debug!("num wanted1: {}", num_wanted);
+                                    total += num_wanted * i;
+                                    break;
+                                } else {
+                                    total += *num_covered as usize * i;
+                                }
                             } else {
-                                total += *num_covered as usize * i;
-                            }
-                        } else {
-                            if num_accounted_for > max_index {
-                                // all coverages are the same in the trimmed set
-                                total = (max_index-min_index+1) * i;
-                                started = true
-                            } else if num_accounted_for < min_index {
-                                debug!("too few on first")
-                            } else {
-                                let num_wanted = num_accounted_for - min_index + 1;
-                                debug!("num wanted2: {}", num_wanted);
-                                total = num_wanted * i;
-                                started = true;
+                                if num_accounted_for > max_index {
+                                    // all coverages are the same in the trimmed set
+                                    total = (max_index-min_index+1) * i;
+                                    started = true
+                                } else if num_accounted_for < min_index {
+                                    debug!("too few on first")
+                                } else {
+                                    let num_wanted = num_accounted_for - min_index + 1;
+                                    debug!("num wanted2: {}", num_wanted);
+                                    total = num_wanted * i;
+                                    started = true;
+                                }
                             }
                         }
-                    }
-                    debug!("end i {}, num_accounted_for {}, total {}", i, num_accounted_for, total);
+                        debug!("end i {}, num_accounted_for {}, total {}", i, num_accounted_for, total);
 
-                    i += 1;
+                        i += 1;
+                    }
+                    total as f32 / (max_index-min_index) as f32
                 }
-                total as f32 / (max_index-min_index) as f32
             }
         };
         self.counts = vec!();
@@ -312,7 +337,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             'q' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new());
+            &mut PileupMeanEstimator::new(0.0));
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -325,7 +350,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             'q' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new());
+            &mut PileupMeanEstimator::new(0.0));
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -338,7 +363,33 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new());
+            &mut PileupMeanEstimator::new(0.0));
+        assert_eq!(
+            "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_one_genome_min_fraction_covered_under_min(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
+            'e' as u8,
+            &mut stream,
+            &mut PileupMeanEstimator::new(0.76));
+        assert_eq!(
+            "",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_one_genome_min_fraction_covered_just_ok(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
+            'e' as u8,
+            &mut stream,
+            &mut PileupMeanEstimator::new(0.759));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -351,7 +402,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9));
+            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9, 0.0));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -364,7 +415,7 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9));
+            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
