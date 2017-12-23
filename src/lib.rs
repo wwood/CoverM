@@ -190,9 +190,9 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
-        let bam = bam::Reader::from_path(bam_file).expect(
+        let mut bam = bam::Reader::from_path(bam_file).expect(
             &format!("Unable to find BAM file {}", bam_file));
-        let header = bam.header();
+        let header = bam.header().clone();
         let target_names = header.target_names();
 
         let mut print_genome = |stoit_name, genome, coverage| {
