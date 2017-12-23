@@ -172,10 +172,12 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
 
         let mut print_genome = |stoit_name, genome, coverage| {
             debug!("{:?} {:?}", str::from_utf8(genome).unwrap(), coverage);
-            writeln!(print_stream, "{}\t{}\t{}",
-                     stoit_name,
-                     str::from_utf8(genome).unwrap(),
-                     coverage).unwrap();
+            if coverage > 0.0 {
+                writeln!(print_stream, "{}\t{}\t{}",
+                         stoit_name,
+                         str::from_utf8(genome).unwrap(),
+                         coverage).unwrap();
+            }
         };
         let extract_genome = |tid| {
             let target_name = target_names[tid as usize];
