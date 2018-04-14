@@ -6,7 +6,7 @@ reads mapped to a collection of genomes.
 
 ## Installation
 
-To install CoverM, first install (Rust)[https://www.rust-lang.org/]. Soon,
+To install CoverM, first install [Rust](https://www.rust-lang.org/). Soon,
 CoverM will be available via cargo, but for the moment you'll need to build it
 from source by cloning the repository and running `cargo build --release`.
 
