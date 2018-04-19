@@ -11,11 +11,21 @@ use std::str;
 extern crate env_logger;
 
 pub trait PileupGenomeCoverageEstimator {
+    fn setup_genome(&mut self);
+
     #[inline]
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup);
 
     #[inline]
     fn finish_genome(&mut self, total_bases: u32) -> f32;
+
+    fn print_genome(&self, stoit_name: &str, genome: &str, coverage: &f32,
+                    print_stream: &mut std::io::Write) {
+        writeln!(print_stream, "{}\t{}\t{}",
+                 stoit_name,
+                 genome,
+                 coverage).unwrap();
+    }
 }
 
 pub struct PileupMeanEstimator {
@@ -32,6 +42,10 @@ impl PileupMeanEstimator {
     }
 }
 impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
+    fn setup_genome(&mut self) {
+        self.total_count = 0;
+        self.num_covered_bases = 0;
+    }
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
         self.total_count += pileup.depth();
         self.num_covered_bases += 1;
@@ -47,8 +61,6 @@ impl PileupGenomeCoverageEstimator for PileupMeanEstimator {
                 }
             }
         };
-        self.total_count = 0;
-        self.num_covered_bases = 0;
         return answer
     }
 }
@@ -69,6 +81,9 @@ impl PileupTrimmedMeanEstimator {
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
+    fn setup_genome(&mut self) {
+        self.counts = vec!();
+    }
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
         self.counts.push(pileup.depth());
     }
@@ -90,13 +105,14 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator {
                 }
             }
         };
-        self.counts = vec!();
         return answer
     }
 }
 
 /// Potentially optimised version of PileupTrimmedMeanEstimator, where the
-/// internal storage is a vector of "count counts"
+/// internal storage is a vector of "count counts". However, it has now just
+/// been co-opted to print out the number of bases at each coverage level, per
+/// genome.
 pub struct PileupTrimmedMeanEstimator2 {
     counts: Vec<u32>,
     min: f32,
@@ -113,6 +129,9 @@ impl PileupTrimmedMeanEstimator2 {
     }
 }
 impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
+    fn setup_genome(&mut self) {
+        self.counts = vec!();
+    }
     fn process_pileup(&mut self, pileup: rust_htslib::bam::pileup::Pileup) {
         let depth = pileup.depth() as usize;
         if self.counts.len() <= depth {
@@ -121,7 +140,6 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
         self.counts[depth] += 1;
     }
     fn finish_genome(&mut self, total_bases: u32) -> f32 {
-        debug!("{:?}", self.counts);
         let answer = match total_bases {
             0 => 0.0,
             _ => {
@@ -134,7 +152,13 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
                     if num_bases_covered == 0 {return 0.0;}
                     let num_zeroes = total_bases - num_bases_covered;
                     self.counts[0] = num_zeroes;
-                    debug!("{:?}", self.counts);
+                    if log_enabled!(log::LogLevel::Debug){
+                        let mut i = 0;
+                        for num_covered in self.counts.iter() {
+                            debug!("per_base_coverage: {:}\t{:}", i, *num_covered);
+                            i += 1
+                        }
+                    }
 
                     let mut num_accounted_for: usize = 0;
                     let mut total: usize = 0;
@@ -177,10 +201,21 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
                 }
             }
         };
-        self.counts = vec!();
         return answer
     }
+
+    fn print_genome(&self, stoit_name: &str, genome: &str, _coverage: &f32,
+                    print_stream: &mut std::io::Write) {
+        let mut i = 0;
+        debug!("starting to print {}", genome);
+        debug!("{:?}",self.counts);
+        for num_covered in self.counts.iter() {
+            writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, *num_covered).unwrap();
+            i += 1
+        }
+    }
 }
+
 
 pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
@@ -195,15 +230,6 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
         let header = bam.header().clone();
         let target_names = header.target_names();
 
-        let mut print_genome = |stoit_name, genome, coverage| {
-            debug!("{:?} {:?}", str::from_utf8(genome).unwrap(), coverage);
-            if coverage > 0.0 {
-                writeln!(print_stream, "{}\t{}\t{}",
-                         stoit_name,
-                         str::from_utf8(genome).unwrap(),
-                         coverage).unwrap();
-            }
-        };
         let extract_genome = |tid| {
             let target_name = target_names[tid as usize];
             debug!("target name {:?}, separator {:?}", target_name, split_char);
@@ -272,6 +298,7 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
         let mut last_genome: &[u8] = "error genome".as_bytes();
         let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
             "failure to convert bam file name to stoit name - UTF8 error maybe?");
+        pileup_coverage_estimator.setup_genome();
         for p in bam.pileup() {
             let pileup = p.unwrap();
 
@@ -289,7 +316,14 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
                     current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
                 } else {
                     current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-                    print_genome(stoit_name, last_genome, pileup_coverage_estimator.finish_genome(current_genome_length));
+                    let coverage = pileup_coverage_estimator.finish_genome(current_genome_length);
+                    if coverage > 0.0 {
+                        pileup_coverage_estimator.print_genome(&stoit_name,
+                                                               &str::from_utf8(last_genome).unwrap(),
+                                                               &coverage,
+                                                               print_stream);
+                    }
+                    pileup_coverage_estimator.setup_genome();
                     last_genome = current_genome;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                 }
@@ -301,7 +335,11 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             pileup_coverage_estimator.process_pileup(pileup);
         }
         current_genome_length += fill_genome_length_forwards(last_tid, last_genome);
-        print_genome(stoit_name, last_genome, pileup_coverage_estimator.finish_genome(current_genome_length));
+        let coverage = pileup_coverage_estimator.finish_genome(current_genome_length);
+        if coverage > 0.0 {
+            pileup_coverage_estimator.print_genome(&stoit_name, &str::from_utf8(last_genome).unwrap(),
+                                                   &coverage, print_stream);
+        }
     };
 }
 
@@ -417,7 +455,7 @@ mod tests {
             &mut stream,
             &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0));
         assert_eq!(
-            "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
+            "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }
