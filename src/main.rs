@@ -56,7 +56,7 @@ fn main(){
                             &mut std::io::stdout(),
                             &mut coverm::PileupTrimmedMeanEstimator::new(
                                 min, max, min_fraction_covered)),
-                        "trimmed_mean_optimisation_test" => coverm::genome_coverage(
+                        "coverage_histogram" => coverm::genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
@@ -113,7 +113,7 @@ fn build_cli() -> App<'static, 'static> {
                      .long("method")
                      .help("Method for calculating coverage")
                      .takes_value(true)
-                     .possible_values(&["mean", "trimmed_mean", "trimmed_mean_optimisation_test"])
+                     .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
