@@ -19,12 +19,21 @@ pub trait PileupGenomeCoverageEstimator {
     #[inline]
     fn finish_genome(&mut self, total_bases: u32) -> f32;
 
-    fn print_genome(&self, stoit_name: &str, genome: &str, coverage: &f32,
-                    print_stream: &mut std::io::Write) {
+    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
+                    print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
         writeln!(print_stream, "{}\t{}\t{}",
                  stoit_name,
                  genome,
                  coverage).unwrap();
+        return print_stream;
+    }
+
+    fn print_zero_coverage<'a>(&self, stoit_name: &str, genome: &str,
+                           print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        writeln!(print_stream, "{}\t{}\t0.0",
+                 stoit_name,
+                 genome).unwrap();
+        return print_stream;
     }
 }
 
@@ -204,8 +213,8 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
         return answer
     }
 
-    fn print_genome(&self, stoit_name: &str, genome: &str, _coverage: &f32,
-                    print_stream: &mut std::io::Write) {
+    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, _coverage: &f32,
+                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
         let mut i = 0;
         debug!("starting to print {}", genome);
         debug!("{:?}",self.counts);
@@ -213,9 +222,54 @@ impl PileupGenomeCoverageEstimator for PileupTrimmedMeanEstimator2 {
             writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, *num_covered).unwrap();
             i += 1
         }
+        return print_stream;
+    }
+
+    fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
+                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        // zeros are not printed usually, so do not print the length.
+        return print_stream;
     }
 }
 
+fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) -> &'a [u8] {
+    let target_name = target_names[tid as usize];
+    debug!("target name {:?}, separator {:?}", target_name, split_char);
+    let offset = find_first(target_name, split_char).expect(
+        &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+                 str::from_utf8(target_name).unwrap()));
+    return &target_name[(0..offset)];
+}
+
+// Print zero coverage for genomes that have no reads mapped. Genomes are
+// detected from the header, counting backwards from the current tid until the
+// last seen genome is encountered, or we reach the beginning of the tid array.
+fn print_previous_zero_coverage_genomes<'a>(
+    stoit_name: &str,
+    last_genome: &[u8],
+    current_genome: &[u8],
+    current_tid: u32,
+    pileup_coverage_estimator: &'a PileupGenomeCoverageEstimator,
+    target_names: &Vec<&[u8]>,
+    split_char: u8,
+    print_stream: &mut std::io::Write)
+    -> &'a PileupGenomeCoverageEstimator {
+
+    let mut my_current_genome = current_genome;
+    let mut tid = current_tid;
+    while tid > 0 {
+        let genome = extract_genome(tid, &target_names, split_char);
+        if genome == last_genome { break; }
+        else if genome != my_current_genome {
+            // In-between genome encountered for the first time.
+            my_current_genome = genome;
+            pileup_coverage_estimator.print_zero_coverage(
+                &stoit_name, &str::from_utf8(genome).unwrap(), print_stream);
+        }
+        tid = tid - 1;
+    };
+    return pileup_coverage_estimator;
+}
 
 pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
@@ -230,14 +284,6 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
         let header = bam.header().clone();
         let target_names = header.target_names();
 
-        let extract_genome = |tid| {
-            let target_name = target_names[tid as usize];
-            debug!("target name {:?}, separator {:?}", target_name, split_char);
-            let offset = find_first(target_name, split_char).expect(
-                &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
-                         str::from_utf8(target_name).unwrap()));
-            return &target_name[(0..offset)];
-        };
         let fill_genome_length_forwards = |current_tid, target_genome| {
             // pileup skips over contigs with no mapped reads, but the length of
             // these contigs is required to calculate the average across all
@@ -247,7 +293,7 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             let total_refs = header.target_count();
             let mut my_tid = current_tid + 1;
             while my_tid < total_refs {
-                let my_genome = extract_genome(my_tid);
+                let my_genome = extract_genome(my_tid, &target_names, split_char);
                 if my_genome == target_genome {
                     extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
                     my_tid += 1;
@@ -262,7 +308,7 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             let mut extra: u32 = 0;
             let mut my_tid = current_tid - 1;
             loop { //my_tid >= 0 unnecessary due to type limits
-                let my_genome = extract_genome(my_tid);
+                let my_genome = extract_genome(my_tid, &target_names, split_char);
                 if my_genome == target_genome {
                     extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
                     if my_tid == 0 {
@@ -281,7 +327,7 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             let mut extra: u32 = 0;
             let mut my_tid = current_tid - 1;
             while my_tid > last_tid {
-                let my_genome = extract_genome(my_tid);
+                let my_genome = extract_genome(my_tid, &target_names, split_char);
                 if my_genome == target_genome {
                     extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
                     my_tid -= 1;
@@ -305,13 +351,16 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             let tid = pileup.tid();
             if tid != last_tid || doing_first {
                 // find the new name of the genome
-                let current_genome = extract_genome(tid);
+                let current_genome = extract_genome(tid, &target_names, split_char);
                 debug!("Found current genome {:?}", str::from_utf8(current_genome).unwrap());
 
                 if doing_first == true {
                     last_genome = current_genome;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                     doing_first = false;
+                    print_previous_zero_coverage_genomes(
+                        stoit_name, b"", current_genome, tid, pileup_coverage_estimator,
+                        &target_names, split_char, print_stream);
                 } else if current_genome == last_genome {
                     current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
                 } else {
@@ -324,6 +373,9 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
                                                                print_stream);
                     }
                     pileup_coverage_estimator.setup_genome();
+                    print_previous_zero_coverage_genomes(
+                        stoit_name, last_genome, current_genome, tid, pileup_coverage_estimator,
+                        &target_names, split_char, print_stream);
                     last_genome = current_genome;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                 }
@@ -339,7 +391,10 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
         if coverage > 0.0 {
             pileup_coverage_estimator.print_genome(&stoit_name, &str::from_utf8(last_genome).unwrap(),
                                                    &coverage, print_stream);
-        }
+        };
+        print_previous_zero_coverage_genomes(
+            stoit_name, last_genome, b"", header.target_count()-1, pileup_coverage_estimator,
+            &target_names, split_char, print_stream);
     };
 }
 
@@ -456,6 +511,19 @@ mod tests {
             &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_zero_coverage_genomes(){
+        let mut stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            '~' as u8,
+            &mut stream,
+            &mut PileupMeanEstimator::new(0.1));
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }
