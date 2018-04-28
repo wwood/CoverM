@@ -36,12 +36,14 @@ fn main(){
                 eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
                 process::exit(1)
             }
+            let print_zeros = !m.is_present("no-zeros");
             match method {
                 "mean" => coverm::genome_coverage(
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
-                    &mut coverm::PileupMeanEstimator::new(min_fraction_covered)),
+                    &mut coverm::PileupMeanEstimator::new(min_fraction_covered),
+                    print_zeros),
                 _ => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                     let max = value_t!(m.value_of("trim-max"), f32).unwrap();
@@ -55,13 +57,15 @@ fn main(){
                             separator,
                             &mut std::io::stdout(),
                             &mut coverm::PileupTrimmedMeanEstimator::new(
-                                min, max, min_fraction_covered)),
+                                min, max, min_fraction_covered),
+                            print_zeros),
                         "coverage_histogram" => coverm::genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
                             &mut coverm::PileupTrimmedMeanEstimator2::new(
-                                min, max, min_fraction_covered)),
+                                min, max, min_fraction_covered),
+                            print_zeros),
                         _ => panic!("programming error")
                     }
                 }
@@ -126,5 +130,8 @@ fn build_cli() -> App<'static, 'static> {
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
                      .help("Minimum fraction of the genome covered (when less than this, coverage is set to zero)")
-                     .default_value("0.02")));
+                     .default_value("0.02"))
+                .arg(Arg::with_name("no-zeros")
+                     .long("no-zeros")
+                     .help("Omit printing of genomes that have insufficient coverage")));
 }

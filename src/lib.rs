@@ -275,7 +275,8 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
     split_char: u8,
     print_stream: &mut std::io::Write,
-    pileup_coverage_estimator: &mut T) {
+    pileup_coverage_estimator: &mut T,
+    print_zero_coverage_genomes: bool) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -358,9 +359,11 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
                     last_genome = current_genome;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                     doing_first = false;
-                    print_previous_zero_coverage_genomes(
-                        stoit_name, b"", current_genome, tid, pileup_coverage_estimator,
-                        &target_names, split_char, print_stream);
+                    if print_zero_coverage_genomes {
+                        print_previous_zero_coverage_genomes(
+                            stoit_name, b"", current_genome, tid, pileup_coverage_estimator,
+                            &target_names, split_char, print_stream);
+                    }
                 } else if current_genome == last_genome {
                     current_genome_length += fill_genome_length_backwards_to_last(tid, last_tid, current_genome);
                 } else {
@@ -373,9 +376,11 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
                                                                print_stream);
                     }
                     pileup_coverage_estimator.setup_genome();
-                    print_previous_zero_coverage_genomes(
-                        stoit_name, last_genome, current_genome, tid, pileup_coverage_estimator,
-                        &target_names, split_char, print_stream);
+                    if print_zero_coverage_genomes {
+                        print_previous_zero_coverage_genomes(
+                            stoit_name, last_genome, current_genome, tid, pileup_coverage_estimator,
+                            &target_names, split_char, print_stream);
+                    }
                     last_genome = current_genome;
                     current_genome_length = fill_genome_length_backwards(tid, current_genome);
                 }
@@ -392,9 +397,11 @@ pub fn genome_coverage<T: PileupGenomeCoverageEstimator>(
             pileup_coverage_estimator.print_genome(&stoit_name, &str::from_utf8(last_genome).unwrap(),
                                                    &coverage, print_stream);
         };
-        print_previous_zero_coverage_genomes(
-            stoit_name, last_genome, b"", header.target_count()-1, pileup_coverage_estimator,
-            &target_names, split_char, print_stream);
+        if print_zero_coverage_genomes {
+            print_previous_zero_coverage_genomes(
+                stoit_name, last_genome, b"", header.target_count()-1, pileup_coverage_estimator,
+                &target_names, split_char, print_stream);
+        }
     };
 }
 
@@ -430,7 +437,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             'q' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.0));
+            &mut PileupMeanEstimator::new(0.0),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -443,7 +451,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             'q' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.0));
+            &mut PileupMeanEstimator::new(0.0),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -456,7 +465,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.0));
+            &mut PileupMeanEstimator::new(0.0),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -469,7 +479,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.76));
+            &mut PileupMeanEstimator::new(0.76),
+            true);
         assert_eq!(
             "",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -482,7 +493,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.759));
+            &mut PileupMeanEstimator::new(0.759),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -495,7 +507,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9, 0.0));
+            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9, 0.0),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -508,7 +521,8 @@ mod tests {
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0));
+            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0),
+            true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -521,9 +535,21 @@ mod tests {
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
             &mut stream,
-            &mut PileupMeanEstimator::new(0.1));
+            &mut PileupMeanEstimator::new(0.1),
+            true);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap());
+
+        stream = Cursor::new(Vec::new());
+        genome_coverage(
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            '~' as u8,
+            &mut stream,
+            &mut PileupMeanEstimator::new(0.1),
+            false);
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }
