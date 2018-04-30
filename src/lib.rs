@@ -1,3 +1,5 @@
+pub mod contig;
+
 extern crate bio;
 #[macro_use]
 extern crate log;

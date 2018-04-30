@@ -71,6 +71,14 @@ fn main(){
                 }
             }
         },
+        Some("contig") => {
+            let m = matches.subcommand_matches("contig").unwrap();
+            set_log_level(m);
+            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            coverm::contig::contig_coverage(
+                &bam_files,
+                &mut std::io::stdout());
+        },
         _ => {
             app.print_help().unwrap();
             println!();
@@ -98,6 +106,10 @@ fn build_cli() -> App<'static, 'static> {
     //-f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
     let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
                       -s, --separator=<CHARACTER>         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
+
+                      -v, --verbose       'Print extra debug logging information'
+                      -q, --quiet         'Unless there is an error, do not print logging information'";
+    let contig_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
 
                       -v, --verbose       'Print extra debug logging information'
                       -q, --quiet         'Unless there is an error, do not print logging information'";
@@ -133,5 +145,9 @@ fn build_cli() -> App<'static, 'static> {
                      .default_value("0.02"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros")
-                     .help("Omit printing of genomes that have insufficient coverage")));
+                     .help("Omit printing of genomes that have insufficient coverage")))
+        .subcommand(
+            SubCommand::with_name("contig")
+                .about("Calculate coverage of contigs")
+                .args_from_usage(&contig_args));
 }
