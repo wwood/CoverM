@@ -40,6 +40,7 @@ pub fn contig_coverage(
         debug!("Working on BAM file {}", bam_file);
         let mut bam = bam::Reader::from_path(bam_file).expect(
             &format!("Unable to find BAM file {}", bam_file));
+        bam.set_threads(4).expect("Failure to set num_threads");
 
         // for record in records
         let mut record: bam::record::Record = bam::record::Record::new();
