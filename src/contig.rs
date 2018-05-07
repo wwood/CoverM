@@ -9,6 +9,7 @@ pub fn contig_coverage(
 
     let process_last_reference =
         |header: &bam::HeaderView,
+         target_names: &Vec<&[u8]>,
          tid,
          ups_and_downs: &Vec<i32>,
          print_stream: & mut std::io::Write,
@@ -16,14 +17,14 @@ pub fn contig_coverage(
         let mut total: u32 = 0;
         let mut cumulative_sum: i32 = 0;
         let len = header.target_len(tid).expect("bam header parsing issue");
-        debug!("ups and downs for {:}: {:?}", std::str::from_utf8(header.target_names()[tid as usize]).unwrap(), ups_and_downs);
+        //debug!("ups and downs for {:}: {:?}", std::str::from_utf8(header.target_names()[tid as usize]).unwrap(), ups_and_downs);
         for i in 0..len {
             let current = ups_and_downs[i as usize];
             cumulative_sum += current;
             assert!(cumulative_sum >= 0,
                     format!("At 0-based position {} on {}, the cumulative sum became < 0, it was {}",
                             i,
-                            std::str::from_utf8(header.target_names()[tid as usize]).unwrap(),
+                            std::str::from_utf8(target_names[tid as usize]).unwrap(),
                             cumulative_sum));
             total += cumulative_sum as u32;
         }
@@ -31,7 +32,7 @@ pub fn contig_coverage(
         let mean: f32 = total as f32 / len as f32;
         writeln!(print_stream, "{}\t{}\t{}",
                  stoit_name,
-                 std::str::from_utf8(header.target_names()[tid as usize]).unwrap(),
+                 std::str::from_utf8(target_names[tid as usize]).unwrap(),
                  mean).unwrap();
     };
 
@@ -47,16 +48,17 @@ pub fn contig_coverage(
         let header = bam.header().clone();
         let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
             "failure to convert bam file name to stoit name - UTF8 error maybe?");
+        let target_names = header.target_names();
         while bam.read(&mut record).is_ok() {
             // if reference has changed, print the last record
             let tid = record.tid();
             if tid != last_tid {
                 if last_tid != -1 {
-                    process_last_reference(&header, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
+                    process_last_reference(&header, &target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
-                       std::str::from_utf8(header.target_names()[tid as usize]).unwrap());
+                       std::str::from_utf8(target_names[tid as usize]).unwrap());
                 last_tid = tid;
             }
 
@@ -90,7 +92,7 @@ pub fn contig_coverage(
         }
         // print the last ref, unless there was no alignments
         if last_tid != -1 {
-            process_last_reference(&header, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
+            process_last_reference(&header, &target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
         }
     }
 }
