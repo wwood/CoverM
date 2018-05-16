@@ -120,6 +120,20 @@ fn build_cli() -> App<'static, 'static> {
         .about("Mapping coverage analysis for metagenomics")
         .args_from_usage("-v, --verbose       'Print extra debug logging information'
              -q, --quiet         'Unless there is an error, do not print logging information'")
+        .help("
+Mapping coverage analysis for metagenomics
+
+Usage: coverm <subcommand> ...
+
+Subcommands:
+\tcontig\tCalculate coverage of contigs
+\tgenome\tCalculate coverage of genomes
+
+Other options:
+\t-V, --version\tPrint version information
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+")
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
