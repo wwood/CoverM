@@ -38,11 +38,11 @@ fn main(){
             }
             let print_zeros = !m.is_present("no-zeros");
             match method {
-                "mean" => coverm::genome_coverage(
+                "mean" => coverm::genome::genome_coverage(
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
-                    &mut coverm::PileupMeanEstimator::new(min_fraction_covered),
+                    &mut coverm::genome::PileupMeanEstimator::new(min_fraction_covered),
                     print_zeros),
                 _ => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
@@ -52,18 +52,18 @@ fn main(){
                         process::exit(1)
                     }
                     match method {
-                        "trimmed_mean" => coverm::genome_coverage(
+                        "trimmed_mean" => coverm::genome::genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::PileupTrimmedMeanEstimator::new(
+                            &mut coverm::genome::PileupTrimmedMeanEstimator::new(
                                 min, max, min_fraction_covered),
                             print_zeros),
-                        "coverage_histogram" => coverm::genome_coverage(
+                        "coverage_histogram" => coverm::genome::genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::PileupTrimmedMeanEstimator2::new(
+                            &mut coverm::genome::PileupTrimmedMeanEstimator2::new(
                                 min, max, min_fraction_covered),
                             print_zeros),
                         _ => panic!("programming error")
