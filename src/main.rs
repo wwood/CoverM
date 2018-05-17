@@ -38,11 +38,11 @@ fn main(){
             }
             let print_zeros = !m.is_present("no-zeros");
             match method {
-                "mean" => coverm::genome::genome_coverage(
+                "mean" => coverm::genome::genome_coverage2(
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
-                    &mut coverm::genome::PileupMeanEstimator::new(min_fraction_covered),
+                    &mut coverm::genome::MeanGenomeCoverageEstimator::new(min_fraction_covered),
                     print_zeros),
                 _ => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
