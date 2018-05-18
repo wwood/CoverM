@@ -45,31 +45,28 @@ fn main(){
                     &mut std::io::stdout(),
                     &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                     print_zeros),
-                _ => {
+                "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
+                    &bam_files,
+                    separator,
+                    &mut std::io::stdout(),
+                    &mut PileupCountsGenomeCoverageEstimator::new(
+                        min_fraction_covered),
+                    print_zeros),
+                "trimmed_mean" => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                     let max = value_t!(m.value_of("trim-max"), f32).unwrap();
                     if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
                         eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
                         process::exit(1)
                     }
-                    match method {
-                        "trimmed_mean" => coverm::genome::mosdepth_genome_coverage(
-                            &bam_files,
-                            separator,
-                            &mut std::io::stdout(),
-                            &mut TrimmedMeanGenomeCoverageEstimator::new(
-                                min, max, min_fraction_covered),
-                            print_zeros),
-                        "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
-                            &bam_files,
-                            separator,
-                            &mut std::io::stdout(),
-                            &mut PileupCountsGenomeCoverageEstimator::new(
-                                min_fraction_covered),
-                            print_zeros),
-                        _ => panic!("programming error")
-                    }
-                }
+                    coverm::genome::mosdepth_genome_coverage(
+                        &bam_files,
+                        separator,
+                        &mut std::io::stdout(),
+                        &mut TrimmedMeanGenomeCoverageEstimator::new(
+                            min, max, min_fraction_covered),
+                        print_zeros)},
+                _ => panic!("programming error")
             }
         },
         Some("contig") => {
