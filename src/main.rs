@@ -75,16 +75,19 @@ fn main(){
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             let method = m.value_of("method").unwrap();
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+            let print_zeros = !m.is_present("no-zeros");
             match method {
                 "mean" => coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
-                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered)),
+                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                    print_zeros),
                 "coverage_histogram" => coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut PileupCountsGenomeCoverageEstimator::new(
-                        min_fraction_covered)),
+                        min_fraction_covered),
+                    print_zeros),
                 "trimmed_mean" => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                     let max = value_t!(m.value_of("trim-max"), f32).unwrap();
@@ -96,7 +99,8 @@ fn main(){
                         &bam_files,
                         &mut std::io::stdout(),
                         &mut TrimmedMeanGenomeCoverageEstimator::new(
-                            min, max, min_fraction_covered))},
+                            min, max, min_fraction_covered),
+                        print_zeros)},
                 _ => panic!("programming error")
             }
         },
@@ -203,5 +207,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("trim-max")
                      .long("trim-max")
                      .help("Maximum for trimmed mean calculations")
-                     .default_value("0.95")));
+                     .default_value("0.95"))
+                .arg(Arg::with_name("no-zeros")
+                     .long("no-zeros")
+                     .help("Omit printing of genomes that have insufficient coverage")));
 }
