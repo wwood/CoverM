@@ -75,7 +75,6 @@ impl MosdepthGenomeCoverageEstimator for MeanGenomeCoverageEstimator {
     }
 }
 
-#[derive(Debug)]
 pub struct TrimmedMeanGenomeCoverageEstimator {
     counts: Vec<u32>,
     observed_contig_length: u32,
@@ -180,5 +179,98 @@ impl MosdepthGenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
             }
         };
         return answer
+    }
+}
+
+
+
+
+
+
+pub struct PileupCountsGenomeCoverageEstimator {
+    counts: Vec<u32>,
+    observed_contig_length: u32,
+    num_covered_bases: u32,
+    min_fraction_covered_bases: f32
+}
+impl PileupCountsGenomeCoverageEstimator {
+    pub fn new(min_fraction_covered_bases: f32) -> PileupCountsGenomeCoverageEstimator {
+        PileupCountsGenomeCoverageEstimator {
+            counts: vec!(),
+            observed_contig_length: 0,
+            num_covered_bases: 0,
+            min_fraction_covered_bases: min_fraction_covered_bases
+        }
+    }
+}
+
+impl MosdepthGenomeCoverageEstimator for PileupCountsGenomeCoverageEstimator {
+    fn setup(&mut self) {
+        self.observed_contig_length = 0;
+        self.num_covered_bases = 0;
+        self.counts = vec!();
+    }
+
+    // Method directly copied from Trimmed mean estimator.
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
+        let len1 = ups_and_downs.len();
+        debug!("Adding len1 {}", len1);
+        self.observed_contig_length += len1 as u32;
+        let mut cumulative_sum: i32 = 0;
+        for current in ups_and_downs {
+            if *current != 0 {
+                debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                debug!("At i some, ups and downs {:?}", ups_and_downs);
+            }
+            cumulative_sum += current;
+            if cumulative_sum > 0 {
+                self.num_covered_bases += 1
+            }
+            if self.counts.len() <= cumulative_sum as usize {
+                self.counts.resize(cumulative_sum as usize +1, 0);
+            }
+            self.counts[cumulative_sum as usize] += 1
+        }
+    }
+
+    fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
+        // No need to actually calculate any kind of coverage, just return
+        // whether any coverage was detected
+        match self.observed_contig_length {
+            0 => 0.0,
+            _ => {
+                let total_bases = self.observed_contig_length + unobserved_contig_length;
+                if (self.num_covered_bases as f32 / total_bases as f32) < self.min_fraction_covered_bases {
+                    0.0
+                } else {
+                    // Hack: Return the number of zero coverage bases as the
+                    // coverage, plus 1 so it is definitely non-zero, so that
+                    // the print_genome function knows this info.
+                    (total_bases - self.num_covered_bases + 1) as f32
+                }
+            }
+        }
+    }
+
+    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
+                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        let mut i = 0;
+        debug!("starting to print {}", genome);
+        debug!("{:?}",self.counts);
+        for num_covered in self.counts.iter() {
+            let cov: u32 = match i {
+                0 => coverage.floor() as u32 - 1,
+                _ => *num_covered
+            };
+            writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
+            i += 1
+        }
+        return print_stream;
+    }
+
+    fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
+                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        // zeros are not printed usually, so do not print the length.
+        return print_stream;
     }
 }

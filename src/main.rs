@@ -60,12 +60,12 @@ fn main(){
                             &mut TrimmedMeanGenomeCoverageEstimator::new(
                                 min, max, min_fraction_covered),
                             print_zeros),
-                        "coverage_histogram" => coverm::genome::genome_coverage(
+                        "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::genome::PileupTrimmedMeanEstimator2::new(
-                                min, max, min_fraction_covered),
+                            &mut PileupCountsGenomeCoverageEstimator::new(
+                                min_fraction_covered),
                             print_zeros),
                         _ => panic!("programming error")
                     }

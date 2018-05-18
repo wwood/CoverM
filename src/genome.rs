@@ -733,13 +733,13 @@ mod tests {
     }
 
     #[test]
-    fn test_two_contigs_trimmed_mean2(){
+    fn test_two_contigs_pileup_counts_estimator(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator2::new(0.1, 0.9, 0.0),
+            &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
