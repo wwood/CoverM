@@ -13,7 +13,7 @@ use log;
 
 
 
-pub trait GenomeCoverageEstimator {
+pub trait MosdepthGenomeCoverageEstimator {
     fn setup(&mut self);
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
@@ -54,7 +54,7 @@ impl MeanGenomeCoverageEstimator {
         }
     }
 }
-impl GenomeCoverageEstimator for MeanGenomeCoverageEstimator {
+impl MosdepthGenomeCoverageEstimator for MeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.total_count = 0;
         self.total_bases = 0;
@@ -106,7 +106,7 @@ impl TrimmedMeanGenomeCoverageEstimator {
         }
     }
 }
-impl GenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
+impl MosdepthGenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.observed_contig_length = 0;
         self.num_covered_bases = 0;
@@ -194,7 +194,7 @@ impl GenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
 }
 
 
-pub fn genome_coverage2<T: GenomeCoverageEstimator>(
+pub fn genome_coverage2<T: MosdepthGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
     split_char: u8,
     print_stream: &mut std::io::Write,
@@ -647,11 +647,11 @@ fn print_previous_zero_coverage_genomes2<'a>(
     last_genome: &[u8],
     current_genome: &[u8],
     current_tid: u32,
-    pileup_coverage_estimator: &'a GenomeCoverageEstimator,
+    pileup_coverage_estimator: &'a MosdepthGenomeCoverageEstimator,
     target_names: &Vec<&[u8]>,
     split_char: u8,
     print_stream: &mut std::io::Write)
-    -> &'a GenomeCoverageEstimator {
+    -> &'a MosdepthGenomeCoverageEstimator {
 
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
