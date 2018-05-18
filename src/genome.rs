@@ -222,17 +222,21 @@ fn print_previous_zero_coverage_genomes2<'a>(
 
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
+    let mut genomes_to_print: Vec<&[u8]> = vec![];
     while tid > 0 {
         let genome = extract_genome(tid, &target_names, split_char);
         if genome == last_genome { break; }
         else if genome != my_current_genome {
             // In-between genome encountered for the first time.
+            genomes_to_print.push(genome);
             my_current_genome = genome;
-            pileup_coverage_estimator.print_zero_coverage(
-                &stoit_name, &str::from_utf8(genome).unwrap(), print_stream);
         }
         tid = tid - 1;
     };
+    for i in (0..genomes_to_print.len()).rev() {
+        pileup_coverage_estimator.print_zero_coverage(
+            &stoit_name, &str::from_utf8(genomes_to_print[i]).unwrap(), print_stream);
+    }
     return pileup_coverage_estimator;
 }
 
@@ -374,7 +378,7 @@ mod tests {
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true);
         assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap());
 
         stream = Cursor::new(Vec::new());
