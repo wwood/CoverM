@@ -73,10 +73,32 @@ fn main(){
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m);
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-            coverm::contig::contig_coverage(
-                &bam_files,
-                &mut std::io::stdout(),
-                &mut MeanGenomeCoverageEstimator::new(0.0)); //TODO do not hardcode 0.0
+            let min_fraction_covered = 0.02; //TODO
+            let method = m.value_of("method").unwrap();
+            match method {
+                "mean" => coverm::contig::contig_coverage(
+                    &bam_files,
+                    &mut std::io::stdout(),
+                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered)),
+                "coverage_histogram" => coverm::contig::contig_coverage(
+                    &bam_files,
+                    &mut std::io::stdout(),
+                    &mut PileupCountsGenomeCoverageEstimator::new(
+                        min_fraction_covered)),
+                "trimmed_mean" => {
+                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+                        process::exit(1)
+                    }
+                    coverm::contig::contig_coverage(
+                        &bam_files,
+                        &mut std::io::stdout(),
+                        &mut TrimmedMeanGenomeCoverageEstimator::new(
+                            min, max, min_fraction_covered))},
+                _ => panic!("programming error")
+            }
         },
         _ => {
             app.print_help().unwrap();
@@ -162,5 +184,20 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("contig")
                 .about("Calculate coverage of contigs")
-                .args_from_usage(&contig_args));
+                .args_from_usage(&contig_args)
+                .arg(Arg::with_name("method")
+                     .short("m")
+                     .long("method")
+                     .help("Method for calculating coverage")
+                     .takes_value(true)
+                     .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
+                     .default_value("mean"))
+                .arg(Arg::with_name("trim-min")
+                     .long("trim-min")
+                     .help("Minimum for trimmed mean calculations")
+                     .default_value("0.05"))
+                .arg(Arg::with_name("trim-max")
+                     .long("trim-max")
+                     .help("Maximum for trimmed mean calculations")
+                     .default_value("0.95")));
 }
