@@ -29,9 +29,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
             // if reference has changed, print the last record
             let tid = record.tid();
             if tid != last_tid {
-                if print_zero_coverage_contigs {
-                    print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
-                }
                 if last_tid != -1 {
                     coverage_estimator.add_contig(&ups_and_downs);
                     let coverage = coverage_estimator.calculate_coverage(0);
@@ -42,6 +39,9 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
                         print_stream);
                     // reset for next time
                     coverage_estimator.setup();
+                }
+                if print_zero_coverage_contigs {
+                    print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
@@ -66,10 +66,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
                         cursor += cig.len() as usize;
                     },
                     'D' => {
-                        // if D, decrement start and increment end
-                        // debug!("Adding D at {} and {}", cursor+1, cursor + cig.len() as usize);
-                        // ups_and_downs[cursor + 1] -= 1;
-                        // ups_and_downs[cursor + cig.len() as usize] += 1;
+                        // if D, move the cursor
                         cursor += cig.len() as usize;
                     },
                     '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
@@ -102,11 +99,11 @@ fn print_previous_zero_coverage_contigs(
     coverage_estimator: &MosdepthGenomeCoverageEstimator,
     target_names: &Vec<&[u8]>,
     print_stream: &mut std::io::Write) {
-    let mut my_tid = current_tid - 1;
-    while my_tid > last_tid {
+    let mut my_tid = last_tid + 1;
+    while my_tid < current_tid {
         coverage_estimator.print_zero_coverage(
             stoit_name, std::str::from_utf8(target_names[my_tid as usize]).unwrap(), print_stream);
-        my_tid -= 1;
+        my_tid += 1;
     };
 }
 
