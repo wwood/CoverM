@@ -85,6 +85,114 @@ impl GenomeCoverageEstimator for MeanGenomeCoverageEstimator {
     }
 }
 
+#[derive(Debug)]
+pub struct TrimmedMeanGenomeCoverageEstimator {
+    counts: Vec<u32>,
+    observed_contig_length: u32,
+    num_covered_bases: u32,
+    min: f32,
+    max: f32,
+    min_fraction_covered_bases: f32
+}
+impl TrimmedMeanGenomeCoverageEstimator {
+    pub fn new(min: f32, max: f32, min_fraction_covered_bases: f32) -> TrimmedMeanGenomeCoverageEstimator {
+        TrimmedMeanGenomeCoverageEstimator {
+            counts: vec!(),
+            observed_contig_length: 0,
+            num_covered_bases: 0,
+            min_fraction_covered_bases: min_fraction_covered_bases,
+            min: min,
+            max: max
+        }
+    }
+}
+impl GenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
+    fn setup(&mut self) {
+        self.observed_contig_length = 0;
+        self.num_covered_bases = 0;
+        self.counts = vec!();
+    }
+
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
+        let len1 = ups_and_downs.len();
+        debug!("Adding len1 {}", len1);
+        self.observed_contig_length += len1 as u32;
+        let mut cumulative_sum: i32 = 0;
+        for current in ups_and_downs {
+            if *current != 0 {
+                debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                debug!("At i some, ups and downs {:?}", ups_and_downs);
+            }
+            cumulative_sum += current;
+            if cumulative_sum > 0 {
+                self.num_covered_bases += 1
+            }
+            if self.counts.len() <= cumulative_sum as usize {
+                self.counts.resize(cumulative_sum as usize +1, 0);
+            }
+            self.counts[cumulative_sum as usize] += 1
+        }
+    }
+
+    fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
+        let total_bases = self.observed_contig_length + unobserved_contig_length;
+        debug!("Calculating coverage with observed length {}, unobserved_length {} and counts {:?}", self.num_covered_bases, unobserved_contig_length, self.counts);
+        let answer = match total_bases {
+            0 => 0.0,
+            _ => {
+                if (self.num_covered_bases as f32 / total_bases as f32) < self.min_fraction_covered_bases {
+                    0.0
+                } else {
+                    let min_index: usize = (self.min * total_bases as f32).floor() as usize;
+                    let max_index: usize = (self.max * total_bases as f32).ceil() as usize;
+                    if self.num_covered_bases == 0 {return 0.0;}
+                    self.counts[0] += unobserved_contig_length;
+
+                    let mut num_accounted_for: usize = 0;
+                    let mut total: usize = 0;
+                    let mut started = false;
+                    let mut i = 0;
+                    for num_covered in self.counts.iter() {
+                        num_accounted_for += *num_covered as usize;
+                        debug!("start: i {}, num_accounted_for {}, total {}, min {}, max {}", i, num_accounted_for, total, min_index, max_index);
+                        if num_accounted_for >= min_index {
+                            debug!("inside");
+                            if started {
+                                if num_accounted_for > max_index {
+                                    let num_wanted = max_index - (num_accounted_for - *num_covered as usize) + 1;
+                                    debug!("num wanted1: {}", num_wanted);
+                                    total += num_wanted * i;
+                                    break;
+                                } else {
+                                    total += *num_covered as usize * i;
+                                }
+                            } else {
+                                if num_accounted_for > max_index {
+                                    // all coverages are the same in the trimmed set
+                                    total = (max_index-min_index+1) * i;
+                                    started = true
+                                } else if num_accounted_for < min_index {
+                                    debug!("too few on first")
+                                } else {
+                                    let num_wanted = num_accounted_for - min_index + 1;
+                                    debug!("num wanted2: {}", num_wanted);
+                                    total = num_wanted * i;
+                                    started = true;
+                                }
+                            }
+                        }
+                        debug!("end i {}, num_accounted_for {}, total {}", i, num_accounted_for, total);
+
+                        i += 1;
+                    }
+                    total as f32 / (max_index-min_index) as f32
+                }
+            }
+        };
+        return answer
+    }
+}
+
 
 pub fn genome_coverage2<T: GenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
@@ -793,11 +901,11 @@ mod tests {
     #[test]
     fn test_two_contigs_trimmed_mean(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage(
+        genome_coverage2(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
-            &mut PileupTrimmedMeanEstimator::new(0.1, 0.9, 0.0),
+            &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",

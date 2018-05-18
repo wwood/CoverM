@@ -52,11 +52,11 @@ fn main(){
                         process::exit(1)
                     }
                     match method {
-                        "trimmed_mean" => coverm::genome::genome_coverage(
+                        "trimmed_mean" => coverm::genome::genome_coverage2(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::genome::PileupTrimmedMeanEstimator::new(
+                            &mut coverm::genome::TrimmedMeanGenomeCoverageEstimator::new(
                                 min, max, min_fraction_covered),
                             print_zeros),
                         "coverage_histogram" => coverm::genome::genome_coverage(
