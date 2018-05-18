@@ -39,7 +39,7 @@ fn main(){
             }
             let print_zeros = !m.is_present("no-zeros");
             match method {
-                "mean" => coverm::genome::genome_coverage2(
+                "mean" => coverm::genome::mosdepth_genome_coverage(
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
@@ -53,7 +53,7 @@ fn main(){
                         process::exit(1)
                     }
                     match method {
-                        "trimmed_mean" => coverm::genome::genome_coverage2(
+                        "trimmed_mean" => coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),

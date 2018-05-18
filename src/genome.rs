@@ -14,7 +14,7 @@ use mosdepth_genome_coverage_estimators::*;
 
 
 
-pub fn genome_coverage2<T: MosdepthGenomeCoverageEstimator>(
+pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
     split_char: u8,
     print_stream: &mut std::io::Write,
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             'q' as u8,
             &mut stream,
@@ -665,7 +665,7 @@ mod tests {
     #[test]
     fn test_one_genome_two_contigs_second_covered(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             'q' as u8,
             &mut stream,
@@ -679,7 +679,7 @@ mod tests {
     #[test]
     fn test_one_genome_two_contigs_both_covered(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
@@ -693,7 +693,7 @@ mod tests {
     #[test]
     fn test_one_genome_min_fraction_covered_under_min(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
@@ -707,7 +707,7 @@ mod tests {
     #[test]
     fn test_one_genome_min_fraction_covered_just_ok(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
@@ -721,7 +721,7 @@ mod tests {
     #[test]
     fn test_two_contigs_trimmed_mean(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
             &mut stream,
@@ -749,7 +749,7 @@ mod tests {
     #[test]
     fn test_zero_coverage_genomes(){
         let mut stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
             &mut stream,
@@ -760,7 +760,7 @@ mod tests {
             str::from_utf8(stream.get_ref()).unwrap());
 
         stream = Cursor::new(Vec::new());
-        genome_coverage2(
+        mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
             &mut stream,
