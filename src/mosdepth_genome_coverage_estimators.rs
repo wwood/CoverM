@@ -259,7 +259,13 @@ impl MosdepthGenomeCoverageEstimator for PileupCountsGenomeCoverageEstimator {
         debug!("{:?}",self.counts);
         for num_covered in self.counts.iter() {
             let cov: u32 = match i {
-                0 => coverage.floor() as u32 - 1,
+                0 => {
+                    let c = coverage.floor() as u32;
+                    match c {
+                        0 => 0,
+                        _ => c - 1
+                    }
+                },
                 _ => *num_covered
             };
             writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();

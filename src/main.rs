@@ -73,8 +73,8 @@ fn main(){
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m);
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-            let min_fraction_covered = 0.02; //TODO
             let method = m.value_of("method").unwrap();
+            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             match method {
                 "mean" => coverm::contig::contig_coverage(
                     &bam_files,
@@ -192,6 +192,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
                      .default_value("mean"))
+                .arg(Arg::with_name("min-covered-fraction")
+                     .long("min-covered-fraction")
+                     .help("Minimum fraction of the genome covered (when less than this, coverage is set to zero)")
+                     .default_value("0.02"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
                      .help("Minimum for trimmed mean calculations")
