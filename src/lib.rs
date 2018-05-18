@@ -1,5 +1,6 @@
 pub mod contig;
 pub mod genome;
+pub mod mosdepth_genome_coverage_estimators;
 
 extern crate bio;
 #[macro_use]

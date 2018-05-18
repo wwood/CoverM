@@ -1,4 +1,5 @@
 extern crate coverm;
+use coverm::mosdepth_genome_coverage_estimators::*;
 
 use std::env;
 use std::str;
@@ -42,7 +43,7 @@ fn main(){
                     &bam_files,
                     separator,
                     &mut std::io::stdout(),
-                    &mut coverm::genome::MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                     print_zeros),
                 _ => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
@@ -56,7 +57,7 @@ fn main(){
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
-                            &mut coverm::genome::TrimmedMeanGenomeCoverageEstimator::new(
+                            &mut TrimmedMeanGenomeCoverageEstimator::new(
                                 min, max, min_fraction_covered),
                             print_zeros),
                         "coverage_histogram" => coverm::genome::genome_coverage(
