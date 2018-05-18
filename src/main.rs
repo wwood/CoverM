@@ -78,7 +78,8 @@ fn main(){
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             coverm::contig::contig_coverage(
                 &bam_files,
-                &mut std::io::stdout());
+                &mut std::io::stdout(),
+                &mut MeanGenomeCoverageEstimator::new(0.0)); //TODO do not hardcode 0.0
         },
         _ => {
             app.print_help().unwrap();

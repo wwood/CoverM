@@ -2,44 +2,38 @@ use std;
 use rust_htslib::bam;
 use rust_htslib::bam::Read;
 
+use mosdepth_genome_coverage_estimators::*;
 
-pub fn contig_coverage(
+
+pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
     bam_files: &Vec<&str>,
-    print_stream: &mut std::io::Write){
-
-    let process_last_reference =
-        |header: &bam::HeaderView,
-         target_names: &Vec<&[u8]>,
-         tid,
-         ups_and_downs: &Vec<i32>,
-         print_stream: & mut std::io::Write,
-         stoit_name: &str| {
-        let mut total: u32 = 0;
-        let mut cumulative_sum: i32 = 0;
-        let len = header.target_len(tid).expect("bam header parsing issue");
-        //debug!("ups and downs for {:}: {:?}", std::str::from_utf8(header.target_names()[tid as usize]).unwrap(), ups_and_downs);
-        for i in 0..len {
-            let current = ups_and_downs[i as usize];
-            cumulative_sum += current;
-            assert!(cumulative_sum >= 0,
-                    format!("At 0-based position {} on {}, the cumulative sum became < 0, it was {}",
-                            i,
-                            std::str::from_utf8(target_names[tid as usize]).unwrap(),
-                            cumulative_sum));
-            total += cumulative_sum as u32;
-        }
-        debug!("at end, sum was {}, total was {}", cumulative_sum, total);
-        let mean: f32 = total as f32 / len as f32;
-        writeln!(print_stream, "{}\t{}\t{}",
-                 stoit_name,
-                 std::str::from_utf8(target_names[tid as usize]).unwrap(),
-                 mean).unwrap();
-    };
+    print_stream: &mut std::io::Write,
+    coverage_estimator: &mut T) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
         let mut bam = bam::Reader::from_path(bam_file).expect(
             &format!("Unable to find BAM file {}", bam_file));
+
+        let mut process_last_reference =
+            |target_names: &Vec<&[u8]>,
+        tid,
+        ups_and_downs: &Vec<i32>,
+        print_stream: & mut std::io::Write,
+        stoit_name: &str| {
+
+            coverage_estimator.add_contig(&ups_and_downs);
+            let coverage = coverage_estimator.calculate_coverage(0);
+            coverage_estimator.print_genome(
+                stoit_name,
+                std::str::from_utf8(target_names[tid as usize]).unwrap(),
+                &coverage,
+                print_stream);
+
+            // reset for next time
+            coverage_estimator.setup();
+        };
+
 
         // for record in records
         let mut record: bam::record::Record = bam::record::Record::new();
@@ -54,7 +48,7 @@ pub fn contig_coverage(
             let tid = record.tid();
             if tid != last_tid {
                 if last_tid != -1 {
-                    process_last_reference(&header, &target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
+                    process_last_reference(&target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
@@ -92,7 +86,7 @@ pub fn contig_coverage(
         }
         // print the last ref, unless there was no alignments
         if last_tid != -1 {
-            process_last_reference(&header, &target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
+            process_last_reference(&target_names, last_tid as u32, &ups_and_downs, print_stream, &stoit_name);
         }
     }
 }
@@ -108,7 +102,8 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
-            &mut stream);
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.0));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
