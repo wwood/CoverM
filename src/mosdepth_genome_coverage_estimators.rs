@@ -2,8 +2,7 @@ use std;
 
 
 
-
-pub trait MosdepthGenomeCoverageEstimator {
+pub trait MosdepthGenomeCoverageEstimator<T> {
     fn setup(&mut self);
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
@@ -26,6 +25,8 @@ pub trait MosdepthGenomeCoverageEstimator {
                            genome).unwrap();
         return print_stream;
     }
+
+    fn copy(&self) -> T;
 }
 
 pub struct MeanGenomeCoverageEstimator {
@@ -44,7 +45,7 @@ impl MeanGenomeCoverageEstimator {
         }
     }
 }
-impl MosdepthGenomeCoverageEstimator for MeanGenomeCoverageEstimator {
+impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.total_count = 0;
         self.total_bases = 0;
@@ -73,6 +74,10 @@ impl MosdepthGenomeCoverageEstimator for MeanGenomeCoverageEstimator {
             return self.total_count as f32 / final_total_bases as f32
         }
     }
+
+    fn copy(&self) -> MeanGenomeCoverageEstimator {
+        MeanGenomeCoverageEstimator::new(self.min_fraction_covered_bases)
+    }
 }
 
 pub struct TrimmedMeanGenomeCoverageEstimator {
@@ -95,7 +100,7 @@ impl TrimmedMeanGenomeCoverageEstimator {
         }
     }
 }
-impl MosdepthGenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
+impl MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator> for TrimmedMeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.observed_contig_length = 0;
         self.num_covered_bases = 0;
@@ -180,6 +185,13 @@ impl MosdepthGenomeCoverageEstimator for TrimmedMeanGenomeCoverageEstimator {
         };
         return answer
     }
+
+    fn copy(&self) -> TrimmedMeanGenomeCoverageEstimator {
+        TrimmedMeanGenomeCoverageEstimator::new(
+            self.min,
+            self.max,
+            self.min_fraction_covered_bases)
+    }
 }
 
 
@@ -204,7 +216,7 @@ impl PileupCountsGenomeCoverageEstimator {
     }
 }
 
-impl MosdepthGenomeCoverageEstimator for PileupCountsGenomeCoverageEstimator {
+impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for PileupCountsGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.observed_contig_length = 0;
         self.num_covered_bases = 0;
@@ -278,5 +290,9 @@ impl MosdepthGenomeCoverageEstimator for PileupCountsGenomeCoverageEstimator {
                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
         // zeros are not printed usually, so do not print the length.
         return print_stream;
+    }
+
+    fn copy(&self) -> PileupCountsGenomeCoverageEstimator {
+        PileupCountsGenomeCoverageEstimator::new(self.min_fraction_covered_bases)
     }
 }

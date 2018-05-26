@@ -5,7 +5,7 @@ use rust_htslib::bam::Read;
 use mosdepth_genome_coverage_estimators::*;
 
 
-pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
+pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     bam_files: &Vec<&str>,
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
@@ -92,11 +92,11 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator>(
 }
 
 
-fn print_previous_zero_coverage_contigs(
+fn print_previous_zero_coverage_contigs<T>(
     last_tid: i32,
     current_tid: i32,
     stoit_name: &str,
-    coverage_estimator: &MosdepthGenomeCoverageEstimator,
+    coverage_estimator: &MosdepthGenomeCoverageEstimator<T>,
     target_names: &Vec<&[u8]>,
     print_stream: &mut std::io::Write) {
     let mut my_tid = last_tid + 1;

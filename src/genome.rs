@@ -4,15 +4,13 @@ use rust_htslib::bam;
 use rust_htslib::bam::Read as bamRead;
 
 use std::str;
+use std::collections::HashMap;
 
 use mosdepth_genome_coverage_estimators::*;
+use genomes_and_contigs::GenomesAndContigs;
 
 
-
-
-
-
-pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator>(
+pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     bam_files: &Vec<&str>,
     split_char: u8,
     print_stream: &mut std::io::Write,
@@ -209,16 +207,16 @@ fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) ->
 // Print zero coverage for genomes that have no reads mapped. Genomes are
 // detected from the header, counting backwards from the current tid until the
 // last seen genome is encountered, or we reach the beginning of the tid array.
-fn print_previous_zero_coverage_genomes2<'a>(
+fn print_previous_zero_coverage_genomes2<'a, T>(
     stoit_name: &str,
     last_genome: &[u8],
     current_genome: &[u8],
     current_tid: u32,
-    pileup_coverage_estimator: &'a MosdepthGenomeCoverageEstimator,
+    pileup_coverage_estimator: &'a MosdepthGenomeCoverageEstimator<T>,
     target_names: &Vec<&[u8]>,
     split_char: u8,
     print_stream: &mut std::io::Write)
-    -> &'a MosdepthGenomeCoverageEstimator {
+    -> &'a MosdepthGenomeCoverageEstimator<T> {
 
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
