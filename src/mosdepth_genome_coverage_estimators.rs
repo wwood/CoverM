@@ -29,6 +29,7 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
     fn copy(&self) -> T;
 }
 
+#[derive(Debug)]
 pub struct MeanGenomeCoverageEstimator {
     total_count: u32,
     total_bases: u32,
@@ -80,6 +81,7 @@ impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenome
     }
 }
 
+#[derive(Debug)]
 pub struct TrimmedMeanGenomeCoverageEstimator {
     counts: Vec<u32>,
     observed_contig_length: u32,
@@ -199,6 +201,7 @@ impl MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator> for Tri
 
 
 
+#[derive(Debug)]
 pub struct PileupCountsGenomeCoverageEstimator {
     counts: Vec<u32>,
     observed_contig_length: u32,

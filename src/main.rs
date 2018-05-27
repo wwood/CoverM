@@ -16,19 +16,22 @@ use env_logger::LogBuilder;
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
+    let get_trimmed_mean_estimator = |m: &clap::ArgMatches, min_fraction_covered| {
+        let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+        let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+        if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+            eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+            process::exit(1)
+        }
+        TrimmedMeanGenomeCoverageEstimator::new(
+            min, max, min_fraction_covered)
+    };
 
     match matches.subcommand_name() {
+
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            let separator_str = m.value_of("separator").unwrap().as_bytes();
-            if separator_str.len() != 1 {
-                eprintln!(
-                    "error: Separator can only be a single character, found {} ({}).",
-                    separator_str.len(),
-                    str::from_utf8(separator_str).unwrap());
-                process::exit(1);
-            }
-            let separator: u8 = separator_str[0];
+
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
             let method = m.value_of("method").unwrap();
@@ -38,35 +41,69 @@ fn main(){
                 process::exit(1)
             }
             let print_zeros = !m.is_present("no-zeros");
-            match method {
-                "mean" => coverm::genome::mosdepth_genome_coverage(
-                    &bam_files,
-                    separator,
-                    &mut std::io::stdout(),
-                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                    print_zeros),
-                "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
-                    &bam_files,
-                    separator,
-                    &mut std::io::stdout(),
-                    &mut PileupCountsGenomeCoverageEstimator::new(
-                        min_fraction_covered),
-                    print_zeros),
-                "trimmed_mean" => {
-                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-                        process::exit(1)
-                    }
-                    coverm::genome::mosdepth_genome_coverage(
+
+            if m.is_present("separator") {
+                let separator_str = m.value_of("separator").unwrap().as_bytes();
+                if separator_str.len() != 1 {
+                    eprintln!(
+                        "error: Separator can only be a single character, found {} ({}).",
+                        separator_str.len(),
+                        str::from_utf8(separator_str).unwrap());
+                    process::exit(1);
+                }
+                let separator: u8 = separator_str[0];
+                match method {
+                    "mean" => coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
                         &mut std::io::stdout(),
-                        &mut TrimmedMeanGenomeCoverageEstimator::new(
-                            min, max, min_fraction_covered),
-                        print_zeros)},
-                _ => panic!("programming error")
+                        &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                        print_zeros),
+                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
+                        &bam_files,
+                        separator,
+                        &mut std::io::stdout(),
+                        &mut PileupCountsGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros),
+                    "trimmed_mean" => {
+                        coverm::genome::mosdepth_genome_coverage(
+                            &bam_files,
+                            separator,
+                            &mut std::io::stdout(),
+                            &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                            print_zeros)},
+                    _ => panic!("programming error")
+                }
+            } else if m.is_present("genome-fasta-files"){
+                let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
+                let genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
+                match method {
+                    "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        &bam_files,
+                        &genomes_and_contigs,
+                        &mut std::io::stdout(),
+                        &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                        print_zeros),
+                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        &bam_files,
+                        &genomes_and_contigs,
+                        &mut std::io::stdout(),
+                        &mut PileupCountsGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros),
+                    "trimmed_mean" => {
+                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                            &bam_files,
+                            &genomes_and_contigs,
+                            &mut std::io::stdout(),
+                            &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                            print_zeros)},
+                    _ => panic!("programming error")
+                }
+            } else {
+                eprintln!("Either a separator (-s) or path(s) to genome FASTA files (-f) must be given");
+                process::exit(1);
             }
         },
         Some("contig") => {
@@ -89,17 +126,10 @@ fn main(){
                         min_fraction_covered),
                     print_zeros),
                 "trimmed_mean" => {
-                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-                        process::exit(1)
-                    }
                     coverm::contig::contig_coverage(
                         &bam_files,
                         &mut std::io::stdout(),
-                        &mut TrimmedMeanGenomeCoverageEstimator::new(
-                            min, max, min_fraction_covered),
+                        &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                         print_zeros)},
                 _ => panic!("programming error")
             }
@@ -130,7 +160,8 @@ fn set_log_level(matches: &clap::ArgMatches) {
 fn build_cli() -> App<'static, 'static> {
     //-f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
     let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
-                      -s, --separator=<CHARACTER>         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
+                      -s, --separator=[CHARACTER]         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
+                      -f, --genome-fasta-files=[PATH]...            One or more FASTA files representing genome(s)
 
                       -v, --verbose       'Print extra debug logging information'
                       -q, --quiet         'Unless there is an error, do not print logging information'";
