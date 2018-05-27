@@ -8,6 +8,7 @@ use std::process;
 extern crate clap;
 use clap::*;
 
+#[macro_use]
 extern crate log;
 use log::LogLevelFilter;
 extern crate env_logger;
@@ -75,9 +76,42 @@ fn main(){
                             print_zeros)},
                     _ => panic!("programming error")
                 }
-            } else if m.is_present("genome-fasta-files"){
-                let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
-                let genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
+            } else {
+                let genomes_and_contigs;
+                if m.is_present("genome-fasta-files"){
+                    let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
+                    genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
+                } else if m.is_present("genome-fasta-directory") {
+                    let dir = m.value_of("genome-fasta-directory").unwrap();
+                    let paths = std::fs::read_dir(dir).unwrap();
+                    let mut genome_fasta_files: Vec<String> = vec!();
+                    for path in paths {
+                        let file = path.unwrap().path();
+                        match file.extension() {
+                            Some(ext) => {
+                                if ext == "fna" {
+                                    let s = String::from(file.to_string_lossy());
+                                    genome_fasta_files.push(s);
+                                } else {
+                                    info!("Not using directory entry '{}' as a genome FASTA file",
+                                           file.to_str().expect("UTF8 error in filename"));
+                                }
+                            },
+                            None => {
+                                info!("Not using directory entry '{}' as a genome FASTA file",
+                                       file.to_str().expect("UTF8 error in filename"));
+                            }
+                        }
+                    }
+                    let mut strs: Vec<&str> = vec!();
+                    for f in &genome_fasta_files {
+                        strs.push(f);
+                    }
+                    genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
+                } else {
+                    eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
+                    process::exit(1);
+                }
                 match method {
                     "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
                         &bam_files,
@@ -101,9 +135,6 @@ fn main(){
                             print_zeros)},
                     _ => panic!("programming error")
                 }
-            } else {
-                eprintln!("Either a separator (-s) or path(s) to genome FASTA files (-f) must be given");
-                process::exit(1);
             }
         },
         Some("contig") => {
@@ -162,6 +193,7 @@ fn build_cli() -> App<'static, 'static> {
     let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
                       -s, --separator=[CHARACTER]         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
                       -f, --genome-fasta-files=[PATH]...            One or more FASTA files representing genome(s)
+                      -d, --genome-fasta-directory=[PATH]            Path to directory of fasta files, each representing a genome
 
                       -v, --verbose       'Print extra debug logging information'
                       -q, --quiet         'Unless there is an error, do not print logging information'";

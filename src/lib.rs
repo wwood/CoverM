@@ -15,7 +15,7 @@ use genomes_and_contigs::GenomesAndContigs;
 
 
 
-pub fn read_genome_fasta_files<'a, 'b, 'c>(fasta_file_paths: &'a [&'b str]) -> GenomesAndContigs {
+pub fn read_genome_fasta_files(fasta_file_paths: &[&str]) -> GenomesAndContigs {
     let mut contig_to_genome = GenomesAndContigs::new();
 
     for file in fasta_file_paths {
