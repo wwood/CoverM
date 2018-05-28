@@ -189,14 +189,6 @@ fn set_log_level(matches: &clap::ArgMatches) {
 }
 
 fn build_cli() -> App<'static, 'static> {
-    //-f, --fasta-files=<FILE>...         'Read contig to genome mapping from these fasta files'
-    let genome_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
-                      -s, --separator=[CHARACTER]         'Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2'
-                      -f, --genome-fasta-files=[PATH]...            One or more FASTA files representing genome(s)
-                      -d, --genome-fasta-directory=[PATH]            Path to directory of fasta files, each representing a genome
-
-                      -v, --verbose       'Print extra debug logging information'
-                      -q, --quiet         'Unless there is an error, do not print logging information'";
     let contig_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
 
                       -v, --verbose       'Print extra debug logging information'
@@ -225,7 +217,31 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
-                .args_from_usage(&genome_args)
+                .arg(Arg::with_name("bam-files")
+                     .short("b")
+                     .long("bam-files")
+                     .help("Sorted BAM file(s)")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required(true))
+
+                .arg(Arg::with_name("separator")
+                     .short("s")
+                     .long("separator")
+                     .help("Character used in contig name to separate genome (first) from contig (second) e.g. '~' for BAM reference names like genome1~contig2")
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-files")
+                     .short("f")
+                     .long("genome-fasta-files")
+                     .help("One or more FASTA files representing genome(s)")
+                     .multiple(true)
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-directory")
+                     .short("d")
+                     .long("genome-fasta-directory")
+                     .help("Path to directory of FASTA files, each representing a genome")
+                     .takes_value(true))
+
                 .arg(Arg::with_name("method")
                      .short("m")
                      .long("method")
