@@ -223,10 +223,31 @@ Other arguments (optional):
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ";
 
-    let contig_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
+    let contig_help: &'static str =
+        "coverm contig: Calculate read coverage per-contig
 
-                      -v, --verbose       'Print extra debug logging information'
-                      -q, --quiet         'Unless there is an error, do not print logging information'";
+Define mapping(s) (required):
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM files
+
+Other arguments (optional):
+   -m, --method METHOD                   Method for calculating coverage (mean,
+                                         trimmed_mean or coverage_histogram)
+                                         [default: mean]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0.02]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage [default: false]
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     return App::new("coverm")
         .version("0.1.0-pre")
@@ -289,31 +310,47 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("min-covered-fraction")
                      .default_value("0.02"))
                 .arg(Arg::with_name("no-zeros")
-                     .long("no-zeros")))
+                     .long("no-zeros"))
+
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")))
         .subcommand(
             SubCommand::with_name("contig")
                 .about("Calculate coverage of contigs")
-                .args_from_usage(&contig_args)
+                .help(contig_help)
+
+                .arg(Arg::with_name("bam-files")
+                     .short("b")
+                     .long("bam-files")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required(true))
+
                 .arg(Arg::with_name("method")
                      .short("m")
                      .long("method")
-                     .help("Method for calculating coverage")
                      .takes_value(true)
                      .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
-                     .help("Minimum fraction of the genome covered (when less than this, coverage is set to zero)")
                      .default_value("0.02"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
-                     .help("Minimum for trimmed mean calculations")
                      .default_value("0.05"))
                 .arg(Arg::with_name("trim-max")
                      .long("trim-max")
-                     .help("Maximum for trimmed mean calculations")
                      .default_value("0.95"))
                 .arg(Arg::with_name("no-zeros")
-                     .long("no-zeros")
-                     .help("Omit printing of genomes that have insufficient coverage")));
+                     .long("no-zeros"))
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")));
 }
