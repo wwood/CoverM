@@ -189,6 +189,40 @@ fn set_log_level(matches: &clap::ArgMatches) {
 }
 
 fn build_cli() -> App<'static, 'static> {
+    let genome_help: &'static str =
+        "coverm genome: Calculate read coverage per-genome
+
+Define the contigs in each genome (required):
+   -s, --separator <CHARACTER>           This character separates genome names
+                                         from contig names
+   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome
+   -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
+                                         genome
+
+Define mapping(s) (required):
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM files
+
+Other arguments (optional):
+   -m, --method METHOD                   Method for calculating coverage (mean,
+                                         trimmed_mean or coverage_histogram)
+                                         [default: mean]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0.02]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage [default: false]
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+";
+
     let contig_args: &'static str = "-b, --bam-files=<BAM>...      'Sorted BAM files contain reads mapped to target contigs'
 
                       -v, --verbose       'Print extra debug logging information'
@@ -217,6 +251,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
+                .help(genome_help)
                 .arg(Arg::with_name("bam-files")
                      .short("b")
                      .long("bam-files")
