@@ -254,6 +254,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                             &str::from_utf8(last_genome).unwrap(),
                             &coverage,
                             print_stream);
+                    } else if print_zero_coverage_genomes {
+                        coverage_estimator.print_zero_coverage(
+                            &stoit_name,
+                            &str::from_utf8(last_genome).unwrap(),
+                            print_stream);
                     }
                     coverage_estimator.setup();
                     if print_zero_coverage_genomes {
@@ -303,12 +308,17 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         // Determine coverage of previous genome
         let coverage = coverage_estimator.calculate_coverage(unobserved_contig_length);
 
-        // Print coverage of previous genome TODO: Bug when genome is present but called as zero?
+        // Print coverage of previous genome
         if coverage > 0.0 {
             coverage_estimator.print_genome(
                 &stoit_name,
                 &str::from_utf8(last_genome).unwrap(),
                 &coverage,
+                print_stream);
+        } else if print_zero_coverage_genomes {
+            coverage_estimator.print_zero_coverage(
+                &stoit_name,
+                &str::from_utf8(last_genome).unwrap(),
                 print_stream);
         }
         if print_zero_coverage_genomes {
@@ -502,7 +512,7 @@ mod tests {
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true);
         assert_eq!(
-            "",
+            "2seqs.reads_for_seq1_and_seq2\ts\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 
@@ -644,6 +654,20 @@ mod tests {
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_zero_coverage_genomes_after_min_fraction(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            '~' as u8,
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.76),
+            true);
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap());
     }
 
     #[test]
