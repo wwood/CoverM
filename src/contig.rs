@@ -9,7 +9,8 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     bam_files: &Vec<&str>,
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
-    print_zero_coverage_contigs: bool) {
+    print_zero_coverage_contigs: bool,
+    flag_filtering: bool) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -26,6 +27,12 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
 
         // for record in records
         while bam.read(&mut record).is_ok() {
+            if flag_filtering &&
+                (record.is_secondary() ||
+                 record.is_supplementary() ||
+                 !record.is_proper_pair()) {
+                    continue;
+                }
             // if reference has changed, print the last record
             let tid = record.tid();
             if tid != last_tid {
@@ -129,9 +136,24 @@ mod tests {
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
+            false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_flag_filtering(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            &vec!["test/data/1.bam"],
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.0),
+            false,
+            true);
+        assert_eq!(
+            "",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }

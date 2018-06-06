@@ -144,24 +144,28 @@ fn main(){
             let method = m.value_of("method").unwrap();
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
+            let flag_filter = !m.is_present("no-flag-filter");
             match method {
                 "mean" => coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                    print_zeros),
+                    print_zeros,
+                    flag_filter),
                 "coverage_histogram" => coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut PileupCountsGenomeCoverageEstimator::new(
                         min_fraction_covered),
-                    print_zeros),
+                    print_zeros,
+                    flag_filter),
                 "trimmed_mean" => {
                     coverm::contig::contig_coverage(
                         &bam_files,
                         &mut std::io::stdout(),
                         &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                        print_zeros)},
+                        print_zeros,
+                        flag_filter)},
                 _ => panic!("programming error")
             }
         },
@@ -243,6 +247,9 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage [default: false]
+   --no-flag-filter                      Do not ignore secondary and supplementary
+                                         alignments, and improperly paired reads
+                                         [default: false]
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -347,6 +354,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("0.95"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros"))
+                .arg(Arg::with_name("no-flag-filter")
+                     .long("no-flag-filter"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))
