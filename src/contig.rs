@@ -32,16 +32,24 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                 if last_tid != -1 {
                     coverage_estimator.add_contig(&ups_and_downs);
                     let coverage = coverage_estimator.calculate_coverage(0);
-                    coverage_estimator.print_genome(
-                        stoit_name,
-                        std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                        &coverage,
-                        print_stream);
+
+                    if coverage > 0.0 {
+                        coverage_estimator.print_genome(
+                            stoit_name,
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                            &coverage,
+                            print_stream);
+                    } else if print_zero_coverage_contigs {
+                        coverage_estimator.print_zero_coverage(
+                            stoit_name,
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                            print_stream);
+                    }
                     // reset for next time
                     coverage_estimator.setup();
-                }
-                if print_zero_coverage_contigs {
-                    print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
+                    if print_zero_coverage_contigs {
+                        print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
+                    }
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
