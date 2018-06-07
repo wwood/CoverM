@@ -14,7 +14,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
     contigs_and_genomes: &GenomesAndContigs,
     print_stream: &mut std::io::Write,
     coverage_estimator: &T,
-    print_zero_coverage_genomes: bool) {
+    print_zero_coverage_genomes: bool,
+    flag_filtering: bool) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -51,6 +52,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut seen_ref_ids = BTreeSet::new();
         while bam.read(&mut record).is_ok() {
+            if flag_filtering &&
+                (record.is_secondary() ||
+                 record.is_supplementary() ||
+                 !record.is_proper_pair()) {
+                    continue;
+                }
             let tid = record.tid() as u32;
             if tid != last_tid || doing_first {
                 debug!("Came across a new tid {}", tid);
@@ -143,7 +150,8 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     split_char: u8,
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
-    print_zero_coverage_genomes: bool) {
+    print_zero_coverage_genomes: bool,
+    flag_filtering: bool) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -217,6 +225,12 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
             "failure to convert bam file name to stoit name - UTF8 error maybe?");
         let mut record: bam::record::Record = bam::record::Record::new();
         while bam.read(&mut record).is_ok() {
+            if flag_filtering &&
+                (record.is_secondary() ||
+                 record.is_supplementary() ||
+                 !record.is_proper_pair()) {
+                    continue;
+                }
             // if reference has changed, finish a genome or not
             let tid = record.tid() as u32;
             let current_genome = extract_genome(tid as u32, &target_names, split_char);
@@ -414,7 +428,8 @@ mod tests {
             'q' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -432,7 +447,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -446,7 +462,8 @@ mod tests {
             'q' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -464,7 +481,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -478,7 +496,8 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -496,7 +515,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -510,7 +530,8 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.76),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -528,6 +549,7 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.76),
+            false,
             false);
         assert_eq!(
             "",
@@ -542,7 +564,8 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.759),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -561,7 +584,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.759),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -575,7 +599,8 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -593,7 +618,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -607,7 +633,8 @@ mod tests {
             'e' as u8,
             &mut stream,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -625,7 +652,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
-            true);
+            true,
+            false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -639,7 +667,8 @@ mod tests {
             '~' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
-            true);
+            true,
+            false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap());
@@ -650,6 +679,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
+            false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
@@ -664,7 +694,8 @@ mod tests {
             '~' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.76),
-            true);
+            true,
+            false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap());
@@ -699,7 +730,8 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
-            true);
+            true,
+            false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap());
@@ -710,6 +742,7 @@ mod tests {
             &geco,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
+            false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
