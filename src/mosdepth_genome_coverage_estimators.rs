@@ -299,3 +299,51 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
         PileupCountsGenomeCoverageEstimator::new(self.min_fraction_covered_bases)
     }
 }
+
+pub struct CoverageFractionGenomeCoverageEstimator {
+    total_bases: u32,
+    num_covered_bases: u32,
+    min_fraction_covered_bases: f32
+}
+impl CoverageFractionGenomeCoverageEstimator {
+    pub fn new(min_fraction_covered_bases: f32) -> CoverageFractionGenomeCoverageEstimator {
+        CoverageFractionGenomeCoverageEstimator {
+            total_bases: 0,
+            num_covered_bases: 0,
+            min_fraction_covered_bases: min_fraction_covered_bases
+        }
+    }
+}
+impl MosdepthGenomeCoverageEstimator<CoverageFractionGenomeCoverageEstimator> for CoverageFractionGenomeCoverageEstimator {
+    fn setup(&mut self) {
+        self.num_covered_bases = 0;
+        self.total_bases = 0;
+    }
+
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
+        let len = ups_and_downs.len();
+        self.total_bases += len as u32;
+        let mut cumulative_sum: i32 = 0;
+        for i in 0..len {
+            let current = ups_and_downs[i as usize];
+            cumulative_sum += current;
+            if cumulative_sum > 0 {
+                self.num_covered_bases += 1
+            }
+        }
+    }
+
+    fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
+        let final_total_bases = self.total_bases + unobserved_contig_length;
+        if final_total_bases == 0 ||
+            (self.num_covered_bases as f32 / final_total_bases as f32) < self.min_fraction_covered_bases {
+            return 0.0
+        } else {
+            return self.num_covered_bases as f32 / final_total_bases as f32
+        }
+    }
+
+    fn copy(&self) -> CoverageFractionGenomeCoverageEstimator {
+        CoverageFractionGenomeCoverageEstimator::new(self.min_fraction_covered_bases)
+    }
+}

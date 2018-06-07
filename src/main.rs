@@ -78,6 +78,14 @@ fn main(){
                             &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                             print_zeros,
                             flag_filter)},
+                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
+                        &bam_files,
+                        separator,
+                        &mut std::io::stdout(),
+                        &mut CoverageFractionGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros,
+                        flag_filter),
                     _ => panic!("programming error")
                 }
             } else {
@@ -214,9 +222,11 @@ Define mapping(s) (required):
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM files
 
 Other arguments (optional):
-   -m, --method METHOD                   Method for calculating coverage (mean,
-                                         trimmed_mean or coverage_histogram)
-                                         [default: mean]
+   -m, --method METHOD                   Method for calculating coverage. One of:
+                                              mean (default)
+                                              trimmed_mean
+                                              coverage_histogram
+                                              covered_fraction
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.02]
@@ -244,9 +254,11 @@ Define mapping(s) (required):
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM files
 
 Other arguments (optional):
-   -m, --method METHOD                   Method for calculating coverage (mean,
-                                         trimmed_mean or coverage_histogram)
-                                         [default: mean]
+   -m, --method METHOD                   Method for calculating coverage. One of:
+                                              mean (default)
+                                              trimmed_mean
+                                              coverage_histogram
+                                              covered_fraction
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.02]
@@ -315,7 +327,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("m")
                      .long("method")
                      .takes_value(true)
-                     .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
+                     .possible_values(&[
+                         "mean",
+                         "trimmed_mean",
+                         "coverage_histogram",
+                         "covered_fraction"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -353,7 +369,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("m")
                      .long("method")
                      .takes_value(true)
-                     .possible_values(&["mean", "trimmed_mean", "coverage_histogram"])
+                     .possible_values(&[
+                         "mean",
+                         "trimmed_mean",
+                         "coverage_histogram",
+                         "covered_fraction"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
