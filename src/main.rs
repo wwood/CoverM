@@ -236,10 +236,9 @@ Other arguments (optional):
    --trim-max FRACTION                   Maximum fraction for trimmed_mean
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
-                                         coverage [default: false]
+                                         coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
-                                         [default: false]
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -268,10 +267,9 @@ Other arguments (optional):
    --trim-max FRACTION                   Maximum fraction for trimmed_mean
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
-                                         coverage [default: false]
+                                         coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
-                                         [default: false]
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
