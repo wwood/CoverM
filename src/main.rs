@@ -86,6 +86,14 @@ fn main(){
                             min_fraction_covered),
                         print_zeros,
                         flag_filter),
+                    "variance" => coverm::genome::mosdepth_genome_coverage(
+                        &bam_files,
+                        separator,
+                        &mut std::io::stdout(),
+                        &mut VarianceGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros,
+                        flag_filter),
                     _ => panic!("programming error")
                 }
             } else {
@@ -148,6 +156,23 @@ fn main(){
                             &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                             print_zeros,
                             flag_filter)},
+                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        &bam_files,
+                        &genomes_and_contigs,
+                        &mut std::io::stdout(),
+                        &mut CoverageFractionGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros,
+                        flag_filter),
+                    "variance" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        &bam_files,
+                        &genomes_and_contigs,
+                        &mut std::io::stdout(),
+                        &mut VarianceGenomeCoverageEstimator::new(
+                            min_fraction_covered),
+                        print_zeros,
+                        flag_filter),
+
                     _ => panic!("programming error")
                 }
             }
@@ -181,6 +206,20 @@ fn main(){
                         &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                         print_zeros,
                         flag_filter)},
+                "covered_fraction" => coverm::contig::contig_coverage(
+                    &bam_files,
+                    &mut std::io::stdout(),
+                    &mut CoverageFractionGenomeCoverageEstimator::new(
+                        min_fraction_covered),
+                    print_zeros,
+                    flag_filter),
+                "variance" => coverm::contig::contig_coverage(
+                    &bam_files,
+                    &mut std::io::stdout(),
+                    &mut VarianceGenomeCoverageEstimator::new(
+                        min_fraction_covered),
+                    print_zeros,
+                    flag_filter),
                 _ => panic!("programming error")
             }
         },
@@ -227,6 +266,7 @@ Other arguments (optional):
                                               trimmed_mean
                                               coverage_histogram
                                               covered_fraction
+                                              variance
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.02]
@@ -258,6 +298,7 @@ Other arguments (optional):
                                               trimmed_mean
                                               coverage_histogram
                                               covered_fraction
+                                              variance
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.02]

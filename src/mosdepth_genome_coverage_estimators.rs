@@ -301,6 +301,7 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
     }
 }
 
+#[derive(Debug)]
 pub struct CoverageFractionGenomeCoverageEstimator {
     total_bases: u32,
     num_covered_bases: u32,
@@ -346,5 +347,90 @@ impl MosdepthGenomeCoverageEstimator<CoverageFractionGenomeCoverageEstimator> fo
 
     fn copy(&self) -> CoverageFractionGenomeCoverageEstimator {
         CoverageFractionGenomeCoverageEstimator::new(self.min_fraction_covered_bases)
+    }
+}
+
+#[derive(Debug)]
+pub struct VarianceGenomeCoverageEstimator {
+    counts: Vec<u32>,
+    observed_contig_length: u32,
+    num_covered_bases: u32,
+    min_fraction_covered_bases: f32
+}
+impl VarianceGenomeCoverageEstimator {
+    pub fn new(min_fraction_covered_bases: f32) -> VarianceGenomeCoverageEstimator {
+        VarianceGenomeCoverageEstimator {
+            counts: vec!(),
+            observed_contig_length: 0,
+            num_covered_bases: 0,
+            min_fraction_covered_bases: min_fraction_covered_bases
+        }
+    }
+}
+impl MosdepthGenomeCoverageEstimator<VarianceGenomeCoverageEstimator> for VarianceGenomeCoverageEstimator {
+    fn setup(&mut self) {
+        self.observed_contig_length = 0;
+        self.num_covered_bases = 0;
+        self.counts = vec!();
+    }
+
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
+        let len1 = ups_and_downs.len();
+        debug!("Adding len1 {}", len1);
+        self.observed_contig_length += len1 as u32;
+        let mut cumulative_sum: i32 = 0;
+        for current in ups_and_downs {
+            if *current != 0 {
+                debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                debug!("At i some, ups and downs {:?}", ups_and_downs);
+            }
+            cumulative_sum += current;
+            if cumulative_sum > 0 {
+                self.num_covered_bases += 1
+            }
+            if self.counts.len() <= cumulative_sum as usize {
+                self.counts.resize(cumulative_sum as usize +1, 0);
+            }
+            self.counts[cumulative_sum as usize] += 1
+        }
+    }
+
+    fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
+        let total_bases = self.observed_contig_length + unobserved_contig_length;
+        debug!("Calculating coverage with observed length {}, unobserved_length {} and counts {:?}", self.num_covered_bases, unobserved_contig_length, self.counts);
+        match total_bases {
+            0 => 0.0,
+            _ => {
+                if (self.num_covered_bases as f32 / total_bases as f32) < self.min_fraction_covered_bases {
+                    0.0
+                } else if total_bases < 3 {
+                    0.0
+                } else {
+                    self.counts[0] += unobserved_contig_length;
+                    // Calculate variance using the shifted method
+                    let mut k = 0;
+                    // Ensure K is within the range of coverages - take the
+                    // lowest coverage.
+                    while self.counts[k] == 0 {
+                        k += 1;
+                    }
+                    let mut ex = 0;
+                    let mut ex2 = 0;
+                    for (x, num_covered) in self.counts.iter().enumerate() {
+                        let nc = *num_covered as usize;
+                        ex += (x-k) * nc;
+                        ex2 += (x-k)*(x-k) * nc;
+                    }
+                    // Return sample variance not population variance since
+                    // almost all MAGs are incomplete.
+                    (ex2 as f32 - (ex*ex) as f32/total_bases as f32) / (total_bases - 1) as f32
+                }
+            }
+        }
+    }
+
+    fn copy(&self) -> VarianceGenomeCoverageEstimator {
+        VarianceGenomeCoverageEstimator::new(
+            self.min_fraction_covered_bases)
     }
 }

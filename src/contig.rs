@@ -156,4 +156,19 @@ mod tests {
             "",
             str::from_utf8(stream.get_ref()).unwrap())
     }
+
+    #[test]
+    fn test_one_contig_variance(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            &vec!["test/data/2seqs.reads_for_seq1.bam"],
+            &mut stream,
+            &mut VarianceGenomeCoverageEstimator::new(0.0),
+            true,
+            false);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tseq1\t0.9489489\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
 }
