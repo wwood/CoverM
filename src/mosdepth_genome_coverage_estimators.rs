@@ -50,6 +50,7 @@ impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenome
     fn setup(&mut self) {
         self.total_count = 0;
         self.total_bases = 0;
+        self.num_covered_bases = 0;
     }
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
