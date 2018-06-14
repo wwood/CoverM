@@ -202,12 +202,13 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         let fill_genome_length_backwards_to_last = |current_tid, last_tid, target_genome| {
             if current_tid == 0 {return 0};
             let mut extra: u32 = 0;
-            let mut my_tid = current_tid - 1;
-            while my_tid > last_tid {
+            let mut my_tid = last_tid + 1;
+            while my_tid < current_tid {
                 let my_genome = extract_genome(my_tid, &target_names, split_char);
                 if my_genome == target_genome {
-                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
-                    my_tid -= 1;
+                    extra += header.target_len(my_tid).expect(
+                        "Malformed bam header or programming error encountered");
+                    my_tid += 1;
                 } else {
                     break;
                 }
@@ -229,6 +230,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                 (record.is_secondary() ||
                  record.is_supplementary() ||
                  !record.is_proper_pair()) {
+                    debug!("skipping record {:?} as it filters out based on flags", record);
                     continue;
                 }
             // if reference has changed, finish a genome or not
@@ -250,14 +252,17 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                     coverage_estimator.add_contig(&ups_and_downs);
                     // Collect the length of reference sequences from this
                     // genome that had no hits that were just skipped over.
+                    debug!("Filling unobserved from {} to {}", last_tid, tid);
                     unobserved_contig_length += fill_genome_length_backwards_to_last(
                         tid, last_tid as u32, current_genome);
 
                 } else {
                     coverage_estimator.add_contig(&ups_and_downs);
                     // Collect the length of refs from the end of the last genome that had no hits
+                    debug!("Filling unobserved from {} to {} for {}", last_tid, tid, &str::from_utf8(last_genome).unwrap());
                     unobserved_contig_length += fill_genome_length_backwards_to_last(
-                        tid, last_tid as u32, current_genome);
+                        tid, last_tid as u32, last_genome);
+                    debug!("unobserved_contig_length now {}", unobserved_contig_length);
                     // Determine coverage of previous genome
                     let coverage = coverage_estimator.calculate_coverage(unobserved_contig_length);
 
@@ -282,6 +287,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                     }
                     last_genome = current_genome;
                     unobserved_contig_length = fill_genome_length_backwards(tid, current_genome);
+                    debug!("Setting unobserved contig length to be {}", unobserved_contig_length);
                 }
 
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
@@ -294,11 +300,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
             debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
             let mut cursor: usize = record.pos() as usize;
             for cig in record.cigar().iter() {
-                debug!("Found cigar {:} from {}", cig, cursor);
+                //debug!("Found cigar {:} from {}", cig, cursor);
                 match cig.char() {
                     'M' => {
                         // if M, increment start and decrement end index
-                        debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
+                        //debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
                         ups_and_downs[cursor] += 1;
                         let final_pos = cursor + cig.len() as usize;
                         if final_pos < ups_and_downs.len(){ // True unless the read hits the contig end.
@@ -319,6 +325,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         coverage_estimator.add_contig(&ups_and_downs);
         // Collect the length of refs from the end of the last genome that had no hits
         unobserved_contig_length += fill_genome_length_forwards(last_tid, last_genome);
+        debug!("At end, unobserved_contig_length now {}", unobserved_contig_length);
         // Determine coverage of previous genome
         let coverage = coverage_estimator.calculate_coverage(unobserved_contig_length);
 

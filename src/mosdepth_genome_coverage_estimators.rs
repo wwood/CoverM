@@ -48,6 +48,7 @@ impl MeanGenomeCoverageEstimator {
 }
 impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenomeCoverageEstimator {
     fn setup(&mut self) {
+        debug!("Running setup..");
         self.total_count = 0;
         self.total_bases = 0;
         self.num_covered_bases = 0;
@@ -65,9 +66,12 @@ impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenome
             }
             self.total_count += cumulative_sum as u32;
         }
+        debug!("After adding contig, have {:?}", self);
     }
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
+        debug!("Calculating coverage with unobserved {}, total bases {}, num_covered_bases {}, total_count {}",
+              unobserved_contig_length, self.total_bases, self.num_covered_bases, self.total_count);
         let final_total_bases = self.total_bases + unobserved_contig_length;
         if final_total_bases == 0 ||
             (self.num_covered_bases as f32 / final_total_bases as f32) < self.min_fraction_covered_bases {
