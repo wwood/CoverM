@@ -269,7 +269,7 @@ Other arguments (optional):
                                               variance
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
-                                         [default: 0.02]
+                                         [default: 0.10]
    --trim-min FRACTION                   Remove this smallest fraction of positions
                                          when calculating trimmed_mean
                                          [default: 0.05]
@@ -380,7 +380,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("0.95"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
-                     .default_value("0.02"))
+                     .default_value("0.10"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
