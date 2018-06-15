@@ -318,7 +318,7 @@ Other arguments (optional):
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     return App::new("coverm")
-        .version("0.1.0-pre")
+        .version(crate_version!())
         .author("Ben J. Woodcroft <benjwoodcroft near gmail.com>")
         .about("Mapping coverage analysis for metagenomics")
         .args_from_usage("-v, --verbose       'Print extra debug logging information'
