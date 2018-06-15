@@ -52,11 +52,11 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
                             print_stream);
                     }
-                    // reset for next time
-                    coverage_estimator.setup();
-                    if print_zero_coverage_contigs {
-                        print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
-                    }
+                }
+                // reset for next time
+                coverage_estimator.setup();
+                if print_zero_coverage_contigs {
+                    print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
@@ -130,7 +130,7 @@ mod tests {
     use std::str;
 
     #[test]
-    fn test_one_genome_two_contigs_first_covered(){
+    fn test_one_genome_two_contigs_first_covered_no_zeros(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
@@ -140,6 +140,20 @@ mod tests {
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_one_genome_two_contigs_first_covered(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.0),
+            true,
+            false);
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 
