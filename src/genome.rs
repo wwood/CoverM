@@ -151,7 +151,8 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
     print_zero_coverage_genomes: bool,
-    flag_filtering: bool) {
+    flag_filtering: bool,
+    single_genome: bool) {
 
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
@@ -170,9 +171,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
             let total_refs = header.target_count();
             let mut my_tid = current_tid + 1;
             while my_tid < total_refs {
-                let my_genome = extract_genome(my_tid, &target_names, split_char);
-                if my_genome == target_genome {
-                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
+                if single_genome ||
+                    extract_genome(my_tid, &target_names, split_char) == target_genome {
+
+                    extra += header.target_len(my_tid)
+                        .expect("Malformed bam header or programming error encountered");
                     my_tid += 1;
                 } else {
                     break;
@@ -185,9 +188,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
             let mut extra: u32 = 0;
             let mut my_tid = current_tid - 1;
             loop {
-                let my_genome = extract_genome(my_tid, &target_names, split_char);
-                if my_genome == target_genome {
-                    extra += header.target_len(my_tid).expect("Malformed bam header or programming error encountered");
+                if single_genome ||
+                    extract_genome(my_tid, &target_names, split_char) == target_genome {
+
+                    extra += header.target_len(my_tid)
+                        .expect("Malformed bam header or programming error encountered");
                     if my_tid == 0 {
                         break
                     } else {
@@ -204,10 +209,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
             let mut extra: u32 = 0;
             let mut my_tid = last_tid + 1;
             while my_tid < current_tid {
-                let my_genome = extract_genome(my_tid, &target_names, split_char);
-                if my_genome == target_genome {
-                    extra += header.target_len(my_tid).expect(
-                        "Malformed bam header or programming error encountered");
+                if single_genome ||
+                    extract_genome(my_tid, &target_names, split_char) == target_genome {
+
+                    extra += header.target_len(my_tid)
+                        .expect("Malformed bam header or programming error encountered");
                     my_tid += 1;
                 } else {
                     break;
@@ -235,14 +241,18 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                 }
             // if reference has changed, finish a genome or not
             let tid = record.tid() as u32;
-            let current_genome = extract_genome(tid as u32, &target_names, split_char);
+            let current_genome: &[u8] = match single_genome {
+                true => "".as_bytes(),
+                false => extract_genome(tid as u32, &target_names, split_char)
+            };
+
             if tid != last_tid || doing_first {
                 if doing_first == true {
                     coverage_estimator.setup();
                     last_genome = current_genome;
                     unobserved_contig_length = fill_genome_length_backwards(tid, current_genome);
                     doing_first = false;
-                    if print_zero_coverage_genomes {
+                    if print_zero_coverage_genomes && !single_genome {
                         print_previous_zero_coverage_genomes2(
                             stoit_name, b"", current_genome, tid, coverage_estimator,
                             &target_names, split_char, print_stream);
@@ -329,6 +339,11 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         // Determine coverage of previous genome
         let coverage = coverage_estimator.calculate_coverage(unobserved_contig_length);
 
+        // Give the single genome a dummy name
+        if single_genome {
+            last_genome = "genome1".as_bytes()
+        }
+
         // Print coverage of previous genome
         if coverage > 0.0 {
             coverage_estimator.print_genome(
@@ -342,7 +357,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                 &str::from_utf8(last_genome).unwrap(),
                 print_stream);
         }
-        if print_zero_coverage_genomes {
+        if print_zero_coverage_genomes && !single_genome {
             print_previous_zero_coverage_genomes2(
                 stoit_name, last_genome, b"", header.target_count()-1, coverage_estimator,
                 &target_names, split_char, print_stream);
@@ -436,6 +451,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
@@ -470,6 +486,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
@@ -504,6 +521,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
@@ -538,6 +556,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0.0\n",
@@ -572,6 +591,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.759),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
@@ -607,6 +627,7 @@ mod tests {
             &mut stream,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
@@ -641,6 +662,7 @@ mod tests {
             &mut stream,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
+            false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
@@ -675,6 +697,7 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true,
+            false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
@@ -686,6 +709,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.1),
+            false,
             false,
             false);
         assert_eq!(
@@ -702,9 +726,26 @@ mod tests {
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
+            false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap());
+    }
+
+    #[test]
+    fn test_single_genome(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            '~' as u8,
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.0),
+            true,
+            false,
+            true);
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.04209345\n",
             str::from_utf8(stream.get_ref()).unwrap());
     }
 

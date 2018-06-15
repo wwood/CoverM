@@ -43,17 +43,24 @@ fn main(){
             }
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
+            let single_genome = m.is_present("single-genome");
 
-            if m.is_present("separator") {
-                let separator_str = m.value_of("separator").unwrap().as_bytes();
-                if separator_str.len() != 1 {
-                    eprintln!(
-                        "error: Separator can only be a single character, found {} ({}).",
-                        separator_str.len(),
-                        str::from_utf8(separator_str).unwrap());
-                    process::exit(1);
-                }
-                let separator: u8 = separator_str[0];
+            if m.is_present("separator") || single_genome {
+                let separator: u8 = match single_genome {
+                    true => "0".as_bytes()[0],
+                    false => {
+                        let separator_str = m.value_of("separator").unwrap().as_bytes();
+                        if separator_str.len() != 1 {
+                            eprintln!(
+                                "error: Separator can only be a single character, found {} ({}).",
+                                separator_str.len(),
+                                str::from_utf8(separator_str).unwrap());
+                            process::exit(1);
+                        }
+                        separator_str[0]
+                    }
+                };
+
                 match method {
                     "mean" => coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
@@ -61,7 +68,8 @@ fn main(){
                         &mut std::io::stdout(),
                         &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter,
+                        single_genome),
                     "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
@@ -69,7 +77,8 @@ fn main(){
                         &mut PileupCountsGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter,
+                        single_genome),
                     "trimmed_mean" => {
                         coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
@@ -77,7 +86,8 @@ fn main(){
                             &mut std::io::stdout(),
                             &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                             print_zeros,
-                            flag_filter)},
+                            flag_filter,
+                            single_genome)},
                     "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
@@ -85,7 +95,8 @@ fn main(){
                         &mut CoverageFractionGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter,
+                        single_genome),
                     "variance" => coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
@@ -93,7 +104,8 @@ fn main(){
                         &mut VarianceGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter,
+                        single_genome),
                     _ => panic!("programming error")
                 }
             } else {
@@ -256,6 +268,7 @@ Define the contigs in each genome (one of the following required):
    -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome
    -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
                                          genome
+   --single-genome                       All contigs are from the same genome
 
 Define mapping(s) (required):
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
@@ -351,16 +364,30 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("separator")
                      .short("s")
                      .long("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .conflicts_with("genome-fasta-directory")
+                     .conflicts_with("single-genome")
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-files")
                      .short("f")
                      .long("genome-fasta-files")
                      .multiple(true)
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-directory")
+                     .conflicts_with("single-genome")
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-directory")
                      .short("d")
                      .long("genome-fasta-directory")
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .conflicts_with("single-genome")
                      .takes_value(true))
+                .arg(Arg::with_name("single-genome")
+                     .long("single-genome")
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .conflicts_with("genome-fasta-directory"))
 
                 .arg(Arg::with_name("method")
                      .short("m")
