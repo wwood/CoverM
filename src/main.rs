@@ -14,19 +14,10 @@ use log::LogLevelFilter;
 extern crate env_logger;
 use env_logger::LogBuilder;
 
+
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let get_trimmed_mean_estimator = |m: &clap::ArgMatches, min_fraction_covered| {
-        let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-        let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-        if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-            eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-            process::exit(1)
-        }
-        TrimmedMeanGenomeCoverageEstimator::new(
-            min, max, min_fraction_covered)
-    };
 
     match matches.subcommand_name() {
 
@@ -192,47 +183,32 @@ fn main(){
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m);
-            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             let method = m.value_of("method").unwrap();
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
-            match method {
-                "mean" => coverm::contig::contig_coverage(
-                    &bam_files,
-                    &mut std::io::stdout(),
-                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                    print_zeros,
-                    flag_filter),
-                "coverage_histogram" => coverm::contig::contig_coverage(
-                    &bam_files,
-                    &mut std::io::stdout(),
-                    &mut PileupCountsGenomeCoverageEstimator::new(
-                        min_fraction_covered),
-                    print_zeros,
-                    flag_filter),
-                "trimmed_mean" => {
-                    coverm::contig::contig_coverage(
-                        &bam_files,
-                        &mut std::io::stdout(),
-                        &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                        print_zeros,
-                        flag_filter)},
-                "covered_fraction" => coverm::contig::contig_coverage(
-                    &bam_files,
-                    &mut std::io::stdout(),
-                    &mut CoverageFractionGenomeCoverageEstimator::new(
-                        min_fraction_covered),
-                    print_zeros,
-                    flag_filter),
-                "variance" => coverm::contig::contig_coverage(
-                    &bam_files,
-                    &mut std::io::stdout(),
-                    &mut VarianceGenomeCoverageEstimator::new(
-                        min_fraction_covered),
-                    print_zeros,
-                    flag_filter),
-                _ => panic!("programming error")
+
+            if m.is_present("bam-files") {
+                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                let bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                    bam_files);
+                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+            } else {
+                let reference = m.value_of("reference").unwrap();
+                let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
+                let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
+                if read1.len() != read2.len() {
+                    panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
+                    read1.len(), read2.len())
+                }
+                let mut bam_readers = vec![];
+                for (i, _) in read1.iter().enumerate() {
+                    bam_readers.push(
+                        coverm::bam_generator::generate_named_bam_readers_from_read_couple(
+                            reference, read1[i], read2[i]));
+                }
+                debug!("Finished BAM setup");
+                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
             }
         },
         _ => {
@@ -241,6 +217,67 @@ fn main(){
         }
     }
 }
+
+fn get_trimmed_mean_estimator(
+    m: &clap::ArgMatches,
+    min_fraction_covered: f32) -> TrimmedMeanGenomeCoverageEstimator {
+    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+        process::exit(1)
+    }
+    TrimmedMeanGenomeCoverageEstimator::new(
+        min, max, min_fraction_covered)
+}
+
+
+fn run_contig<T: coverm::bam_generator::NamedBamReader>(
+    method: &str,
+    bam_readers: Vec<T>,
+    min_fraction_covered: f32,
+    print_zeros: bool,
+    flag_filter: bool,
+    m: &clap::ArgMatches) {
+    match method {
+        "mean" => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut std::io::stdout(),
+            &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+            print_zeros,
+            flag_filter),
+        "coverage_histogram" => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut std::io::stdout(),
+            &mut PileupCountsGenomeCoverageEstimator::new(
+                min_fraction_covered),
+            print_zeros,
+            flag_filter),
+        "trimmed_mean" => {
+            coverm::contig::contig_coverage(
+                bam_readers,
+                &mut std::io::stdout(),
+                &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                print_zeros,
+                flag_filter)},
+        "covered_fraction" => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut std::io::stdout(),
+            &mut CoverageFractionGenomeCoverageEstimator::new(
+                min_fraction_covered),
+            print_zeros,
+            flag_filter),
+        "variance" => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut std::io::stdout(),
+            &mut VarianceGenomeCoverageEstimator::new(
+                min_fraction_covered),
+            print_zeros,
+            flag_filter),
+        _ => panic!("programming error")
+    }
+}
+
 
 fn set_log_level(matches: &clap::ArgMatches) {
     let mut log_level = LogLevelFilter::Info;
@@ -302,8 +339,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
     let contig_help: &'static str =
         "coverm contig: Calculate read coverage per-contig
 
-Define mapping(s) (required):
+Define mapping(s) (one is required):
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -1 <PATH> ..                          Forward FASTA/Q files for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
+   -r, --reference <PATH>                BWA indexed FASTA file of contigs
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -358,8 +398,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("b")
                      .long("bam-files")
                      .multiple(true)
-                     .takes_value(true)
-                     .required(true))
+                     .takes_value(true))
 
                 .arg(Arg::with_name("separator")
                      .short("s")
@@ -429,7 +468,25 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true)
-                     .required(true))
+                     .required_unless("read1"))
+                .arg(Arg::with_name("read1")
+                     .short("-1")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("read2")
+                     .short("-2")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("reference")
+                     .short("-r")
+                     .long("reference")
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
 
                 .arg(Arg::with_name("method")
                      .short("m")

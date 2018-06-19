@@ -1,32 +1,30 @@
 use std;
 use rust_htslib::bam;
-use rust_htslib::bam::Read;
 
 use mosdepth_genome_coverage_estimators::*;
+use bam_generator::*;
 
 
-pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
-    bam_files: &Vec<&str>,
+pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
+                       R: NamedBamReader>(
+    bam_readers: Vec<R>,
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) {
 
-    for bam_file in bam_files {
-        debug!("Working on BAM file {}", bam_file);
-        let mut bam = bam::Reader::from_path(bam_file).expect(
-            &format!("Unable to find BAM file {}", bam_file));
+    for mut bam_generated in bam_readers {
 
+        let stoit_name = &(bam_generated.name().to_string());
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut last_tid: i32 = -1; // no such tid in a real BAM file
         let mut ups_and_downs: Vec<i32> = Vec::new();
-        let header = bam.header().clone();
-        let stoit_name = std::path::Path::new(bam_file).file_stem().unwrap().to_str().expect(
-            "failure to convert bam file name to stoit name - UTF8 error maybe?");
+        let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
         // for record in records
-        while bam.read(&mut record).is_ok() {
+        while bam_generated.read(&mut record).is_ok() {
+            debug!("Starting with a new read..");
             if flag_filtering &&
                 (record.is_secondary() ||
                  record.is_supplementary() ||
@@ -88,7 +86,9 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                     _ => {}
                 }
             }
+            debug!("At end of loop")
         }
+        debug!("Outside loop");
         // print the last ref, unless there was no alignments
         if last_tid != -1 {
             coverage_estimator.add_contig(&ups_and_downs);

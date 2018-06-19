@@ -2,6 +2,7 @@ pub mod contig;
 pub mod genome;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod genomes_and_contigs;
+pub mod bam_generator;
 
 extern crate bio;
 #[macro_use]
@@ -9,6 +10,8 @@ extern crate log;
 
 extern crate rust_htslib;
 extern crate env_logger;
+extern crate nix;
+extern crate tempdir;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
