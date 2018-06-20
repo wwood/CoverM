@@ -33,8 +33,8 @@ impl NamedBamReader for BamFileNamedReader {
 
 pub struct StreamingNamedBamReader {
     stoit_name: String,
-    bam_reader: bam::Reader// ,
-    // processes: Vec<std::process::Child>
+    bam_reader: bam::Reader,
+    pub processes: Vec<std::process::Child>
 }
 
 impl NamedBamReader for StreamingNamedBamReader {
@@ -81,44 +81,29 @@ pub fn generate_named_bam_readers_from_read_couple(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let bwa_cmd = std::process::Command::new("bwa")
-        .arg("mem")
-        .arg("-t").arg("16")
-        .arg(reference)
-        .arg(read1_path)
-        .arg(read2_path)
-        .stdout(std::process::Stdio::piped())
-        //.stderr(std::process::Stdio::piped()) // currently ignored
+    let cmd_string = format!(
+        "set -e -o pipefail; \
+         bwa mem '{}' '{}' '{}' \
+         | samtools view -Sub -F4 \
+         | samtools sort -o {:?}",
+        reference, read1_path, read2_path,
+        fifo_path);
+    debug!("Executing with bash: {}", cmd_string);
+    let cmd = std::process::Command::new("bash")
+        .arg("-c")
+        .arg(cmd_string)
+        .stderr(std::process::Stdio::piped())
         .spawn()
-        .expect("failed to execute bwa");
-    debug!("Spawned BWA");
-    // Convert to BAM
-    let sam_to_bam = std::process::Command::new("samtools")
-        .arg("view")
-        .arg("-Sub")
-        .stdin(bwa_cmd.stdout.expect("Unable to bind bwa STDOUT"))
-        .stdout(std::process::Stdio::piped())
-        //.stderr(std::process::Stdio::piped()) // currently ignored
-        .spawn()
-        .expect("failed to execute samtools view");
-    debug!("Spawned sam to bam {:?}", sam_to_bam);
-    // Reference-wise sort
-    let bam_to_sorted = std::process::Command::new("samtools")
-        .arg("sort")
-        .stdin(sam_to_bam.stdout.expect("Unable to bind sam_to_bam stdout"))
-        .arg("-o")
-        .arg(&fifo_path)
-        .spawn()
-        .expect("Failed to execute samtools sort");
-    debug!("Spawned samtools sort");
+        .expect("Unable to execute bash");
+    debug!("Spawned bash pipe");
 
     return StreamingNamedBamReader {
         stoit_name: std::path::Path::new(read1_path).file_name()
             .expect("Unable to convert read1 name fq to path").to_str()
             .expect("Unable to covert file name into str").to_string(),
         bam_reader: bam::Reader::from_path(&fifo_path)
-            .expect(&format!("Unable to find BAM file {:?}", fifo_path))// ,
-        // processes: vec![bwa_cmd, sam_to_bam, bam_to_sorted]
+            .expect(&format!("Unable to find BAM file {:?}", fifo_path)),
+        processes: vec![cmd]
     }
 }
 

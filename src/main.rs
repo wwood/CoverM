@@ -4,6 +4,7 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use std::env;
 use std::str;
 use std::process;
+use std::io::Read;
 
 extern crate clap;
 use clap::*;
@@ -190,9 +191,9 @@ fn main(){
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                let bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                     bam_files);
-                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                run_contig(method, &mut bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
             } else {
                 let reference = m.value_of("reference").unwrap();
                 let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
@@ -208,7 +209,19 @@ fn main(){
                             reference, read1[i], read2[i]));
                 }
                 debug!("Finished BAM setup");
-                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                run_contig(method, &mut bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                for reader in bam_readers {
+                    for mut process in reader.processes {
+                        let es = process.wait().expect("Failed to glean exitstatus from mapping process");
+                        if !es.success() {
+                            error!("Error when running mapping process.");
+                            let mut err = String::new();
+                            process.stderr.expect("Failed to grab stderr from failed mapping process")
+                                .read_to_string(&mut err).expect("Failed to read stderr into string");
+                            error!("The STDERR was: {:?}", err);
+                        }
+                    }
+                }
             }
         },
         _ => {
@@ -234,7 +247,7 @@ fn get_trimmed_mean_estimator(
 
 fn run_contig<T: coverm::bam_generator::NamedBamReader>(
     method: &str,
-    bam_readers: Vec<T>,
+    bam_readers: &mut Vec<T>,
     min_fraction_covered: f32,
     print_zeros: bool,
     flag_filter: bool,

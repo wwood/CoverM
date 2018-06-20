@@ -7,7 +7,7 @@ use bam_generator::*;
 
 pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                        R: NamedBamReader>(
-    bam_readers: Vec<R>,
+    bam_readers: &mut Vec<R>,
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
     print_zero_coverage_contigs: bool,
@@ -133,7 +133,8 @@ mod tests {
     fn test_one_genome_two_contigs_first_covered_no_zeros(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            &mut generate_named_bam_readers_from_bam_files(
+                vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
@@ -147,7 +148,8 @@ mod tests {
     fn test_one_genome_two_contigs_first_covered(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            &mut generate_named_bam_readers_from_bam_files(
+                vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
@@ -161,7 +163,8 @@ mod tests {
     fn test_flag_filtering(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            &vec!["test/data/1.bam"],
+            &mut generate_named_bam_readers_from_bam_files(
+                vec!["test/data/1.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
@@ -175,7 +178,8 @@ mod tests {
     fn test_one_contig_variance(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            &vec!["test/data/2seqs.reads_for_seq1.bam"],
+            &mut generate_named_bam_readers_from_bam_files(
+                vec!["test/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
             &mut VarianceGenomeCoverageEstimator::new(0.0),
             true,
@@ -185,4 +189,23 @@ mod tests {
                 "2seqs.reads_for_seq1\tseq2\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
+
+    #[test]
+    fn test_streaming_bam_file(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            &mut vec![
+                generate_named_bam_readers_from_read_couple(
+                    "test/data/7seqs.fna",
+                    "test/data/reads_for_seq1_and_seq2.1.fq.gz",
+                    "test/data/reads_for_seq1_and_seq2.2.fq.gz")],
+            &mut stream,
+            &mut MeanGenomeCoverageEstimator::new(0.0),
+            false,
+            false);
+        assert_eq!(
+            "reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\nreads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
 }
