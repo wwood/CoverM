@@ -197,6 +197,8 @@ fn main(){
                 let reference = m.value_of("reference").unwrap();
                 let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
                 let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
+                let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
+                    .expect("Failed to convert threads argument into integer");
                 if read1.len() != read2.len() {
                     panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
                     read1.len(), read2.len())
@@ -205,7 +207,7 @@ fn main(){
                 for (i, _) in read1.iter().enumerate() {
                     bam_readers.push(
                         coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                            reference, read1[i], read2[i]));
+                            reference, read1[i], read2[i], threads));
                     debug!("Back");
                 }
                 debug!("Finished BAM setup");
@@ -346,6 +348,7 @@ Define mapping(s) (one is required):
    -1 <PATH> ..                          Forward FASTA/Q files for mapping
    -2 <PATH> ..                          Reverse FASTA/Q files for mapping
    -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -t, --threads <INT>                   Number of threads to use for mapping
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -489,6 +492,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
+                     .takes_value(true))
 
                 .arg(Arg::with_name("method")
                      .short("m")

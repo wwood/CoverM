@@ -133,7 +133,8 @@ pub fn generate_named_bam_readers_from_bam_files(
 pub fn generate_named_bam_readers_from_read_couple(
     reference: &str,
     read1_path: &str,
-    read2_path: &str) -> StreamingNamedBamReaderGenerator {
+    read2_path: &str,
+    threads: u16) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -147,11 +148,11 @@ pub fn generate_named_bam_readers_from_read_couple(
 
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem '{}' '{}' '{}' \
+         bwa mem -t {} '{}' '{}' '{}' \
          | samtools view -Sub -F4 \
-         | samtools sort -o {:?}",
-        reference, read1_path, read2_path,
-        fifo_path);
+         | samtools sort -l0 -@ {} -o {:?}",
+        threads, reference, read1_path, read2_path,
+        threads-1, fifo_path);
     debug!("Executing with bash: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
