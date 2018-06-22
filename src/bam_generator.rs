@@ -8,7 +8,7 @@ use nix::unistd;
 use nix::sys::stat;
 use tempdir::TempDir;
 
-pub trait NamedBamReader: Sized {
+pub trait NamedBamReader {
     // Name of the stoit
     fn name(&self) -> &str;
 

@@ -1,5 +1,6 @@
 extern crate coverm;
 use coverm::mosdepth_genome_coverage_estimators::*;
+use coverm::bam_generator::*;
 
 use std::env;
 use std::str;
@@ -23,161 +24,16 @@ fn main(){
 
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-
-            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
-            let method = m.value_of("method").unwrap();
-            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-            if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-                eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-                process::exit(1)
-            }
-            let print_zeros = !m.is_present("no-zeros");
-            let flag_filter = !m.is_present("no-flag-filter");
-            let single_genome = m.is_present("single-genome");
 
-            if m.is_present("separator") || single_genome {
-                let separator: u8 = match single_genome {
-                    true => "0".as_bytes()[0],
-                    false => {
-                        let separator_str = m.value_of("separator").unwrap().as_bytes();
-                        if separator_str.len() != 1 {
-                            eprintln!(
-                                "error: Separator can only be a single character, found {} ({}).",
-                                separator_str.len(),
-                                str::from_utf8(separator_str).unwrap());
-                            process::exit(1);
-                        }
-                        separator_str[0]
-                    }
-                };
-
-                match method {
-                    "mean" => coverm::genome::mosdepth_genome_coverage(
-                        &bam_files,
-                        separator,
-                        &mut std::io::stdout(),
-                        &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                        print_zeros,
-                        flag_filter,
-                        single_genome),
-                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
-                        &bam_files,
-                        separator,
-                        &mut std::io::stdout(),
-                        &mut PileupCountsGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter,
-                        single_genome),
-                    "trimmed_mean" => {
-                        coverm::genome::mosdepth_genome_coverage(
-                            &bam_files,
-                            separator,
-                            &mut std::io::stdout(),
-                            &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                            print_zeros,
-                            flag_filter,
-                            single_genome)},
-                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
-                        &bam_files,
-                        separator,
-                        &mut std::io::stdout(),
-                        &mut CoverageFractionGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter,
-                        single_genome),
-                    "variance" => coverm::genome::mosdepth_genome_coverage(
-                        &bam_files,
-                        separator,
-                        &mut std::io::stdout(),
-                        &mut VarianceGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter,
-                        single_genome),
-                    _ => panic!("programming error")
-                }
+            if m.is_present("bam-files") {
+                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                let bam_generators = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                    bam_files);
+                run_genome(bam_generators, m);
             } else {
-                let genomes_and_contigs;
-                if m.is_present("genome-fasta-files"){
-                    let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
-                    genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
-                } else if m.is_present("genome-fasta-directory") {
-                    let dir = m.value_of("genome-fasta-directory").unwrap();
-                    let paths = std::fs::read_dir(dir).unwrap();
-                    let mut genome_fasta_files: Vec<String> = vec!();
-                    for path in paths {
-                        let file = path.unwrap().path();
-                        match file.extension() {
-                            Some(ext) => {
-                                if ext == "fna" {
-                                    let s = String::from(file.to_string_lossy());
-                                    genome_fasta_files.push(s);
-                                } else {
-                                    info!("Not using directory entry '{}' as a genome FASTA file",
-                                           file.to_str().expect("UTF8 error in filename"));
-                                }
-                            },
-                            None => {
-                                info!("Not using directory entry '{}' as a genome FASTA file",
-                                       file.to_str().expect("UTF8 error in filename"));
-                            }
-                        }
-                    }
-                    let mut strs: Vec<&str> = vec!();
-                    for f in &genome_fasta_files {
-                        strs.push(f);
-                    }
-                    genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
-                } else {
-                    eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
-                    process::exit(1);
-                }
-                match method {
-                    "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                        &bam_files,
-                        &genomes_and_contigs,
-                        &mut std::io::stdout(),
-                        &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                        print_zeros,
-                        flag_filter),
-                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                        &bam_files,
-                        &genomes_and_contigs,
-                        &mut std::io::stdout(),
-                        &mut PileupCountsGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter),
-                    "trimmed_mean" => {
-                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                            &bam_files,
-                            &genomes_and_contigs,
-                            &mut std::io::stdout(),
-                            &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                            print_zeros,
-                            flag_filter)},
-                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                        &bam_files,
-                        &genomes_and_contigs,
-                        &mut std::io::stdout(),
-                        &mut CoverageFractionGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter),
-                    "variance" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                        &bam_files,
-                        &genomes_and_contigs,
-                        &mut std::io::stdout(),
-                        &mut VarianceGenomeCoverageEstimator::new(
-                            min_fraction_covered),
-                        print_zeros,
-                        flag_filter),
-
-                    _ => panic!("programming error")
-                }
+                let bam_generators = get_streamed_bam_readers(m);
+                run_genome(bam_generators, m);
             }
         },
         Some("contig") => {
@@ -194,23 +50,7 @@ fn main(){
                     bam_files);
                 run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
             } else {
-                let reference = m.value_of("reference").unwrap();
-                let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-                let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-                let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
-                    .expect("Failed to convert threads argument into integer");
-                if read1.len() != read2.len() {
-                    panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
-                    read1.len(), read2.len())
-                }
-                let mut bam_readers = vec![];
-                for (i, _) in read1.iter().enumerate() {
-                    bam_readers.push(
-                        coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                            reference, read1[i], read2[i], threads));
-                    debug!("Back");
-                }
-                debug!("Finished BAM setup");
+                let mut bam_readers = get_streamed_bam_readers(m);
                 run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
             }
         },
@@ -219,6 +59,187 @@ fn main(){
             println!();
         }
     }
+}
+
+fn run_genome<R: coverm::bam_generator::NamedBamReader,
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+    bam_generators: Vec<T>,
+    m: &clap::ArgMatches) {
+
+    let method = m.value_of("method").unwrap();
+    let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+    if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+        eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+        process::exit(1)
+    }
+    let print_zeros = !m.is_present("no-zeros");
+    let flag_filter = !m.is_present("no-flag-filter");
+    let single_genome = m.is_present("single-genome");
+
+    if m.is_present("separator") || single_genome {
+        let separator: u8 = match single_genome {
+            true => "0".as_bytes()[0],
+            false => {
+                let separator_str = m.value_of("separator").unwrap().as_bytes();
+                if separator_str.len() != 1 {
+                    eprintln!(
+                        "error: Separator can only be a single character, found {} ({}).",
+                        separator_str.len(),
+                        str::from_utf8(separator_str).unwrap());
+                    process::exit(1);
+                }
+                separator_str[0]
+            }
+        };
+
+        match method {
+            "mean" => coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator,
+                &mut std::io::stdout(),
+                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                print_zeros,
+                flag_filter,
+                single_genome),
+            "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator,
+                &mut std::io::stdout(),
+                &mut PileupCountsGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter,
+                single_genome),
+            "trimmed_mean" => {
+                coverm::genome::mosdepth_genome_coverage(
+                    bam_generators,
+                    separator,
+                    &mut std::io::stdout(),
+                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                    print_zeros,
+                    flag_filter,
+                    single_genome)},
+            "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator,
+                &mut std::io::stdout(),
+                &mut CoverageFractionGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter,
+                single_genome),
+            "variance" => coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator,
+                &mut std::io::stdout(),
+                &mut VarianceGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter,
+                single_genome),
+            _ => panic!("programming error")
+        }
+    } else {
+        let genomes_and_contigs;
+        if m.is_present("genome-fasta-files"){
+            let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
+            genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
+        } else if m.is_present("genome-fasta-directory") {
+            let dir = m.value_of("genome-fasta-directory").unwrap();
+            let paths = std::fs::read_dir(dir).unwrap();
+            let mut genome_fasta_files: Vec<String> = vec!();
+            for path in paths {
+                let file = path.unwrap().path();
+                match file.extension() {
+                    Some(ext) => {
+                        if ext == "fna" {
+                            let s = String::from(file.to_string_lossy());
+                            genome_fasta_files.push(s);
+                        } else {
+                            info!("Not using directory entry '{}' as a genome FASTA file",
+                                  file.to_str().expect("UTF8 error in filename"));
+                        }
+                    },
+                    None => {
+                        info!("Not using directory entry '{}' as a genome FASTA file",
+                              file.to_str().expect("UTF8 error in filename"));
+                    }
+                }
+            }
+            let mut strs: Vec<&str> = vec!();
+            for f in &genome_fasta_files {
+                strs.push(f);
+            }
+            genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
+        } else {
+            eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
+            process::exit(1);
+        }
+        match method {
+            "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                bam_generators,
+                &genomes_and_contigs,
+                &mut std::io::stdout(),
+                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                print_zeros,
+                flag_filter),
+            "coverage_histogram" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                bam_generators,
+                &genomes_and_contigs,
+                &mut std::io::stdout(),
+                &mut PileupCountsGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter),
+            "trimmed_mean" => {
+                coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                    bam_generators,
+                    &genomes_and_contigs,
+                    &mut std::io::stdout(),
+                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                    print_zeros,
+                    flag_filter)},
+            "covered_fraction" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                bam_generators,
+                &genomes_and_contigs,
+                &mut std::io::stdout(),
+                &mut CoverageFractionGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter),
+            "variance" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                bam_generators,
+                &genomes_and_contigs,
+                &mut std::io::stdout(),
+                &mut VarianceGenomeCoverageEstimator::new(
+                    min_fraction_covered),
+                print_zeros,
+                flag_filter),
+
+            _ => panic!("programming error")
+        }
+    }
+}
+
+fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReaderGenerator> {
+    let reference = m.value_of("reference").unwrap();
+    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
+    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
+    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
+        .expect("Failed to convert threads argument into integer");
+    if read1.len() != read2.len() {
+        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
+               read1.len(), read2.len())
+    }
+    let mut bam_readers = vec![];
+    for (i, _) in read1.iter().enumerate() {
+        bam_readers.push(
+            coverm::bam_generator::generate_named_bam_readers_from_read_couple(
+                reference, read1[i], read2[i], threads));
+        debug!("Back");
+    }
+    debug!("Finished BAM setup");
+    return bam_readers
 }
 
 fn get_trimmed_mean_estimator(
@@ -313,6 +334,10 @@ Define the contigs in each genome (one of the following required):
 
 Define mapping(s) (required):
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -1 <PATH> ..                          Forward FASTA/Q files for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
+   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -t, --threads <INT>                   Number of threads to use for mapping
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -403,6 +428,29 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("b")
                      .long("bam-files")
                      .multiple(true)
+                     .takes_value(true))
+                .arg(Arg::with_name("read1")
+                     .short("-1")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("read2")
+                     .short("-2")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("reference")
+                     .short("-r")
+                     .long("reference")
+                     .takes_value(true)
+                     .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
                      .takes_value(true))
 
                 .arg(Arg::with_name("separator")

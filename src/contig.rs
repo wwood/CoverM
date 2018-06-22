@@ -202,7 +202,8 @@ mod tests {
                 generate_named_bam_readers_from_read_couple(
                     "test/data/7seqs.fna",
                     "test/data/reads_for_seq1_and_seq2.1.fq.gz",
-                    "test/data/reads_for_seq1_and_seq2.2.fq.gz")],
+                    "test/data/reads_for_seq1_and_seq2.2.fq.gz",
+                    4)],
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
