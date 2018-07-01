@@ -17,3 +17,6 @@ log = "0.3.*"
 env_logger = "0.4.*"
 nix = "0.11.*"
 tempdir = "0.3.*"
+
+[dev-dependencies]
+assert_cli = "0.6.*"

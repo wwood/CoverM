@@ -1,6 +1,11 @@
 extern crate coverm;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
+use coverm::filter;
+
+extern crate rust_htslib;
+use rust_htslib::bam;
+use rust_htslib::bam::Read;
 
 use std::env;
 use std::str;
@@ -52,6 +57,37 @@ fn main(){
             } else {
                 let mut bam_readers = get_streamed_bam_readers(m);
                 run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+            }
+        },
+        Some("filter") => {
+            let m = matches.subcommand_matches("filter").unwrap();
+            set_log_level(m);
+
+            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
+            if bam_files.len() != output_bam_files.len() {
+                panic!("The number of input BAM files must be the same as the number output")
+            }
+
+            let min_aligned_length = value_t!(m.value_of("min-aligned-length"), u32).unwrap();
+            let min_percent_identity = value_t!(m.value_of("min-percent-identity"), f32).unwrap();
+
+
+            for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
+                let mut reader = bam::Reader::from_path(bam).expect(
+                    &format!("Unable to find BAM file {}", bam));
+                let header = bam::header::Header::from_template(reader.header());
+                let mut writer = bam::Writer::from_path(
+                    output,
+                    &header
+                ).expect(&format!("Failed to write BAM file {}", output));
+                let mut records = reader.records();
+                let filtered = filter::ReferenceSortedBamFilter::new(
+                    &mut records, min_aligned_length, min_percent_identity);
+
+                for record in filtered {
+                    writer.write(&record).expect("Failed to write BAM record");
+                }
             }
         },
         _ => {
@@ -400,6 +436,27 @@ Other arguments (optional):
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
+    let filter_help: &'static str =
+        "coverm filter: Remove alignments with insufficient identity.
+
+Only primary, non-supplementary alignments are considered, and output files
+are grouped by reference, but not sorted by position.
+
+Files (both required):
+   -b, --bam-files <PATH> ..           Path to reference-sorted BAM file(s)
+   -o, --output-bam-files <PATH> ..    Path to corresponding output file(s)
+
+Thresholds:
+   --min-aligned-length <INT>          Exclude pairs with smaller numbers of
+                                       aligned bases [default: 0]
+   --min-percent-identity <FLOAT>      Exclude pairs by overall percent
+                                       identity e.g. 0.95 for 95% [default 0.0]
+   -v, --verbose                       Print extra debugging information
+   -q, --quiet                         Unless there is an error, do not print
+                                       log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>";
+
     return App::new("coverm")
         .version(crate_version!())
         .author("Ben J. Woodcroft <benjwoodcroft near gmail.com>")
@@ -411,9 +468,12 @@ Mapping coverage analysis for metagenomics
 
 Usage: coverm <subcommand> ...
 
-Subcommands:
+Main modes:
 \tcontig\tCalculate coverage of contigs
 \tgenome\tCalculate coverage of genomes
+
+Utilities:
+\tfilter\tRemove alignments with insufficient identity
 
 Other options:
 \t-V, --version\tPrint version information
@@ -574,5 +634,36 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("verbose"))
                 .arg(Arg::with_name("quiet")
                      .short("q")
-                     .long("quiet")));
+                     .long("quiet")))
+        .subcommand(
+            SubCommand::with_name("filter")
+                .about("Remove alignments with insufficient identity")
+                .help(filter_help)
+
+                .arg(Arg::with_name("bam-files")
+                     .short("b")
+                     .long("bam-files")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("output-bam-files")
+                     .short("o")
+                     .long("output-bam-files")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required(true))
+
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .default_value("0"))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .default_value("0.0"))
+
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")))
 }

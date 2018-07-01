@@ -4,7 +4,7 @@ use std::str;
 use rust_htslib::bam;
 use std::collections::BTreeMap;
 
-struct ReferenceSortedBamFilter<'a> {
+pub struct ReferenceSortedBamFilter<'a> {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
     current_reference: i32,
     known_next_read: Option<bam::Record>,
@@ -14,7 +14,7 @@ struct ReferenceSortedBamFilter<'a> {
 }
 
 impl<'a> ReferenceSortedBamFilter<'a> {
-    fn new(
+    pub fn new(
         records: &'a mut bam::Records<'a, bam::Reader>,
         min_aligned_length: u32,
         min_percent_identity: f32) -> ReferenceSortedBamFilter<'a> {
@@ -45,9 +45,9 @@ impl<'a> Iterator for ReferenceSortedBamFilter<'a> {
                     None => return None,
                     Some(record_result) => {
                         let record = record_result.expect("BAM read error");
-                        println!("record: {:?}", record);
+                        debug!("record: {:?}", record);
 
-                        println!("passed flags, {} {} {}",
+                        debug!("passed flags, {} {} {}",
                                  record.is_secondary(),
                                  record.is_supplementary(),
                                  !record.is_proper_pair());
@@ -70,7 +70,7 @@ impl<'a> Iterator for ReferenceSortedBamFilter<'a> {
                                 // add to first read set
                                 let qname = String::from(str::from_utf8(record.qname())
                                                          .expect("UTF8 error in conversion of read name"));
-                                println!("Testing qname1 {}", qname);
+                                debug!("Testing qname1 {}", qname);
                                 self.first_set.insert(Rc::new(qname), Rc::new(record));
                                 // continue the loop without returning as we need to see the second record
                             }
@@ -79,7 +79,7 @@ impl<'a> Iterator for ReferenceSortedBamFilter<'a> {
                         else { // Second read in insert
                             let qname = String::from(str::from_utf8(record.qname())
                                                      .expect("UTF8 error in conversion of read name"));
-                            println!("Testing qname2 {}", qname);
+                            debug!("Testing qname2 {}", qname);
                             match self.first_set.remove(&qname) {
                                 Some(record1) => {
                                     if read_pair_passes_filter(
@@ -141,7 +141,7 @@ fn read_pair_passes_filter(
     }
 
     let aligned = aligned_length1 + aligned_length2;
-    println!("num_bases {} {}, edit distances {} {}, perc {}",
+    debug!("num_bases {} {}, edit distances {} {}, perc {}",
              aligned_length1, aligned_length2, edit_distance1, edit_distance2,
              1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32));
 
