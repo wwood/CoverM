@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_read_genome_fasta_files_one_genome(){
-        let contig_to_genome = read_genome_fasta_files(&vec!["test/data/genome1.fna"]);
+        let contig_to_genome = read_genome_fasta_files(&vec!["tests/data/genome1.fna"]);
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq1")).unwrap());
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq2")).unwrap());
     }

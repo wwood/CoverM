@@ -138,7 +138,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             generate_named_bam_readers_from_bam_files(
-                vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+                vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
@@ -153,7 +153,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             generate_named_bam_readers_from_bam_files(
-                vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+                vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
@@ -168,7 +168,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             generate_named_bam_readers_from_bam_files(
-                vec!["test/data/1.bam"]),
+                vec!["tests/data/1.bam"]),
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
@@ -183,7 +183,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
             generate_named_bam_readers_from_bam_files(
-                vec!["test/data/2seqs.reads_for_seq1.bam"]),
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
             &mut VarianceGenomeCoverageEstimator::new(0.0),
             true,
@@ -200,9 +200,9 @@ mod tests {
         contig_coverage(
             vec![
                 generate_named_bam_readers_from_read_couple(
-                    "test/data/7seqs.fna",
-                    "test/data/reads_for_seq1_and_seq2.1.fq.gz",
-                    "test/data/reads_for_seq1_and_seq2.2.fq.gz",
+                    "tests/data/7seqs.fna",
+                    "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                    "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                     4)],
             &mut stream,
             &mut MeanGenomeCoverageEstimator::new(0.0),

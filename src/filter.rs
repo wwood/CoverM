@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn test_hello_world(){
         let mut reader = bam::Reader::from_path(
-            &"test/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
+            &"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut records = reader.records();
         let mut sorted = ReferenceSortedBamFilter::new(
             &mut records, 90, 0.99);
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_one_bad_read(){
         let mut reader = bam::Reader::from_path(
-            &"test/data/2seqs.bad_read.1.bam").unwrap();
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut records = reader.records();
         let mut sorted = ReferenceSortedBamFilter::new(
             &mut records, 250, 0.99); // perc too high
@@ -217,7 +217,7 @@ mod tests {
         }
 
         let mut reader = bam::Reader::from_path(
-            &"test/data/2seqs.bad_read.1.bam").unwrap();
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut records = reader.records();
         let mut sorted = ReferenceSortedBamFilter::new(
             &mut records, 300, 0.98); // aligned length too high
@@ -232,7 +232,7 @@ mod tests {
         }
 
         let mut reader = bam::Reader::from_path(
-            &"test/data/2seqs.bad_read.1.bam").unwrap();
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut records = reader.records();
         let mut sorted = ReferenceSortedBamFilter::new(
             &mut records, 299, 0.98);

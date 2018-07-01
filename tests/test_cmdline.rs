@@ -11,7 +11,7 @@ mod tests {
             .with_args(&[
                 "filter",
                 "-b",
-                "test/data/2seqs.bad_read.1.bam",
+                "tests/data/2seqs.bad_read.1.bam",
                 "-o",
                 "/tmp/o"]).succeeds().unwrap();
         assert_cmd!(samtools view "/tmp/o").stdout().contains("1\t99\tseq1")
@@ -26,7 +26,7 @@ mod tests {
                 "--min-percent-identity",
                 "0.99",
                 "-b",
-                "test/data/2seqs.bad_read.1.bam",
+                "tests/data/2seqs.bad_read.1.bam",
                 "-o",
                 "/tmp/o"]).succeeds().unwrap();
         assert_cmd!(samtools view "/tmp/o").stdout().doesnt_contain("1\t99\tseq1")
