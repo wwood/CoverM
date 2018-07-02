@@ -72,6 +72,8 @@ fn main(){
             let min_aligned_length = value_t!(m.value_of("min-aligned-length"), u32).unwrap();
             let min_percent_identity = value_t!(m.value_of("min-percent-identity"), f32).unwrap();
 
+            let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
+
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
                 let mut reader = bam::Reader::from_path(bam).expect(
@@ -81,6 +83,7 @@ fn main(){
                     output,
                     &header
                 ).expect(&format!("Failed to write BAM file {}", output));
+                writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
                 let mut records = reader.records();
                 let filtered = filter::ReferenceSortedBamFilter::new(
                     &mut records, min_aligned_length, min_percent_identity);
@@ -451,6 +454,10 @@ Thresholds:
                                        aligned bases [default: 0]
    --min-percent-identity <FLOAT>      Exclude pairs by overall percent
                                        identity e.g. 0.95 for 95% [default 0.0]
+
+Other:
+   -t, --threads <INT>                 Number of threads for output compression
+                                       [default 1]
    -v, --verbose                       Print extra debugging information
    -q, --quiet                         Unless there is an error, do not print
                                        log messages
@@ -659,6 +666,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-percent-identity")
                      .long("min-percent-identity")
                      .default_value("0.0"))
+                .arg(Arg::with_name("threads")
+                     .long("threads")
+                     .short("t")
+                     .default_value("1"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
