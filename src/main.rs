@@ -363,7 +363,7 @@ fn build_cli() -> App<'static, 'static> {
     let genome_help: &'static str =
         "coverm genome: Calculate read coverage per-genome
 
-Define the contigs in each genome (one of the following required):
+Define the contigs in each genome (exactly one of the following is required):
    -s, --separator <CHARACTER>           This character separates genome names
                                          from contig names
    -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome
@@ -372,7 +372,10 @@ Define the contigs in each genome (one of the following required):
    --single-genome                       All contigs are from the same genome
 
 Define mapping(s) (required):
+  Either define BAM:
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+
+  Or do mapping:
    -1 <PATH> ..                          Forward FASTA/Q files for mapping
    -2 <PATH> ..                          Reverse FASTA/Q files for mapping
    -r, --reference <PATH>                BWA indexed FASTA file of contigs
