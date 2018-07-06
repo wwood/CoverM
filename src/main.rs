@@ -30,8 +30,7 @@ fn main(){
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m);
-            let filtering = m.is_present("min-aligned-length") ||
-                m.is_present("min-percent-identity");
+            let filtering = doing_filtering(m);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -119,6 +118,11 @@ fn main(){
             println!();
         }
     }
+}
+
+fn doing_filtering(m: &clap::ArgMatches) -> bool {
+    m.is_present("min-aligned-length") ||
+        m.is_present("min-percent-identity")
 }
 
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
