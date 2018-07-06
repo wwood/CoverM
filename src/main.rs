@@ -84,11 +84,12 @@ fn main(){
                     &header
                 ).expect(&format!("Failed to write BAM file {}", output));
                 writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
-                let mut records = reader.records();
-                let filtered = filter::ReferenceSortedBamFilter::new(
-                    &mut records, min_aligned_length, min_percent_identity);
+                let mut filtered = filter::ReferenceSortedBamFilter::new(
+                    &mut reader, min_aligned_length, min_percent_identity);
 
-                for record in filtered {
+                let mut record = bam::record::Record::new();
+                while filtered.read(&mut record).is_ok() {
+                    debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
                 }
             }

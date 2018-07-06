@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate assert_cli;
 
 #[cfg(test)]
