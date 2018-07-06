@@ -30,10 +30,12 @@ fn main(){
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m);
+            let filtering = m.is_present("min-aligned-length") ||
+                m.is_present("min-percent-identity");
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if m.is_present("min-aligned-length") || m.is_present("min-percent-identity") {
+                if filtering {
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
@@ -47,8 +49,16 @@ fn main(){
                         m);
                 }
             } else {
-                let bam_generators = get_streamed_bam_readers(m);
-                run_genome(bam_generators, m);
+                if filtering {
+                    debug!("Mapping and filtering..");
+                    run_genome(
+                        get_streamed_filtered_bam_readers(m),
+                        m);
+                } else {
+                    run_genome(
+                        get_streamed_bam_readers(m),
+                        m);
+                }
             }
         },
         Some("contig") => {
@@ -286,6 +296,30 @@ fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReader
         bam_readers.push(
             coverm::bam_generator::generate_named_bam_readers_from_read_couple(
                 reference, read1[i], read2[i], threads));
+        debug!("Back");
+    }
+    debug!("Finished BAM setup");
+    return bam_readers
+}
+
+fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilteredNamedBamReaderGenerator> {
+    let reference = m.value_of("reference").unwrap();
+    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
+    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
+    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
+        .expect("Failed to convert threads argument into integer");
+    if read1.len() != read2.len() {
+        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
+               read1.len(), read2.len())
+    }
+    let mut bam_readers = vec![];
+    for (i, _) in read1.iter().enumerate() {
+        bam_readers.push(
+            coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
+                reference, read1[i], read2[i], threads,
+                value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
+                value_t!(m.value_of("min-percent-identity"), f32).unwrap()
+            ));
         debug!("Back");
     }
     debug!("Finished BAM setup");

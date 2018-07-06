@@ -229,3 +229,125 @@ pub fn generate_filtered_bam_readers_from_bam_files(
 
     return generators;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+pub struct StreamingFilteredNamedBamReader {
+    stoit_name: String,
+    filtered_stream: ReferenceSortedBamFilter,
+    tempdir: TempDir,
+    processes: Vec<std::process::Child>
+}
+
+pub struct StreamingFilteredNamedBamReaderGenerator {
+    stoit_name: String,
+    tempdir: TempDir,
+    fifo_path: std::path::PathBuf,
+    pre_processes: Vec<std::process::Command>,
+    min_aligned_length: u32,
+    min_percent_identity: f32
+}
+
+impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilteredNamedBamReaderGenerator {
+    fn start(self) -> StreamingFilteredNamedBamReader {
+        debug!("Starting mapping processes");
+        let mut processes = vec![];
+        for mut preprocess in self.pre_processes {
+            processes.push(preprocess
+                           .spawn()
+                           .expect("Unable to execute bash"));
+        }
+        let bam_reader = bam::Reader::from_path(&self.fifo_path)
+            .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
+        let filtered_stream = ReferenceSortedBamFilter::new(
+            bam_reader,
+            self.min_aligned_length,
+            self.min_percent_identity);
+        return StreamingFilteredNamedBamReader {
+            stoit_name: self.stoit_name,
+            filtered_stream: filtered_stream,
+            tempdir: self.tempdir,
+            processes: processes
+        }
+    }
+}
+
+impl NamedBamReader for StreamingFilteredNamedBamReader {
+    fn name(&self) -> &str {
+        &(self.stoit_name)
+    }
+    fn read(&mut self, record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
+        self.filtered_stream.read(record)
+    }
+    fn header(&self) -> &bam::HeaderView {
+        self.filtered_stream.reader.header()
+    }
+    fn finish(self) {
+        for mut process in self.processes {
+            let es = process.wait().expect("Failed to glean exitstatus from mapping process");
+            if !es.success() {
+                error!("Error when running mapping process.");
+                let mut err = String::new();
+                process.stderr.expect("Failed to grab stderr from failed mapping process")
+                    .read_to_string(&mut err).expect("Failed to read stderr into string");
+                error!("The STDERR was: {:?}", err);
+            }
+        }
+        // Close tempdir explicitly. Maybe not needed.
+        self.tempdir.close().expect("Failed to close tempdir");
+    }
+}
+
+pub fn generate_filtered_named_bam_readers_from_read_couple(
+    reference: &str,
+    read1_path: &str,
+    read2_path: &str,
+    threads: u16,
+    min_aligned_length: u32,
+    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+
+    let tmp_dir = TempDir::new("coverm_fifo")
+        .expect("Unable to create temporary directory");
+    let fifo_path = tmp_dir.path().join("foo.pipe");
+
+    // create new fifo and give read, write and execute rights to the owner.
+    // This is required because we cannot open a Rust stream as a BAM file with
+    // rust-htslib.
+    unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
+        .expect(&format!("Error creating named pipe {:?}", fifo_path));
+
+    let cmd_string = format!(
+        "set -e -o pipefail; \
+         bwa mem -t {} '{}' '{}' '{}' \
+         | samtools view -Sub -F4 \
+         | samtools sort -l0 -@ {} -o {:?}",
+        threads, reference, read1_path, read2_path,
+        threads-1, fifo_path);
+    debug!("Executing with bash: {}", cmd_string);
+    let mut cmd = std::process::Command::new("bash");
+    cmd
+        .arg("-c")
+        .arg(cmd_string)
+        .stderr(std::process::Stdio::piped());
+
+    return StreamingFilteredNamedBamReaderGenerator {
+        stoit_name: std::path::Path::new(read1_path).file_name()
+            .expect("Unable to convert read1 name fq to path").to_str()
+            .expect("Unable to covert file name into str").to_string(),
+        tempdir: tmp_dir,
+        fifo_path: fifo_path,
+        pre_processes: vec![cmd],
+        min_aligned_length: min_aligned_length,
+        min_percent_identity: min_percent_identity
+    }
+}
