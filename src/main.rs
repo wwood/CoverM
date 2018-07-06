@@ -33,9 +33,19 @@ fn main(){
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                let bam_generators = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                    bam_files);
-                run_genome(bam_generators, m);
+                if m.is_present("min-aligned-length") || m.is_present("min-percent-identity") {
+                    run_genome(
+                        coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                            bam_files,
+                            value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
+                            value_t!(m.value_of("min-percent-identity"), f32).unwrap()),
+                        m);
+                } else {
+                    run_genome(
+                        coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                            bam_files),
+                        m);
+                }
             } else {
                 let bam_generators = get_streamed_bam_readers(m);
                 run_genome(bam_generators, m);
@@ -85,7 +95,7 @@ fn main(){
                 ).expect(&format!("Failed to write BAM file {}", output));
                 writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
                 let mut filtered = filter::ReferenceSortedBamFilter::new(
-                    &mut reader, min_aligned_length, min_percent_identity);
+                    reader, min_aligned_length, min_percent_identity);
 
                 let mut record = bam::record::Record::new();
                 while filtered.read(&mut record).is_ok() {
@@ -382,6 +392,12 @@ Define mapping(s) (required):
    -r, --reference <PATH>                BWA indexed FASTA file of contigs
    -t, --threads <INT>                   Number of threads to use for mapping
 
+Alignment filtering (optional):
+   --min-aligned-length <INT>            Exclude pairs with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-percent-identity <FLOAT>        Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
                                               mean (default)
@@ -551,6 +567,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("separator")
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("genome-fasta-directory"))
+
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .default_value("0")
+                     .conflicts_with("no-flag-filter"))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .default_value("0.0")
+                     .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("method")
                      .short("m")

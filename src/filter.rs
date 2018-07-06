@@ -5,20 +5,20 @@ use rust_htslib::bam;
 use std::collections::BTreeMap;
 use rust_htslib::bam::Read;
 
-pub struct ReferenceSortedBamFilter<'a> {
+pub struct ReferenceSortedBamFilter {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
     current_reference: i32,
     known_next_read: Option<bam::Record>,
-    reader: &'a mut bam::Reader,
+    pub reader: bam::Reader,
     min_aligned_length: u32,
     min_percent_identity: f32
 }
 
-impl<'a> ReferenceSortedBamFilter<'a> {
+impl ReferenceSortedBamFilter {
     pub fn new(
-        reader: &'a mut bam::Reader,
+        reader: bam::Reader,
         min_aligned_length: u32,
-        min_percent_identity: f32) -> ReferenceSortedBamFilter<'a> {
+        min_percent_identity: f32) -> ReferenceSortedBamFilter {
 
         ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),
@@ -31,7 +31,7 @@ impl<'a> ReferenceSortedBamFilter<'a> {
     }
 }
 
-impl<'a> ReferenceSortedBamFilter<'a> {
+impl ReferenceSortedBamFilter {
     pub fn read(&mut self, mut record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
         if self.known_next_read.is_none() {
                 while self.reader.read(&mut record).is_ok() {
@@ -167,7 +167,7 @@ mod tests {
         let mut reader = bam::Reader::from_path(
             &"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            &mut reader, 90, 0.99);
+            reader, 90, 0.99);
         let queries = vec![
             "9",
             "9",
@@ -207,7 +207,7 @@ mod tests {
         let mut reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            &mut reader, 250, 0.99); // perc too high
+            reader, 250, 0.99); // perc too high
         let queries = vec![
             "2",
             "2",
@@ -223,7 +223,7 @@ mod tests {
         let mut reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            &mut reader, 300, 0.98); // aligned length too high
+            reader, 300, 0.98); // aligned length too high
         let queries = vec![
             "2",
             "2",
@@ -238,7 +238,7 @@ mod tests {
         let mut reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            &mut reader, 299, 0.98);
+            reader, 299, 0.98);
         let queries = vec![
             "1",
             "1",

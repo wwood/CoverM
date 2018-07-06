@@ -1,6 +1,8 @@
 use std;
 use std::io::Read;
 
+use filter::*;
+
 use rust_htslib::bam;
 use rust_htslib::bam::Read as BamRead;
 
@@ -170,3 +172,60 @@ pub fn generate_named_bam_readers_from_read_couple(
     }
 }
 
+
+pub struct FilteredBamReader {
+    stoit_name: String,
+    filtered_stream: ReferenceSortedBamFilter
+}
+
+impl NamedBamReader for FilteredBamReader {
+    fn name(&self) -> &str {
+        &(self.stoit_name)
+    }
+    fn read(&mut self, mut record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
+        self.filtered_stream.read(&mut record)
+    }
+    fn header(&self) -> &bam::HeaderView {
+        &self.filtered_stream.reader.header()
+    }
+    fn finish(self) {;}
+}
+
+impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
+    fn start(self) -> FilteredBamReader {
+        FilteredBamReader {
+            stoit_name: self.stoit_name,
+            filtered_stream: self.filtered_stream
+        }
+    }
+}
+
+pub fn generate_filtered_bam_readers_from_bam_files(
+    bam_paths: Vec<&str>,
+    min_aligned_length: u32,
+    min_percent_identity: f32) -> Vec<FilteredBamReader>{
+
+    let mut generators: Vec<FilteredBamReader> = vec![];
+
+    for path in bam_paths {
+        let filtered: FilteredBamReader;
+        let stoit_name = std::path::Path::new(path).file_stem().unwrap().to_str().expect(
+            "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string();
+        let reader = bam::Reader::from_path(path).expect(
+            &format!("Unable to find BAM file {}", path));
+
+        filtered = FilteredBamReader {
+                stoit_name: stoit_name,
+                filtered_stream: ReferenceSortedBamFilter::new(
+                    reader,
+                    min_aligned_length,
+                    min_percent_identity)
+            };
+
+        generators.push(
+            filtered
+        )
+    }
+
+    return generators;
+}
