@@ -26,7 +26,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
 
         // for record in records
         while bam_generated.read(&mut record).is_ok() {
-            debug!("Starting with a new read..");
+            debug!("Starting with a new read.. {:?}", record);
             if flag_filtering &&
                 (record.is_secondary() ||
                  record.is_supplementary() ||

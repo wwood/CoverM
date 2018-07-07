@@ -35,11 +35,12 @@ fn main(){
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filtering {
+                    let filter_params = FilterParameters::generate_from_clap(m);
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
-                            value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
-                            value_t!(m.value_of("min-percent-identity"), f32).unwrap()),
+                            filter_params.min_aligned_length,
+                            filter_params.min_percent_identity),
                         m);
                 } else {
                     run_genome(
@@ -67,15 +68,34 @@ fn main(){
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
+            let filtering = doing_filtering(m);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                    bam_files);
-                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                if filtering {
+                    let filter_params = FilterParameters::generate_from_clap(m);
+                    let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                        bam_files,
+                        filter_params.min_aligned_length,
+                        filter_params.min_percent_identity);
+                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                } else {
+                    let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                        bam_files);
+                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                }
             } else {
-                let mut bam_readers = get_streamed_bam_readers(m);
-                run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                if filtering {
+                    debug!("Filtering..");
+                    run_contig(method,
+                               get_streamed_filtered_bam_readers(m),
+                               min_fraction_covered, print_zeros, flag_filter, m);
+                } else {
+                    debug!("Not filtering..");
+                    run_contig(method,
+                               get_streamed_bam_readers(m),
+                               min_fraction_covered, print_zeros, flag_filter, m);
+                }
             }
         },
         Some("filter") => {
@@ -285,6 +305,25 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
     }
 }
 
+struct FilterParameters {
+    min_aligned_length: u32,
+    min_percent_identity: f32
+}
+impl FilterParameters {
+    pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
+        FilterParameters {
+            min_aligned_length: match m.is_present("min-aligned-length") {
+                true => value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
+                false => 0
+            },
+            min_percent_identity: match m.is_present("min-percent-identity") {
+                true => value_t!(m.value_of("min-percent-identity"), f32).unwrap(),
+                false => 0.0
+            }
+        }
+    }
+}
+
 fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReaderGenerator> {
     let reference = m.value_of("reference").unwrap();
     let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
@@ -317,12 +356,13 @@ fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilte
                read1.len(), read2.len())
     }
     let mut bam_readers = vec![];
+    let filter_params = FilterParameters::generate_from_clap(m);
     for (i, _) in read1.iter().enumerate() {
         bam_readers.push(
             coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
                 reference, read1[i], read2[i], threads,
-                value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
-                value_t!(m.value_of("min-percent-identity"), f32).unwrap()
+                filter_params.min_aligned_length,
+                filter_params.min_percent_identity
             ));
         debug!("Back");
     }
@@ -465,12 +505,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
     let contig_help: &'static str =
         "coverm contig: Calculate read coverage per-contig
 
-Define mapping(s) (one is required):
+Define mapping(s) (required):
+  Either define BAM:
    -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+
+  Or do mapping:
    -1 <PATH> ..                          Forward FASTA/Q files for mapping
    -2 <PATH> ..                          Reverse FASTA/Q files for mapping
    -r, --reference <PATH>                BWA indexed FASTA file of contigs
    -t, --threads <INT>                   Number of threads to use for mapping
+
+Alignment filtering (optional):
+   --min-aligned-length <INT>            Exclude pairs with smaller numbers of
+                                         aligned bases [default: none]
+   --min-percent-identity <FLOAT>        Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95% [default: none]
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -679,6 +728,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("method")
                      .short("m")
