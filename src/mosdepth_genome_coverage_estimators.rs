@@ -1,13 +1,62 @@
 use std;
 
+// pub trait MosdepthHeader{
+//     type T;
+//     fn define_header(&self, H: &mut Vec<&str>) -> &mut Vec<&str> {
+//         let H = &mut vec![
+//                  "Filename",
+//                  "Genome"];
+//         return H
+//         }
+//
+//     fn add_to_header<T>(&self, new_headers: Vec<T>, H: &mut Vec<T>){
+//         for ent in new_headers {
+//             H.push(ent)
+//         }
+//
+//     }
+//
+// }
 
+
+pub struct HeaderTypes{
+    pub headers: Vec<String>,
+}
+
+// pub let mut HeaderTypes = Vec::new()
+impl HeaderTypes{
+    pub fn created()->HeaderTypes {
+        HeaderTypes {headers: vec!["Filename".to_string(), "Genome".to_string()] }
+    }
+    pub fn add(&mut self, value: String){
+        self.headers.push(value);
+    }
+}
+// impl Default for HeaderTypes {
+//     fn default(){
+//         HeaderTypes{
+//         HeaderTypes::add(&mut HeaderTypes, "Filename".to_string());
+//         HeaderTypes::add(&mut HeaderTypes, "Genome".to_string())
+//     }
+// }
+
+
+// pub fn add_to_header() -> HeaderTypes{
+//     HeaderTypes{
+//         ..Default::default()
+//     }
+// }
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
+    // type header: MosdepthHeader;
+
     fn setup(&mut self);
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
+
+
 
     fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
                          print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
@@ -17,7 +66,7 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
                  coverage).unwrap();
         return print_stream;
     }
-
+    // Implement new header method here somewhere
     fn print_zero_coverage<'a>(&self, stoit_name: &str, genome: &str,
                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
         writeln!(print_stream, "{}\t{}\t0.0",
@@ -45,8 +94,16 @@ impl MeanGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
-}
+
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Mean Coverage".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
+    }
+
 impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenomeCoverageEstimator {
+
     fn setup(&mut self) {
         debug!("Running setup..");
         self.total_count = 0;
@@ -106,7 +163,13 @@ impl TrimmedMeanGenomeCoverageEstimator {
             max: max
         }
     }
-}
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Trimmed Mean Coverage".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
+    }
+
 impl MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator> for TrimmedMeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.observed_contig_length = 0;
@@ -222,6 +285,13 @@ impl PileupCountsGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Pileup Counts".to_string();
+            let index = "Index".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            HeaderTypes::add(header_types, index);
+            return header_types
+        }
 }
 
 impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for PileupCountsGenomeCoverageEstimator {
@@ -319,6 +389,11 @@ impl CoverageFractionGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Covered Fraction".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
 }
 impl MosdepthGenomeCoverageEstimator<CoverageFractionGenomeCoverageEstimator> for CoverageFractionGenomeCoverageEstimator {
     fn setup(&mut self) {
@@ -370,6 +445,11 @@ impl VarianceGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Variance".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
 }
 impl MosdepthGenomeCoverageEstimator<VarianceGenomeCoverageEstimator> for VarianceGenomeCoverageEstimator {
     fn setup(&mut self) {

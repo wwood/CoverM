@@ -28,6 +28,13 @@ fn main(){
             min, max, min_fraction_covered)
     };
 
+    let mut htype = &mut HeaderTypes::created();
+    pub fn print_header(htype: &mut HeaderTypes){
+        for h in htype.headers.iter(){
+            print!("{}\t", h)
+        }
+        println!("")
+}
     match matches.subcommand_name() {
 
         Some("genome") => {
@@ -44,6 +51,7 @@ fn main(){
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let single_genome = m.is_present("single-genome");
+            let headers = !m.is_present("remove-headers");
 
             if m.is_present("separator") || single_genome {
                 let separator: u8 = match single_genome {
@@ -62,15 +70,26 @@ fn main(){
                 };
 
                 match method {
-                    "mean" => coverm::genome::mosdepth_genome_coverage(
+                    "mean" => {
+                        if headers{
+                            let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
                         &mut std::io::stdout(),
                         &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                         print_zeros,
                         flag_filter,
-                        single_genome),
-                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
+                        single_genome);
+                        },
+                    "coverage_histogram" => {
+                        if headers{
+                            let ref mut htype = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
                         &mut std::io::stdout(),
@@ -78,8 +97,12 @@ fn main(){
                             min_fraction_covered),
                         print_zeros,
                         flag_filter,
-                        single_genome),
+                        single_genome)},
                     "trimmed_mean" => {
+                        if headers{
+                            let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
                         coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
@@ -87,8 +110,14 @@ fn main(){
                             &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                             print_zeros,
                             flag_filter,
-                            single_genome)},
-                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
+                            single_genome);
+                                    },
+                    "covered_fraction" => {
+                        if headers{
+                            let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
                         &mut std::io::stdout(),
@@ -96,8 +125,14 @@ fn main(){
                             min_fraction_covered),
                         print_zeros,
                         flag_filter,
-                        single_genome),
-                    "variance" => coverm::genome::mosdepth_genome_coverage(
+                        single_genome);
+                                },
+                    "variance" => {
+                        if headers{
+                            let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage(
                         &bam_files,
                         separator,
                         &mut std::io::stdout(),
@@ -105,9 +140,11 @@ fn main(){
                             min_fraction_covered),
                         print_zeros,
                         flag_filter,
-                        single_genome),
+                        single_genome);
+                                },
                     _ => panic!("programming error")
                 }
+
             } else {
                 let genomes_and_contigs;
                 if m.is_present("genome-fasta-files"){
@@ -144,49 +181,81 @@ fn main(){
                     eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
                     process::exit(1);
                 }
+
                 match method {
-                    "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+
+                    "mean" => {
+                        if headers{
+                            let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
                         &bam_files,
                         &genomes_and_contigs,
                         &mut std::io::stdout(),
                         &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                         print_zeros,
-                        flag_filter),
-                    "coverage_histogram" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        flag_filter);
+                    },
+                    "coverage_histogram" => {
+                        if headers{
+                            let ref mut htype = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
                         &bam_files,
                         &genomes_and_contigs,
                         &mut std::io::stdout(),
                         &mut PileupCountsGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter);
+                        },
                     "trimmed_mean" => {
+                        if headers{
+                            let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
                         coverm::genome::mosdepth_genome_coverage_with_contig_names(
                             &bam_files,
                             &genomes_and_contigs,
                             &mut std::io::stdout(),
                             &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                             print_zeros,
-                            flag_filter)},
-                    "covered_fraction" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                            flag_filter);
+                        },
+                    "covered_fraction" => {
+                        if headers{
+                            let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
                         &bam_files,
                         &genomes_and_contigs,
                         &mut std::io::stdout(),
                         &mut CoverageFractionGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
-                    "variance" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        flag_filter);
+                        },
+                    "variance" => {
+                        if headers{
+                            let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                            print_header(htype)
+                        }
+                        coverm::genome::mosdepth_genome_coverage_with_contig_names(
                         &bam_files,
                         &genomes_and_contigs,
                         &mut std::io::stdout(),
                         &mut VarianceGenomeCoverageEstimator::new(
                             min_fraction_covered),
                         print_zeros,
-                        flag_filter),
+                        flag_filter);
+                        },
 
                     _ => panic!("programming error")
                 }
+
             }
         },
         Some("contig") => {
@@ -197,41 +266,71 @@ fn main(){
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
+            let headers = !m.is_present("remove-headers");
+
             match method {
-                "mean" => coverm::contig::contig_coverage(
+                "mean" => {
+                    if headers{
+                        let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                        print_header(htype)
+                    }
+                    coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                     print_zeros,
-                    flag_filter),
-                "coverage_histogram" => coverm::contig::contig_coverage(
+                    flag_filter);
+                },
+                "coverage_histogram" => {
+                    if headers{
+                        let ref mut htype = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype);
+                        print_header(htype)
+                    }
+                    coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut PileupCountsGenomeCoverageEstimator::new(
                         min_fraction_covered),
                     print_zeros,
-                    flag_filter),
+                    flag_filter)},
                 "trimmed_mean" => {
+                    if headers{
+                        let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                        print_header(htype)
+                    }
                     coverm::contig::contig_coverage(
                         &bam_files,
                         &mut std::io::stdout(),
                         &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                         print_zeros,
-                        flag_filter)},
-                "covered_fraction" => coverm::contig::contig_coverage(
+                        flag_filter);
+                        },
+                "covered_fraction" => {
+                    if headers{
+                        let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                        print_header(htype)
+                    }
+                    coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut CoverageFractionGenomeCoverageEstimator::new(
                         min_fraction_covered),
                     print_zeros,
-                    flag_filter),
-                "variance" => coverm::contig::contig_coverage(
+                    flag_filter);
+                    },
+                "variance" => {
+                    if headers{
+                        let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                        print_header(htype)
+                    }
+                    coverm::contig::contig_coverage(
                     &bam_files,
                     &mut std::io::stdout(),
                     &mut VarianceGenomeCoverageEstimator::new(
                         min_fraction_covered),
                     print_zeros,
-                    flag_filter),
+                    flag_filter);
+                    },
                 _ => panic!("programming error")
             }
         },
@@ -292,6 +391,7 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --headers                             Omit headers from output
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -324,6 +424,7 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --headers                             Omit headers from output
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -397,7 +498,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -412,6 +514,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("remove-headers")
+                     .long("remove-headers"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
@@ -439,7 +543,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
@@ -454,6 +559,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("remove-headers")
+                     .long("remove-headers"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))
