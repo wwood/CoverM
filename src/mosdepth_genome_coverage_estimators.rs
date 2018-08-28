@@ -1,29 +1,10 @@
 use std;
 
-// pub trait MosdepthHeader{
-//     type T;
-//     fn define_header(&self, H: &mut Vec<&str>) -> &mut Vec<&str> {
-//         let H = &mut vec![
-//                  "Filename",
-//                  "Genome"];
-//         return H
-//         }
-//
-//     fn add_to_header<T>(&self, new_headers: Vec<T>, H: &mut Vec<T>){
-//         for ent in new_headers {
-//             H.push(ent)
-//         }
-//
-//     }
-//
-// }
-
 
 pub struct HeaderTypes{
     pub headers: Vec<String>,
 }
 
-// pub let mut HeaderTypes = Vec::new()
 impl HeaderTypes{
     pub fn created()->HeaderTypes {
         HeaderTypes {headers: vec!["Filename".to_string(), "Genome".to_string()] }
@@ -32,20 +13,7 @@ impl HeaderTypes{
         self.headers.push(value);
     }
 }
-// impl Default for HeaderTypes {
-//     fn default(){
-//         HeaderTypes{
-//         HeaderTypes::add(&mut HeaderTypes, "Filename".to_string());
-//         HeaderTypes::add(&mut HeaderTypes, "Genome".to_string())
-//     }
-// }
 
-
-// pub fn add_to_header() -> HeaderTypes{
-//     HeaderTypes{
-//         ..Default::default()
-//     }
-// }
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
     // type header: MosdepthHeader;
@@ -288,8 +256,8 @@ impl PileupCountsGenomeCoverageEstimator {
     pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
             let coverage_type = "Pileup Counts".to_string();
             let index = "Index".to_string();
-            HeaderTypes::add(header_types, coverage_type);
             HeaderTypes::add(header_types, index);
+            HeaderTypes::add(header_types, coverage_type);
             return header_types
         }
 }
