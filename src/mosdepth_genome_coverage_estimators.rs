@@ -14,6 +14,23 @@ impl HeaderTypes{
     }
 }
 
+pub struct OutputStream{
+    pub Filename: String,
+    pub Genome: String,
+    pub Methods: Vec<f32>,
+}
+
+impl OutputStream{
+    pub fn add_to_method(&mut self, value: f32){
+        self.Methods.push(value);
+    }
+    pub fn print_output(&mut self){
+        println!("{}\t{}\t", self.Filename, self.Genome);
+        for c in self.Methods.iter(){
+            print!("{}\t", c);
+        }
+    }
+}
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
     // type header: MosdepthHeader;
