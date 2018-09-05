@@ -39,13 +39,19 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                 if last_tid != -1 {
                     coverage_estimator.add_contig(&ups_and_downs);
                     let coverage = coverage_estimator.calculate_coverage(0);
-
+                    let mut output = coverage_estimator.create_output();
                     if coverage > 0.0 {
-                        coverage_estimator.print_genome(
-                            stoit_name,
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            &coverage,
-                            print_stream);
+                        let mut output = output.update(
+                            stoit_name.to_string(),
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                            &coverage
+                        );
+                        coverage_estimator.print_genome(output);
+                        // coverage_estimator.print_genome(
+                        //     stoit_name,
+                        //     std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                        //     &coverage,
+                        //     print_stream);
                     } else if print_zero_coverage_contigs {
                         coverage_estimator.print_zero_coverage(
                             stoit_name,
@@ -93,11 +99,13 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         if last_tid != -1 {
             coverage_estimator.add_contig(&ups_and_downs);
             let coverage = coverage_estimator.calculate_coverage(0);
-            coverage_estimator.print_genome(
-                stoit_name,
-                std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                &coverage,
-                print_stream);
+            let mut output = coverage_estimator.create_output();
+            let mut output = output.update(
+                stoit_name.to_string(),
+                std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                &coverage
+            );
+            coverage_estimator.print_genome(output);
         }
         // print zero coverage contigs at the end
         if print_zero_coverage_contigs {
