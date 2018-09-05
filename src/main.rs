@@ -34,7 +34,39 @@ fn main(){
             print!("{}\t", h)
         }
         println!("")
-}
+    }
+    let mut output_stream = Vec::new();
+    pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
+        // let it = output.iter().zip(input.iter());
+        if output.len()==0{
+            println!("First Catch");
+            return input
+        } else {
+            // let cnt = 0;
+            let mut output_st: Vec<OutputStream> = Vec::new();
+            if input.len() > 0 {
+                println!("Second Catch");
+                for (i, v) in input.iter().enumerate() {
+                    for m in v.methods.iter(){
+                        output[i].methods.push(*m);
+                    }
+                    output_st.push(output[i].clone());
+                    // let mut cnt = cnt + 1;
+                }
+            } else{
+                println!("Third Catch");
+                output[0].methods.append(&mut input[0].methods);
+                output_st.push(output[0].clone());
+            }
+        return output_st
+        }
+    }
+    pub fn print_output_stream(output_stream: Vec<OutputStream>){
+        println!("Fourth Catch");
+        for mut out in output_stream{
+            out.print_output();
+        }
+    }
     match matches.subcommand_name() {
 
         Some("genome") => {
@@ -75,7 +107,7 @@ fn main(){
                                 let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
@@ -83,13 +115,21 @@ fn main(){
                             print_zeros,
                             flag_filter,
                             single_genome);
-                            },
+                            let mut out = update_outputs(&mut output_stream, input_stream);
+                            if out.len() > 1{
+                                for i in 0..out.len(){
+                                    output_stream[i] = out[i].clone();
+                                    }
+                            }else{
+                                output_stream = out.clone();
+                            }
+                        },
                         "coverage_histogram" => {
                             if headers{
                                 let ref mut htype = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
@@ -97,13 +137,22 @@ fn main(){
                                 min_fraction_covered),
                             print_zeros,
                             flag_filter,
-                            single_genome)},
+                            single_genome);
+                            let mut out = update_outputs(&mut output_stream, input_stream);
+                            if out.len() > 1{
+                                for i in 0..out.len(){
+                                    output_stream[i] = out[i].clone();
+                                    }
+                            }else{
+                                output_stream = out.clone();
+                            }
+                            },
                         "trimmed_mean" => {
                             if headers{
                                 let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                                 &bam_files,
                                 separator,
                                 &mut std::io::stdout(),
@@ -111,13 +160,21 @@ fn main(){
                                 print_zeros,
                                 flag_filter,
                                 single_genome);
-                                        },
+                                let mut out = update_outputs(&mut output_stream, input_stream);
+                                if out.len() > 1{
+                                    for i in 0..out.len(){
+                                        output_stream[i] = out[i].clone();
+                                        }
+                                }else{
+                                    output_stream = out.clone();
+                                }
+                            },
                         "covered_fraction" => {
                             if headers{
                                 let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
@@ -126,13 +183,21 @@ fn main(){
                             print_zeros,
                             flag_filter,
                             single_genome);
-                                    },
+                            let mut out = update_outputs(&mut output_stream, input_stream);
+                            if out.len() > 1{
+                                for i in 0..out.len(){
+                                    output_stream[i] = out[i].clone();
+                                    }
+                            }else{
+                                output_stream = out.clone();
+                            }
+                        },
                         "variance" => {
                             if headers{
                                 let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
                             separator,
                             &mut std::io::stdout(),
@@ -141,7 +206,15 @@ fn main(){
                             print_zeros,
                             flag_filter,
                             single_genome);
-                                    },
+                            let mut out = update_outputs(&mut output_stream, input_stream);
+                            if out.len() > 1{
+                                for i in 0..out.len(){
+                                    output_stream[i] = out[i].clone();
+                                    }
+                            }else{
+                                output_stream = out.clone();
+                            }
+                            },
                         _ => panic!("programming error")
                     }
             }
@@ -190,13 +263,21 @@ fn main(){
                                 let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
                                 print_header(htype)
                             }
-                            coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                            let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
                             &bam_files,
                             &genomes_and_contigs,
                             &mut std::io::stdout(),
                             &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                             print_zeros,
                             flag_filter);
+                            let mut out = update_outputs(&mut output_stream, input_stream);
+                            if out.len() > 1{
+                                for i in 0..out.len(){
+                                    output_stream[i] = out[i].clone();
+                                    }
+                            }else{
+                                output_stream = out.clone();
+                            }
                         },
                         "coverage_histogram" => {
                             if headers{
@@ -341,6 +422,8 @@ fn main(){
             println!();
         }
     }
+    print_header(htype);
+    print_output_stream(output_stream);
 }
 
 fn set_log_level(matches: &clap::ArgMatches) {
@@ -496,6 +579,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("m")
                      .long("method")
                      .takes_value(true)
+                     .multiple(true)
                      .possible_values(&[
                          "mean",
                          "trimmed_mean",

@@ -14,6 +14,7 @@ impl HeaderTypes{
     }
 }
 
+#[derive(Clone)]
 pub struct OutputStream{
     pub filename: String,
     pub genome: String,
@@ -38,27 +39,24 @@ impl OutputStream{
     pub fn update(mut self, stoit_name: String, genome: String, coverage: &f32) -> OutputStream {
         if self.filename == "".to_string() {
             OutputStream::new(stoit_name, genome, *coverage)
-        }
-        else if self.filename == stoit_name.to_string() {
+
+        }else if self.filename == stoit_name.to_string() {
             if self.genome == genome.to_string() {
                 if self.methods.last() == Some(coverage) {
                     OutputStream{
-                    filename: self.filename,
-                    genome: self.genome,
-                    methods: self.methods,
-                }
-            }
-                else{
-                    self.add_to_method(*coverage)
-                    // OutputStream{
-                    //     filename: self.filename,
-                    //     genome: self.genome,
-                    //     methods: self.methods,
-                    // }
-                }
-            }
-            else{
-                self.print_output();
+                        filename: self.filename,
+                        genome: self.genome,
+                        methods: self.methods,
+                    }
+                } else{
+                        self.add_to_method(*coverage)
+                        // OutputStream{
+                        //     filename: self.filename,
+                        //     genome: self.genome,
+                        //     methods: self.methods,
+                        // }
+                    }
+            } else{
                 self.genome = genome.to_string();
                 if self.methods.last() == Some(coverage) {
                     OutputStream{
@@ -66,8 +64,7 @@ impl OutputStream{
                         genome: self.genome,
                         methods: self.methods,
                     }
-                }
-                else{
+                } else{
                     self.add_to_method(*coverage)
                     // OutputStream{
                     //     filename: self.filename,
@@ -76,8 +73,7 @@ impl OutputStream{
                     // }
                 }
             }
-        }else {
-            self.print_output();
+        } else {
             self.filename = stoit_name.to_string();
             if self.genome == genome.to_string() {
                 if self.methods.last() == Some(coverage) {
@@ -86,8 +82,7 @@ impl OutputStream{
                         genome: self.genome,
                         methods: self.methods,
                     }
-                }
-                else{
+                } else{
                     self.add_to_method(*coverage)
                     // OutputStream{
                     //     filename: self.filename,
@@ -95,9 +90,7 @@ impl OutputStream{
                     //     methods: self.methods,
                     // }
                 }
-            }
-            else{
-                self.print_output();
+            } else{
                 self.genome = genome.to_string();
                 if self.methods.last() == Some(coverage) {
                     OutputStream{
@@ -105,8 +98,7 @@ impl OutputStream{
                         genome: self.genome,
                         methods: self.methods,
                     }
-                }
-                else{
+                } else{
                     self.add_to_method(*coverage)
                     // OutputStream{
                     //     filename: self.filename,
@@ -125,7 +117,7 @@ impl OutputStream{
             methods: self.methods,
         }
     }
-    pub fn print_output(&mut self){
+    pub fn print_output(self){
         print!("{}\t{}\t", self.filename, self.genome);
         for c in self.methods.iter(){
             print!("{}\t", c);
@@ -157,7 +149,7 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
     fn add_to_output(&mut self, output_stream: OutputStream, coverage: f32){
         OutputStream::add_to_method(output_stream, coverage);
     }
-    fn print_genome<'a >(&self, mut output_stream: OutputStream){
+    fn print_genome<'a >(&self, output_stream: OutputStream){
         output_stream.print_output();
     }
     // Implement new header method here somewhere

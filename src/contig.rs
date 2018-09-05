@@ -10,8 +10,8 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
     print_stream: &mut std::io::Write,
     coverage_estimator: &mut T,
     print_zero_coverage_contigs: bool,
-    flag_filtering: bool) {
-
+    flag_filtering: bool){
+    let mut output_vec: Vec<OutputStream> = Vec::new();
     for bam_file in bam_files {
         debug!("Working on BAM file {}", bam_file);
         let mut bam = bam::Reader::from_path(bam_file).expect(
@@ -46,6 +46,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                             &coverage
                         );
+                        output_vec.push(output.clone());
                         coverage_estimator.print_genome(output);
                         // coverage_estimator.print_genome(
                         //     stoit_name,
@@ -53,10 +54,13 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
                         //     &coverage,
                         //     print_stream);
                     } else if print_zero_coverage_contigs {
-                        coverage_estimator.print_zero_coverage(
-                            stoit_name,
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            print_stream);
+                        let mut output = output.update(
+                            stoit_name.to_string(),
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                            &0.0
+                        );
+                        output_vec.push(output.clone());
+                        coverage_estimator.print_genome(output);
                     }
                 }
                 // reset for next time
@@ -110,6 +114,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>>(
         // print zero coverage contigs at the end
         if print_zero_coverage_contigs {
             print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32, stoit_name, coverage_estimator, &target_names, print_stream);
+
         }
     }
 }
