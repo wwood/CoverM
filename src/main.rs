@@ -102,8 +102,7 @@ fn main(){
                     match cover {
                         "mean" => {
                             if headers{
-                                let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
@@ -135,8 +134,7 @@ fn main(){
                             },
                         "trimmed_mean" => {
                             if headers{
-                                let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                                 &bam_files,
@@ -151,8 +149,7 @@ fn main(){
                             },
                         "covered_fraction" => {
                             if headers{
-                                let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
@@ -168,8 +165,7 @@ fn main(){
                         },
                         "variance" => {
                             if headers{
-                                let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage(
                             &bam_files,
@@ -228,8 +224,7 @@ fn main(){
 
                         "mean" => {
                             if headers{
-                                let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
                             &bam_files,
@@ -258,8 +253,7 @@ fn main(){
                             },
                         "trimmed_mean" => {
                             if headers{
-                                let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
                                 &bam_files,
@@ -273,8 +267,7 @@ fn main(){
                             },
                         "covered_fraction" => {
                             if headers{
-                                let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
                             &bam_files,
@@ -289,8 +282,7 @@ fn main(){
                             },
                         "variance" => {
                             if headers{
-                                let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
-                                print_header(htype)
+                                &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
                             }
                             let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
                             &bam_files,
@@ -318,12 +310,13 @@ fn main(){
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let headers = !m.is_present("remove-headers");
+            htype.headers[1] = "Contig".to_string();
+            htype_hist.headers[1] = "Contig".to_string();
             for cover in method {
                 match cover {
                     "mean" => {
                         if headers{
-                            let ref mut htype = &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                            print_header(htype)
+                            &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
                         }
                         let mut input_stream = coverm::contig::contig_coverage(
                         &bam_files,
@@ -349,8 +342,7 @@ fn main(){
                         flag_filter);},
                     "trimmed_mean" => {
                         if headers{
-                            let ref mut htype = &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
-                            print_header(htype)
+                            &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
                         }
                         let mut input_stream = coverm::contig::contig_coverage(
                             &bam_files,
@@ -362,8 +354,7 @@ fn main(){
                         output_stream = out.clone();},
                     "covered_fraction" => {
                         if headers{
-                            let ref mut htype = &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
-                            print_header(htype)
+                            &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
                         }
                         let mut input_stream = coverm::contig::contig_coverage(
                         &bam_files,
@@ -377,8 +368,7 @@ fn main(){
                         },
                     "variance" => {
                         if headers{
-                            let ref mut htype = &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
-                            print_header(htype)
+                            &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
                         }
                         let mut input_stream = coverm::contig::contig_coverage(
                         &bam_files,
