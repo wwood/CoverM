@@ -490,11 +490,11 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             'q' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_first_covered_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("se".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -514,7 +514,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -525,11 +525,11 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_second_covered(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             'q' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_second_covered_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("se".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -549,7 +549,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -560,11 +560,11 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_both_covered(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
@@ -576,7 +576,7 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_both_covered_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -584,7 +584,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -595,11 +595,11 @@ mod tests {
 
     #[test]
     fn test_one_genome_min_fraction_covered_under_min(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
             false,
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_one_genome_min_fraction_covered_under_min_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -619,7 +619,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             false,
             false);
@@ -630,11 +630,11 @@ mod tests {
 
     #[test]
     fn test_one_genome_min_fraction_covered_just_ok(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.759),
             true,
             false,
@@ -647,7 +647,7 @@ mod tests {
 
     #[test]
     fn test_one_genome_min_fraction_covered_just_ok_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -655,7 +655,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.759),
             true,
             false);
@@ -666,11 +666,11 @@ mod tests {
 
     #[test]
     fn test_two_contigs_trimmed_mean(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream,
+            false,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true,
             false,
@@ -682,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_two_contigs_trimmed_mean_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -690,7 +690,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true,
             false);
@@ -701,11 +701,11 @@ mod tests {
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             'e' as u8,
-            &mut stream,
+            false,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false,
@@ -717,7 +717,7 @@ mod tests {
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
@@ -725,7 +725,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/2seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -740,7 +740,7 @@ mod tests {
         mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true,
             false,
@@ -753,7 +753,7 @@ mod tests {
         mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             false,
             false,
@@ -765,11 +765,11 @@ mod tests {
 
     #[test]
     fn test_zero_coverage_genomes_after_min_fraction(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
             false,
@@ -781,11 +781,11 @@ mod tests {
 
     #[test]
     fn test_single_genome(){
-        let mut stream = Cursor::new(Vec::new());
+        let stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             '~' as u8,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
@@ -822,7 +822,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true,
             false);
@@ -834,7 +834,7 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
             &geco,
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             false,
             false);

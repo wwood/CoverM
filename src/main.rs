@@ -73,6 +73,10 @@ fn main(){
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             set_log_level(m);
             let method: Vec<&str> = m.values_of("method").unwrap().collect();
+            if method.len() > 1 && method.contains(&"coverage_histogram"){
+                eprintln!("Cannot use coverage histogram method with other method types, found {:?}", method);
+                process::exit(1)
+            }
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
                 eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
@@ -82,7 +86,6 @@ fn main(){
             let flag_filter = !m.is_present("no-flag-filter");
             let single_genome = m.is_present("single-genome");
             let headers = !m.is_present("remove-headers");
-
             if m.is_present("separator") || single_genome {
                 let separator: u8 = match single_genome {
                     true => "0".as_bytes()[0],
@@ -306,6 +309,10 @@ fn main(){
             set_log_level(m);
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             let method: Vec<&str> = m.values_of("method").unwrap().collect();
+            if method.len() > 1 && method.contains(&"coverage_histogram"){
+                eprintln!("Cannot use coverage histogram method with other method types, found {:?}", method);
+                process::exit(1)
+            }
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
