@@ -50,11 +50,6 @@ impl OutputStream{
                     }
                 } else{
                         self.add_to_method(*coverage)
-                        // OutputStream{
-                        //     filename: self.filename,
-                        //     genome: self.genome,
-                        //     methods: self.methods,
-                        // }
                     }
             } else{
                 self.genome = genome.to_string();
@@ -66,11 +61,6 @@ impl OutputStream{
                     }
                 } else{
                     self.add_to_method(*coverage)
-                    // OutputStream{
-                    //     filename: self.filename,
-                    //     genome: self.genome,
-                    //     methods: self.methods,
-                    // }
                 }
             }
         } else {
@@ -84,11 +74,6 @@ impl OutputStream{
                     }
                 } else{
                     self.add_to_method(*coverage)
-                    // OutputStream{
-                    //     filename: self.filename,
-                    //     genome: self.genome,
-                    //     methods: self.methods,
-                    // }
                 }
             } else{
                 self.genome = genome.to_string();
@@ -100,11 +85,6 @@ impl OutputStream{
                     }
                 } else{
                     self.add_to_method(*coverage)
-                    // OutputStream{
-                    //     filename: self.filename,
-                    //     genome: self.genome,
-                    //     methods: self.methods,
-                    // }
                 }
             }
         }
@@ -127,7 +107,6 @@ impl OutputStream{
 }
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
-    // type header: MosdepthHeader;
 
     fn setup(&mut self);
 
@@ -374,8 +353,10 @@ impl PileupCountsGenomeCoverageEstimator {
     pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
             let coverage_type = "Pileup Counts".to_string();
             let index = "Index".to_string();
+            let st_dev = "Standard Deviation".to_string();
             HeaderTypes::add(header_types, index);
             HeaderTypes::add(header_types, coverage_type);
+            HeaderTypes::add(header_types, st_dev);
             return header_types
         }
 }
@@ -433,6 +414,10 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
         debug!("starting to print {}", output_stream.genome);
         debug!("{:?}",self.counts);
         for coverage in output_stream.methods.iter(){
+            let coverage_sum: u32 = self.counts.iter().sum();
+            let coverage_mean = coverage_sum as f32/self.counts.len() as f32;
+            let coverage_diff = self.counts.iter().fold(0f32, |mut diff, &val| {diff += (val as f32-coverage_mean).powf(2.0); diff});
+            let coverage_var = coverage_diff/(self.counts.len() as f32 -1.0);
             for num_covered in self.counts.iter() {
                 let cov: u32 = match i {
                     0 => {
@@ -444,7 +429,9 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
                     },
                     _ => *num_covered
                 };
-                println!("{}\t{}\t{:}\t{:}", output_stream.filename, output_stream.genome, i, cov);
+                // let var = (cov as f32 - &coverage_mean).powf(2.0);
+                let stand_dev = coverage_var.powf(0.5) as u32;
+                println!("{}\t{}\t{:}\t{:}\t{:}", output_stream.filename, output_stream.genome, i, cov, stand_dev);
                 i += 1
             }
         }
