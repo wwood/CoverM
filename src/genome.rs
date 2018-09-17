@@ -28,17 +28,28 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
         let target_names = header.target_names();
 
         // Collect reference numbers for each genome's contigs
-        let mut reference_number_to_genome_index: Vec<usize> = vec![];
+        let mut reference_number_to_genome_index: Vec<Option<usize>> = vec![];
+        let mut num_refs_in_genomes: u32 = 0;
+        let mut num_refs_not_in_genomes: u32 = 0;
         for name in target_names {
             let genome_index = contigs_and_genomes.genome_index_of_contig(
                 &String::from(std::str::from_utf8(name)
-                              .expect("UTF8 encoding error in BAM header file")))
-                .expect(
-                    &format!("Found reference that was not part of any genome: {:?}", name));
-            reference_number_to_genome_index.push(genome_index);
+                              .expect("UTF8 encoding error in BAM header file")));
+            match genome_index {
+                Some(i) => {
+                    reference_number_to_genome_index.push(Some(i));
+                    num_refs_in_genomes += 1;
+                },
+                None => {
+                    reference_number_to_genome_index.push(None);
+                    num_refs_not_in_genomes += 1;
+                }
+            }
         }
-        debug!("Read in {} reference IDs mapped to genomes {:?}",
-               reference_number_to_genome_index.len(), reference_number_to_genome_index);
+        info!("Of {} reference IDs, {} were assigned to a genome and {} were not",
+              num_refs_in_genomes + num_refs_not_in_genomes,
+              num_refs_in_genomes, num_refs_not_in_genomes);
+        debug!("Reference number to genoems: {:?}", reference_number_to_genome_index);
 
         let mut per_genome_coverage_estimators: Vec<T> = vec!();
         for _ in contigs_and_genomes.genomes.iter() {
@@ -65,8 +76,13 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                 if doing_first == true {
                     doing_first = false;
                 } else {
-                    per_genome_coverage_estimators[reference_number_to_genome_index[last_tid as usize]]
-                        .add_contig(&ups_and_downs);
+                    match reference_number_to_genome_index[last_tid as usize] {
+                        Some(genome_index) => {
+                            per_genome_coverage_estimators[genome_index]
+                                .add_contig(&ups_and_downs);
+                        },
+                        None => {}
+                    }
                 }
 
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
@@ -106,8 +122,13 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
             warn!("No reads were observed - perhaps something went wrong in the mapping?");
         } else {
             // Record the last contig
-            per_genome_coverage_estimators[reference_number_to_genome_index[last_tid as usize]]
-                .add_contig(&ups_and_downs);
+            match reference_number_to_genome_index[last_tid as usize] {
+                Some(genome_index) => {
+                    per_genome_coverage_estimators[genome_index]
+                        .add_contig(&ups_and_downs);
+                },
+                None => {}
+            }
 
             // Print the coverages of each genome
             // Calculate the unobserved length of each genome
@@ -116,12 +137,17 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                 unobserved_lengths.push(0)
             }
             debug!("estimators: {:?}", per_genome_coverage_estimators);
-            for (ref_id, genome_id) in reference_number_to_genome_index.iter().enumerate() {
+            for (ref_id, genome_id_option) in reference_number_to_genome_index.iter().enumerate() {
                 let ref_id_u32: u32 = ref_id as u32;
                 debug!("Seen {:?}", seen_ref_ids);
-                if !seen_ref_ids.contains(&ref_id_u32) {
-                    debug!("Getting target #{} from header names", ref_id_u32);
-                    unobserved_lengths[*genome_id] += header.target_len(ref_id_u32).unwrap()
+                match genome_id_option {
+                    Some(genome_id) => {
+                        if !seen_ref_ids.contains(&ref_id_u32) {
+                            debug!("Getting target #{} from header names", ref_id_u32);
+                            unobserved_lengths[*genome_id] += header.target_len(ref_id_u32).unwrap()
+                        }
+                    },
+                    None => {}
                 }
             }
             // print the genomes out
