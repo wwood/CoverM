@@ -32,6 +32,7 @@ fn main(){
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m);
             let filtering = doing_filtering(m);
+            debug!("Doing filtering? {}", filtering);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -662,11 +663,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 
                 .arg(Arg::with_name("min-aligned-length")
                      .long("min-aligned-length")
-                     .default_value("0")
                      .conflicts_with("no-flag-filter"))
                 .arg(Arg::with_name("min-percent-identity")
                      .long("min-percent-identity")
-                     .default_value("0.0")
                      .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("method")
