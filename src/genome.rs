@@ -50,6 +50,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
               num_refs_in_genomes + num_refs_not_in_genomes,
               num_refs_in_genomes, num_refs_not_in_genomes);
         debug!("Reference number to genoems: {:?}", reference_number_to_genome_index);
+        if num_refs_in_genomes == 0 {
+            eprintln!("Error: There are no found reference sequences that are a part of a genome");
+            std::process::exit(2);
+        }
 
         let mut per_genome_coverage_estimators: Vec<T> = vec!();
         for _ in contigs_and_genomes.genomes.iter() {
