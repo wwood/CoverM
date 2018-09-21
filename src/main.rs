@@ -461,7 +461,14 @@ Define the contigs in each genome (exactly one of the following is required):
    --single-genome                       All contigs are from the same genome
 
 Define mapping(s) (required):
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+  Either define BAM:
+    -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
+
+  Or do mapping:
+   -1 <PATH> ..                          Forward FASTA/Q files for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
+   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -499,7 +506,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         "coverm contig: Calculate read coverage per-contig
 
 Define mapping(s) (required):
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+  Either define BAM:
+    -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
+
+  Or do mapping:
+   -1 <PATH> ..                          Forward FASTA/Q files for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
+   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
