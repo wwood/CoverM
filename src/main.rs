@@ -2,6 +2,7 @@ extern crate coverm;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
+use coverm::external_command_checker;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -49,6 +50,8 @@ fn main(){
                         m);
                 }
             } else {
+                external_command_checker::check_for_bwa();
+                external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Mapping and filtering..");
                     run_genome(
@@ -85,6 +88,8 @@ fn main(){
                     run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
                 }
             } else {
+                external_command_checker::check_for_bwa();
+                external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Filtering..");
                     run_contig(method,
