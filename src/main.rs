@@ -341,6 +341,7 @@ fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReader
                read1.len(), read2.len())
     }
     let mut bam_readers = vec![];
+    coverm::bam_generator::generate_bwa_index(&reference);
     for (i, _) in read1.iter().enumerate() {
         bam_readers.push(
             coverm::bam_generator::generate_named_bam_readers_from_read_couple(
@@ -363,6 +364,7 @@ fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilte
     }
     let mut bam_readers = vec![];
     let filter_params = FilterParameters::generate_from_clap(m);
+    coverm::bam_generator::generate_bwa_index(&reference);
     for (i, _) in read1.iter().enumerate() {
         bam_readers.push(
             coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(

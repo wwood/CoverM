@@ -131,6 +131,39 @@ pub fn generate_named_bam_readers_from_bam_files(
 }
 
 
+pub fn generate_bwa_index(reference_path: &str) {
+    let bwa_extensions = vec!("amb","ann","bwt","pac","sa");
+    let num_extensions = bwa_extensions.len();
+    let mut num_existing: u8 = 0;
+    for extension in bwa_extensions {
+        if std::path::Path::new(&format!("{}.{}", reference_path, extension)).exists() {
+            num_existing += 1;
+        }
+    }
+    if num_existing == 0 {
+        info!("Generating BWA index for {} ..", reference_path);
+        let mut cmd = std::process::Command::new("bwa");
+        cmd
+            .arg("index")
+            .arg(reference_path)
+            .stderr(std::process::Stdio::piped());
+        let mut process = cmd.spawn().expect("Failed to start BWA index process");
+        let es = process.wait().expect("Failed to glean exitstatus from failing BWA index process");
+        if !es.success() {
+            error!("Error when running bwa index process.");
+            let mut err = String::new();
+            process.stderr.expect("Failed to grab stderr from failed BWA index process")
+                .read_to_string(&mut err).expect("Failed to read stderr into string");
+            error!("The STDERR was: {:?}", err);
+            panic!("Cannot continue after BWA index failed.");
+        }
+    } else if num_existing as usize != num_extensions {
+        panic!("BWA index appears to be incomplete, cannot continue.");
+    } else {
+        info!("BWA index appears to be complete, so going ahead and using it.");
+    }
+}
+
 
 pub fn generate_named_bam_readers_from_read_couple(
     reference: &str,
