@@ -3,6 +3,7 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
+use coverm::bwa_index_maintenance::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -341,11 +342,11 @@ fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReader
                read1.len(), read2.len())
     }
     let mut bam_readers = vec![];
-    coverm::bam_generator::generate_bwa_index(&reference);
+    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
     for (i, _) in read1.iter().enumerate() {
         bam_readers.push(
             coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                reference, read1[i], read2[i], threads));
+                index.index_path(), read1[i], read2[i], threads));
         debug!("Back");
     }
     debug!("Finished BAM setup");
@@ -364,11 +365,11 @@ fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilte
     }
     let mut bam_readers = vec![];
     let filter_params = FilterParameters::generate_from_clap(m);
-    coverm::bam_generator::generate_bwa_index(&reference);
+    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
     for (i, _) in read1.iter().enumerate() {
         bam_readers.push(
             coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                reference, read1[i], read2[i], threads,
+                index.index_path(), read1[i], read2[i], threads,
                 filter_params.min_aligned_length,
                 filter_params.min_percent_identity
             ));
