@@ -3,7 +3,6 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
-use coverm::bwa_index_maintenance::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -56,12 +55,14 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Mapping and filtering..");
+                    let generator_set = get_streamed_filtered_bam_readers(m);
                     run_genome(
-                        get_streamed_filtered_bam_readers(m),
+                        generator_set.generators,
                         m);
                 } else {
+                    let generator_set = get_streamed_bam_readers(m);
                     run_genome(
-                        get_streamed_bam_readers(m),
+                        generator_set.generators,
                         m);
                 }
             }
@@ -94,13 +95,15 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Filtering..");
+                    let generator_set = get_streamed_filtered_bam_readers(m);
                     run_contig(method,
-                               get_streamed_filtered_bam_readers(m),
+                               generator_set.generators,
                                min_fraction_covered, print_zeros, flag_filter, m);
                 } else {
                     debug!("Not filtering..");
+                    let generator_set = get_streamed_bam_readers(m);
                     run_contig(method,
-                               get_streamed_bam_readers(m),
+                               generator_set.generators,
                                min_fraction_covered, print_zeros, flag_filter, m);
                 }
             }
@@ -331,7 +334,10 @@ impl FilterParameters {
     }
 }
 
-fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReaderGenerator> {
+
+fn get_streamed_bam_readers<'a>(
+    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingNamedBamReaderGenerator> {
+
     let reference = m.value_of("reference").unwrap();
     let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
     let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
@@ -350,10 +356,16 @@ fn get_streamed_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingNamedBamReader
         debug!("Back");
     }
     debug!("Finished BAM setup");
-    return bam_readers
+    let to_return = BamGeneratorSet {
+        generators: bam_readers,
+        index: index
+    };
+    return to_return;
 }
 
-fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilteredNamedBamReaderGenerator> {
+fn get_streamed_filtered_bam_readers(
+    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator> {
+
     let reference = m.value_of("reference").unwrap();
     let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
     let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
@@ -376,7 +388,11 @@ fn get_streamed_filtered_bam_readers(m: &clap::ArgMatches) -> Vec<StreamingFilte
         debug!("Back");
     }
     debug!("Finished BAM setup");
-    return bam_readers
+    let to_return = BamGeneratorSet {
+        generators: bam_readers,
+        index: index
+    };
+    return to_return;
 }
 
 fn get_trimmed_mean_estimator(

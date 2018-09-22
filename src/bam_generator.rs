@@ -2,6 +2,7 @@ use std;
 use std::io::Read;
 
 use filter::*;
+use bwa_index_maintenance::BwaIndexStruct;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Read as BamRead;
@@ -59,7 +60,7 @@ pub struct StreamingNamedBamReader {
     stoit_name: String,
     bam_reader: bam::Reader,
     tempdir: TempDir,
-    processes: Vec<std::process::Child>
+    processes: Vec<std::process::Child>,
 }
 
 pub struct StreamingNamedBamReaderGenerator {
@@ -69,7 +70,7 @@ pub struct StreamingNamedBamReaderGenerator {
     pre_processes: Vec<std::process::Command>,
 }
 
-impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
+impl<'a> NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
     fn start(self) -> StreamingNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
@@ -84,7 +85,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             stoit_name: self.stoit_name,
             bam_reader: bam_reader,
             tempdir: self.tempdir,
-            processes: processes
+            processes: processes,
         }
     }
 }
@@ -108,6 +109,7 @@ impl NamedBamReader for StreamingNamedBamReader {
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
                 error!("The STDERR was: {:?}", err);
+                panic!("Cannot continue since mapping failed.");
             }
         }
         // Close tempdir explicitly. Maybe not needed.
@@ -168,7 +170,7 @@ pub fn generate_named_bam_readers_from_read_couple(
             .expect("Unable to covert file name into str").to_string(),
         tempdir: tmp_dir,
         fifo_path: fifo_path,
-        pre_processes: vec![cmd]
+        pre_processes: vec![cmd],
     }
 }
 
@@ -229,6 +231,7 @@ pub fn generate_filtered_bam_readers_from_bam_files(
 
     return generators;
 }
+
 
 
 
@@ -350,4 +353,12 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
         min_aligned_length: min_aligned_length,
         min_percent_identity: min_percent_identity
     }
+}
+
+
+
+
+pub struct BamGeneratorSet<T> {
+    pub generators: Vec<T>,
+    pub index: Box<BwaIndexStruct>,
 }

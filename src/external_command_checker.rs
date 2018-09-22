@@ -11,7 +11,7 @@ pub fn check_for_samtools() {
 
 fn check_for_external_command_presence(
     executable_name: &str, testing_cmd: &str) {
-    debug!("Checking for BWA ..");
+    debug!("Checking for {} ..", executable_name);
     let mut cmd = std::process::Command::new("bash");
     cmd
         .arg("-c")
