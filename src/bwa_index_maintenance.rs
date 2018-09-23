@@ -71,7 +71,7 @@ impl BwaIndexStruct for TemporaryBwaIndexStruct {
 }
 impl Drop for TemporaryBwaIndexStruct {
     fn drop(&mut self) {
-        warn!("Dropping index tempdir ..")
+        debug!("Dropping index tempdir ..")
     }
 }
 

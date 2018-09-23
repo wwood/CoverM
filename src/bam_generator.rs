@@ -70,7 +70,7 @@ pub struct StreamingNamedBamReaderGenerator {
     pre_processes: Vec<std::process::Command>,
 }
 
-impl<'a> NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
+impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
     fn start(self) -> StreamingNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
@@ -304,6 +304,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
                 error!("The STDERR was: {:?}", err);
+                panic!("Cannot continue since mapping failed.");
             }
         }
         // Close tempdir explicitly. Maybe not needed.
