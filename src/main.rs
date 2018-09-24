@@ -343,26 +343,40 @@ impl FilterParameters {
 }
 
 
+struct MappingParameters<'a> {
+    references: Vec<&'a str>,
+    threads: u16,
+    read1: Vec<&'a str>,
+    read2: Vec<&'a str>
+}
+impl<'a> MappingParameters<'a> {
+    pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
+        let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
+        let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
+        if read1.len() != read2.len() {
+            panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
+        }
+        return MappingParameters {
+            references: m.values_of("reference").unwrap().collect(),
+            threads: m.value_of("threads").unwrap().parse::<u16>()
+                .expect("Failed to convert threads argument into integer"),
+            read1: read1,
+            read2: read2,
+        }
+    }
+}
+
 fn get_streamed_bam_readers<'a>(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
-
-    let references: Vec<&str> = m.values_of("reference").unwrap().collect();
-    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
-        .expect("Failed to convert threads argument into integer");
-    if read1.len() != read2.len() {
-        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
-               read1.len(), read2.len())
-    }
+    let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
-    for r in references {
+    for r in params.references {
         let mut bam_readers = vec![];
         let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
-        for (i, _) in read1.iter().enumerate() {
+        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                    index.index_path(), read1[i], read2[i], threads));
+                    index.index_path(), read1, read2, params.threads));
         }
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
@@ -376,25 +390,16 @@ fn get_streamed_bam_readers<'a>(
 
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
-
-    let references = m.values_of("reference").unwrap();
-    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
-        .expect("Failed to convert threads argument into integer");
-    if read1.len() != read2.len() {
-        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
-               read1.len(), read2.len())
-    }
+    let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
-    for r in references {
+    for r in params.references {
         let mut bam_readers = vec![];
         let filter_params = FilterParameters::generate_from_clap(m);
         let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
-        for (i, _) in read1.iter().enumerate() {
+        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
             bam_readers.push(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                    index.index_path(), read1[i], read2[i], threads,
+                    index.index_path(), read1, read2, params.threads,
                     filter_params.min_aligned_length,
                     filter_params.min_percent_identity
                 ));
