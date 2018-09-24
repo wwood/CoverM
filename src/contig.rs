@@ -9,12 +9,13 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                        R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
-    print_stream: &mut std::io::Write,
+    limit_stream: bool,
     coverage_estimator: &mut T,
     print_zero_coverage_contigs: bool,
-    flag_filtering: bool) {
+    flag_filtering: bool) -> Vec<OutputStream>{
 
-    for mut bam_generator in bam_readers {
+    let mut output_vec: Vec<OutputStream> = Vec::new();
+    for mut bam_generated in bam_readers {
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
@@ -39,24 +40,48 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 if last_tid != -1 {
                     coverage_estimator.add_contig(&ups_and_downs);
                     let coverage = coverage_estimator.calculate_coverage(0);
-
                     if coverage > 0.0 {
-                        coverage_estimator.print_genome(
-                            stoit_name,
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            &coverage,
-                            print_stream);
+                        let mut output = OutputStream::new(
+                            stoit_name.to_string(),
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                            coverage
+                        );
+                        if limit_stream{
+                            coverage_estimator.print_genome(output.clone())
+                        }
+                        output_vec.push(output);
                     } else if print_zero_coverage_contigs {
-                        coverage_estimator.print_zero_coverage(
-                            stoit_name,
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            print_stream);
+                        let mut output = OutputStream::new(
+                            stoit_name.to_string(),
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                            0.0
+                        );
+                        if limit_stream{
+                            coverage_estimator.print_genome(output.clone())
                     }
+                        output_vec.push(output);
+                        // coverage_estimator.print_genome(output);
+                }
                 }
                 // reset for next time
                 coverage_estimator.setup();
                 if print_zero_coverage_contigs {
-                    print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
+                    // print_previous_zero_coverage_contigs(last_tid, tid, stoit_name, coverage_estimator, &target_names, print_stream);
+                    let mut my_tid = last_tid + 1;
+                    while my_tid < tid {
+                        // coverage_estimator.print_zero_coverage(
+                            // stoit_name, std::str::from_utf8(target_names[my_tid as usize]).unwrap(), print_stream);
+                        let mut output = OutputStream::new(
+                            stoit_name.to_string(),
+                            std::str::from_utf8(target_names[my_tid as usize]).unwrap().to_string(),
+                            0.0
+                        );
+                        my_tid += 1;
+                        if limit_stream{
+                            coverage_estimator.print_genome(output.clone())
+                }
+                        output_vec.push(output);
+                    }
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                 debug!("Working on new reference {}",
@@ -95,36 +120,57 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
         if last_tid != -1 {
             coverage_estimator.add_contig(&ups_and_downs);
             let coverage = coverage_estimator.calculate_coverage(0);
-            coverage_estimator.print_genome(
-                stoit_name,
-                std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                &coverage,
-                print_stream);
+            let mut output = OutputStream::new(
+                stoit_name.to_string(),
+                std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
+                coverage
+            );
+            if limit_stream{
+                coverage_estimator.print_genome(output.clone())
+        }
+            output_vec.push(output);
         }
         // print zero coverage contigs at the end
         if print_zero_coverage_contigs {
-            print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32, stoit_name, coverage_estimator, &target_names, print_stream);
+            // print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32, stoit_name, coverage_estimator, &target_names, print_stream);
+            let mut my_tid = last_tid + 1;
+            while my_tid < target_names.len() as i32 {
+                // coverage_estimator.print_zero_coverage(
+                    // stoit_name, std::str::from_utf8(target_names[my_tid as usize]).unwrap(), print_stream);
+                let mut output = OutputStream::new(
+                    stoit_name.to_string(),
+                    std::str::from_utf8(target_names[my_tid as usize]).unwrap().to_string(),
+                    0.0
+                );
+                my_tid += 1;
+                if limit_stream{
+                    coverage_estimator.print_genome(output.clone())
         }
+                output_vec.push(output);
 
+            };
+
+        }
         bam_generated.finish();
     }
+    return output_vec;
 }
 
 
-fn print_previous_zero_coverage_contigs<T>(
-    last_tid: i32,
-    current_tid: i32,
-    stoit_name: &str,
-    coverage_estimator: &MosdepthGenomeCoverageEstimator<T>,
-    target_names: &Vec<&[u8]>,
-    print_stream: &mut std::io::Write) {
-    let mut my_tid = last_tid + 1;
-    while my_tid < current_tid {
-        coverage_estimator.print_zero_coverage(
-            stoit_name, std::str::from_utf8(target_names[my_tid as usize]).unwrap(), print_stream);
-        my_tid += 1;
-    };
-}
+// fn print_previous_zero_coverage_contigs<T>(
+//     last_tid: i32,
+//     current_tid: i32,
+//     stoit_name: &str,
+//     coverage_estimator: &MosdepthGenomeCoverageEstimator<T>,
+//     target_names: &Vec<&[u8]>,
+//     print_stream: &mut std::io::Write) {
+//     let mut my_tid = last_tid + 1;
+//     while my_tid < current_tid {
+//         coverage_estimator.print_zero_coverage(
+//             stoit_name, std::str::from_utf8(target_names[my_tid as usize]).unwrap(), print_stream);
+//         my_tid += 1;
+//     };
+// }
 
 
 #[cfg(test)]
@@ -137,9 +183,8 @@ mod tests {
     fn test_one_genome_two_contigs_first_covered_no_zeros(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            generate_named_bam_readers_from_bam_files(
-                vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut stream,
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
             false);
@@ -152,9 +197,8 @@ mod tests {
     fn test_one_genome_two_contigs_first_covered(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            generate_named_bam_readers_from_bam_files(
-                vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut stream,
+            &vec!["test/data/7seqs.reads_for_seq1_and_seq2.bam"],
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -167,9 +211,8 @@ mod tests {
     fn test_flag_filtering(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            generate_named_bam_readers_from_bam_files(
-                vec!["tests/data/1.bam"]),
-            &mut stream,
+            &vec!["test/data/1.bam"],
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
             true);
@@ -182,9 +225,8 @@ mod tests {
     fn test_one_contig_variance(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
-            generate_named_bam_readers_from_bam_files(
-                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
+            &vec!["test/data/2seqs.reads_for_seq1.bam"],
+            false,
             &mut VarianceGenomeCoverageEstimator::new(0.0),
             true,
             false);
@@ -194,7 +236,7 @@ mod tests {
             str::from_utf8(stream.get_ref()).unwrap())
     }
 
-    #[test]
+#[test]
     fn test_streaming_bam_file(){
         let mut stream = Cursor::new(Vec::new());
         contig_coverage(
@@ -204,7 +246,7 @@ mod tests {
                     "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                     "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                     4)],
-            &mut stream,
+            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             false,
             false);

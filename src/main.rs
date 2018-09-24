@@ -26,6 +26,43 @@ fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
 
+    let mut htype = &mut HeaderTypes::created();
+    let mut htype_hist = &mut HeaderTypes::created();
+    pub fn print_header(htype: &mut HeaderTypes){
+        for h in htype.headers.iter(){
+            print!("{}\t", h)
+        }
+        println!("")
+    }
+    let mut output_stream = Vec::new();
+    let mut limit_stream = false;
+    pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
+        // let it = output.iter().zip(input.iter());
+        if output.len()==0{
+            return input
+        } else {
+            // let cnt = 0;
+            let mut output_st: Vec<OutputStream> = Vec::new();
+            if input.len() > 0 {
+                for (i, v) in input.iter().enumerate() {
+                    for m in v.methods.iter(){
+                        output[i].methods.push(*m);
+                    }
+                    output_st.push(output[i].clone());
+                    // let mut cnt = cnt + 1;
+                }
+            } else{
+                output[0].methods.append(&mut input[0].methods);
+                output_st.push(output[0].clone());
+            }
+        return output_st
+        }
+    }
+    pub fn print_output_stream(output_stream: Vec<OutputStream>){
+        for mut out in output_stream{
+            out.print_output();
+        }
+    }
     match matches.subcommand_name() {
 
         Some("genome") => {
@@ -147,6 +184,11 @@ fn main(){
             app.print_help().unwrap();
             println!();
         }
+
+    }
+    if !limit_stream{
+        print_header(htype);
+        print_output_stream(output_stream);
     }
 }
 
@@ -520,6 +562,7 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --remove-headers                      Omit headers from output
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -565,6 +608,7 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --remove-headers                      Omit headers from output
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -691,11 +735,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("m")
                      .long("method")
                      .takes_value(true)
+                     .multiple(true)
                      .possible_values(&[
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -710,6 +756,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("remove-headers")
+                     .long("remove-headers"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
@@ -765,11 +813,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("m")
                      .long("method")
                      .takes_value(true)
+                     .multiple(true)
                      .possible_values(&[
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
@@ -784,6 +834,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("remove-headers")
+                     .long("remove-headers"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))
