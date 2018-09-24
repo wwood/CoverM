@@ -351,11 +351,34 @@ struct MappingParameters<'a> {
 }
 impl<'a> MappingParameters<'a> {
     pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
-        let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-        let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-        if read1.len() != read2.len() {
-            panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
+        let mut read1: Vec<&str> = vec!();
+        let mut read2: Vec<&str> = vec!();
+
+        if m.is_present("read1") {
+            read1 = m.values_of("read1").unwrap().collect();
+            read2 = m.values_of("read2").unwrap().collect();
+            if read1.len() != read2.len() {
+                panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
+            }
         }
+
+        // Parse --coupled
+        if m.is_present("coupled") {
+            let coupled: Vec<&str> = m.values_of("coupled").unwrap().collect();
+            if coupled.len() % 2 != 0 {
+                panic!(
+                    "The --coupled flag must be set with pairs of read sets, but an odd number ({}) was specified",
+                    coupled.len()
+                )
+            }
+            let mut i = 0;
+            while i < coupled.len() {
+                read1.push(coupled[i]);
+                read2.push(coupled[i+1]);
+                i += 2;
+            }
+        }
+
         return MappingParameters {
             references: m.values_of("reference").unwrap().collect(),
             threads: m.value_of("threads").unwrap().parse::<u16>()
@@ -510,10 +533,12 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
    -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
+                                         for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -555,10 +580,12 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
+   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
+   -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -r, --reference <PATH> ..             FASTA file(s) of contigs or BWA index stem(s)
-   -t, --threads <INT>                   Number of threads to use for mapping
+   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
+                                         for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -652,13 +679,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-1")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read2")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read1")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
@@ -755,13 +793,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-1")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read2")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read1")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
