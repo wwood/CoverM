@@ -25,6 +25,7 @@ impl BwaIndexStruct for VanillaBwaIndexStuct {
 }
 
 pub struct TemporaryBwaIndexStruct {
+    #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
     index_path_internal: String
 }
