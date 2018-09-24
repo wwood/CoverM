@@ -55,15 +55,19 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Mapping and filtering..");
-                    let generator_set = get_streamed_filtered_bam_readers(m);
-                    run_genome(
-                        generator_set.generators,
-                        m);
+                    let generator_sets = get_streamed_filtered_bam_readers(m);
+                    for generator_set in generator_sets {
+                        run_genome(
+                            generator_set.generators,
+                            m);
+                    }
                 } else {
-                    let generator_set = get_streamed_bam_readers(m);
-                    run_genome(
-                        generator_set.generators,
-                        m);
+                    let generator_sets = get_streamed_bam_readers(m);
+                    for generator_set in generator_sets {
+                        run_genome(
+                            generator_set.generators,
+                            m);
+                    }
                 }
             }
         },
@@ -95,16 +99,20 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filtering {
                     debug!("Filtering..");
-                    let generator_set = get_streamed_filtered_bam_readers(m);
-                    run_contig(method,
-                               generator_set.generators,
-                               min_fraction_covered, print_zeros, flag_filter, m);
+                    let generator_sets = get_streamed_filtered_bam_readers(m);
+                    for generator_set in generator_sets {
+                        run_contig(method,
+                                   generator_set.generators,
+                                   min_fraction_covered, print_zeros, flag_filter, m);
+                    }
                 } else {
                     debug!("Not filtering..");
-                    let generator_set = get_streamed_bam_readers(m);
-                    run_contig(method,
-                               generator_set.generators,
-                               min_fraction_covered, print_zeros, flag_filter, m);
+                    let generator_sets = get_streamed_bam_readers(m);
+                    for generator_set in generator_sets {
+                        run_contig(method,
+                                   generator_set.generators,
+                                   min_fraction_covered, print_zeros, flag_filter, m);
+                    }
                 }
             }
         },
@@ -336,9 +344,9 @@ impl FilterParameters {
 
 
 fn get_streamed_bam_readers<'a>(
-    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingNamedBamReaderGenerator> {
+    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
 
-    let reference = m.value_of("reference").unwrap();
+    let references: Vec<&str> = m.values_of("reference").unwrap().collect();
     let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
     let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
     let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
@@ -347,26 +355,29 @@ fn get_streamed_bam_readers<'a>(
         panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
                read1.len(), read2.len())
     }
-    let mut bam_readers = vec![];
-    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
-    for (i, _) in read1.iter().enumerate() {
-        bam_readers.push(
-            coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                index.index_path(), read1[i], read2[i], threads));
-        debug!("Back");
-    }
-    debug!("Finished BAM setup");
-    let to_return = BamGeneratorSet {
-        generators: bam_readers,
-        index: index
+    let mut generator_set = vec!();
+    for r in references {
+        let mut bam_readers = vec![];
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
+        for (i, _) in read1.iter().enumerate() {
+            bam_readers.push(
+                coverm::bam_generator::generate_named_bam_readers_from_read_couple(
+                    index.index_path(), read1[i], read2[i], threads));
+        }
+        debug!("Finished BAM setup");
+        let to_return = BamGeneratorSet {
+            generators: bam_readers,
+            index: index
+        };
+        generator_set.push(to_return);
     };
-    return to_return;
+    return generator_set;
 }
 
 fn get_streamed_filtered_bam_readers(
-    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator> {
+    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
 
-    let reference = m.value_of("reference").unwrap();
+    let references = m.values_of("reference").unwrap();
     let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
     let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
     let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
@@ -375,24 +386,28 @@ fn get_streamed_filtered_bam_readers(
         panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
                read1.len(), read2.len())
     }
-    let mut bam_readers = vec![];
-    let filter_params = FilterParameters::generate_from_clap(m);
-    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
-    for (i, _) in read1.iter().enumerate() {
-        bam_readers.push(
-            coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                index.index_path(), read1[i], read2[i], threads,
-                filter_params.min_aligned_length,
-                filter_params.min_percent_identity
-            ));
-        debug!("Back");
+    let mut generator_set = vec!();
+    for r in references {
+        let mut bam_readers = vec![];
+        let filter_params = FilterParameters::generate_from_clap(m);
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
+        for (i, _) in read1.iter().enumerate() {
+            bam_readers.push(
+                coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
+                    index.index_path(), read1[i], read2[i], threads,
+                    filter_params.min_aligned_length,
+                    filter_params.min_percent_identity
+                ));
+            debug!("Back");
+        }
+        debug!("Finished BAM setup");
+        let to_return = BamGeneratorSet {
+            generators: bam_readers,
+            index: index
+        };
+        generator_set.push(to_return);
     }
-    debug!("Finished BAM setup");
-    let to_return = BamGeneratorSet {
-        generators: bam_readers,
-        index: index
-    };
-    return to_return;
+    return generator_set;
 }
 
 fn get_trimmed_mean_estimator(
@@ -490,9 +505,9 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -1 <PATH> ..                          Forward FASTA/Q files for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
    -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
@@ -535,9 +550,9 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -1 <PATH> ..                          Forward FASTA/Q files for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -r, --reference <PATH> ..             FASTA file(s) of contigs or BWA index stem(s)
    -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
@@ -644,6 +659,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")
@@ -744,6 +760,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")
