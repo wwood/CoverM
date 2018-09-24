@@ -165,8 +165,11 @@ pub fn generate_named_bam_readers_from_read_couple(
         .stderr(std::process::Stdio::piped());
 
     return StreamingNamedBamReaderGenerator {
-        stoit_name: std::path::Path::new(read1_path).file_name()
-            .expect("Unable to convert read1 name fq to path").to_str()
+        stoit_name: std::path::Path::new(reference).file_name()
+            .expect("Unable to convert reference to file name").to_str()
+            .expect("Unable to covert file name into str").to_string()+"/"+
+            &std::path::Path::new(read1_path).file_name()
+            .expect("Unable to convert read1 name to file name").to_str()
             .expect("Unable to covert file name into str").to_string(),
         tempdir: tmp_dir,
         fifo_path: fifo_path,
@@ -345,8 +348,11 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
         .stderr(std::process::Stdio::piped());
 
     return StreamingFilteredNamedBamReaderGenerator {
-        stoit_name: std::path::Path::new(read1_path).file_name()
-            .expect("Unable to convert read1 name fq to path").to_str()
+        stoit_name: std::path::Path::new(reference).file_name()
+            .expect("Unable to convert reference to file name").to_str()
+            .expect("Unable to covert file name into str").to_string()+"/"+
+            &std::path::Path::new(read1_path).file_name()
+            .expect("Unable to convert read1 name to file name").to_str()
             .expect("Unable to covert file name into str").to_string(),
         tempdir: tmp_dir,
         fifo_path: fifo_path,

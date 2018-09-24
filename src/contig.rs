@@ -209,7 +209,7 @@ mod tests {
             false,
             false);
         assert_eq!(
-            "reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\nreads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
+            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 
