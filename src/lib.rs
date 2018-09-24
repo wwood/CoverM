@@ -2,6 +2,10 @@ pub mod contig;
 pub mod genome;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod genomes_and_contigs;
+pub mod bam_generator;
+pub mod filter;
+pub mod external_command_checker;
+pub mod bwa_index_maintenance;
 
 extern crate bio;
 #[macro_use]
@@ -9,6 +13,8 @@ extern crate log;
 
 extern crate rust_htslib;
 extern crate env_logger;
+extern crate nix;
+extern crate tempdir;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
@@ -61,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_read_genome_fasta_files_one_genome(){
-        let contig_to_genome = read_genome_fasta_files(&vec!["test/data/genome1.fna"]);
+        let contig_to_genome = read_genome_fasta_files(&vec!["tests/data/genome1.fna"]);
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq1")).unwrap());
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq2")).unwrap());
     }

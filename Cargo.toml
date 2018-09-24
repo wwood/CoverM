@@ -11,7 +11,13 @@ readme = "README.md"
 
 [dependencies]
 bio = "0.20.*"
-rust-htslib = "0.19.*"
+rust-htslib = "0.21.*"
 clap = "2.*"
 log = "0.3.*"
 env_logger = "0.4.*"
+nix = "0.11.*"
+tempdir = "0.3.*"
+
+[dev-dependencies]
+assert_cli = "0.6.*"
+tempfile = "3.0.*"
