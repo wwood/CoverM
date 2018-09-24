@@ -492,7 +492,7 @@ Define mapping(s) (required):
   Or do mapping:
    -1 <PATH> ..                          Forward FASTA/Q files for mapping
    -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
    -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
@@ -537,7 +537,7 @@ Define mapping(s) (required):
   Or do mapping:
    -1 <PATH> ..                          Forward FASTA/Q files for mapping
    -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
    -t, --threads <INT>                   Number of threads to use for mapping
 
 Alignment filtering (optional):
