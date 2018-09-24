@@ -698,9 +698,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 
                 .arg(Arg::with_name("min-aligned-length")
                      .long("min-aligned-length")
+                     .takes_value(true)
                      .conflicts_with("no-flag-filter"))
                 .arg(Arg::with_name("min-percent-identity")
                      .long("min-percent-identity")
+                     .takes_value(true)
                      .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("method")
