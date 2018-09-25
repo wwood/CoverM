@@ -4,13 +4,46 @@ use std::io::Read;
 use tempdir::TempDir;
 
 
-pub trait BwaIndexStruct {
+pub trait BwaIndexStruct{
     fn index_path(&self) -> &String;
 }
+
+// pub trait BwaIndexStruct: BwaIndexStructClone{
+//     fn index_path(&self) -> &String;
+//     // fn clone(&self) -> BwaIndexStruct{
+//     //     self.clone()
+//     // }
+// }
+
+// pub trait BwaIndexStructClone {
+//     fn clone_box(&self) -> Box<BwaIndexStruct>;
+// }
+
+// pub trait Clone {
+//     fn clone(&self) -> &Self{
+//         self.clone()
+//     }
+// }
+
+// impl<T> BwaIndexStructClone for T
+// where
+//     T: 'static + BwaIndexStruct + Clone,
+// {
+//     fn clone_box(&self) -> Box<BwaIndexStruct> {
+//         Box::new(self.clone())
+//     }
+// }
+
+// impl Clone for Box<BwaIndexStruct> {
+//     fn clone(&self) -> &Self{
+//         self.clone_box()
+//     }
+// }
 
 pub struct VanillaBwaIndexStuct {
     index_path_internal: String
 }
+
 impl VanillaBwaIndexStuct {
     pub fn new(reference_path: &str) -> VanillaBwaIndexStuct {
         return VanillaBwaIndexStuct {
@@ -18,11 +51,25 @@ impl VanillaBwaIndexStuct {
         }
     }
 }
+
 impl BwaIndexStruct for VanillaBwaIndexStuct {
     fn index_path(&self) -> &String {
         return &self.index_path_internal
     }
 }
+
+// impl Clone for VanillaBwaIndexStuct{
+//     fn clone(&self) -> &Self{
+//         self.clone()
+//     }
+// }
+
+// impl Clone for TempDir {
+//     fn clone(&self) -> &Self{
+//         self.clone()
+//     }
+// }
+
 
 pub struct TemporaryBwaIndexStruct {
     tempdir: TempDir,
@@ -74,6 +121,11 @@ impl Drop for TemporaryBwaIndexStruct {
         debug!("Dropping index tempdir ..")
     }
 }
+// impl Clone for TemporaryBwaIndexStruct{
+//     fn clone(&self) -> &Self{
+//         self.clone()
+//     }
+// }
 
 pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
     let bwa_extensions = vec!("amb","ann","bwt","pac","sa");
