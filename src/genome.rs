@@ -12,7 +12,7 @@ use bam_generator::*;
 pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstimator<T> + std::fmt::Debug,
                                                   R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>>(
-    bam_readers: &Vec<G>,
+    bam_readers: Vec<G>,
     contigs_and_genomes: &GenomesAndContigs,
     limit_stream: bool,
     coverage_estimators: &mut T,
@@ -20,7 +20,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
     flag_filtering: bool) -> Vec<OutputStream>{
     let mut output_vec: Vec<OutputStream> = Vec::new();
     for mut bam_generator in bam_readers {
-        let mut bam_generated = bam_generator.start();
+        let bg = bam_generator;
+        let mut bam_generated = bg.start();
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
@@ -219,7 +220,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
 pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt::Debug,
                                 R: NamedBamReader,
                                 G: NamedBamReaderGenerator<R>>(
-    bam_readers: Vec<G>,
+    bam_readers: &Vec<G>,
     split_char: u8,
     limit_stream: bool,
     coverage_estimator: &mut T,
@@ -228,7 +229,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
     single_genome: bool) -> Vec<OutputStream>{
 
     let mut output_vec: Vec<OutputStream> = Vec::new();
-    for mut bam_generator in bam_readers {
+    for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
