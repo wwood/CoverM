@@ -12,13 +12,13 @@ use bam_generator::*;
 pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstimator<T> + std::fmt::Debug,
                                                   R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>>(
-    bam_readers: Vec<G>,
+    bam_readers: &Vec<G>,
     contigs_and_genomes: &GenomesAndContigs,
     limit_stream: bool,
     coverage_estimators: &mut T,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool) -> Vec<OutputStream>{
-
+    let mut output_vec: Vec<OutputStream> = Vec::new();
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -55,12 +55,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
             std::process::exit(2);
         }
 
+
         let mut per_genome_coverage_estimators: Vec<T> = vec!();
         for _ in contigs_and_genomes.genomes.iter() {
-            let cov_clone = coverage_estimator.copy();
+            let cov_clone = coverage_estimators.copy();
             per_genome_coverage_estimators.push(cov_clone);
         }
-
         // Iterate through bam records
         let mut last_tid: u32 = 0;
         let mut doing_first = true;
@@ -73,7 +73,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                  record.is_supplementary() ||
                  !record.is_proper_pair()) {
                     continue;
-                }
+                    }
             let tid = record.tid() as u32;
             if tid != last_tid || doing_first {
                 debug!("Came across a new tid {}", tid);
@@ -93,6 +93,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                 last_tid = tid;
                 seen_ref_ids.insert(tid);
             }
+
 
                 // TODO: move below into a function for code-reuse purposes.
                 // Add coverage info for the current record
@@ -119,8 +120,28 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                         '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
                         _ => {}
                     }
-                }
+              }
             }
+
+            // // Record the last contig
+            // per_genome_coverage_estimators[reference_number_to_genome_index[last_tid as usize] as usize]
+            //     .add_contig(&ups_and_downs);
+
+            // // Print the coverages of each genome
+            // // Calculate the unobserved length of each genome
+            // let mut unobserved_lengths: Vec<u32> = vec!();
+            // for _ in 0..contigs_and_genomes.genomes.len() {
+            //     unobserved_lengths.push(0)
+            // }
+            // debug!("estimators: {:?}", per_genome_coverage_estimators);
+            // for (ref_id, genome_id) in reference_number_to_genome_index.iter().enumerate() {
+            //     let ref_id_u32: u32 = ref_id as u32;
+            //     debug!("Seen {:?}", seen_ref_ids);
+            //     if !seen_ref_ids.contains(&ref_id_u32) {
+            //         debug!("Getting target #{} from header names", ref_id_u32);
+            //         unobserved_lengths[*genome_id] += header.target_len(ref_id_u32).unwrap()
+            //     }
+            // }
 
         if doing_first {
             warn!("No reads were observed - perhaps something went wrong in the mapping?");
@@ -154,6 +175,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                     None => {}
                 }
             }
+
             // print the genomes out
             for (i, genome) in contigs_and_genomes.genomes.iter().enumerate() {
                 let coverage = per_genome_coverage_estimators[i]
@@ -161,25 +183,36 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
 
                 // Print coverage of previous genome
                 debug!("Found coverage {} for genome {}", coverage, genome);
-                if coverage > 0.0 {
-                    per_genome_coverage_estimators[i].print_genome(
-                        &stoit_name,
-                        &genome,
-                        &coverage,
-                        print_stream);
-                } else if print_zero_coverage_genomes {
-                    per_genome_coverage_estimators[i].print_zero_coverage(
-                        &stoit_name,
-                        &genome,
-                        print_stream);
-                }
 
+                // let mut output = per_genome_coverage_estimators[i].create_output();
+                if coverage > 0.0 {
+                    let mut output = OutputStream::new(
+                        stoit_name.to_string(),
+                        genome.to_string(),
+                        coverage
+                    );
+                    if limit_stream{
+                        per_genome_coverage_estimators[i].print_genome(output.clone());
+                    }
+                    output_vec.push(output);
+                } else if print_zero_coverage_genomes {
+                    let mut output = OutputStream::new(
+                        stoit_name.to_string(),
+                        genome.to_string(),
+                        0.0
+                    );
+                    if limit_stream{
+                        per_genome_coverage_estimators[i].print_genome(output.clone());
+                    }
+                    output_vec.push(output);
+                }
             }
         }
-
         bam_generated.finish();
-    }
+        }
+    return output_vec;
 }
+
 
 
 
@@ -194,6 +227,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
     flag_filtering: bool,
     single_genome: bool) -> Vec<OutputStream>{
 
+    let mut output_vec: Vec<OutputStream> = Vec::new();
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -396,27 +430,36 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
             if single_genome {
                 last_genome = "genome1".as_bytes()
             }
+        
+        // Print coverage of previous genome
 
-            // Print coverage of previous genome
-            if coverage > 0.0 {
-                coverage_estimator.print_genome(
-                    &stoit_name,
-                    &str::from_utf8(last_genome).unwrap(),
-                    &coverage,
-                    print_stream);
-            } else if print_zero_coverage_genomes {
-                coverage_estimator.print_zero_coverage(
-                    &stoit_name,
-                    &str::from_utf8(last_genome).unwrap(),
-                    print_stream);
+        if coverage > 0.0 {
+            let mut output = OutputStream::new(
+                stoit_name.to_string(),
+                str::from_utf8(last_genome).unwrap().to_string(),
+                coverage
+            );
+            if limit_stream{
+                coverage_estimator.print_genome(output.clone());
             }
-            if print_zero_coverage_genomes && !single_genome {
-                print_previous_zero_coverage_genomes2(
-                    stoit_name, last_genome, b"", header.target_count()-1, coverage_estimator,
-                    &target_names, split_char, print_stream);
+            output_vec.push(output);
+        } else if print_zero_coverage_genomes {
+            let mut output = OutputStream::new(
+                stoit_name.to_string(),
+                str::from_utf8(last_genome).unwrap().to_string(),
+                0.0
+            );
+            if limit_stream{
+                coverage_estimator.print_genome(output.clone());
             }
+            output_vec.push(output);
         }
-
+        if print_zero_coverage_genomes && !single_genome {
+            print_previous_zero_coverage_genomes2(
+                stoit_name, last_genome, b"", header.target_count()-1, coverage_estimator,
+                &target_names, split_char);
+        }
+        }
         bam_generated.finish();
     }
     return output_vec;

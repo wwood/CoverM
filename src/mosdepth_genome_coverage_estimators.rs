@@ -1,23 +1,137 @@
 use std;
 
 
+pub struct HeaderTypes{
+    pub headers: Vec<String>,
+}
+
+impl HeaderTypes{
+    pub fn created()->HeaderTypes {
+        HeaderTypes {headers: vec!["Filename".to_string(), "Genome".to_string()] }
+    }
+    pub fn add(&mut self, value: String){
+        self.headers.push(value);
+    }
+}
+
+#[derive(Clone)]
+pub struct OutputStream{
+    pub filename: String,
+    pub genome: String,
+    pub methods: Vec<f32>,
+}
+
+impl OutputStream{
+    pub fn construct() -> OutputStream{
+        OutputStream{
+            filename: "".to_string(),
+            genome: "".to_string(),
+            methods: vec![],
+        }
+    }
+    pub fn new(stoit_name: String, genome: String, coverage: f32) -> OutputStream{
+        OutputStream{
+            filename: stoit_name,
+            genome: genome,
+            methods: vec![coverage]
+        }
+    }
+    pub fn update(mut self, stoit_name: String, genome: String, coverage: &f32) -> OutputStream {
+        if self.filename == "".to_string() {
+            OutputStream::new(stoit_name, genome, *coverage)
+
+        }else if self.filename == stoit_name.to_string() {
+            if self.genome == genome.to_string() {
+                if self.methods.last() == Some(coverage) {
+                    OutputStream{
+                        filename: self.filename,
+                        genome: self.genome,
+                        methods: self.methods,
+                    }
+                } else{
+                        self.add_to_method(*coverage)
+                    }
+            } else{
+                self.genome = genome.to_string();
+                if self.methods.last() == Some(coverage) {
+                    OutputStream{
+                        filename: self.filename,
+                        genome: self.genome,
+                        methods: self.methods,
+                    }
+                } else{
+                    self.add_to_method(*coverage)
+                }
+            }
+        } else {
+            self.filename = stoit_name.to_string();
+            if self.genome == genome.to_string() {
+                if self.methods.last() == Some(coverage) {
+                    OutputStream{
+                        filename: self.filename,
+                        genome: self.genome,
+                        methods: self.methods,
+                    }
+                } else{
+                    self.add_to_method(*coverage)
+                }
+            } else{
+                self.genome = genome.to_string();
+                if self.methods.last() == Some(coverage) {
+                    OutputStream{
+                        filename: self.filename,
+                        genome: self.genome,
+                        methods: self.methods,
+                    }
+                } else{
+                    self.add_to_method(*coverage)
+                }
+            }
+        }
+    }
+    pub fn add_to_method(mut self, value: f32)->OutputStream{
+        self.methods.push(value);
+        OutputStream{
+            filename: self.filename,
+            genome: self.genome,
+            methods: self.methods,
+        }
+    }
+    pub fn print_output(self){
+        print!("{}\t{}\t", self.filename, self.genome);
+        for c in self.methods.iter(){
+            print!("{}\t", c);
+        }
+        println!{""}
+    }
+}
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
+
     fn setup(&mut self);
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
-
-    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
-                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        writeln!(print_stream, "{}\t{}\t{}",
-                 stoit_name,
-                 genome,
-                 coverage).unwrap();
-        return print_stream;
+    fn create_output(&mut self) -> OutputStream{
+        OutputStream::construct()
+    }
+    fn update_output(&mut self, output_stream: OutputStream,
+                    stoit_name: &str, genome: &str, coverage: &f32)-> OutputStream{
+        output_stream.update(
+            stoit_name.to_string(),
+            genome.to_string(),
+            coverage,
+        )
     }
 
+    fn add_to_output(&mut self, output_stream: OutputStream, coverage: f32){
+        OutputStream::add_to_method(output_stream, coverage);
+    }
+    fn print_genome<'a >(&self, output_stream: OutputStream){
+        output_stream.print_output();
+    }
+    // Implement new header method here somewhere
     fn print_zero_coverage<'a>(&self, stoit_name: &str, genome: &str,
                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
         writeln!(print_stream, "{}\t{}\t0.0",
@@ -45,8 +159,16 @@ impl MeanGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
-}
+
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Mean Coverage".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
+    }
+
 impl MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator> for MeanGenomeCoverageEstimator {
+
     fn setup(&mut self) {
         debug!("Running setup..");
         self.total_count = 0;
@@ -106,7 +228,13 @@ impl TrimmedMeanGenomeCoverageEstimator {
             max: max
         }
     }
-}
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Trimmed Mean Coverage".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
+    }
+
 impl MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator> for TrimmedMeanGenomeCoverageEstimator {
     fn setup(&mut self) {
         self.observed_contig_length = 0;
@@ -222,6 +350,15 @@ impl PileupCountsGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Pileup Counts".to_string();
+            let index = "Index".to_string();
+            let st_dev = "Standard Deviation".to_string();
+            HeaderTypes::add(header_types, index);
+            HeaderTypes::add(header_types, coverage_type);
+            HeaderTypes::add(header_types, st_dev);
+            return header_types
+        }
 }
 
 impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for PileupCountsGenomeCoverageEstimator {
@@ -272,26 +409,39 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
         }
     }
 
-    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
-                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+    fn print_genome<'a >(&self, output_stream: OutputStream){
         let mut i = 0;
-        debug!("starting to print {}", genome);
+        debug!("starting to print {}", output_stream.genome);
         debug!("{:?}",self.counts);
-        for num_covered in self.counts.iter() {
-            let cov: u32 = match i {
-                0 => {
-                    let c = coverage.floor() as u32;
-                    match c {
-                        0 => 0,
-                        _ => c - 1
-                    }
-                },
-                _ => *num_covered
-            };
-            writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
-            i += 1
+        for coverage in output_stream.methods.iter(){
+            let mut cov_vec: Vec<u32> = vec!();
+            for num_covered in self.counts.iter() {
+                let cov: u32 = match i {
+                    0 => {
+                        let c = coverage.floor() as u32;
+                        match c {
+                            0 => 0,
+                            _ => c - 1
+                        }
+                    },
+                    _ => *num_covered
+                };
+
+                cov_vec.push(cov);
+                i += 1
+            }
+            let coverage_sum: u32 = cov_vec.iter().sum();
+            let coverage_mean = coverage_sum as f32/cov_vec.len() as f32;
+            let coverage_diff = cov_vec.iter().fold(0f32, |mut diff, &val| {diff += (val as f32-coverage_mean).powf(2.0); diff});
+            let coverage_var = coverage_diff/(cov_vec.len() as f32 -1.0);
+            let mut j = 0;
+            for cov in cov_vec.iter(){
+                // let var = (cov as f32 - &coverage_mean).powf(2.0);
+                let stand_dev = coverage_var.powf(0.5) as u32;
+                println!("{}\t{}\t{:}\t{:}\t{:}", output_stream.filename, output_stream.genome, j, cov, stand_dev);
+                j += 1
+            }
         }
-        return print_stream;
     }
 
     fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
@@ -319,6 +469,11 @@ impl CoverageFractionGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Covered Fraction".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
 }
 impl MosdepthGenomeCoverageEstimator<CoverageFractionGenomeCoverageEstimator> for CoverageFractionGenomeCoverageEstimator {
     fn setup(&mut self) {
@@ -370,6 +525,11 @@ impl VarianceGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn add_to_header(header_types: &mut HeaderTypes) -> &mut HeaderTypes{
+            let coverage_type = "Variance".to_string();
+            HeaderTypes::add(header_types, coverage_type);
+            return header_types
+        }
 }
 impl MosdepthGenomeCoverageEstimator<VarianceGenomeCoverageEstimator> for VarianceGenomeCoverageEstimator {
     fn setup(&mut self) {

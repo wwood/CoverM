@@ -15,9 +15,8 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
     flag_filtering: bool) -> Vec<OutputStream>{
 
     let mut output_vec: Vec<OutputStream> = Vec::new();
-    for mut bam_generated in bam_readers {
+    for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-
         let stoit_name = &(bam_generated.name().to_string());
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut last_tid: i32 = -1; // no such tid in a real BAM file
@@ -58,10 +57,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                         );
                         if limit_stream{
                             coverage_estimator.print_genome(output.clone())
-                    }
+                        }
                         output_vec.push(output);
                         // coverage_estimator.print_genome(output);
-                }
+                    }
                 }
                 // reset for next time
                 coverage_estimator.setup();
@@ -79,7 +78,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                         my_tid += 1;
                         if limit_stream{
                             coverage_estimator.print_genome(output.clone())
-                }
+                        }
                         output_vec.push(output);
                     }
                 }
@@ -127,7 +126,7 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
             );
             if limit_stream{
                 coverage_estimator.print_genome(output.clone())
-        }
+            }
             output_vec.push(output);
         }
         // print zero coverage contigs at the end
@@ -145,16 +144,18 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 my_tid += 1;
                 if limit_stream{
                     coverage_estimator.print_genome(output.clone())
-        }
+                }
                 output_vec.push(output);
 
             };
 
         }
-        bam_generated.finish();
+
+    bam_generated.finish();
     }
     return output_vec;
 }
+
 
 
 // fn print_previous_zero_coverage_contigs<T>(
