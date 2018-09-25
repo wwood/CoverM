@@ -14,14 +14,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                                                   G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
     contigs_and_genomes: &GenomesAndContigs,
-    limit_stream: bool,
     coverage_estimators: &mut T,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool) -> Vec<OutputStream>{
     let mut output_vec: Vec<OutputStream> = Vec::new();
     for mut bam_generator in bam_readers {
-        let bg = bam_generator;
-        let mut bam_generated = bg.start();
+        let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
@@ -192,9 +190,6 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                         genome.to_string(),
                         coverage
                     );
-                    if limit_stream{
-                        per_genome_coverage_estimators[i].print_genome(output.clone());
-                    }
                     output_vec.push(output);
                 } else if print_zero_coverage_genomes {
                     let mut output = OutputStream::new(
@@ -202,9 +197,6 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                         genome.to_string(),
                         0.0
                     );
-                    if limit_stream{
-                        per_genome_coverage_estimators[i].print_genome(output.clone());
-                    }
                     output_vec.push(output);
                 }
             }
@@ -220,9 +212,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
 pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt::Debug,
                                 R: NamedBamReader,
                                 G: NamedBamReaderGenerator<R>>(
-    bam_readers: &Vec<G>,
+    bam_readers: Vec<G>,
     split_char: u8,
-    limit_stream: bool,
     coverage_estimator: &mut T,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool,
@@ -357,9 +348,6 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                             str::from_utf8(last_genome).unwrap().to_string(),
                             coverage
                         );
-                        if limit_stream{
-                            coverage_estimator.print_genome(output.clone());
-                        }
                         output_vec.push(output);
 
                     } else if print_zero_coverage_genomes {
@@ -368,9 +356,6 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                             str::from_utf8(last_genome).unwrap().to_string(),
                             0.0
                         );
-                        if limit_stream{
-                            coverage_estimator.print_genome(output.clone());
-                        }
                         output_vec.push(output);
                     }
                     coverage_estimator.setup();
@@ -440,9 +425,6 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                 str::from_utf8(last_genome).unwrap().to_string(),
                 coverage
             );
-            if limit_stream{
-                coverage_estimator.print_genome(output.clone());
-            }
             output_vec.push(output);
         } else if print_zero_coverage_genomes {
             let mut output = OutputStream::new(
@@ -450,9 +432,6 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                 str::from_utf8(last_genome).unwrap().to_string(),
                 0.0
             );
-            if limit_stream{
-                coverage_estimator.print_genome(output.clone());
-            }
             output_vec.push(output);
         }
         if print_zero_coverage_genomes && !single_genome {

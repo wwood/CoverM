@@ -9,7 +9,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                        R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
-    limit_stream: bool,
     coverage_estimator: &mut T,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) -> Vec<OutputStream>{
@@ -45,9 +44,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                             coverage
                         );
-                        if limit_stream{
-                            coverage_estimator.print_genome(output.clone())
-                        }
                         output_vec.push(output);
                     } else if print_zero_coverage_contigs {
                         let mut output = OutputStream::new(
@@ -55,9 +51,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                             0.0
                         );
-                        if limit_stream{
-                            coverage_estimator.print_genome(output.clone())
-                        }
                         output_vec.push(output);
                         // coverage_estimator.print_genome(output);
                     }
@@ -76,9 +69,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             0.0
                         );
                         my_tid += 1;
-                        if limit_stream{
-                            coverage_estimator.print_genome(output.clone())
-                        }
                         output_vec.push(output);
                     }
                 }
@@ -124,9 +114,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                 coverage
             );
-            if limit_stream{
-                coverage_estimator.print_genome(output.clone())
-            }
             output_vec.push(output);
         }
         // print zero coverage contigs at the end
@@ -142,9 +129,6 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                     0.0
                 );
                 my_tid += 1;
-                if limit_stream{
-                    coverage_estimator.print_genome(output.clone())
-                }
                 output_vec.push(output);
 
             };

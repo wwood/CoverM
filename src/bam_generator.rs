@@ -21,7 +21,7 @@ pub trait NamedBamReader {
     // Return the bam header of the final BAM file
     fn header(&self) -> &bam::HeaderView;
 
-    fn finish(&self);
+    fn finish(self);
 }
 
 pub trait NamedBamReaderGenerator<T> {
@@ -30,8 +30,8 @@ pub trait NamedBamReaderGenerator<T> {
 }
 
 pub struct BamFileNamedReader {
-    stoit_name: & String,
-    bam_reader: & mut bam::Reader
+    stoit_name: String,
+    bam_reader: bam::Reader
 }
 
 impl NamedBamReader for BamFileNamedReader {
@@ -44,7 +44,7 @@ impl NamedBamReader for BamFileNamedReader {
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
     }
-    fn finish(&self) {;}
+    fn finish(self) {;}
 }
 
 impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReader {
@@ -57,24 +57,24 @@ impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReader {
 }
 
 pub struct StreamingNamedBamReader {
-    stoit_name: & String,
+    stoit_name: String,
     bam_reader: bam::Reader,
     tempdir: TempDir,
-    processes: & Vec<std::process::Child>,
+    processes: Vec<std::process::Child>,
 }
 
 pub struct StreamingNamedBamReaderGenerator {
-    stoit_name: & String,
+    stoit_name: String,
     tempdir: TempDir,
     fifo_path: std::path::PathBuf,
-    pre_processes: & Vec<std::process::Command>,
+    pre_processes: Vec<std::process::Command>,
 }
 
 impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
     fn start(self) -> StreamingNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
-        for preprocess in self.pre_processes {
+        for mut preprocess in self.pre_processes {
             processes.push(preprocess
                            .spawn()
                            .expect("Unable to execute bash"));
@@ -85,7 +85,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             stoit_name: self.stoit_name,
             bam_reader: bam_reader,
             tempdir: self.tempdir,
-            processes: &processes,
+            processes: processes,
         }
     }
 }
@@ -100,7 +100,7 @@ impl NamedBamReader for StreamingNamedBamReader {
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
     }
-    fn finish(&self) {
+    fn finish(self) {
         for mut process in self.processes {
             let es = process.wait().expect("Failed to glean exitstatus from mapping process");
             if !es.success() {
@@ -124,9 +124,9 @@ pub fn generate_named_bam_readers_from_bam_files(
         |path|
 
        BamFileNamedReader {
-           stoit_name: &mut std::path::Path::new(path).file_stem().unwrap().to_str().expect(
+           stoit_name: std::path::Path::new(path).file_stem().unwrap().to_str().expect(
                "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string(),
-           bam_reader: &mut bam::Reader::from_path(path).expect(
+           bam_reader: bam::Reader::from_path(path).expect(
                &format!("Unable to find BAM file {}", path))
        }
     ).collect()
@@ -165,12 +165,12 @@ pub fn generate_named_bam_readers_from_read_couple(
         .stderr(std::process::Stdio::piped());
 
     return StreamingNamedBamReaderGenerator {
-        stoit_name: &std::path::Path::new(read1_path).file_name()
+        stoit_name: std::path::Path::new(read1_path).file_name()
             .expect("Unable to convert read1 name fq to path").to_str()
             .expect("Unable to covert file name into str").to_string(),
         tempdir: tmp_dir,
         fifo_path: fifo_path,
-        pre_processes: &vec![cmd],
+        pre_processes: vec![cmd],
     }
 }
 
@@ -189,7 +189,7 @@ impl NamedBamReader for FilteredBamReader {
     fn header(&self) -> &bam::HeaderView {
         &self.filtered_stream.reader.header()
     }
-    fn finish(&self) {;}
+    fn finish(self) {;}
 }
 
 impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
@@ -216,8 +216,8 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             &format!("Unable to find BAM file {}", path));
 
         filtered = FilteredBamReader {
-                stoit_name: &stoit_name,
-                filtered_stream: &ReferenceSortedBamFilter::new(
+                stoit_name: stoit_name,
+                filtered_stream: ReferenceSortedBamFilter::new(
                     reader,
                     min_aligned_length,
                     min_percent_identity)
@@ -282,7 +282,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
     fn header(&self) -> &bam::HeaderView {
         self.filtered_stream.reader.header()
     }
-    fn finish(&self) {
+    fn finish(self) {
         for mut process in self.processes {
             let es = process.wait().expect("Failed to glean exitstatus from mapping process");
             if !es.success() {
