@@ -26,13 +26,13 @@ fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
 
-    let mut htype = HeaderTypes::created();
-    pub fn print_header(htype: &HeaderTypes){
-        for h in htype.headers.iter(){
-            print!("{}\t", h)
-        }
-        println!("")
-    }
+    let htype = &mut HeaderTypes::created();
+    // pub fn print_header(htype: &mut HeaderTypes){
+    //     for h in htype.headers.iter(){
+    //         print!("{}\t", h)
+    //     }
+    //     println!("")
+    // }
     let mut output_stream = Vec::new();
     
     pub fn print_output_stream(output_stream: Vec<OutputStream>){
@@ -212,9 +212,6 @@ fn main(){
         }
 
     }
-    if htype.headers.len() > 2{
-        print_header(htype);
-    }
     print_output_stream(output_stream);
 }
 
@@ -222,7 +219,7 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
         m.is_present("min-percent-identity")
 }
-pub fn print_header(htype: HeaderTypes){
+pub fn print_header(htype: &mut HeaderTypes){
         for h in htype.headers.iter(){
             print!("{}\t", h)
         }
@@ -290,6 +287,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 if headers{
                     &mut MeanGenomeCoverageEstimator::add_to_header(htype);
                 }
+                if htype.headers.len() > 2{
+                    print_header(htype);
+                }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                                                 separator,
                                                                                 &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
@@ -301,21 +301,25 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             },
             "coverage_histogram" => {
                 if headers{
-                    &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                    print_header(htype)
+                    let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
+                    print_header(htype_hist);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
-                                                                                separator,
-                                                                                &mut PileupCountsGenomeCoverageEstimator::new(
-                                                                                    min_fraction_covered),
-                                                                                print_zeros,
-                                                                                flag_filter,
-                                                                                single_genome);
+
+                coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                            separator,
+                                                            &mut PileupCountsGenomeCoverageEstimator::new(
+                                                                min_fraction_covered),
+                                                            print_zeros,
+                                                            flag_filter,
+                                                            single_genome);
                 out = Vec::new();
                 },
             "trimmed_mean" => {
                 if headers{
                     &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
+                }
+                if htype.headers.len() > 2{
+                    print_header(htype);
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                                                 separator,
@@ -330,6 +334,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 if headers{
                     &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
                 }
+                if htype.headers.len() > 2{
+                    print_header(htype);
+                }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                                                 separator,
                                                                                 &mut CoverageFractionGenomeCoverageEstimator::new(
@@ -343,6 +350,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             "variance" => {
                 if headers{
                     &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
+                }
+                if htype.headers.len() > 2{
+                    print_header(htype);
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                                                 separator,
@@ -399,6 +409,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 if headers{
                     &mut MeanGenomeCoverageEstimator::add_to_header(htype);
                 }
+                if htype.headers.len() > 2{
+                    print_header(htype);
+                }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                                                 &genomes_and_contigs,
                                                                                                 &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
@@ -409,20 +422,24 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 },
             "coverage_histogram" => {
                 if headers{
-                    &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                    print_header(htype)
+                    let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
+                    print_header(htype_hist);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
-                                                                                                &genomes_and_contigs,
-                                                                                                &mut PileupCountsGenomeCoverageEstimator::new(
-                                                                                                    min_fraction_covered),
-                                                                                                print_zeros,
-                                                                                                flag_filter);
+
+                coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                            &genomes_and_contigs,
+                                                                            &mut PileupCountsGenomeCoverageEstimator::new(
+                                                                                min_fraction_covered),
+                                                                            print_zeros,
+                                                                            flag_filter);
                 out = Vec::new();
                 },
             "trimmed_mean" => {
                 if headers{
                     &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
+                }
+                if htype.headers.len() > 2{
+                    print_header(htype);
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                                                 &genomes_and_contigs,
@@ -436,6 +453,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 if headers{
                     &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
                 }
+                if htype.headers.len() > 2{
+                    print_header(htype);
+                }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                                                 &genomes_and_contigs,
                                                                                                 &mut CoverageFractionGenomeCoverageEstimator::new(
@@ -448,6 +468,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             "variance" => {
                 if headers{
                     &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
+                }
+                if htype.headers.len() > 2{
+                    print_header(htype);
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                                                 &genomes_and_contigs,
@@ -641,6 +664,9 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
             if headers{
                 &mut MeanGenomeCoverageEstimator::add_to_header(htype);
             }
+            if htype.headers.len() > 2{
+                print_header(htype);
+            }
             let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                                                     &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                                                                     print_zeros,
@@ -651,18 +677,21 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         "coverage_histogram" => {
             if headers{
                 let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                print_header(htype)
+                print_header(htype_hist);
             }
-            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
-                                                                    &mut PileupCountsGenomeCoverageEstimator::new(
-                                                                        min_fraction_covered),
-                                                                    print_zeros,
-                                                                    flag_filter);
+           coverm::contig::contig_coverage(bam_readers,
+                                            &mut PileupCountsGenomeCoverageEstimator::new(
+                                                min_fraction_covered),
+                                            print_zeros,
+                                            flag_filter);
             out = Vec::new();
             },
         "trimmed_mean" => {
             if headers{
                 &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
+            }
+            if htype.headers.len() > 2{
+                print_header(htype);
             }
             let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                                                     &mut get_trimmed_mean_estimator(m, min_fraction_covered),
@@ -675,6 +704,9 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
             if headers{
                 &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
             }
+            if htype.headers.len() > 2{
+                print_header(htype);
+            }
             let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                                                     &mut CoverageFractionGenomeCoverageEstimator::new(
                                                                         min_fraction_covered),
@@ -686,6 +718,9 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         "variance" => {
             if headers{
                 &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
+            }
+            if htype.headers.len() > 2{
+                print_header(htype);
             }
             let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                                                     &mut VarianceGenomeCoverageEstimator::new(
