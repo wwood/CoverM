@@ -44,14 +44,22 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                             coverage
                         );
-                        output_vec.push(output);
+                        if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+                        }else{
+                            output_vec.push(output);
+                        }
                     } else if print_zero_coverage_contigs {
                         let mut output = OutputStream::new(
                             stoit_name.to_string(),
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                             0.0
                         );
-                        output_vec.push(output);
+                        if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+                        }else{
+                            output_vec.push(output);
+                        }
                         // coverage_estimator.print_genome(output);
                     }
                 }
@@ -69,7 +77,11 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             0.0
                         );
                         my_tid += 1;
-                        output_vec.push(output);
+                        if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+                        }else{
+                            output_vec.push(output);
+                        }
                     }
                 }
                 ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
@@ -114,7 +126,11 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 std::str::from_utf8(target_names[last_tid as usize]).unwrap().to_string(),
                 coverage
             );
-            output_vec.push(output);
+            if coverage_estimator.is_histogram(){
+                coverage_estimator.print_genome(output);
+            }else{
+                output_vec.push(output);
+            }
         }
         // print zero coverage contigs at the end
         if print_zero_coverage_contigs {
@@ -129,7 +145,11 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                     0.0
                 );
                 my_tid += 1;
-                output_vec.push(output);
+                if coverage_estimator.is_histogram(){
+                    coverage_estimator.print_genome(output);
+                }else{
+                    output_vec.push(output);
+                }
 
             };
 
@@ -236,7 +256,7 @@ mod tests {
             false,
             false);
         assert_eq!(
-            "reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\nreads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
+            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 

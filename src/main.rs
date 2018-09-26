@@ -26,8 +26,8 @@ fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
 
-    let htype = &mut HeaderTypes::created();
-    pub fn print_header(htype: &mut HeaderTypes){
+    let mut htype = HeaderTypes::created();
+    pub fn print_header(htype: &HeaderTypes){
         for h in htype.headers.iter(){
             print!("{}\t", h)
         }
@@ -82,21 +82,26 @@ fn main(){
                     external_command_checker::check_for_samtools();
                     if filtering {
                         debug!("Mapping and filtering..");
-                        let generator_set = get_streamed_filtered_bam_readers(m);
-                        output_stream = run_genome(
-                                            generator_set.generators,
-                                            m,
-                                            &mut output_stream,
-                                            htype,
-                                            method);
+                        let generator_sets = get_streamed_filtered_bam_readers(m);
+                        for generator_set in generator_sets{
+                            output_stream = run_genome(
+                                                generator_set.generators,
+                                                m,
+                                                &mut output_stream,
+                                                htype,
+                                                method);
+                        }
                     } else {
-                        let generator_set = get_streamed_bam_readers(m);
-                        output_stream = run_genome(
-                                            generator_set.generators,
-                                            m,
-                                            &mut output_stream,
-                                            htype,
-                                            method);
+                        let generator_sets = get_streamed_bam_readers(m);
+                        for generator_set in generator_sets{
+                            output_stream = run_genome(
+                                                generator_set.generators,
+                                                m,
+                                                &mut output_stream,
+                                                htype,
+                                                method);
+                        
+                        }
                     }
                 }
             }
@@ -134,16 +139,29 @@ fn main(){
                     external_command_checker::check_for_samtools();
                     if filtering {
                         debug!("Filtering..");
-                        let generator_set = get_streamed_filtered_bam_readers(m);
-                        output_stream = run_contig(method,
-                                            generator_set.generators,
-                                            min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                        let generator_sets = get_streamed_filtered_bam_readers(m);
+                        for generator_set in generator_sets{
+                            output_stream = run_contig(method,
+                                                        generator_set.generators,
+                                                        min_fraction_covered, 
+                                                        print_zeros, flag_filter, 
+                                                        &mut output_stream, 
+                                                        htype, 
+                                                        m);
+                        }
                     } else {
                         debug!("Not filtering..");
-                        let generator_set = get_streamed_bam_readers(m);
-                        output_stream = run_contig(method,
-                                            generator_set.generators,
-                                            min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                        let generator_sets = get_streamed_bam_readers(m);
+                        for generator_set in generator_sets{
+                            output_stream = run_contig(method,
+                                                        generator_set.generators,
+                                                        min_fraction_covered, 
+                                                        print_zeros, 
+                                                        flag_filter, 
+                                                        &mut output_stream, 
+                                                        htype, 
+                                                        m);
+                        }
                         }
                     }
             }
@@ -204,7 +222,12 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
         m.is_present("min-percent-identity")
 }
-
+pub fn print_header(htype: HeaderTypes){
+        for h in htype.headers.iter(){
+            print!("{}\t", h)
+        }
+        println!("")
+    }
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
@@ -279,7 +302,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             "coverage_histogram" => {
                 if headers{
                     &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                    // print_header(htype_hist)
+                    print_header(htype)
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                                                 separator,
@@ -288,8 +311,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 print_zeros,
                                                                                 flag_filter,
                                                                                 single_genome);
-                out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
+                out = Vec::new();
                 },
             "trimmed_mean" => {
                 if headers{
@@ -388,7 +410,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             "coverage_histogram" => {
                 if headers{
                     &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                    // print_header(htype_hist)
+                    print_header(htype)
                 }
                 let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                                                 &genomes_and_contigs,
@@ -396,8 +418,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                     min_fraction_covered),
                                                                                                 print_zeros,
                                                                                                 flag_filter);
-                out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
+                out = Vec::new();
                 },
             "trimmed_mean" => {
                 if headers{
@@ -463,64 +484,99 @@ impl FilterParameters {
 }
 
 
-fn get_streamed_bam_readers<'a>(
-    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingNamedBamReaderGenerator> {
+struct MappingParameters<'a> {
+    references: Vec<&'a str>,
+    threads: u16,
+    read1: Vec<&'a str>,
+    read2: Vec<&'a str>
+}
+impl<'a> MappingParameters<'a> {
+    pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
+        let mut read1: Vec<&str> = vec!();
+        let mut read2: Vec<&str> = vec!();
 
-    let reference = m.value_of("reference").unwrap();
-    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
-        .expect("Failed to convert threads argument into integer");
-    if read1.len() != read2.len() {
-        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
-               read1.len(), read2.len())
+        if m.is_present("read1") {
+            read1 = m.values_of("read1").unwrap().collect();
+            read2 = m.values_of("read2").unwrap().collect();
+            if read1.len() != read2.len() {
+                panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
+            }
+        }
+
+        // Parse --coupled
+        if m.is_present("coupled") {
+            let coupled: Vec<&str> = m.values_of("coupled").unwrap().collect();
+            if coupled.len() % 2 != 0 {
+                panic!(
+                    "The --coupled flag must be set with pairs of read sets, but an odd number ({}) was specified",
+                    coupled.len()
+                )
+            }
+            let mut i = 0;
+            while i < coupled.len() {
+                read1.push(coupled[i]);
+                read2.push(coupled[i+1]);
+                i += 2;
+            }
+        }
+
+        return MappingParameters {
+            references: m.values_of("reference").unwrap().collect(),
+            threads: m.value_of("threads").unwrap().parse::<u16>()
+                .expect("Failed to convert threads argument into integer"),
+            read1: read1,
+            read2: read2,
+        }
     }
-    let mut bam_readers = vec![];
-    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
-    for (i, _) in read1.iter().enumerate() {
-        bam_readers.push(
-            coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                index.index_path(), read1[i], read2[i], threads));
-        debug!("Back");
-    }
-    debug!("Finished BAM setup");
-    let to_return = BamGeneratorSet {
-        generators: bam_readers,
-        index: index
+}
+
+fn get_streamed_bam_readers<'a>(
+    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
+    let params = MappingParameters::generate_from_clap(&m);
+    let mut generator_set = vec!();
+    for r in params.references {
+        let mut bam_readers = vec![];
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
+        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+            bam_readers.push(
+                coverm::bam_generator::generate_named_bam_readers_from_read_couple(
+                    index.index_path(), read1, read2, params.threads));
+        }
+        debug!("Finished BAM setup");
+        let to_return = BamGeneratorSet {
+            generators: bam_readers,
+            index: index
+        };
+        generator_set.push(to_return);
     };
-    return to_return;
+    return generator_set;
 }
 
 fn get_streamed_filtered_bam_readers(
-    m: &clap::ArgMatches) -> BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator> {
-
-    let reference = m.value_of("reference").unwrap();
-    let read1: Vec<&str> = m.values_of("read1").unwrap().collect();
-    let read2: Vec<&str> = m.values_of("read2").unwrap().collect();
-    let threads: u16 = m.value_of("threads").unwrap().parse::<u16>()
-        .expect("Failed to convert threads argument into integer");
-    if read1.len() != read2.len() {
-        panic!("The number of forward read files ({}) was not the same as the number of reverse read files ({})",
-               read1.len(), read2.len())
+    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
+    let params = MappingParameters::generate_from_clap(&m);
+    let mut generator_set = vec!();
+    for r in params.references {
+        let mut bam_readers = vec![];
+        let filter_params = FilterParameters::generate_from_clap(m);
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
+        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+            bam_readers.push(
+                coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
+                    index.index_path(), read1, read2, params.threads,
+                    filter_params.min_aligned_length,
+                    filter_params.min_percent_identity
+                ));
+            debug!("Back");
+        }
+        debug!("Finished BAM setup");
+        let to_return = BamGeneratorSet {
+            generators: bam_readers,
+            index: index
+        };
+        generator_set.push(to_return);
     }
-    let mut bam_readers = vec![];
-    let filter_params = FilterParameters::generate_from_clap(m);
-    let index = coverm::bwa_index_maintenance::generate_bwa_index(&reference);
-    for (i, _) in read1.iter().enumerate() {
-        bam_readers.push(
-            coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                index.index_path(), read1[i], read2[i], threads,
-                filter_params.min_aligned_length,
-                filter_params.min_percent_identity
-            ));
-        debug!("Back");
-    }
-    debug!("Finished BAM setup");
-    let to_return = BamGeneratorSet {
-        generators: bam_readers,
-        index: index
-    };
-    return to_return;
+    return generator_set;
 }
 
 fn get_trimmed_mean_estimator(
@@ -595,14 +651,14 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         "coverage_histogram" => {
             if headers{
                 let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
-                print_header(htype_hist)
+                print_header(htype)
             }
             let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                                                     &mut PileupCountsGenomeCoverageEstimator::new(
                                                                         min_fraction_covered),
                                                                     print_zeros,
                                                                     flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = Vec::new();
             },
         "trimmed_mean" => {
             if headers{
@@ -679,10 +735,12 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -1 <PATH> ..                          Forward FASTA/Q files for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
    -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
+                                         for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -725,10 +783,12 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -1 <PATH> ..                          Forward FASTA/Q files for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q files for mapping
-   -r, --reference <PATH>                BWA indexed FASTA file of contigs
+   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
    -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
+                                         for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -823,18 +883,30 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-1")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read2")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read1")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")
@@ -873,9 +945,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 
                 .arg(Arg::with_name("min-aligned-length")
                      .long("min-aligned-length")
+                     .takes_value(true)
                      .conflicts_with("no-flag-filter"))
                 .arg(Arg::with_name("min-percent-identity")
                      .long("min-percent-identity")
+                     .takes_value(true)
                      .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("method")
@@ -927,18 +1001,30 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-1")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read2")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
                      .multiple(true)
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .requires("read1")
+                     .required_unless_one(
+                         &["bam-files","coupled"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")

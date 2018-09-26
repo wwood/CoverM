@@ -348,15 +348,22 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                             str::from_utf8(last_genome).unwrap().to_string(),
                             coverage
                         );
-                        output_vec.push(output);
-
+                        if coverage_estimator.is_histogram() {
+                            coverage_estimator.print_genome(output);
+                        }else{
+                            output_vec.push(output);
+                        }
                     } else if print_zero_coverage_genomes {
                         let mut output = OutputStream::new(
                             stoit_name.to_string(),
                             str::from_utf8(last_genome).unwrap().to_string(),
                             0.0
                         );
-                        output_vec.push(output);
+                        if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+                        }else{
+                            output_vec.push(output);
+                        }
                     }
                     coverage_estimator.setup();
                     if print_zero_coverage_genomes {
@@ -425,14 +432,22 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                 str::from_utf8(last_genome).unwrap().to_string(),
                 coverage
             );
-            output_vec.push(output);
+            if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+            }else{
+                output_vec.push(output);
+            }
         } else if print_zero_coverage_genomes {
             let mut output = OutputStream::new(
                 stoit_name.to_string(),
                 str::from_utf8(last_genome).unwrap().to_string(),
                 0.0
             );
-            output_vec.push(output);
+            if coverage_estimator.is_histogram(){
+                            coverage_estimator.print_genome(output);
+            }else{
+                output_vec.push(output);
+            }
         }
         if print_zero_coverage_genomes && !single_genome {
             print_previous_zero_coverage_genomes2(

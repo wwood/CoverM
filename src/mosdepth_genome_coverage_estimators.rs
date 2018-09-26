@@ -36,6 +36,9 @@ impl OutputStream{
             methods: vec![coverage]
         }
     }
+    // pub fn is_histogram(is_hist: bool) -> bool{
+    //     is_hist
+    // }
     pub fn update(mut self, stoit_name: String, genome: String, coverage: &f32) -> OutputStream {
         if self.filename == "".to_string() {
             OutputStream::new(stoit_name, genome, *coverage)
@@ -123,6 +126,10 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
             genome.to_string(),
             coverage,
         )
+    }
+
+    fn is_histogram(&self) -> bool{
+        false
     }
 
     fn add_to_output(&mut self, output_stream: OutputStream, coverage: f32){
@@ -389,7 +396,9 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
             self.counts[cumulative_sum as usize] += 1
         }
     }
-
+    fn is_histogram(&self) -> bool{
+        true
+    }
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32 {
         // No need to actually calculate any kind of coverage, just return
         // whether any coverage was detected
