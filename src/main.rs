@@ -26,8 +26,7 @@ fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
 
-    let mut htype = &mut HeaderTypes::created();
-    let mut htype_hist = &mut HeaderTypes::created();
+    let htype = &mut HeaderTypes::created();
     pub fn print_header(htype: &mut HeaderTypes){
         for h in htype.headers.iter(){
             print!("{}\t", h)
@@ -54,44 +53,51 @@ fn main(){
                         eprintln!("Cannot use coverage histogram method with other method types, found {:?}", methods);
                         process::exit(1)
                 }
-            if m.is_present("bam-files") {
-                for method in methods{
-                    let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            for method in methods{
+                if m.is_present("bam-files") {
+                    
+                        let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                        if filtering {
+                            let filter_params = FilterParameters::generate_from_clap(m);
+                            output_stream = run_genome(
+                                                coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                                                    bam_files,
+                                                    filter_params.min_aligned_length,
+                                                    filter_params.min_percent_identity),
+                                                m,
+                                                &mut output_stream,
+                                                htype,
+                                                method);
+                        } else {
+                            output_stream = run_genome(
+                                                coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                                                    bam_files),
+                                                m,
+                                                &mut output_stream,
+                                                htype,
+                                                method);
+                        }
+                } else {
+                    external_command_checker::check_for_bwa();
+                    external_command_checker::check_for_samtools();
                     if filtering {
-                        let filter_params = FilterParameters::generate_from_clap(m);
+                        debug!("Mapping and filtering..");
+                        let generator_set = get_streamed_filtered_bam_readers(m);
                         output_stream = run_genome(
-                                            coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
-                                                bam_files,
-                                                filter_params.min_aligned_length,
-                                                filter_params.min_percent_identity),
+                                            generator_set.generators,
                                             m,
-                                            output_stream,
+                                            &mut output_stream,
+                                            htype,
                                             method);
                     } else {
+                        let generator_set = get_streamed_bam_readers(m);
                         output_stream = run_genome(
-                                            coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                                                bam_files),
+                                            generator_set.generators,
                                             m,
-                                            output_stream,
+                                            &mut output_stream,
+                                            htype,
                                             method);
                     }
-                }
-            } else {
-                external_command_checker::check_for_bwa();
-                external_command_checker::check_for_samtools();
-                if filtering {
-                    debug!("Mapping and filtering..");
-                    let generator_set = get_streamed_filtered_bam_readers(m);
-                    output_stream = run_genome(
-                                        generator_set.generators,
-                                        m,
-                                        output_stream);
-                } else {
-                    let generator_set = get_streamed_bam_readers(m);
-                    output_stream = run_genome(
-                                        generator_set.generators,
-                                        m,
-                                        output_stream);
                 }
             }
         },
@@ -108,37 +114,38 @@ fn main(){
                         eprintln!("Cannot use coverage histogram method with other method types, found {:?}", methods);
                         process::exit(1)
                 }
-
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filtering {
-                    let filter_params = FilterParameters::generate_from_clap(m);
-                    let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
-                        bam_files,
-                        filter_params.min_aligned_length,
-                        filter_params.min_percent_identity);
-                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+            for method in methods {
+                if m.is_present("bam-files") {
+                    let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                    if filtering {
+                        let filter_params = FilterParameters::generate_from_clap(m);
+                        let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                            bam_files,
+                            filter_params.min_aligned_length,
+                            filter_params.min_percent_identity);
+                        output_stream = run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                    } else {
+                        let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                            bam_files);
+                        output_stream = run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                    }
                 } else {
-                    let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                        bam_files);
-                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
-                }
-            } else {
-                external_command_checker::check_for_bwa();
-                external_command_checker::check_for_samtools();
-                if filtering {
-                    debug!("Filtering..");
-                    let generator_set = get_streamed_filtered_bam_readers(m);
-                    run_contig(method,
-                               generator_set.generators,
-                               min_fraction_covered, print_zeros, flag_filter, m);
-                } else {
-                    debug!("Not filtering..");
-                    let generator_set = get_streamed_bam_readers(m);
-                    run_contig(method,
-                               generator_set.generators,
-                               min_fraction_covered, print_zeros, flag_filter, m);
-                }
+                    external_command_checker::check_for_bwa();
+                    external_command_checker::check_for_samtools();
+                    if filtering {
+                        debug!("Filtering..");
+                        let generator_set = get_streamed_filtered_bam_readers(m);
+                        output_stream = run_contig(method,
+                                            generator_set.generators,
+                                            min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                    } else {
+                        debug!("Not filtering..");
+                        let generator_set = get_streamed_bam_readers(m);
+                        output_stream = run_contig(method,
+                                            generator_set.generators,
+                                            min_fraction_covered, print_zeros, flag_filter, &mut output_stream, htype, m);
+                        }
+                    }
             }
         },
         Some("filter") => {
@@ -187,6 +194,10 @@ fn main(){
         }
 
     }
+    if htype.headers.len() > 2{
+        print_header(htype);
+    }
+    print_output_stream(output_stream);
 }
 
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
@@ -197,8 +208,10 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
-    m: &clap::ArgMatches
-    output_stream: OutputStream) -> OutputStream {
+    m: &clap::ArgMatches,
+    output_stream: &mut Vec<OutputStream>,
+    htype: &mut HeaderTypes,
+    method: &str) -> Vec<OutputStream> {
     
     pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
         // let it = output.iter().zip(input.iter());
@@ -222,6 +235,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         return output_st
         }
     }
+    let out;
     let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
     
     if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
@@ -251,76 +265,72 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         match method {
             "mean" => {
                 if headers{
-                    &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut MeanGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                                                separator,
+                                                                                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                                                                                print_zeros,
+                                                                                flag_filter,
+                                                                                single_genome);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
             },
             "coverage_histogram" => {
                 if headers{
-                    let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype_hist);
-                    print_header(htype_hist)
+                    &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
+                    // print_header(htype_hist)
                 }
-                coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome);
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                                                separator,
+                                                                                &mut PileupCountsGenomeCoverageEstimator::new(
+                                                                                    min_fraction_covered),
+                                                                                print_zeros,
+                                                                                flag_filter,
+                                                                                single_genome);
+                out = update_outputs(output_stream, input_stream);
                 // output_stream = out.clone();
                 },
             "trimmed_mean" => {
                 if headers{
-                    &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage(
-                    bam_generators,
-                    separator,
-                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                    print_zeros,
-                    flag_filter,
-                    single_genome);
-                    let mut out = update_outputs(&mut output_stream, input_stream);
-                    output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                                                separator,
+                                                                                &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                                                                                print_zeros,
+                                                                                flag_filter,
+                                                                                single_genome);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             "covered_fraction" => {
                 if headers{
-                    &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                                                separator,
+                                                                                &mut CoverageFractionGenomeCoverageEstimator::new(
+                                                                                    min_fraction_covered),
+                                                                                print_zeros,
+                                                                                flag_filter,
+                                                                                single_genome);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
             },
             "variance" => {
                 if headers{
-                    &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
+                                                                                separator,
+                                                                                &mut VarianceGenomeCoverageEstimator::new(
+                                                                                    min_fraction_covered),
+                                                                                print_zeros,
+                                                                                flag_filter,
+                                                                                single_genome);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             _ => {panic!("programming error");}
             }
@@ -361,79 +371,76 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
             process::exit(1);
         }
-        match cover {
+        match method {
 
             "mean" => {
                 if headers{
-                    &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut MeanGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                print_zeros,
-                flag_filter);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                                                &genomes_and_contigs,
+                                                                                                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                                                                                                print_zeros,
+                                                                                                flag_filter);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             "coverage_histogram" => {
                 if headers{
-                    let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype_hist);
-                    print_header(htype_hist)
+                    &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
+                    // print_header(htype_hist)
                 }
-                coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter);
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                                                &genomes_and_contigs,
+                                                                                                &mut PileupCountsGenomeCoverageEstimator::new(
+                                                                                                    min_fraction_covered),
+                                                                                                print_zeros,
+                                                                                                flag_filter);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             "trimmed_mean" => {
                 if headers{
-                    &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                    bam_generators,
-                    &genomes_and_contigs,
-                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                    print_zeros,
-                    flag_filter);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                                                &genomes_and_contigs,
+                                                                                                &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                                                                                                print_zeros,
+                                                                                                flag_filter);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             "covered_fraction" => {
                 if headers{
-                    &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                                                &genomes_and_contigs,
+                                                                                                &mut CoverageFractionGenomeCoverageEstimator::new(
+                                                                                                    min_fraction_covered),
+                                                                                                print_zeros,
+                                                                                                flag_filter);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             "variance" => {
                 if headers{
-                    &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                    &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
                 }
-                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter);
-                let mut out = update_outputs(&mut output_stream, input_stream);
-                output_stream = out.clone();
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                                                                                                &genomes_and_contigs,
+                                                                                                &mut VarianceGenomeCoverageEstimator::new(
+                                                                                                    min_fraction_covered),
+                                                                                                print_zeros,
+                                                                                                flag_filter);
+                out = update_outputs(output_stream, input_stream);
+                // output_stream = out.clone();
                 },
             _ => panic!("programming error")
         }
     }
-    return output_stream
+    return out
 }
 
 struct FilterParameters {
@@ -537,10 +544,13 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     min_fraction_covered: f32,
     print_zeros: bool,
     flag_filter: bool,
-    output_stream: OutputStream,
-    m: &clap::ArgMatches) -> OutputStream {
-    let mut htype = &mut HeaderTypes::created();
-    let mut htype_hist = &mut HeaderTypes::created();
+    output_stream: &mut Vec<OutputStream>,
+    htype: &mut HeaderTypes,
+    m: &clap::ArgMatches) -> Vec<OutputStream> {
+    // let mut htype = &mut HeaderTypes::created();
+    // let mut htype_hist = &mut HeaderTypes::created();
+
+    let out;
     pub fn print_header(htype: &mut HeaderTypes){
         for h in htype.headers.iter(){
             print!("{}\t", h)
@@ -569,77 +579,70 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         return output_st
         }
     }
-    pub fn print_output_stream(output_stream: Vec<OutputStream>){
-        for mut out in output_stream{
-            out.print_output();
-        }
-    }
     let headers = !m.is_present("remove-headers");
     match method {
         "mean" => {
             if headers{
-                &mut MeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                &mut MeanGenomeCoverageEstimator::add_to_header(htype);
             }
-            let mut input_stream = coverm::contig::contig_coverage(
-            bam_readers,
-            &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-            print_zeros,
-            flag_filter);
-            let mut out = update_outputs(&mut output_stream, input_stream);
-            output_stream = out.clone();
+            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
+                                                                    &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
+                                                                    print_zeros,
+                                                                    flag_filter);
+            out = update_outputs(output_stream, input_stream);
+            // output_stream = out.clone();
             },
         "coverage_histogram" => {
             if headers{
-                let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(&mut htype_hist);
+                let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
                 print_header(htype_hist)
             }
-            coverm::contig::contig_coverage(
-            bam_readers,
-            &mut PileupCountsGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter);},
+            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
+                                                                    &mut PileupCountsGenomeCoverageEstimator::new(
+                                                                        min_fraction_covered),
+                                                                    print_zeros,
+                                                                    flag_filter);
+            out = update_outputs(output_stream, input_stream);
+            },
         "trimmed_mean" => {
             if headers{
-                &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(&mut htype);
+                &mut TrimmedMeanGenomeCoverageEstimator::add_to_header(htype);
             }
-            let mut input_stream = coverm::contig::contig_coverage(
-                bam_readers,
-                &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                print_zeros,
-                flag_filter);
-            let mut out = update_outputs(&mut output_stream, input_stream);
-            output_stream = out.clone();},
+            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
+                                                                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
+                                                                    print_zeros,
+                                                                    flag_filter);
+            out = update_outputs(output_stream, input_stream);
+            // output_stream = out.clone();
+            },
         "covered_fraction" => {
             if headers{
-                &mut CoverageFractionGenomeCoverageEstimator::add_to_header(&mut htype);
+                &mut CoverageFractionGenomeCoverageEstimator::add_to_header(htype);
             }
-            let mut input_stream = coverm::contig::contig_coverage(
-            bam_readers,
-            &mut CoverageFractionGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter);
-            let mut out = update_outputs(&mut output_stream, input_stream);
-            output_stream = out.clone();
+            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
+                                                                    &mut CoverageFractionGenomeCoverageEstimator::new(
+                                                                        min_fraction_covered),
+                                                                    print_zeros,
+                                                                    flag_filter);
+            out = update_outputs(output_stream, input_stream);
+            // output_stream = out.clone();
             },
         "variance" => {
             if headers{
-                &mut VarianceGenomeCoverageEstimator::add_to_header(&mut htype);
+                &mut VarianceGenomeCoverageEstimator::add_to_header(htype);
             }
-            let mut input_stream = coverm::contig::contig_coverage(
-            bam_readers,
-            &mut VarianceGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter);
-            let mut out = update_outputs(&mut output_stream, input_stream);
-            output_stream = out.clone();
+            let mut input_stream = coverm::contig::contig_coverage(bam_readers,
+                                                                    &mut VarianceGenomeCoverageEstimator::new(
+                                                                        min_fraction_covered),
+                                                                    print_zeros,
+                                                                    flag_filter);
+            out = update_outputs(output_stream, input_stream);
+            // output_stream = out.clone();
             },
         _ => panic!("programming error")
     }
 
-    return output_stream
+    return out
 }
 
 
