@@ -101,9 +101,9 @@ impl OutputStream{
         }
     }
     pub fn print_output(self){
-        print!("{}\t{}\t", self.filename, self.genome);
+        print!("{}\t{}", self.filename, self.genome);
         for c in self.methods.iter(){
-            print!("{}\t", c);
+            print!("\t{}", c);
         }
         println!{""}
     }

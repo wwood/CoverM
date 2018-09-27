@@ -539,6 +539,22 @@ mod tests {
     use std::io::Cursor;
     use env_logger;
 
+    pub fn print_output_stream(output_stream: Vec<OutputStream>) -> String {
+        let mut out_st = Vec::new();
+        for mut out in output_stream{
+            out_st.push(print_output(out));
+        }
+        return out_st.join("")
+    }
+    pub fn print_output(out: OutputStream) -> String {
+        let mut out_string = format!("{}\t{}", out.filename, out.genome);
+        for c in out.methods.iter(){
+            out_string=format!("{}{}", out_string,format!("\t{}", c));
+        }
+        out_string=format!("{}{}", out_string,"\n");
+        return out_string
+    }
+
     #[test]
     fn initialize_logger() {
         env_logger::init().unwrap();
@@ -546,314 +562,277 @@ mod tests {
 
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream =mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             'q' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_two_contigs_first_covered_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("se".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_two_contigs_second_covered(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
             'q' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_two_contigs_second_covered_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("se".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_two_contigs_both_covered(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_two_contigs_both_covered_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_min_fraction_covered_under_min(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
             false,
             false);
         assert_eq!(
-            "2seqs.reads_for_seq1_and_seq2\ts\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            "2seqs.reads_for_seq1_and_seq2\ts\t0\n",
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_min_fraction_covered_under_min_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             false,
             false);
         assert_eq!(
             "",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_one_genome_min_fraction_covered_just_ok(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.759),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
 
     #[test]
     fn test_one_genome_min_fraction_covered_just_ok_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.759),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_two_contigs_trimmed_mean(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
-            false,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_two_contigs_trimmed_mean_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut TrimmedMeanGenomeCoverageEstimator::new(0.1, 0.9, 0.0),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
-            false,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator_contig_names(){
-        let stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = || mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            stream())
     }
 
     #[test]
     fn test_zero_coverage_genomes(){
-        let mut stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream1 = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true,
             false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap());
+            print_output_stream(stream1));
 
-        stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream2 = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             false,
             false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream2))
     }
 
     #[test]
     fn test_zero_coverage_genomes_after_min_fraction(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.76),
             true,
             false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap());
+            print_output_stream(stream));
     }
 
     #[test]
     fn test_single_genome(){
-        let stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage(
+        let stream = mosdepth_genome_coverage(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.0),
             true,
             false,
             true);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.04209345\n",
-            str::from_utf8(stream.get_ref()).unwrap());
+            print_output_stream(stream));
     }
 
     #[test]
     fn test_zero_coverage_genomes_contig_names(){
-        let mut stream = Cursor::new(Vec::new());
         let mut geco = GenomesAndContigs::new();
         // >genome1~random_sequence_length_11000
         //     >genome1~random_sequence_length_11010
@@ -875,27 +854,24 @@ mod tests {
         geco.insert("genome4~random_sequence_length_11002".to_string(),genome4);
         geco.insert("genome5~seq2".to_string(),genome5);
         geco.insert("genome6~random_sequence_length_11003".to_string(),genome6);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream1 = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             true,
             false);
         assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap());
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
+            print_output_stream(stream1));
 
-        stream = Cursor::new(Vec::new());
-        mosdepth_genome_coverage_with_contig_names(
+        let stream2 = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            false,
             &mut MeanGenomeCoverageEstimator::new(0.1),
             false,
             false);
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
+            print_output_stream(stream2))
     }
 }

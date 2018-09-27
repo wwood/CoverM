@@ -27,19 +27,10 @@ fn main(){
     let matches = app.clone().get_matches();
 
     let htype = &mut HeaderTypes::created();
-    // pub fn print_header(htype: &mut HeaderTypes){
-    //     for h in htype.headers.iter(){
-    //         print!("{}\t", h)
-    //     }
-    //     println!("")
-    // }
+
     let mut output_stream = Vec::new();
     
-    pub fn print_output_stream(output_stream: Vec<OutputStream>){
-        for mut out in output_stream{
-            out.print_output();
-        }
-    }
+
     
     match matches.subcommand_name() {
 
@@ -225,6 +216,12 @@ pub fn print_header(htype: &mut HeaderTypes){
         }
         println!("")
     }
+
+pub fn print_output_stream(output_stream: Vec<OutputStream>){
+    for mut out in output_stream{
+        out.print_output();
+    }
+}
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
@@ -297,7 +294,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 flag_filter,
                                                                                 single_genome);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
             },
             "coverage_histogram" => {
                 if headers{
@@ -328,7 +324,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 flag_filter,
                                                                                 single_genome);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             "covered_fraction" => {
                 if headers{
@@ -345,7 +340,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 flag_filter,
                                                                                 single_genome);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
             },
             "variance" => {
                 if headers{
@@ -362,7 +356,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 flag_filter,
                                                                                 single_genome);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             _ => {panic!("programming error");}
             }
@@ -418,7 +411,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 print_zeros,
                                                                                                 flag_filter);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             "coverage_histogram" => {
                 if headers{
@@ -447,7 +439,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 print_zeros,
                                                                                                 flag_filter);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             "covered_fraction" => {
                 if headers{
@@ -463,7 +454,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 print_zeros,
                                                                                                 flag_filter);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             "variance" => {
                 if headers{
@@ -479,7 +469,6 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 print_zeros,
                                                                                                 flag_filter);
                 out = update_outputs(output_stream, input_stream);
-                // output_stream = out.clone();
                 },
             _ => panic!("programming error")
         }
@@ -672,7 +661,6 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     print_zeros,
                                                                     flag_filter);
             out = update_outputs(output_stream, input_stream);
-            // output_stream = out.clone();
             },
         "coverage_histogram" => {
             if headers{
@@ -698,7 +686,6 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     print_zeros,
                                                                     flag_filter);
             out = update_outputs(output_stream, input_stream);
-            // output_stream = out.clone();
             },
         "covered_fraction" => {
             if headers{
@@ -713,7 +700,6 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     print_zeros,
                                                                     flag_filter);
             out = update_outputs(output_stream, input_stream);
-            // output_stream = out.clone();
             },
         "variance" => {
             if headers{
@@ -728,7 +714,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     print_zeros,
                                                                     flag_filter);
             out = update_outputs(output_stream, input_stream);
-            // output_stream = out.clone();
+
             },
         _ => panic!("programming error")
     }
