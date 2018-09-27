@@ -538,6 +538,9 @@ mod tests {
     use super::*;
     use std::io::Cursor;
     use env_logger;
+    use std::io;
+    use std::io::Write;
+    use std::io::BufRead;
 
     pub fn print_output_stream(output_stream: Vec<OutputStream>) -> String {
         let mut out_st = Vec::new();
@@ -553,6 +556,14 @@ mod tests {
         }
         out_string=format!("{}{}", out_string,"\n");
         return out_string
+    }
+    pub fn get_output(stdin: std::io::Stdin)-> String {
+        let mut out_string = Vec::new();
+        let lock = stdin.lock();
+        for line in lock.lines(){
+            out_string.push(line.unwrap());
+        }
+        return out_string.join("\n")
     }
 
     #[test]
@@ -763,19 +774,26 @@ mod tests {
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator_contig_names(){
+        let mut stream = io::stdout();
+        // let mut stream = String::new();
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        let stream = || mosdepth_genome_coverage_with_contig_names(
+        mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false);
+        
+        // let mut stdout = stream.lock();
+        let mut handle = Vec::new();
+        let num_bytes = stream.write_all(&mut handle);
+        
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
-            stream())
+            String::from_utf8(handle).unwrap())
     }
 
     #[test]

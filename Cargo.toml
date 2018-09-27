@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 bio = "0.20.*"
-rust-htslib = "0.21.*"
+rust-htslib = {git = "https://github.com/rust-bio/rust-htslib"}
 clap = "2.*"
 log = "0.3.*"
 env_logger = "0.4.*"
