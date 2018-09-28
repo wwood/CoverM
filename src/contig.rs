@@ -45,7 +45,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             coverage
                         );
                         if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                            let mut hist_vec = coverage_estimator.add_to_stream(output);
+                            for hvec in hist_vec{
+                                output_vec.push(hvec);
+                            }
                         }else{
                             output_vec.push(output);
                         }
@@ -56,7 +59,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                             0.0
                         );
                         if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                            let mut hist_vec = coverage_estimator.add_to_stream(output);
+                            for hvec in hist_vec{
+                                output_vec.push(hvec);
+                            }
                         }else{
                             output_vec.push(output);
                         }
@@ -78,7 +84,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                         );
                         my_tid += 1;
                         if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                            let mut hist_vec = coverage_estimator.add_to_stream(output);
+                            for hvec in hist_vec{
+                                output_vec.push(hvec);
+                            }
                         }else{
                             output_vec.push(output);
                         }
@@ -127,7 +136,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 coverage
             );
             if coverage_estimator.is_histogram(){
-                coverage_estimator.print_genome(output);
+                let mut hist_vec = coverage_estimator.add_to_stream(output);
+                for hvec in hist_vec{
+                    output_vec.push(hvec);
+                }
             }else{
                 output_vec.push(output);
             }
@@ -146,7 +158,10 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 );
                 my_tid += 1;
                 if coverage_estimator.is_histogram(){
-                    coverage_estimator.print_genome(output);
+                    let mut hist_vec = coverage_estimator.add_to_stream(output);
+                    for hvec in hist_vec{
+                        output_vec.push(hvec);
+                    }
                 }else{
                     output_vec.push(output);
                 }

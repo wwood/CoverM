@@ -301,14 +301,14 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                     print_header(htype_hist);
                 }
 
-                coverm::genome::mosdepth_genome_coverage(bam_generators,
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage(bam_generators,
                                                             separator,
                                                             &mut PileupCountsGenomeCoverageEstimator::new(
                                                                 min_fraction_covered),
                                                             print_zeros,
                                                             flag_filter,
                                                             single_genome);
-                out = Vec::new();
+                out = update_outputs(output_stream, input_stream);
                 },
             "trimmed_mean" => {
                 if headers{
@@ -418,13 +418,13 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                     print_header(htype_hist);
                 }
 
-                coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
+                let mut input_stream = coverm::genome::mosdepth_genome_coverage_with_contig_names(bam_generators,
                                                                             &genomes_and_contigs,
                                                                             &mut PileupCountsGenomeCoverageEstimator::new(
                                                                                 min_fraction_covered),
                                                                             print_zeros,
                                                                             flag_filter);
-                out = Vec::new();
+                out = update_outputs(output_stream, input_stream);
                 },
             "trimmed_mean" => {
                 if headers{
@@ -615,8 +615,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     output_stream: &mut Vec<OutputStream>,
     htype: &mut HeaderTypes,
     m: &clap::ArgMatches) -> Vec<OutputStream> {
-    // let mut htype = &mut HeaderTypes::created();
-    // let mut htype_hist = &mut HeaderTypes::created();
+
 
     let out;
     pub fn print_header(htype: &mut HeaderTypes){
@@ -626,11 +625,10 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         println!("")
     }
     pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
-        // let it = output.iter().zip(input.iter());
+
         if output.len()==0{
             return input
         } else {
-            // let cnt = 0;
             let mut output_st: Vec<OutputStream> = Vec::new();
             if input.len() > 0 {
                 for (i, v) in input.iter().enumerate() {
@@ -638,7 +636,6 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                         output[i].methods.push(*m);
                     }
                     output_st.push(output[i].clone());
-                    // let mut cnt = cnt + 1;
                 }
             } else{
                 output[0].methods.append(&mut input[0].methods);
@@ -667,12 +664,12 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                 let ref mut htype_hist = &mut PileupCountsGenomeCoverageEstimator::add_to_header(htype);
                 print_header(htype_hist);
             }
-           coverm::contig::contig_coverage(bam_readers,
+           let mut input_stream = coverm::contig::contig_coverage(bam_readers,
                                             &mut PileupCountsGenomeCoverageEstimator::new(
                                                 min_fraction_covered),
                                             print_zeros,
                                             flag_filter);
-            out = Vec::new();
+            out = update_outputs(output_stream, input_stream);
             },
         "trimmed_mean" => {
             if headers{

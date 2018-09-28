@@ -100,7 +100,7 @@ impl OutputStream{
             methods: self.methods,
         }
     }
-    pub fn print_output(self){
+    pub fn print_output(&self){
         print!("{}\t{}", self.filename, self.genome);
         for c in self.methods.iter(){
             print!("\t{}", c);
@@ -128,6 +128,16 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
         )
     }
 
+    fn add_to_stream(&mut self, output_stream: OutputStream) -> Vec<OutputStream>{
+        let mut output_vec = Vec::new();
+        output_vec.push(output_stream);
+        return output_vec
+    }
+
+    fn print_genome<'a>(&self, output_stream: OutputStream){
+        output_stream.print_output()
+    }
+
     fn is_histogram(&self) -> bool{
         false
     }
@@ -135,15 +145,10 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
     fn add_to_output(&mut self, output_stream: OutputStream, coverage: f32){
         OutputStream::add_to_method(output_stream, coverage);
     }
-    fn print_genome<'a >(&self, output_stream: OutputStream){
-        output_stream.print_output();
-    }
-    // Implement new header method here somewhere
-    fn print_zero_coverage<'a>(&self, stoit_name: &str, genome: &str,
-                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        writeln!(print_stream, "{}\t{}\t0.0",
-                           stoit_name,
-                           genome).unwrap();
+
+    fn print_zero_coverage<'a>(&self,
+                               print_stream: OutputStream) -> OutputStream {
+        print_stream.print_output();
         return print_stream;
     }
 
@@ -418,10 +423,11 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
         }
     }
 
-    fn print_genome<'a >(&self, output_stream: OutputStream){
+    fn add_to_stream(&mut self, output_stream: OutputStream) -> Vec<OutputStream>{
         let mut i = 0;
         debug!("starting to print {}", output_stream.genome);
         debug!("{:?}",self.counts);
+        let mut output_vec = Vec::new();
         for coverage in output_stream.methods.iter(){
             let mut cov_vec: Vec<u32> = vec!();
             for num_covered in self.counts.iter() {
@@ -447,14 +453,20 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
             for cov in cov_vec.iter(){
                 // let var = (cov as f32 - &coverage_mean).powf(2.0);
                 let stand_dev = coverage_var.powf(0.5) as u32;
-                println!("{}\t{}\t{:}\t{:}\t{:}", output_stream.filename, output_stream.genome, j, cov, stand_dev);
-                j += 1
+                let mut output = OutputStream{
+                    filename: output_stream.filename.clone(), 
+                    genome: output_stream.genome.clone(), 
+                    methods: vec![j as f32, *cov as f32]
+                    };
+                output_vec.push(output);
+                j += 1;
+                };
             }
-        }
+        return output_vec
     }
 
-    fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
-                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+    fn print_zero_coverage<'a>(&self,
+                               print_stream: OutputStream) -> OutputStream {
         // zeros are not printed usually, so do not print the length.
         return print_stream;
     }

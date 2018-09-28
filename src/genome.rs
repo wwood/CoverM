@@ -122,26 +122,6 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
               }
             }
 
-            // // Record the last contig
-            // per_genome_coverage_estimators[reference_number_to_genome_index[last_tid as usize] as usize]
-            //     .add_contig(&ups_and_downs);
-
-            // // Print the coverages of each genome
-            // // Calculate the unobserved length of each genome
-            // let mut unobserved_lengths: Vec<u32> = vec!();
-            // for _ in 0..contigs_and_genomes.genomes.len() {
-            //     unobserved_lengths.push(0)
-            // }
-            // debug!("estimators: {:?}", per_genome_coverage_estimators);
-            // for (ref_id, genome_id) in reference_number_to_genome_index.iter().enumerate() {
-            //     let ref_id_u32: u32 = ref_id as u32;
-            //     debug!("Seen {:?}", seen_ref_ids);
-            //     if !seen_ref_ids.contains(&ref_id_u32) {
-            //         debug!("Getting target #{} from header names", ref_id_u32);
-            //         unobserved_lengths[*genome_id] += header.target_len(ref_id_u32).unwrap()
-            //     }
-            // }
-
         if doing_first {
             warn!("No reads were observed - perhaps something went wrong in the mapping?");
         } else {
@@ -190,14 +170,28 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                         genome.to_string(),
                         coverage
                     );
-                    output_vec.push(output);
+                    if per_genome_coverage_estimators[i].is_histogram() {
+                        let mut hist_vec = per_genome_coverage_estimators[i].add_to_stream(output);
+                        for hvec in hist_vec{
+                            output_vec.push(hvec);
+                        }                        
+                    }else{
+                        output_vec.push(output);
+                    }
                 } else if print_zero_coverage_genomes {
                     let mut output = OutputStream::new(
                         stoit_name.to_string(),
                         genome.to_string(),
                         0.0
                     );
-                    output_vec.push(output);
+                    if per_genome_coverage_estimators[i].is_histogram() {
+                        let mut hist_vec = per_genome_coverage_estimators[i].add_to_stream(output);
+                        for hvec in hist_vec{
+                            output_vec.push(hvec);
+                        }                        
+                    }else{
+                        output_vec.push(output);
+                    }
                 }
             }
         }
@@ -289,7 +283,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
             return extra
         };
 
-
+        // Iterate through the bam
         let mut last_tid: u32 = 0;
         let mut doing_first = true;
         let mut last_genome: &[u8] = "error genome".as_bytes();
@@ -318,9 +312,13 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                     unobserved_contig_length = fill_genome_length_backwards(tid, current_genome);
                     doing_first = false;
                     if print_zero_coverage_genomes && !single_genome {
-                        print_previous_zero_coverage_genomes2(
-                            stoit_name, b"", current_genome, tid, coverage_estimator,
-                            &target_names, split_char);
+                        let zero_output = print_previous_zero_coverage_genomes2(
+                                stoit_name, b"", current_genome, tid, coverage_estimator,
+                                &target_names, split_char);
+                        for z in zero_output{
+                            output_vec.push(z);
+                        }
+                        
                     }
 
                 } else if current_genome == last_genome {
@@ -349,7 +347,10 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                             coverage
                         );
                         if coverage_estimator.is_histogram() {
-                            coverage_estimator.print_genome(output);
+                            let mut hist_vec = coverage_estimator.add_to_stream(output);
+                            for hvec in hist_vec{
+                                output_vec.push(hvec);
+                            }                        
                         }else{
                             output_vec.push(output);
                         }
@@ -360,16 +361,22 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                             0.0
                         );
                         if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                            let mut hist_vec = coverage_estimator.add_to_stream(output);
+                            for hvec in hist_vec{
+                                output_vec.push(hvec);
+                            }
                         }else{
                             output_vec.push(output);
                         }
                     }
                     coverage_estimator.setup();
                     if print_zero_coverage_genomes {
-                        print_previous_zero_coverage_genomes2(
+                        let zero_output = print_previous_zero_coverage_genomes2(
                             stoit_name, last_genome, current_genome, tid, coverage_estimator,
                             &target_names, split_char);
+                        for z in zero_output{
+                            output_vec.push(z);
+                        }
                     }
                     last_genome = current_genome;
                     unobserved_contig_length = fill_genome_length_backwards(tid, current_genome);
@@ -433,7 +440,10 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                 coverage
             );
             if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                let mut hist_vec = coverage_estimator.add_to_stream(output);
+                for hvec in hist_vec{
+                    output_vec.push(hvec);
+                }  
             }else{
                 output_vec.push(output);
             }
@@ -444,18 +454,25 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator<T> + std::fmt
                 0.0
             );
             if coverage_estimator.is_histogram(){
-                            coverage_estimator.print_genome(output);
+                let mut hist_vec = coverage_estimator.add_to_stream(output);
+                for hvec in hist_vec{
+                    output_vec.push(hvec);
+                }
             }else{
                 output_vec.push(output);
             }
         }
         if print_zero_coverage_genomes && !single_genome {
-            print_previous_zero_coverage_genomes2(
-                stoit_name, last_genome, b"", header.target_count()-1, coverage_estimator,
-                &target_names, split_char);
-        }
+            let zero_output = print_previous_zero_coverage_genomes2(
+                    stoit_name, last_genome, b"", header.target_count()-1, coverage_estimator,
+                    &target_names, split_char);
+            for z in zero_output{
+                output_vec.push(z);
+            }
         }
         bam_generated.finish();
+        }
+        
     }
     return output_vec;
 }
@@ -481,37 +498,36 @@ fn print_previous_zero_coverage_genomes2<'a, T>(
     last_genome: &[u8],
     current_genome: &[u8],
     current_tid: u32,
-    pileup_coverage_estimator: &'a MosdepthGenomeCoverageEstimator<T>,
+    pileup_coverage_estimator: &'a mut MosdepthGenomeCoverageEstimator<T>,
     target_names: &Vec<&[u8]>,
     split_char: u8)
-    -> &'a MosdepthGenomeCoverageEstimator<T> {
-
+    -> Vec<OutputStream> {
+    
+    let mut output_vec = Vec::new();
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
     let mut genomes_to_print: Vec<&[u8]> = vec![];
+
     while tid > 0 {
         let genome = extract_genome(tid, &target_names, split_char);
         if genome == last_genome { break; }
         else if genome != my_current_genome {
             // In-between genome encountered for the first time.
+            debug!("genome {:?} current genome {:?}", genome, my_current_genome);
             genomes_to_print.push(genome);
             my_current_genome = genome;
         }
         tid = tid - 1;
     };
     for i in (0..genomes_to_print.len()).rev() {
-        // pileup_coverage_estimator.print_zero_coverage(
-        //     &stoit_name, &str::from_utf8(genomes_to_print[i]).unwrap(), print_stream);
         let mut output = OutputStream::new(
             stoit_name.to_string(),
             str::from_utf8(genomes_to_print[i]).unwrap().to_string(),
             0.0
         );
-        pileup_coverage_estimator.print_genome(output.clone());
-
-            // output_vec.push(output);
+        output_vec.push(output);
     }
-    return pileup_coverage_estimator;
+    return output_vec;
 }
 
 /// Finds the first occurence of element in a slice
@@ -774,26 +790,21 @@ mod tests {
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator_contig_names(){
-        let mut stream = io::stdout();
-        // let mut stream = String::new();
+
         let mut geco = GenomesAndContigs::new();
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        mosdepth_genome_coverage_with_contig_names(
+        let stream = mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
             &mut PileupCountsGenomeCoverageEstimator::new(0.0),
             true,
             false);
         
-        // let mut stdout = stream.lock();
-        let mut handle = Vec::new();
-        let num_bytes = stream.write_all(&mut handle);
-        
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
-            String::from_utf8(handle).unwrap())
+            print_output_stream(stream))
     }
 
     #[test]
@@ -806,7 +817,7 @@ mod tests {
             false,
             false);
         assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             print_output_stream(stream1));
 
         let stream2 = mosdepth_genome_coverage(
@@ -831,7 +842,7 @@ mod tests {
             false,
             false);
         assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             print_output_stream(stream));
     }
 
