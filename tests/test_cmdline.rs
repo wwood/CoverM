@@ -15,7 +15,6 @@ mod tests {
                 "filter",
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
-                "--remove-headers",
                 "-o",
                 t]).succeeds().unwrap();
         Assert::command(&["samtools","view",t])
@@ -85,8 +84,7 @@ mod tests {
                 "-1",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "-2",
-                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
-                
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",   
             ])
             .succeeds()
             .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
