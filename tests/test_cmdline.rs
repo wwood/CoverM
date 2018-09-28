@@ -15,6 +15,7 @@ mod tests {
                 "filter",
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
+                "--remove-headers",
                 "-o",
                 t]).succeeds().unwrap();
         Assert::command(&["samtools","view",t])
@@ -33,7 +34,8 @@ mod tests {
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
                 "-o",
-                "/tmp/o"]).succeeds().unwrap();
+                "/tmp/o",
+                ]).succeeds().unwrap();
         Assert::command(&["samtools","view",t])
             .stdout().doesnt_contain("1\t99\tseq1").unwrap();
     }
@@ -55,16 +57,17 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--remove-headers",
             ])
             .succeeds()
             .stdout().contains(format!(
-                "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0.0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0.0
+                "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0.0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0.0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0.0",
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0",
                 t, t, t, t, t, t, t).as_str()).unwrap();
     }
 
@@ -73,6 +76,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--remove-headers",
                 "--min-percent-identity",
                 "0.95",
                 "-r",
@@ -82,15 +86,16 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                
             ])
             .succeeds()
-            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0.0
+            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2").unwrap();
     }
@@ -100,6 +105,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--remove-headers",
                 "--min-percent-identity",
                 "0.95",
                 "-r",
@@ -114,20 +120,20 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
             ])
             .succeeds()
-            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0.0
+            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0.0
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0.0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
