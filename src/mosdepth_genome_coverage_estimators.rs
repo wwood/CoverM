@@ -253,8 +253,8 @@ impl MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator> for Tri
         let mut cumulative_sum: i32 = 0;
         for current in ups_and_downs {
             if *current != 0 {
-                debug!("cumulative sum {} and current {}", cumulative_sum, current);
-                debug!("At i some, ups and downs {:?}", ups_and_downs);
+                // debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                // debug!("At i some, ups and downs {:?}", ups_and_downs);
             }
             cumulative_sum += current;
             if cumulative_sum > 0 {
@@ -380,8 +380,8 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
         let mut cumulative_sum: i32 = 0;
         for current in ups_and_downs {
             if *current != 0 {
-                debug!("cumulative sum {} and current {}", cumulative_sum, current);
-                debug!("At i some, ups and downs {:?}", ups_and_downs);
+                // debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                // debug!("At i some, ups and downs {:?}", ups_and_downs);
             }
             cumulative_sum += current;
             if cumulative_sum > 0 {
@@ -558,8 +558,8 @@ impl MosdepthGenomeCoverageEstimator<VarianceGenomeCoverageEstimator> for Varian
         let mut cumulative_sum: i32 = 0;
         for current in ups_and_downs {
             if *current != 0 {
-                debug!("cumulative sum {} and current {}", cumulative_sum, current);
-                debug!("At i some, ups and downs {:?}", ups_and_downs);
+                // debug!("cumulative sum {} and current {}", cumulative_sum, current);
+                // debug!("At i some, ups and downs {:?}", ups_and_downs);
             }
             cumulative_sum += current;
             if cumulative_sum > 0 {

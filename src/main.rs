@@ -202,6 +202,7 @@ fn main(){
                 print_header(htype);
             }
     print_output_stream(output_stream);
+    output_stream = Vec::new();
 }
 
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
@@ -209,6 +210,7 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
         m.is_present("min-percent-identity")
 }
 pub fn print_header(htype: &mut HeaderTypes){
+        htype.headers.dedup();
         for h in htype.headers.iter(){
             print!("{}\t", h)
         }
@@ -221,11 +223,91 @@ pub fn print_output_stream(output_stream: Vec<OutputStream>){
     }
 }
 
-pub fn update_outputs(output: &mut Vec<OutputStream>, input: Vec<OutputStream>) -> Vec<OutputStream> {
-    for inp in input{
-        output.push(inp);
+pub fn get_filenames(stream: &mut Vec<OutputStream>)->Vec<String>{
+    let mut filename_vec = Vec::new();
+    for line in stream{
+        filename_vec.push(line.filename.clone());
     }
-    return output.clone()
+    return filename_vec
+}
+pub fn update_outputs(output: &mut Vec<OutputStream>, input: &mut Vec<OutputStream>) -> Vec<OutputStream> {
+    info!("Lengths {}, {}", output.len(), input.len());
+    if output.len() == 0{
+        return input.clone()
+    }else if output.len() == input.len(){
+        for (i, inp) in input.iter().enumerate() {
+            if output[i].filename == inp.filename{
+                info!("First Check Eq Lengths {:?}{:?}", output[i].genome, inp.genome);
+                if output[i].genome == inp.genome{
+                    // info!("Equal! {:?}{:?}", output[i].genome, inp.genome);
+                    for m in inp.methods.iter(){
+                        output[i].methods.push(*m);
+                    }
+                } else {
+                    // info!("Not equal! {:?}{:?}", output[i].genome, inp.genome);
+                    output.push(inp.clone());
+                }
+            }
+            // let mut cnt = cnt + 1;
+            else{
+                info!("Second Check eq lengths {:?}{:?}", output[i].genome, inp.genome);
+                if output[i].genome == inp.genome{
+                    
+                    for m in inp.methods.iter(){
+                        output[i].methods.push(*m);
+                    }
+                } else {
+                    output.push(inp.clone());
+                }
+                }
+            }
+        return output.clone()
+    }else {
+        let output_len = output.len();
+        let mut output_st = &output.clone()[..input.len()];
+        info!("Lengths Sliced {}, {}", output_st.len(), input.len());
+        for (i, inp) in input.iter().enumerate() {
+            if output_st[i].filename == inp.filename{
+                if output_st[i].genome == inp.genome{
+                    info!("Equal! {:?}{:?}", output[i].genome, inp.genome);
+                    for m in inp.methods.iter(){
+                        output[i].methods.push(*m);
+                    }
+                }
+            // let mut cnt = cnt + 1;
+            }else{
+                info!("Second Check {:?}{:?}", output[output_len-input.len()+i].filename, inp.filename);
+                if output[output_len-input.len()+i].filename == inp.filename{
+                    info!("Third Check {:?}{:?}", output[output_len-input.len()+i].genome, inp.genome);
+                    if output[output_len-input.len()+i].genome == inp.genome{
+                        for m in inp.methods.iter(){
+                            output[output_len-input.len()+i].methods.push(*m);
+                    }
+                    }
+                }
+                else{
+                    output.push(inp.clone())
+                }
+            }
+            }
+        return output.clone()
+    }
+    
+    // else{
+    //     for (i, inp) in input.iter().enumerate() {
+    //         output.push(inp.clone());
+    //     }
+    //     return output.clone()
+    // }
+        
+
+
+    
+    // let mut output_st = Vec::new();
+    // for inp in input{
+    //     output.push(inp);
+    // }
+    // return output.clone()
 }
 
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
@@ -276,7 +358,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 print_zeros,
                                                                                 flag_filter,
                                                                                 single_genome);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
             },
             "coverage_histogram" => {
                 if headers{
@@ -291,7 +373,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                             print_zeros,
                                                             flag_filter,
                                                             single_genome);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "trimmed_mean" => {
                 if headers{
@@ -304,7 +386,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 print_zeros,
                                                                                 flag_filter,
                                                                                 single_genome);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "covered_fraction" => {
                 if headers{
@@ -318,7 +400,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 print_zeros,
                                                                                 flag_filter,
                                                                                 single_genome);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
             },
             "variance" => {
                 if headers{
@@ -332,7 +414,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 print_zeros,
                                                                                 flag_filter,
                                                                                 single_genome);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             _ => {panic!("programming error");}
             }
@@ -385,7 +467,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                                                                                                 print_zeros,
                                                                                                 flag_filter);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "coverage_histogram" => {
                 if headers{
@@ -399,7 +481,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                 min_fraction_covered),
                                                                             print_zeros,
                                                                             flag_filter);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "trimmed_mean" => {
                 if headers{
@@ -411,7 +493,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                 &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                                                                                                 print_zeros,
                                                                                                 flag_filter);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "covered_fraction" => {
                 if headers{
@@ -424,7 +506,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                     min_fraction_covered),
                                                                                                 print_zeros,
                                                                                                 flag_filter);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             "variance" => {
                 if headers{
@@ -436,7 +518,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                                                                     min_fraction_covered),
                                                                                                 print_zeros,
                                                                                                 flag_filter);
-                out = update_outputs(output_stream, input_stream);
+                out = update_outputs(output_stream, &mut input_stream);
                 },
             _ => panic!("programming error")
         }
@@ -587,12 +669,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
 
 
     let out;
-    pub fn print_header(htype: &mut HeaderTypes){
-        for h in htype.headers.iter(){
-            print!("{}\t", h)
-        }
-        println!("")
-    }
+
     let headers = !m.is_present("remove-headers");
     match method {
         "mean" => {
@@ -604,7 +681,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
                                                                     print_zeros,
                                                                     flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = update_outputs(output_stream, &mut input_stream);
             },
         "coverage_histogram" => {
             if headers{
@@ -616,7 +693,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                 min_fraction_covered),
                                             print_zeros,
                                             flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = update_outputs(output_stream, &mut input_stream);
             },
         "trimmed_mean" => {
             if headers{
@@ -626,7 +703,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                     &mut get_trimmed_mean_estimator(m, min_fraction_covered),
                                                                     print_zeros,
                                                                     flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = update_outputs(output_stream, &mut input_stream);
             },
         "covered_fraction" => {
             if headers{
@@ -637,7 +714,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                         min_fraction_covered),
                                                                     print_zeros,
                                                                     flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = update_outputs(output_stream, &mut input_stream);
             },
         "variance" => {
             if headers{
@@ -648,7 +725,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
                                                                         min_fraction_covered),
                                                                     print_zeros,
                                                                     flag_filter);
-            out = update_outputs(output_stream, input_stream);
+            out = update_outputs(output_stream, &mut input_stream);
 
             },
         _ => panic!("programming error")
