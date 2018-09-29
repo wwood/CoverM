@@ -169,7 +169,6 @@ fn print_previous_zero_coverage_contigs<'a, T>(
 mod tests {
 
     use super::*;
-    use std::io::Cursor;
 
     pub fn print_output_stream(output_stream: Vec<OutputStream>) -> String {
         let mut out_st = Vec::new();

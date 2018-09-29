@@ -39,66 +39,55 @@ impl OutputStream{
     // pub fn is_histogram(is_hist: bool) -> bool{
     //     is_hist
     // }
-    pub fn update(mut self, stoit_name: String, genome: String, coverage: &f32) -> OutputStream {
-        if self.filename == "".to_string() {
-            OutputStream::new(stoit_name, genome, *coverage)
-
-        }else if self.filename == stoit_name.to_string() {
-            if self.genome == genome.to_string() {
-                if self.methods.last() == Some(coverage) {
-                    OutputStream{
-                        filename: self.filename,
-                        genome: self.genome,
-                        methods: self.methods,
-                    }
-                } else{
-                        self.add_to_method(*coverage)
+    pub fn update(mut self, input_stream: OutputStream, htype: &HeaderTypes) {
+        if self.filename == input_stream.filename {
+            // Check if looking at same genome in same file
+            if self.genome == input_stream.genome {
+                // Check if coverage has already been recorded
+                if htype.headers.len() != self.methods.len()-2{
+                    let mut methods = self.methods;
+                    for method in input_stream.methods{
+                        methods.push(method);
+                        }
+                    self.methods = methods;
                     }
             } else{
-                self.genome = genome.to_string();
-                if self.methods.last() == Some(coverage) {
-                    OutputStream{
-                        filename: self.filename,
-                        genome: self.genome,
-                        methods: self.methods,
+                self.genome = input_stream.genome;
+                if htype.headers.len() != self.methods.len()-2 {
+                    let mut methods = self.methods;
+                    for method in input_stream.methods{
+                        methods.push(method);
+                        }
+                    self.methods = methods;
                     }
-                } else{
-                    self.add_to_method(*coverage)
-                }
             }
-        } else {
-            self.filename = stoit_name.to_string();
-            if self.genome == genome.to_string() {
-                if self.methods.last() == Some(coverage) {
-                    OutputStream{
-                        filename: self.filename,
-                        genome: self.genome,
-                        methods: self.methods,
+        } else{
+            self.filename=input_stream.filename; 
+            // Check if looking at same genome in same file
+            if self.genome == input_stream.genome {
+                // Check if coverage has already been recorded
+                if htype.headers.len() != self.methods.len()-2{
+                    let mut methods = self.methods;
+                    for method in input_stream.methods{
+                        methods.push(method);
+                        }
+                    self.methods = methods;
                     }
-                } else{
-                    self.add_to_method(*coverage)
-                }
             } else{
-                self.genome = genome.to_string();
-                if self.methods.last() == Some(coverage) {
-                    OutputStream{
-                        filename: self.filename,
-                        genome: self.genome,
-                        methods: self.methods,
+                self.genome = input_stream.genome;
+                if htype.headers.len() != self.methods.len()-2 {
+                    let mut methods = self.methods;
+                    for method in input_stream.methods{
+                        methods.push(method);
+                        }
+                    self.methods = methods;
                     }
-                } else{
-                    self.add_to_method(*coverage)
-                }
             }
         }
     }
-    pub fn add_to_method(mut self, value: f32)->OutputStream{
-        self.methods.push(value);
-        OutputStream{
-            filename: self.filename,
-            genome: self.genome,
-            methods: self.methods,
-        }
+
+    pub fn add_to_method(mut self, value: f32){
+        self.methods.push(value)
     }
     pub fn print_output(&self){
         print!("{}\t{}", self.filename, self.genome);
@@ -119,13 +108,16 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
     fn create_output(&mut self) -> OutputStream{
         OutputStream::construct()
     }
-    fn update_output(&mut self, output_stream: OutputStream,
-                    stoit_name: &str, genome: &str, coverage: &f32)-> OutputStream{
+    fn update_individual_output(&mut self, output_stream: OutputStream,
+                    stoit_name: &str, genome: &str, coverage: &f32, htype: &HeaderTypes){
+        let input = OutputStream{
+            filename: stoit_name.to_string(),
+            genome: genome.to_string(),
+            methods: vec![*coverage],
+        };
         output_stream.update(
-            stoit_name.to_string(),
-            genome.to_string(),
-            coverage,
-        )
+            input,
+            htype)
     }
 
     fn add_to_stream(&mut self, output_stream: OutputStream) -> Vec<OutputStream>{

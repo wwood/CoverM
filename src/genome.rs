@@ -552,10 +552,7 @@ fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
     use env_logger;
-    use std::io;
-    use std::io::Write;
     use std::io::BufRead;
 
     pub fn print_output_stream(output_stream: Vec<OutputStream>) -> String {

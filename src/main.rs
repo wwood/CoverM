@@ -221,27 +221,11 @@ pub fn print_output_stream(output_stream: Vec<OutputStream>){
     }
 }
 
-pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
-    // let it = output.iter().zip(input.iter());
-    if output.len()==0{
-        return input
-    } else {
-        // let cnt = 0;
-        let mut output_st: Vec<OutputStream> = Vec::new();
-        if input.len() > 0 {
-            for (i, v) in input.iter().enumerate() {
-                for m in v.methods.iter(){
-                    output[i].methods.push(*m);
-                }
-                output_st.push(output[i].clone());
-                // let mut cnt = cnt + 1;
-            }
-        } else{
-            output[0].methods.append(&mut input[0].methods);
-            output_st.push(output[0].clone());
-        }
-    return output_st
+pub fn update_outputs(output: &mut Vec<OutputStream>, input: Vec<OutputStream>) -> Vec<OutputStream> {
+    for inp in input{
+        output.push(inp);
     }
+    return output.clone()
 }
 
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
@@ -608,26 +592,6 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
             print!("{}\t", h)
         }
         println!("")
-    }
-    pub fn update_outputs(output: &mut Vec<OutputStream>, mut input: Vec<OutputStream>) -> Vec<OutputStream> {
-
-        if output.len()==0{
-            return input
-        } else {
-            let mut output_st: Vec<OutputStream> = Vec::new();
-            if input.len() > 0 {
-                for (i, v) in input.iter().enumerate() {
-                    for m in v.methods.iter(){
-                        output[i].methods.push(*m);
-                    }
-                    output_st.push(output[i].clone());
-                }
-            } else{
-                output[0].methods.append(&mut input[0].methods);
-                output_st.push(output[0].clone());
-            }
-        return output_st
-        }
     }
     let headers = !m.is_present("remove-headers");
     match method {
