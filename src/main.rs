@@ -283,8 +283,10 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                             let s = String::from(file.to_string_lossy());
                             genome_fasta_files.push(s);
                         } else {
-                            info!("Not using directory entry '{}' as a genome FASTA file",
-                                  file.to_str().expect("UTF8 error in filename"));
+                            info!(
+                                "Not using directory entry '{}' as a genome FASTA file, as it does not end with the extension '{}'",
+                                file.to_str().expect("UTF8 error in filename"),
+                                extension);
                         }
                     },
                     None => {
@@ -296,6 +298,9 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             let mut strs: Vec<&str> = vec!();
             for f in &genome_fasta_files {
                 strs.push(f);
+            }
+            if strs.len() == 0 {
+                panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.")
             }
             info!("Calculating coverage for {} genomes ..", strs.len());
             genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
@@ -687,7 +692,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("x")
                      .long("genome-fasta-extension")
                      .requires("genome-fasta-directory")
-                     .default_value(".fna")
+                     .default_value("fna")
                      .takes_value(true))
                 .arg(Arg::with_name("single-genome")
                      .long("single-genome")
