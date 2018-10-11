@@ -274,11 +274,12 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             let dir = m.value_of("genome-fasta-directory").unwrap();
             let paths = std::fs::read_dir(dir).unwrap();
             let mut genome_fasta_files: Vec<String> = vec!();
+            let extension = m.value_of("genome-fasta-extension").unwrap();
             for path in paths {
                 let file = path.unwrap().path();
                 match file.extension() {
                     Some(ext) => {
-                        if ext == "fna" {
+                        if ext == extension {
                             let s = String::from(file.to_string_lossy());
                             genome_fasta_files.push(s);
                         } else {
@@ -296,6 +297,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             for f in &genome_fasta_files {
                 strs.push(f);
             }
+            info!("Calculating coverage for {} genomes ..", strs.len());
             genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
         } else {
             eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
@@ -471,6 +473,9 @@ Define the contigs in each genome (exactly one of the following is required):
    -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome
    -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
                                          genome
+   -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
+                                         specified with -d/--genome-fasta-directory
+                                         [default \"fna\"]
    --single-genome                       All contigs are from the same genome
 
 Define mapping(s) (required):
@@ -677,6 +682,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("separator")
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("single-genome")
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-extension")
+                     .short("x")
+                     .long("genome-fasta-extension")
+                     .requires("genome-fasta-directory")
+                     .default_value(".fna")
                      .takes_value(true))
                 .arg(Arg::with_name("single-genome")
                      .long("single-genome")
