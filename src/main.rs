@@ -648,6 +648,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
+                     .long("coupled")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
@@ -771,6 +772,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
+                     .long("coupled")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
