@@ -15,6 +15,7 @@ extern crate rust_htslib;
 extern crate env_logger;
 extern crate nix;
 extern crate tempdir;
+extern crate tempfile;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;

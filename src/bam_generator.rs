@@ -10,6 +10,7 @@ use rust_htslib::bam::Read as BamRead;
 use nix::unistd;
 use nix::sys::stat;
 use tempdir::TempDir;
+use tempfile;
 
 pub trait NamedBamReader {
     // Name of the stoit
@@ -61,6 +62,8 @@ pub struct StreamingNamedBamReader {
     bam_reader: bam::Reader,
     tempdir: TempDir,
     processes: Vec<std::process::Child>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
 }
 
 pub struct StreamingNamedBamReaderGenerator {
@@ -68,6 +71,8 @@ pub struct StreamingNamedBamReaderGenerator {
     tempdir: TempDir,
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
 }
 
 impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
@@ -86,6 +91,8 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             bam_reader: bam_reader,
             tempdir: self.tempdir,
             processes: processes,
+            log_file_descriptions: self.log_file_descriptions,
+            log_files: self.log_files,
         }
     }
 }
@@ -108,7 +115,15 @@ impl NamedBamReader for StreamingNamedBamReader {
                 let mut err = String::new();
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
-                error!("The STDERR was: {:?}", err);
+                error!("The overall STDERR was: {:?}", err);
+                for (description, tf) in self.log_file_descriptions.into_iter().zip(
+                    self.log_files.into_iter()) {
+                    let mut contents = String::new();
+                    tf.into_file().read_to_string(&mut contents)
+                        .expect(&format!("Failed to read log file for {}", description));
+                    error!("The STDERR for the {:} part was: {}",
+                           description, contents);
+                }
                 panic!("Cannot continue since mapping failed.");
             }
         }
@@ -150,13 +165,26 @@ pub fn generate_named_bam_readers_from_read_couple(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
+    let bwa_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create BWA log tempfile");
+    let samtools1_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create first samtools log tempfile");
+    let samtools2_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create second samtools log tempfile");
+
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem -t {} '{}' '{}' '{}' \
-         | samtools view -Sub -F4 \
-         | samtools sort -l0 -@ {} -o {:?}",
+         bwa mem -t {} '{}' '{}' '{}' 2>{} \
+         | samtools view -Sub -F4  2>{} \
+         | samtools sort -l0 -@ {} -o {:?} 2>{}",
+        // BWA
         threads, reference, read1_path, read2_path,
-        threads-1, fifo_path);
+        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // samtools 1
+        samtools1_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // samtools 2
+        threads-1, fifo_path,
+        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"));
     debug!("Executing with bash: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
@@ -174,6 +202,11 @@ pub fn generate_named_bam_readers_from_read_couple(
         tempdir: tmp_dir,
         fifo_path: fifo_path,
         pre_processes: vec![cmd],
+        log_file_descriptions: vec![
+            "BWA".to_string(),
+            "samtools view".to_string(),
+            "samtools sort".to_string()],
+        log_files: vec![bwa_log, samtools1_log, samtools2_log],
     }
 }
 
