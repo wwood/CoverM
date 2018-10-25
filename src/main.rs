@@ -386,6 +386,12 @@ impl<'a> MappingParameters<'a> {
 
 fn get_streamed_bam_readers<'a>(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
+
+    // Check the output BAM directory actually exists and is writeable
+    if m.is_present("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    }
+
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
     for r in params.references {
@@ -427,8 +433,61 @@ fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &
         .expect("Unable to covert file name into str").to_string()+".bam"
 }
 
+fn setup_bam_cache_directory(cache_directory: &str) {
+    let path = std::path::Path::new(cache_directory);
+    if path.is_dir() {
+        // TODO: This approach fails when the directory is executable but not
+        // writeable e.g. '/'
+        if path.metadata().expect("Unable to read metadata for cache directory")
+            .permissions().readonly() {
+                panic!("Cache directory {} does not appear to be writeable, not continuing",
+                       cache_directory);
+            } else {
+                info!("Writing BAM files to already existing directory {}", cache_directory)
+            }
+    } else {
+        match path.parent() {
+            Some(parent) => {
+                println!("parent: {:?}",parent);
+                let parent2 = match parent == std::path::Path::new("") {
+                    true => std::path::Path::new("."),
+                    false => parent
+                };
+                if parent2.canonicalize().expect(
+                    &format!("Unable to canonicalize parent of cache directory {}", cache_directory)).is_dir() {
+                    if parent2.metadata().expect(
+                        &format!("Unable to get metadata for parent of cache directory {}",
+                                 cache_directory))
+                        .permissions().readonly() {
+                            panic!(
+                                "The parent directory of the (currently non-existent) \
+                                 cache directory {} is not writeable, not continuing",
+                                cache_directory);
+                        } else {
+                            info!("Creating cache directory {}", cache_directory);
+                            std::fs::create_dir(path).expect("Unable to create cache directory");
+                        }
+                } else {
+                    panic!("The parent directory of the cache directory {} does not \
+                            yet exist, so not creating that cache directory, and not continuing.",
+                           cache_directory)
+                }
+            },
+            None => {
+                panic!("Cannot create root directory {}", cache_directory)
+            }
+        }
+    }
+}
+
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
+
+    // Check the output BAM directory actually exists and is writeable
+    if m.is_present("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    }
+
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
     for r in params.references {

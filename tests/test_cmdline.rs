@@ -180,4 +180,19 @@ mod tests {
                 .is_file());
     }
 
+    #[test]
+    fn test_non_existant_cache_bam_files(){
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--bam-file-cache-directory",
+                "/no/no/no/165"
+            ]).fails().unwrap();
+    }
+
 }
