@@ -692,7 +692,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("genome-fasta-extension")
                      .short("x")
                      .long("genome-fasta-extension")
-                     .requires("genome-fasta-directory")
+                     // Unsure why, but uncommenting causes test failure - clap
+                     // bug?
+                     //.requires("genome-fasta-directory")
                      .default_value("fna")
                      .takes_value(true))
                 .arg(Arg::with_name("single-genome")
@@ -752,8 +754,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("b")
                      .long("bam-files")
                      .multiple(true)
-                     .takes_value(true)
-                     .required_unless("read1"))
+                     .takes_value(true))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)

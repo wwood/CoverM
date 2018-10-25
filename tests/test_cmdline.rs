@@ -133,4 +133,30 @@ mod tests {
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2").unwrap();
     }
+
+    #[test]
+    fn test_genome_coupled_read_input_argparsing(){
+        // Had trouble (because of a bug in clap? with this previously)
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-s","~"]).succeeds().unwrap();
+    }
+
+    #[test]
+    fn test_contig_coupled_read_input_argparsing(){
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna"]).succeeds().unwrap();
+    }
 }
