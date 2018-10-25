@@ -153,7 +153,8 @@ pub fn generate_named_bam_readers_from_read_couple(
     reference: &str,
     read1_path: &str,
     read2_path: &str,
-    threads: u16) -> StreamingNamedBamReaderGenerator {
+    threads: u16,
+    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -172,20 +173,29 @@ pub fn generate_named_bam_readers_from_read_couple(
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
 
+    let cached_bam_file_args = match cached_bam_file {
+        Some(path) => format!(
+            "|tee >(samtools view -b -o '{}')", path),
+        None => String::new()
+    };
     let cmd_string = format!(
         "set -e -o pipefail; \
          bwa mem -t {} '{}' '{}' '{}' 2>{} \
          | samtools view -Sub -F4  2>{} \
+         {} \
          | samtools sort -l0 -@ {} -o {:?} 2>{}",
         // BWA
         threads, reference, read1_path, read2_path,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools 1
         samtools1_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // Caching
+        cached_bam_file_args,
         // samtools 2
         threads-1, fifo_path,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"));
     debug!("Executing with bash: {}", cmd_string);
+    info!("Executing with bash: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
         .arg("-c")
@@ -367,11 +377,12 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
     read1_path: &str,
     read2_path: &str,
     threads: u16,
+    cached_bam_file: Option<&str>,
     min_aligned_length: u32,
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_read_couple(
-        reference, read1_path, read2_path, threads);
+        reference, read1_path, read2_path, threads, cached_bam_file);
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,

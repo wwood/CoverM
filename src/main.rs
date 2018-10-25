@@ -392,9 +392,19 @@ fn get_streamed_bam_readers<'a>(
         let mut bam_readers = vec![];
         let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
         for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+            let bam_file_cache_path;
+            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(), r, read1);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path.as_str())
+                }
+            };
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                    index.index_path(), read1, read2, params.threads));
+                    index.index_path(), read1, read2, params.threads, bam_file_cache));
         }
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
@@ -406,6 +416,17 @@ fn get_streamed_bam_readers<'a>(
     return generator_set;
 }
 
+fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &str) -> String {
+    std::path::Path::new(directory).to_str()
+        .expect("Unable to covert bam-file-cache-directory name into str").to_string()+"/"+
+        &std::path::Path::new(reference).file_name()
+        .expect("Unable to convert reference to file name").to_str()
+        .expect("Unable to covert file name into str").to_string()+"."+
+        &std::path::Path::new(read1_path).file_name()
+        .expect("Unable to convert read1 name to file name").to_str()
+        .expect("Unable to covert file name into str").to_string()+".bam"
+}
+
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
     let params = MappingParameters::generate_from_clap(&m);
@@ -415,9 +436,19 @@ fn get_streamed_filtered_bam_readers(
         let filter_params = FilterParameters::generate_from_clap(m);
         let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
         for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+            let bam_file_cache_path;
+            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(), r, read1);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path.as_str())
+                }
+            };
             bam_readers.push(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                    index.index_path(), read1, read2, params.threads,
+                    index.index_path(), read1, read2, params.threads, bam_file_cache,
                     filter_params.min_aligned_length,
                     filter_params.min_percent_identity
                 ));
@@ -520,6 +551,8 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -567,6 +600,8 @@ Other arguments (optional):
                                          coverage
    --no-flag-filter                      Do not ignore secondary and supplementary
                                          alignments, and improperly paired reads
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -660,6 +695,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .multiple(true)
                      .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("bam-file-cache-directory")
+                     .long("bam-file-cache-directory")
+                     .takes_value(true)
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")
                      .short("-t")
@@ -785,6 +824,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .multiple(true)
                      .required_unless("bam-files")
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("bam-file-cache-directory")
+                     .long("bam-file-cache-directory")
+                     .takes_value(true)
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("threads")
                      .short("-t")
