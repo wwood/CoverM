@@ -285,7 +285,9 @@ pub struct StreamingFilteredNamedBamReader {
     stoit_name: String,
     filtered_stream: ReferenceSortedBamFilter,
     tempdir: TempDir,
-    processes: Vec<std::process::Child>
+    processes: Vec<std::process::Child>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
 }
 
 pub struct StreamingFilteredNamedBamReaderGenerator {
@@ -294,7 +296,9 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
     min_aligned_length: u32,
-    min_percent_identity: f32
+    min_percent_identity: f32,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
 }
 
 impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilteredNamedBamReaderGenerator {
@@ -316,7 +320,9 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             stoit_name: self.stoit_name,
             filtered_stream: filtered_stream,
             tempdir: self.tempdir,
-            processes: processes
+            processes: processes,
+            log_file_descriptions: self.log_file_descriptions,
+            log_files: self.log_files,
         }
     }
 }
@@ -339,7 +345,15 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
                 let mut err = String::new();
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
-                error!("The STDERR was: {:?}", err);
+                error!("The overall STDERR was: {:?}", err);
+                for (description, tf) in self.log_file_descriptions.into_iter().zip(
+                    self.log_files.into_iter()) {
+                    let mut contents = String::new();
+                    tf.into_file().read_to_string(&mut contents)
+                        .expect(&format!("Failed to read log file for {}", description));
+                    error!("The STDERR for the {:} part was: {}",
+                           description, contents);
+                }
                 panic!("Cannot continue since mapping failed.");
             }
         }
@@ -356,40 +370,15 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
     min_aligned_length: u32,
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
 
-    let tmp_dir = TempDir::new("coverm_fifo")
-        .expect("Unable to create temporary directory");
-    let fifo_path = tmp_dir.path().join("foo.pipe");
-
-    // create new fifo and give read, write and execute rights to the owner.
-    // This is required because we cannot open a Rust stream as a BAM file with
-    // rust-htslib.
-    unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
-        .expect(&format!("Error creating named pipe {:?}", fifo_path));
-
-    let cmd_string = format!(
-        "set -e -o pipefail; \
-         bwa mem -t {} '{}' '{}' '{}' \
-         | samtools view -Sub -F4 \
-         | samtools sort -l0 -@ {} -o {:?}",
-        threads, reference, read1_path, read2_path,
-        threads-1, fifo_path);
-    debug!("Executing with bash: {}", cmd_string);
-    let mut cmd = std::process::Command::new("bash");
-    cmd
-        .arg("-c")
-        .arg(cmd_string)
-        .stderr(std::process::Stdio::piped());
-
+    let streaming = generate_named_bam_readers_from_read_couple(
+        reference, read1_path, read2_path, threads);
     return StreamingFilteredNamedBamReaderGenerator {
-        stoit_name: std::path::Path::new(reference).file_name()
-            .expect("Unable to convert reference to file name").to_str()
-            .expect("Unable to covert file name into str").to_string()+"/"+
-            &std::path::Path::new(read1_path).file_name()
-            .expect("Unable to convert read1 name to file name").to_str()
-            .expect("Unable to covert file name into str").to_string(),
-        tempdir: tmp_dir,
-        fifo_path: fifo_path,
-        pre_processes: vec![cmd],
+        stoit_name: streaming.stoit_name,
+        tempdir: streaming.tempdir,
+        fifo_path: streaming.fifo_path,
+        pre_processes: streaming.pre_processes,
+        log_file_descriptions: streaming.log_file_descriptions,
+        log_files: streaming.log_files,
         min_aligned_length: min_aligned_length,
         min_percent_identity: min_percent_identity
     }
