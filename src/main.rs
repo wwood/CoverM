@@ -22,6 +22,8 @@ use log::LogLevelFilter;
 extern crate env_logger;
 use env_logger::LogBuilder;
 
+extern crate tempfile;
+
 
 fn main(){
     let mut app = build_cli();
@@ -436,8 +438,6 @@ fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &
 fn setup_bam_cache_directory(cache_directory: &str) {
     let path = std::path::Path::new(cache_directory);
     if path.is_dir() {
-        // TODO: This approach fails when the directory is executable but not
-        // writeable e.g. '/'
         if path.metadata().expect("Unable to read metadata for cache directory")
             .permissions().readonly() {
                 panic!("Cache directory {} does not appear to be writeable, not continuing",
@@ -477,6 +477,12 @@ fn setup_bam_cache_directory(cache_directory: &str) {
                 panic!("Cannot create root directory {}", cache_directory)
             }
         }
+    }
+    // Test writing a tempfile to the directory, to test it actually is
+    // writeable.
+    let tf_result = tempfile::tempfile_in(path);
+    if tf_result.is_err() {
+        panic!("Failed to create test file in bam cache directory: {}", tf_result.err().unwrap())
     }
 }
 
