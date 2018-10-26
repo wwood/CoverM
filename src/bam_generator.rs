@@ -71,6 +71,7 @@ pub struct StreamingNamedBamReaderGenerator {
     tempdir: TempDir,
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
+    command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
 }
@@ -79,7 +80,10 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     fn start(self) -> StreamingNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
+        let mut i = 0;
         for mut preprocess in self.pre_processes {
+            info!("Running mapping command: {}", self.command_strings[i]);
+            i += 1;
             processes.push(preprocess
                            .spawn()
                            .expect("Unable to execute bash"));
@@ -194,12 +198,11 @@ pub fn generate_named_bam_readers_from_read_couple(
         // samtools 2
         threads-1, fifo_path,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"));
-    debug!("Executing with bash: {}", cmd_string);
-    info!("Executing with bash: {}", cmd_string);
+    debug!("Queuing cmd_string: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
         .arg("-c")
-        .arg(cmd_string)
+        .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
 
     return StreamingNamedBamReaderGenerator {
@@ -212,6 +215,7 @@ pub fn generate_named_bam_readers_from_read_couple(
         tempdir: tmp_dir,
         fifo_path: fifo_path,
         pre_processes: vec![cmd],
+        command_strings: vec![format!("bash -c {}", cmd_string)],
         log_file_descriptions: vec![
             "BWA".to_string(),
             "samtools view".to_string(),
