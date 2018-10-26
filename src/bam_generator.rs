@@ -62,6 +62,7 @@ pub struct StreamingNamedBamReader {
     bam_reader: bam::Reader,
     tempdir: TempDir,
     processes: Vec<std::process::Child>,
+    command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
 }
@@ -82,7 +83,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
         let mut processes = vec![];
         let mut i = 0;
         for mut preprocess in self.pre_processes {
-            info!("Running mapping command: {}", self.command_strings[i]);
+            debug!("Running mapping command: {}", self.command_strings[i]);
             i += 1;
             processes.push(preprocess
                            .spawn()
@@ -95,6 +96,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             bam_reader: bam_reader,
             tempdir: self.tempdir,
             processes: processes,
+            command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
         }
@@ -115,7 +117,7 @@ impl NamedBamReader for StreamingNamedBamReader {
         for mut process in self.processes {
             let es = process.wait().expect("Failed to glean exitstatus from mapping process");
             if !es.success() {
-                error!("Error when running mapping process.");
+                error!("Error when running mapping process: {:?}", self.command_strings);
                 let mut err = String::new();
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
@@ -300,6 +302,7 @@ pub struct StreamingFilteredNamedBamReader {
     filtered_stream: ReferenceSortedBamFilter,
     tempdir: TempDir,
     processes: Vec<std::process::Child>,
+    command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
 }
@@ -309,6 +312,7 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     tempdir: TempDir,
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
+    command_strings: Vec<String>,
     min_aligned_length: u32,
     min_percent_identity: f32,
     log_file_descriptions: Vec<String>,
@@ -335,6 +339,7 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             filtered_stream: filtered_stream,
             tempdir: self.tempdir,
             processes: processes,
+            command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
         }
@@ -355,7 +360,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         for mut process in self.processes {
             let es = process.wait().expect("Failed to glean exitstatus from mapping process");
             if !es.success() {
-                error!("Error when running mapping process.");
+                error!("Error when running mapping process: {:?}", self.command_strings);
                 let mut err = String::new();
                 process.stderr.expect("Failed to grab stderr from failed mapping process")
                     .read_to_string(&mut err).expect("Failed to read stderr into string");
@@ -392,6 +397,7 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
         tempdir: streaming.tempdir,
         fifo_path: streaming.fifo_path,
         pre_processes: streaming.pre_processes,
+        command_strings: streaming.command_strings,
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
         min_aligned_length: min_aligned_length,
