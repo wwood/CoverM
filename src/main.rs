@@ -347,12 +347,14 @@ struct MappingParameters<'a> {
     read1: Vec<&'a str>,
     read2: Vec<&'a str>,
     interleaved: Vec<&'a str>,
+    unpaired: Vec<&'a str>,
 }
 impl<'a> MappingParameters<'a> {
     pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
         let mut read1: Vec<&str> = vec!();
         let mut read2: Vec<&str> = vec!();
         let mut interleaved: Vec<&str> = vec!();
+        let mut unpaired: Vec<&str> = vec!();
 
         if m.is_present("read1") {
             read1 = m.values_of("read1").unwrap().collect();
@@ -382,6 +384,9 @@ impl<'a> MappingParameters<'a> {
         if m.is_present("interleaved") {
             interleaved = m.values_of("interleaved").unwrap().collect();
         }
+        if m.is_present("single") {
+            unpaired = m.values_of("single").unwrap().collect();
+        }
 
         return MappingParameters {
             references: m.values_of("reference").unwrap().collect(),
@@ -390,6 +395,7 @@ impl<'a> MappingParameters<'a> {
             read1: read1,
             read2: read2,
             interleaved: interleaved,
+            unpaired: unpaired,
         }
     }
 }
@@ -436,6 +442,21 @@ fn get_streamed_bam_readers<'a>(
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_interleaved(
                     index.index_path(), &interleaved, params.threads, bam_file_cache));
+        }
+        for unpaired_read_path in params.unpaired.iter() {
+            let bam_file_cache_path;
+            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(), r, unpaired_read_path);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path.as_str())
+                }
+            };
+            bam_readers.push(
+                coverm::bam_generator::generate_named_bam_readers_from_interleaved(
+                    index.index_path(), &unpaired_read_path, params.threads, bam_file_cache));
         }
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
@@ -559,6 +580,23 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_aligned_length,
                     filter_params.min_percent_identity));
         }
+        for unpaired_read_path in params.unpaired.iter() {
+            let bam_file_cache_path;
+            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(), r, unpaired_read_path);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path.as_str())
+                }
+            };
+            bam_readers.push(
+                coverm::bam_generator::generate_filtered_named_bam_readers_from_unpaired_reads(
+                    index.index_path(), &unpaired_read_path, params.threads, bam_file_cache,
+                    filter_params.min_aligned_length,
+                    filter_params.min_percent_identity));
+        }
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
@@ -638,6 +676,7 @@ Define mapping(s) (required):
    -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
                                          for mapping.
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -688,6 +727,7 @@ Define mapping(s) (required):
    -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
                                          for mapping.
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude pairs with smaller numbers of
@@ -785,7 +825,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read2")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved"])
+                         &["bam-files","coupled","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
@@ -793,7 +833,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read1")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved"])
+                         &["bam-files","coupled","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
@@ -801,14 +841,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","interleaved"])
+                         &["bam-files","read1","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("interleaved")
                      .long("interleaved")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled"])
+                         &["bam-files","read1","coupled","single"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("single")
+                     .long("single")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1","coupled","interleaved"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
@@ -921,7 +968,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read2")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved"])
+                         &["bam-files","coupled","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
@@ -929,7 +976,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read1")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved"])
+                         &["bam-files","coupled","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
@@ -937,14 +984,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","interleaved"])
+                         &["bam-files","read1","interleaved","single"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("interleaved")
                      .long("interleaved")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled"])
+                         &["bam-files","read1","coupled","single"])
+                     .conflicts_with("bam-files"))
+                .arg(Arg::with_name("single")
+                     .long("single")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["bam-files","read1","coupled","interleaved"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")

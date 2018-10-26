@@ -156,6 +156,7 @@ pub fn generate_named_bam_readers_from_bam_files(
 enum ReadFormat {
     Coupled,
     Interleaved,
+    Single,
 }
 
 pub fn generate_named_bam_readers_from_read_couple(
@@ -176,6 +177,16 @@ pub fn generate_named_bam_readers_from_interleaved(
     cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
     return generate_named_bam_readers_from_reads(
         reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file
+    )
+}
+
+pub fn generate_named_bam_readers_from_unpaired_reads(
+    reference: &str,
+    unpaired_reads_path: &str,
+    threads: u16,
+    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
+    return generate_named_bam_readers_from_reads(
+        reference, unpaired_reads_path, None, ReadFormat::Single, threads, cached_bam_file
     )
 }
 
@@ -223,7 +234,8 @@ fn generate_named_bam_readers_from_reads(
     };
     let bwa_read_params = match read_format {
         ReadFormat::Interleaved => format!("-p '{}'", read1_path),
-        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap())
+        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+        ReadFormat::Single => format!("'{}'", read1_path),
     };
     let cmd_string = format!(
         "set -e -o pipefail; \
@@ -453,6 +465,19 @@ pub fn generate_filtered_named_bam_readers_from_interleaved(
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
         reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file,
+        min_aligned_length, min_percent_identity
+    )
+}
+
+pub fn generate_filtered_named_bam_readers_from_unpaired_reads(
+    reference: &str,
+    unpaired_reads_path: &str,
+    threads: u16,
+    cached_bam_file: Option<&str>,
+    min_aligned_length: u32,
+    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    return generate_filtered_named_bam_readers_from_reads(
+        reference, unpaired_reads_path, None, ReadFormat::Single, threads, cached_bam_file,
         min_aligned_length, min_percent_identity
     )
 }
