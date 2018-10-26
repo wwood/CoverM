@@ -136,6 +136,39 @@ mod tests {
     }
 
     #[test]
+    fn test_unfiltered_interleaved_input(){
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--interleaved",
+                "tests/data/bad_reads.interleaved.fq",
+                "--no-flag-filter",
+            ])
+            .succeeds()
+            .stdout().contains("2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899
+2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0.0").unwrap();
+    }
+
+    #[test]
+    fn test_filtered_interleaved_input(){
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--interleaved",
+                "tests/data/bad_reads.all.interleaved.fa",
+                "--min-aligned-length",
+                "300"
+            ])
+            .succeeds()
+            .stdout().contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
+2seqs.fasta/bad_reads.all.interleaved.fa\tseq2\t1.5").unwrap();
+    }
+
+    #[test]
     fn test_genome_coupled_read_input_argparsing(){
         // Had trouble (because of a bug in clap? with this previously)
         Assert::main_binary()
