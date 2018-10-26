@@ -153,6 +153,11 @@ pub fn generate_named_bam_readers_from_bam_files(
     ).collect()
 }
 
+enum ReadFormat {
+    Coupled,
+    Interleaved,
+}
+
 pub fn generate_named_bam_readers_from_read_couple(
     reference: &str,
     read1_path: &str,
@@ -160,7 +165,7 @@ pub fn generate_named_bam_readers_from_read_couple(
     threads: u16,
     cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
     return generate_named_bam_readers_from_reads(
-        reference, read1_path, Some(read2_path), false, threads, cached_bam_file
+        reference, read1_path, Some(read2_path), ReadFormat::Coupled, threads, cached_bam_file
     )
 }
 
@@ -170,7 +175,7 @@ pub fn generate_named_bam_readers_from_interleaved(
     threads: u16,
     cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
     return generate_named_bam_readers_from_reads(
-        reference, interleaved_reads_path, None, true, threads, cached_bam_file
+        reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file
     )
 }
 
@@ -178,7 +183,7 @@ fn generate_named_bam_readers_from_reads(
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
-    is_interleaved: bool,
+    read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
 
@@ -216,9 +221,9 @@ fn generate_named_bam_readers_from_reads(
         },
         None => format!("> {:?}", fifo_path)
     };
-    let bwa_read_params = match is_interleaved {
-        true => format!("-p '{}'", read1_path),
-        false => format!("'{}' '{}'", read1_path, read2_path.unwrap())
+    let bwa_read_params = match read_format {
+        ReadFormat::Interleaved => format!("-p '{}'", read1_path),
+        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap())
     };
     let cmd_string = format!(
         "set -e -o pipefail; \
@@ -434,7 +439,7 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
     min_aligned_length: u32,
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
-        reference, read1_path, Some(read2_path), false, threads, cached_bam_file,
+        reference, read1_path, Some(read2_path), ReadFormat::Coupled, threads, cached_bam_file,
         min_aligned_length, min_percent_identity
     )
 }
@@ -447,23 +452,23 @@ pub fn generate_filtered_named_bam_readers_from_interleaved(
     min_aligned_length: u32,
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
-        reference, interleaved_reads_path, None, true, threads, cached_bam_file,
+        reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file,
         min_aligned_length, min_percent_identity
     )
 }
 
-pub fn generate_filtered_named_bam_readers_from_reads(
+fn generate_filtered_named_bam_readers_from_reads(
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
-    is_interleaved: bool,
+    read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
     min_aligned_length: u32,
     min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
-        reference, read1_path, read2_path, is_interleaved, threads, cached_bam_file);
+        reference, read1_path, read2_path, read_format, threads, cached_bam_file);
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,
