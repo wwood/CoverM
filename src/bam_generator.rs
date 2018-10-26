@@ -178,34 +178,56 @@ pub fn generate_named_bam_readers_from_read_couple(
         .expect("Failed to create first samtools log tempfile");
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
+    // tempfile does not need to be created but easier to create than get around
+    // borrow checker.
+    let samtools_view_cache_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create cache samtools view log tempfile");
 
     let cached_bam_file_args = match cached_bam_file {
-        Some(path) => format!(
-            "|tee >(samtools view -b -o '{}')", path),
-        None => String::new()
+        Some(path) => {
+            format!(
+                "|tee {:?} |samtools view -b -o '{}' 2>{}",
+                // tee
+                fifo_path,
+                // samtools view
+                path,
+                samtools_view_cache_log.path().to_str()
+                    .expect("Failed to convert tempfile path to str"))
+        },
+        None => format!("> {:?}", fifo_path)
     };
     let cmd_string = format!(
         "set -e -o pipefail; \
          bwa mem -t {} '{}' '{}' '{}' 2>{} \
          | samtools view -Sub -F4  2>{} \
-         {} \
-         | samtools sort -l0 -@ {} -o {:?} 2>{}",
+         | samtools sort -l0 -@ {} 2>{} \
+         {}",
         // BWA
         threads, reference, read1_path, read2_path,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools 1
         samtools1_log.path().to_str().expect("Failed to convert tempfile path to str"),
-        // Caching
-        cached_bam_file_args,
         // samtools 2
-        threads-1, fifo_path,
-        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"));
+        threads-1,
+        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // Caching (or not)
+        cached_bam_file_args);
     debug!("Queuing cmd_string: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
         .arg("-c")
         .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
+
+    let mut log_descriptions = vec![
+        "BWA".to_string(),
+        "samtools view".to_string(),
+        "samtools sort".to_string()];
+    let mut log_files = vec![bwa_log, samtools1_log, samtools2_log];
+    if cached_bam_file.is_some() {
+        log_descriptions.push("samtools view for cache".to_string());
+        log_files.push(samtools_view_cache_log);
+    }
 
     return StreamingNamedBamReaderGenerator {
         stoit_name: std::path::Path::new(reference).file_name()
@@ -218,11 +240,8 @@ pub fn generate_named_bam_readers_from_read_couple(
         fifo_path: fifo_path,
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c {}", cmd_string)],
-        log_file_descriptions: vec![
-            "BWA".to_string(),
-            "samtools view".to_string(),
-            "samtools sort".to_string()],
-        log_files: vec![bwa_log, samtools1_log, samtools2_log],
+        log_file_descriptions: log_descriptions,
+        log_files: log_files,
     }
 }
 
