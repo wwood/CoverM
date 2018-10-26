@@ -538,11 +538,6 @@ mod tests {
     use env_logger;
 
     #[test]
-    fn initialize_logger() {
-        env_logger::init().unwrap();
-    }
-
-    #[test]
     fn test_one_genome_two_contigs_first_covered(){
         let mut stream = Cursor::new(Vec::new());
         mosdepth_genome_coverage(

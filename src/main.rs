@@ -18,9 +18,9 @@ use clap::*;
 
 #[macro_use]
 extern crate log;
-use log::LogLevelFilter;
 extern crate env_logger;
-use env_logger::LogBuilder;
+use log::LevelFilter;
+use env_logger::Builder;
 
 extern crate tempfile;
 
@@ -29,12 +29,13 @@ fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
     let print_stream = &mut std::io::stdout();
+    set_log_level(&matches, false);
 
     match matches.subcommand_name() {
 
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            set_log_level(m);
+            set_log_level(m, false);
             let filtering = doing_filtering(m);
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
@@ -102,7 +103,7 @@ fn main(){
         },
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
-            set_log_level(m);
+            set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
@@ -157,7 +158,7 @@ fn main(){
         },
         Some("filter") => {
             let m = matches.subcommand_matches("filter").unwrap();
-            set_log_level(m);
+            set_log_level(m, true);
 
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
@@ -548,20 +549,27 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
 }
 
 
-fn set_log_level(matches: &clap::ArgMatches) {
-    let mut log_level = LogLevelFilter::Info;
+fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
+    let mut log_level = LevelFilter::Info;
+    let mut specified = false;
     if matches.is_present("verbose") {
-        log_level = LogLevelFilter::Debug;
+        specified = true;
+        log_level = LevelFilter::Debug;
     }
     if matches.is_present("quiet") {
-        log_level = LogLevelFilter::Error;
+        specified = true;
+        log_level = LevelFilter::Error;
     }
-    let mut builder = LogBuilder::new();
-    builder.filter(None, log_level);
-    if env::var("RUST_LOG").is_ok() {
-        builder.parse(&env::var("RUST_LOG").unwrap());
+    if specified || is_last {
+        let mut builder = Builder::new();
+        builder.filter_level(log_level);
+        if env::var("RUST_LOG").is_ok() {
+            builder.parse(&env::var("RUST_LOG").unwrap());
+        }
+        if builder.try_init().is_err() {
+            panic!("Failed to set log level - has it been specified multiple times?")
+        }
     }
-    builder.init().unwrap();
 }
 
 fn build_cli() -> App<'static, 'static> {
