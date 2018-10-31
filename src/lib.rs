@@ -1,3 +1,4 @@
+#![feature(type_ascription)]
 pub mod contig;
 pub mod genome;
 pub mod mosdepth_genome_coverage_estimators;
@@ -6,6 +7,12 @@ pub mod bam_generator;
 pub mod filter;
 pub mod external_command_checker;
 pub mod bwa_index_maintenance;
+
+use std::process;
+use mosdepth_genome_coverage_estimators::*;
+#[macro_use]
+extern crate clap;
+
 
 extern crate bio;
 #[macro_use]
@@ -48,7 +55,21 @@ pub fn read_genome_fasta_files(fasta_file_paths: &[&str]) -> GenomesAndContigs {
     }
     return contig_to_genome;
 }
-
+pub fn get_trimmed_mean_estimator(
+    m: &clap::ArgMatches,
+    min_fraction_covered: f32) -> CoverageEstimatorMethods{
+    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+        process::exit(1)
+    }
+//    TrimmedMeanGenomeCoverageEstimator::new(
+//        min, max, min_fraction_covered)
+    CoverageEstimatorMethods::TrimmedMeanGenomeCoverageEstimator(
+        TrimmedMeanGenomeCoverageEstimator::new(
+            min, max, min_fraction_covered))
+}
 
 #[cfg(test)]
 mod tests {

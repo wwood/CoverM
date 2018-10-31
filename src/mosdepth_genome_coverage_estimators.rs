@@ -1,28 +1,31 @@
 use std;
 
-
+pub enum CoverageEstimatorMethods {
+    MeanGenomeCoverageEstimator(MeanGenomeCoverageEstimator),
+    TrimmedMeanGenomeCoverageEstimator(TrimmedMeanGenomeCoverageEstimator),
+    PileupCountsGenomeCoverageEstimator(PileupCountsGenomeCoverageEstimator),
+    CoverageFractionGenomeCoverageEstimator(CoverageFractionGenomeCoverageEstimator),
+    VarianceGenomeCoverageEstimator(VarianceGenomeCoverageEstimator),
+}
 
 pub trait MosdepthGenomeCoverageEstimator<T> {
+
     fn setup(&mut self);
 
     fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
 
-    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
-                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        writeln!(print_stream, "{}\t{}\t{}",
-                 stoit_name,
-                 genome,
-                 coverage).unwrap();
+
+    fn print_coverage<'a >(&self,
+                           coverage: &f32,
+                           print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write{
+        write!(print_stream, "\t{}", coverage).unwrap();
         return print_stream;
     }
-
-    fn print_zero_coverage<'a>(&self, stoit_name: &str, genome: &str,
+    fn print_zero_coverage<'a>(&self,
                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        writeln!(print_stream, "{}\t{}\t0.0",
-                           stoit_name,
-                           genome).unwrap();
+        writeln!(print_stream, "\t0.0").unwrap();
         return print_stream;
     }
 
@@ -222,6 +225,32 @@ impl PileupCountsGenomeCoverageEstimator {
             min_fraction_covered_bases: min_fraction_covered_bases
         }
     }
+    pub fn print_coverage<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
+                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        let mut i = 0;
+        debug!("starting to print {}", genome);
+        debug!("{:?}",self.counts);
+        for num_covered in self.counts.iter() {
+            let cov: u32 = match i {
+                0 => {
+                    let c = coverage.floor() as u32;
+                    match c {
+                        0 => 0,
+                        _ => c - 1
+                    }
+                },
+                _ => *num_covered
+            };
+            writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
+            i += 1
+        }
+        return print_stream;
+    }
+    pub fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
+                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+        // zeros are not printed usually, so do not print the length.
+        return print_stream;
+    }
 }
 
 impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for PileupCountsGenomeCoverageEstimator {
@@ -270,34 +299,6 @@ impl MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator> for Pi
                 }
             }
         }
-    }
-
-    fn print_genome<'a >(&self, stoit_name: &str, genome: &str, coverage: &f32,
-                         print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        let mut i = 0;
-        debug!("starting to print {}", genome);
-        debug!("{:?}",self.counts);
-        for num_covered in self.counts.iter() {
-            let cov: u32 = match i {
-                0 => {
-                    let c = coverage.floor() as u32;
-                    match c {
-                        0 => 0,
-                        _ => c - 1
-                    }
-                },
-                _ => *num_covered
-            };
-            writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
-            i += 1
-        }
-        return print_stream;
-    }
-
-    fn print_zero_coverage<'a>(&self, _stoit_name: &str, _genome: &str,
-                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        // zeros are not printed usually, so do not print the length.
-        return print_stream;
     }
 
     fn copy(&self) -> PileupCountsGenomeCoverageEstimator {
