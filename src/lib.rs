@@ -64,11 +64,8 @@ pub fn get_trimmed_mean_estimator(
         eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
         process::exit(1)
     }
-//    TrimmedMeanGenomeCoverageEstimator::new(
-//        min, max, min_fraction_covered)
-    CoverageEstimatorMethods::TrimmedMeanGenomeCoverageEstimator(
-        TrimmedMeanGenomeCoverageEstimator::new(
-            min, max, min_fraction_covered))
+    TrimmedMeanGenomeCoverageEstimator::new(
+        min, max, min_fraction_covered)
 }
 
 #[cfg(test)]

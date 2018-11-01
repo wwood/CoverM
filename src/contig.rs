@@ -8,7 +8,7 @@ use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
 use get_trimmed_mean_estimator;
 
-pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
+pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator,
                        R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
@@ -18,32 +18,27 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
     m: &clap::ArgMatches,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) {
-    let mut coverage_estimator_box: Vec<Box<T>>;
+    let mut coverage_estimator_box: Vec<T>;
     for method in methods {
         match method {
             "mean" =>{
-                type T = MosdepthGenomeCoverageEstimator<MeanGenomeCoverageEstimator>;
-                coverage_estimator_box.push(Box::new(MeanGenomeCoverageEstimator::new(
-                    min_fraction_covered)));
+                coverage_estimator_box.push(MeanGenomeCoverageEstimator::new(
+                    min_fraction_covered));
             },
             "coverage_histogram" =>{
-                type T = MosdepthGenomeCoverageEstimator<PileupCountsGenomeCoverageEstimator>;
-                coverage_estimator_box.push(Box::new(PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered)));
+                coverage_estimator_box.push(PileupCountsGenomeCoverageEstimator::new(
+                    min_fraction_covered));
             },
             "trimmed_mean" =>{
-                type T = MosdepthGenomeCoverageEstimator<TrimmedMeanGenomeCoverageEstimator>;
-                coverage_estimator_box.push(Box::new(get_trimmed_mean_estimator(m, min_fraction_covered)));
+                coverage_estimator_box.push(get_trimmed_mean_estimator(m, min_fraction_covered));
             },
             "covered_fraction" =>{
-                type T = MosdepthGenomeCoverageEstimator<CoverageFractionGenomeCoverageEstimator>;
-                coverage_estimator_box.push(Box::new(CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered)));
+                coverage_estimator_box.push(CoverageFractionGenomeCoverageEstimator::new(
+                    min_fraction_covered));
             },
             "variance" =>{
-                type T = MosdepthGenomeCoverageEstimator<VarianceGenomeCoverageEstimator>;
-                coverage_estimator_box.push(Box::new(VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered)));
+                coverage_estimator_box.push(VarianceGenomeCoverageEstimator::new(
+                    min_fraction_covered));
             },
             _ => panic!("programming error")
         }
@@ -124,8 +119,8 @@ pub fn contig_coverage<T: MosdepthGenomeCoverageEstimator<T>,
                 debug!("At end of loop")
             }
         }
-        for mut coverage_estimator in coverage_estimator_box.clone() {
-            coverage_estimator = *coverage_estimator;
+        for mut coverage_estimator_b in coverage_estimator_box.clone() {
+            let mut coverage_estimator = *coverage_estimator_b;
             if last_tid != -1 {
                 coverage_estimator.add_contig(&ups_and_downs);
                 let coverage = coverage_estimator.calculate_coverage(0);

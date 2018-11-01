@@ -1,6 +1,6 @@
 use std;
 
-pub trait MosdepthGenomeCoverageEstimator<T> {
+pub trait MosdepthGenomeCoverageEstimator {
 
     fn setup(&mut self);
 
@@ -21,7 +21,7 @@ pub trait MosdepthGenomeCoverageEstimator<T> {
         return print_stream;
     }
 
-    fn copy(&self) -> T;
+    fn copy(&self);
 }
 
 #[derive(Debug)]
