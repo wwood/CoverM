@@ -1,13 +1,5 @@
 use std;
 
-pub enum CoverageEstimatorMethods {
-    MeanGenomeCoverageEstimator(MeanGenomeCoverageEstimator),
-    TrimmedMeanGenomeCoverageEstimator(TrimmedMeanGenomeCoverageEstimator),
-    PileupCountsGenomeCoverageEstimator(PileupCountsGenomeCoverageEstimator),
-    CoverageFractionGenomeCoverageEstimator(CoverageFractionGenomeCoverageEstimator),
-    VarianceGenomeCoverageEstimator(VarianceGenomeCoverageEstimator),
-}
-
 pub trait MosdepthGenomeCoverageEstimator<T> {
 
     fn setup(&mut self);
