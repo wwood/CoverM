@@ -102,7 +102,7 @@ fn main(){
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(methods,
+                        run_contig(methods.clone(),
                                    generator_set.generators,
                                    min_fraction_covered, print_zeros, flag_filter, m);
                     }
@@ -110,7 +110,7 @@ fn main(){
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(methods,
+                        run_contig(methods.clone(),
                                    generator_set.generators,
                                    min_fraction_covered, print_zeros, flag_filter, m);
                     }
@@ -196,7 +196,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         };
         coverm::genome::mosdepth_genome_coverage(
             bam_generators,
-            &genomes_and_contigs,
+            separator,
             &mut std::io::stdout(),
             min_fraction_covered,
             print_zeros,
@@ -463,18 +463,19 @@ fn get_streamed_filtered_bam_readers(
     return generator_set;
 }
 
-pub fn get_trimmed_mean_estimator(
-    m: &clap::ArgMatches,
-    min_fraction_covered: f32) -> TrimmedMeanGenomeCoverageEstimator {
-    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-        process::exit(1)
-    }
-    TrimmedMeanGenomeCoverageEstimator::new(
-        min, max, min_fraction_covered)
-}
+// Moved to lib.rs
+//pub fn get_trimmed_mean_estimator(
+//    m: &clap::ArgMatches,
+//    min_fraction_covered: f32) -> TrimmedMeanGenomeCoverageEstimator {
+//    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+//    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+//    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+//        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+//        process::exit(1)
+//    }
+//    TrimmedMeanGenomeCoverageEstimator::new(
+//        min, max, min_fraction_covered)
+//}
 
 
 fn run_contig<R: coverm::bam_generator::NamedBamReader,
@@ -793,7 +794,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -880,7 +882,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")

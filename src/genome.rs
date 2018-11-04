@@ -14,8 +14,7 @@ use bam_generator::*;
 use get_trimmed_mean_estimator;
 
 
-pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstimator + std::fmt::Debug,
-                                                  R: NamedBamReader,
+pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
     contigs_and_genomes: &GenomesAndContigs,
@@ -25,27 +24,27 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
     flag_filtering: bool,
     m: &clap::ArgMatches,
     methods: Vec<&str>) {
-    let mut coverage_estimator_box: Vec<T>;
+    let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
     for method in methods {
         match method {
             "mean" =>{
-                coverage_estimator_box.push(MeanGenomeCoverageEstimator::new(
+                coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
                     min_fraction_covered));
             },
             "coverage_histogram" =>{
-                coverage_estimator_box.push(PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             "trimmed_mean" =>{
                 coverage_estimator_box.push(get_trimmed_mean_estimator(m, min_fraction_covered));
             },
             "covered_fraction" =>{
-                coverage_estimator_box.push(CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             "variance" =>{
-                coverage_estimator_box.push(VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             _ => panic!("programming error")
         }
@@ -85,9 +84,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
             eprintln!("Error: There are no found reference sequences that are a part of a genome");
             std::process::exit(2);
         }
-        for mut coverage_estimator in coverage_estimator_box{
-            coverage_estimator = *coverage_estimator;
-            let mut per_genome_coverage_estimators: Vec<T> = vec!();
+        for mut coverage_estimator_b in coverage_estimator_box.clone(){
+            let mut coverage_estimator = coverage_estimator_b;
+            let mut per_genome_coverage_estimators = vec!();
             for _ in contigs_and_genomes.genomes.iter() {
                 let cov_clone = coverage_estimator.copy();
                 per_genome_coverage_estimators.push(cov_clone);
@@ -172,7 +171,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                 for _ in 0..contigs_and_genomes.genomes.len() {
                     unobserved_lengths.push(0)
                 }
-                debug!("estimators: {:?}", per_genome_coverage_estimators);
+//                debug!("estimators: {:?}", per_genome_coverage_estimators);
                 for (ref_id, genome_id_option) in reference_number_to_genome_index.iter().enumerate() {
                     let ref_id_u32: u32 = ref_id as u32;
                     debug!("Seen {:?}", seen_ref_ids);
@@ -187,8 +186,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                     }
                 }
                 // print the genomes out
+
                 for (i, genome) in contigs_and_genomes.genomes.iter().enumerate() {
-                    print_genome(&stoit_name, &genome, print_stream);
+//                    print_genome(&stoit_name, &genome, print_stream);
                     let coverage = per_genome_coverage_estimators[i]
                         .calculate_coverage(unobserved_lengths[i]);
 
@@ -196,12 +196,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
                     debug!("Found coverage {} for genome {}", coverage, genome);
                     if coverage > 0.0 {
                         per_genome_coverage_estimators[i].print_coverage(
+                            &stoit_name,
+                            &genome,
                             &coverage,
                             print_stream);
                     } else if print_zero_coverage_genomes {
                         per_genome_coverage_estimators[i].print_zero_coverage(
-                            &stoit_name,
-                            &genome,
                             print_stream);
                     }
                 }
@@ -212,8 +212,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<T: MosdepthGenomeCoverageEstim
 }
 
 
-pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::Debug,
-                                R: NamedBamReader,
+pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                 G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
     split_char: u8,
@@ -224,27 +223,27 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
     m: &clap::ArgMatches,
     flag_filtering: bool,
     single_genome: bool) {
-    let mut coverage_estimator_box: Vec<T>;
+    let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
     for method in methods {
         match method {
             "mean" =>{
-                coverage_estimator_box.push(MeanGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             "coverage_histogram" =>{
-                coverage_estimator_box.push(PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             "trimmed_mean" =>{
                 coverage_estimator_box.push(get_trimmed_mean_estimator(m, min_fraction_covered));
             },
             "covered_fraction" =>{
-                coverage_estimator_box.push(CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             "variance" =>{
-                coverage_estimator_box.push(VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered));
+                coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
+                                                                   min_fraction_covered));
             },
             _ => panic!("programming error")
         }
@@ -339,9 +338,9 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                 true => "".as_bytes(),
                 false => extract_genome(tid as u32, &target_names, split_char)
             };
-            print_genome(stoit_name, &str::from_utf8(current_genome).unwrap(), print_stream);
+//            print_genome(stoit_name, &str::from_utf8(current_genome).unwrap(), print_stream);
             for mut coverage_estimator_b in coverage_estimator_box.clone() {
-                let mut coverage_estimator = *coverage_estimator_b;
+                let mut coverage_estimator = coverage_estimator_b;
                 if tid != last_tid || doing_first {
                     if doing_first == true {
                         coverage_estimator.setup();
@@ -350,7 +349,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                         doing_first = false;
                         if print_zero_coverage_genomes && !single_genome {
                             print_previous_zero_coverage_genomes2(
-                                stoit_name, b"", current_genome, tid, coverage_estimator,
+                                stoit_name, b"", current_genome, tid, &coverage_estimator,
                                 &target_names, split_char, print_stream);
                         }
                     } else if current_genome == last_genome {
@@ -373,6 +372,8 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                         // Print coverage of previous genome
                         if coverage > 0.0 {
                             coverage_estimator.print_coverage(
+                                &stoit_name,
+                                &str::from_utf8(current_genome).unwrap(),
                                 &coverage,
                                 print_stream);
                         } else if print_zero_coverage_genomes {
@@ -382,7 +383,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                         coverage_estimator.setup();
                         if print_zero_coverage_genomes {
                             print_previous_zero_coverage_genomes2(
-                                stoit_name, last_genome, current_genome, tid, coverage_estimator,
+                                stoit_name, last_genome, current_genome, tid, &coverage_estimator,
                                 &target_names, split_char, print_stream);
                         }
                         last_genome = current_genome;
@@ -429,7 +430,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
             // Print the last genome
             print_genome(stoit_name, &str::from_utf8(last_genome).unwrap(), print_stream);
             for mut coverage_estimator_b in coverage_estimator_box.clone() {
-                let mut coverage_estimator = *coverage_estimator_b;
+                let mut coverage_estimator = coverage_estimator_b;
                 coverage_estimator.add_contig(&ups_and_downs);
                 // Collect the length of refs from the end of the last genome that had no hits
                 unobserved_contig_length += fill_genome_length_forwards(last_tid, last_genome);
@@ -445,6 +446,8 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                 // Print coverage of previous genome
                 if coverage > 0.0 {
                     coverage_estimator.print_coverage(
+                        &stoit_name,
+                        &str::from_utf8(last_genome).unwrap(),
                         &coverage,
                         print_stream);
                 } else if print_zero_coverage_genomes {
@@ -453,7 +456,7 @@ pub fn mosdepth_genome_coverage<T: MosdepthGenomeCoverageEstimator + std::fmt::D
                 }
                 if print_zero_coverage_genomes && !single_genome {
                     print_previous_zero_coverage_genomes2(
-                        stoit_name, last_genome, b"", header.target_count() - 1, coverage_estimator,
+                        stoit_name, last_genome, b"", header.target_count() - 1, &coverage_estimator,
                         &target_names, split_char, print_stream);
                 }
             }
@@ -487,16 +490,16 @@ fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) ->
 // Print zero coverage for genomes that have no reads mapped. Genomes are
 // detected from the header, counting backwards from the current tid until the
 // last seen genome is encountered, or we reach the beginning of the tid array.
-fn print_previous_zero_coverage_genomes2<'a, T>(
+fn print_previous_zero_coverage_genomes2<'a>(
     stoit_name: &str,
     last_genome: &[u8],
     current_genome: &[u8],
     current_tid: u32,
-    pileup_coverage_estimator: &'a MosdepthGenomeCoverageEstimator<T>,
+    pileup_coverage_estimator: &'a CoverageEstimator,
     target_names: &Vec<&[u8]>,
     split_char: u8,
     print_stream: &mut std::io::Write)
-    -> &'a MosdepthGenomeCoverageEstimator<T> {
+    -> &'a CoverageEstimator{
 
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
@@ -513,7 +516,7 @@ fn print_previous_zero_coverage_genomes2<'a, T>(
     };
     for i in (0..genomes_to_print.len()).rev() {
         pileup_coverage_estimator.print_zero_coverage(
-            &stoit_name, &str::from_utf8(genomes_to_print[i]).unwrap(), print_stream);
+            print_stream);
     }
     return pileup_coverage_estimator;
 }
