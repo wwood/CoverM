@@ -63,7 +63,9 @@ pub fn contig_coverage<R: NamedBamReader,
             }
             // if reference has changed, print the last record
             let tid = record.tid();
-            print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+            if tid != last_tid {
+                print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+            };
             for mut coverage_estimator_b in coverage_estimator_box.clone() {
                 let mut coverage_estimator = coverage_estimator_b;
                 if tid != last_tid {
@@ -119,7 +121,10 @@ pub fn contig_coverage<R: NamedBamReader,
                 }
                 debug!("At end of loop")
             }
+//            write!(print_stream, "\n").unwrap();
         }
+
+        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
         for mut coverage_estimator_b in coverage_estimator_box.clone() {
             let mut coverage_estimator = coverage_estimator_b;
             if last_tid != -1 {
@@ -136,10 +141,9 @@ pub fn contig_coverage<R: NamedBamReader,
                 print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32,  &coverage_estimator,  print_stream);
             }
         }
+        write!(print_stream, "\n").unwrap();
         debug!("Outside loop");
         // print the last ref, unless there was no alignments
-//        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-
         bam_generated.finish();
     }
 }
@@ -160,7 +164,7 @@ fn print_previous_zero_coverage_contigs(
 fn print_contig<'a >(stoit_name: &str,
                      contig: &str,
                      print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-    write!(print_stream, "\n{}\t{}",
+    write!(print_stream, "{}\t{}",
            stoit_name,
            contig).unwrap();
     return print_stream;
