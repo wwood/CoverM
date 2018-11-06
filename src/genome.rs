@@ -22,7 +22,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     print_stream: &mut std::io::Write,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool,
-    m: Vec<&str>,
+    m: Vec<f32>,
     methods: Vec<&str>) {
     let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
     let mut coverage_estimator_vec: Vec<CoverageEstimator>;
@@ -244,7 +244,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     min_fraction_covered: f32,
     print_zero_coverage_genomes: bool,
     methods: Vec<&str>,
-    m: Vec<&str>,
+    m: Vec<f32>,
     flag_filtering: bool,
     single_genome: bool) {
     let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
@@ -412,11 +412,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         // Print coverage of previous genome
                         if coverage > 0.0 {
                             if i == 0{
-                                print_genome(stoit_name, &str::from_utf8(current_genome).unwrap(), print_stream);
+                                print_genome(stoit_name, &str::from_utf8(last_genome).unwrap(), print_stream);
                             }
                             coverage_estimator.print_coverage(
                                 &stoit_name,
-                                &str::from_utf8(current_genome).unwrap(),
+                                &str::from_utf8(last_genome).unwrap(),
                                 &coverage,
                                 print_stream);
                             if i+1 == coverage_estimator_box.clone().iter().len(){
@@ -424,7 +424,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             }
                         } else if print_zero_coverage_genomes {
                             if i == 0{
-                                print_genome(stoit_name, &str::from_utf8(current_genome).unwrap(), print_stream);
+                                print_genome(stoit_name, &str::from_utf8(last_genome).unwrap(), print_stream);
                             }
                             coverage_estimator.print_zero_coverage(
                                 print_stream);
@@ -639,7 +639,7 @@ mod tests {
             0.0,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -661,7 +661,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
@@ -678,7 +678,7 @@ mod tests {
             0.0,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -700,7 +700,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
@@ -717,7 +717,7 @@ mod tests {
             0.0,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -739,7 +739,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
@@ -756,7 +756,7 @@ mod tests {
             0.76,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -778,7 +778,7 @@ mod tests {
             &mut stream,
             false,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "",
@@ -795,7 +795,7 @@ mod tests {
             0.759,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -818,7 +818,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
@@ -835,7 +835,7 @@ mod tests {
             0.759,
             true,
             vec!("trimmed_mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -857,7 +857,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("trimmed_mean"));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
@@ -874,7 +874,7 @@ mod tests {
             0.0,
             true,
             vec!("coverage_histogram"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -896,7 +896,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("coverage_histogram"));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
@@ -913,7 +913,7 @@ mod tests {
             0.1,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -928,7 +928,7 @@ mod tests {
             0.1,
             false,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -943,10 +943,10 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             &mut stream,
-            0.76,
+            0.759,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             false);
         assert_eq!(
@@ -964,7 +964,7 @@ mod tests {
             0.0,
             true,
             vec!("mean"),
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             false,
             true);
         assert_eq!(
@@ -1003,7 +1003,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
@@ -1017,7 +1017,7 @@ mod tests {
             &mut stream,
             false,
             false,
-            vec!("0.1", "0.9"),
+            vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
