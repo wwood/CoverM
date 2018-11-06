@@ -178,7 +178,8 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
     let single_genome = m.is_present("single-genome");
-
+    let mut min = m.value_of("trim_min").unwrap();
+    let mut max = m.value_of("trim_max").unwrap();
     if m.is_present("separator") || single_genome {
         let separator: u8 = match single_genome {
             true => "0".as_bytes()[0],
@@ -201,7 +202,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             min_fraction_covered,
             print_zeros,
             methods,
-            m,
+            vec!(min, max),
             flag_filter,
             single_genome);
     } else {
@@ -247,7 +248,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                             &mut std::io::stdout(),
                                                             print_zeros,
                                                             flag_filter,
-                                                            m,
+                                                            vec!(min, max),
                                                             methods);
     }
 }
@@ -377,12 +378,15 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     print_zeros: bool,
     flag_filter: bool,
     m: &clap::ArgMatches) {
+
+    let mut min = m.value_of("trim_min").unwrap();
+    let mut max = m.value_of("trim_max").unwrap();
     coverm::contig::contig_coverage(
         bam_readers,
         &mut std::io::stdout(),
         min_fraction_covered,
         methods,
-        m,
+        vec!(min, max),
         print_zeros,
         flag_filter);
 }

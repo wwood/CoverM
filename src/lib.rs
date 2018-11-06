@@ -25,6 +25,8 @@ extern crate tempdir;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
+use std::str::FromStr;
+
 
 
 
@@ -56,10 +58,10 @@ pub fn read_genome_fasta_files(fasta_file_paths: &[&str]) -> GenomesAndContigs {
     return contig_to_genome;
 }
 pub fn get_trimmed_mean_estimator(
-    m: &clap::ArgMatches,
+    bounds: Vec<&str>,
     min_fraction_covered: f32) -> CoverageEstimator{
-    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+    let min = f32::from_str(*bounds.first().unwrap()).unwrap();
+    let max = f32::from_str(*bounds.last().unwrap()).unwrap();
     if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
         eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
         process::exit(1)

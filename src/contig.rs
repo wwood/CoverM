@@ -14,10 +14,11 @@ pub fn contig_coverage<R: NamedBamReader,
     print_stream: &mut std::io::Write,
     min_fraction_covered: f32,
     methods: Vec<&str>,
-    m: &clap::ArgMatches,
+    m: Vec<&str>,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) {
     let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
+    let mut coverage_estimator_vec: Vec<CoverageEstimator>;
     for method in methods {
         match method {
             "mean" =>{
@@ -29,7 +30,7 @@ pub fn contig_coverage<R: NamedBamReader,
                                                                    min_fraction_covered));
             },
             "trimmed_mean" =>{
-                coverage_estimator_box.push(get_trimmed_mean_estimator(m, min_fraction_covered));
+                coverage_estimator_box.push(get_trimmed_mean_estimator(m.clone(), min_fraction_covered));
             },
             "covered_fraction" =>{
                 coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
@@ -63,85 +64,120 @@ pub fn contig_coverage<R: NamedBamReader,
             }
             // if reference has changed, print the last record
             let tid = record.tid();
+//            if tid != last_tid {
+//                print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+//            };
             if tid != last_tid {
-                print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-            };
-            for mut coverage_estimator_b in coverage_estimator_box.clone() {
-                let mut coverage_estimator = coverage_estimator_b;
-                if tid != last_tid {
-                    if last_tid != -1 {
-                        coverage_estimator.add_contig(&ups_and_downs);
+                if last_tid != -1 {
+                    coverage_estimator_vec = Vec::new();
+                    for (i, mut coverage_estimator )in coverage_estimator_box.clone().iter().enumerate() {
+                        let mut coverage_estimator = coverage_estimator.clone().add_contig(&ups_and_downs);
+                        coverage_estimator_vec.push(coverage_estimator.clone());
                         let coverage = coverage_estimator.calculate_coverage(0);
 
                         if coverage > 0.0 {
+                            if i == 0{
+                                print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+                            }
                             coverage_estimator.print_coverage(
                                 &stoit_name,
                                 std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
                                 &coverage,
                                 print_stream);
+                            if i+1 == coverage_estimator_box.clone().iter().len(){
+                                write!(print_stream, "\n");
+                            }
                         } else if print_zero_coverage_contigs {
+                            if i == 0{
+                                print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+                            }
                             coverage_estimator.print_zero_coverage(
                                 print_stream);
+                            if i+1 == coverage_estimator_box.clone().iter().len(){
+                                write!(print_stream, "\n");
+                            }
                         }
                     }
-                    // reset for next time
-                    coverage_estimator.setup();
-                    if print_zero_coverage_contigs {
-                        print_previous_zero_coverage_contigs(last_tid, tid, &coverage_estimator,  print_stream);
-                    }
-                    ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
-                    debug!("Working on new reference {}",
-                           std::str::from_utf8(target_names[tid as usize]).unwrap());
-                    last_tid = tid;
+                    coverage_estimator_box = coverage_estimator_box;
                 }
-//
-                // for each chunk of the cigar string
-                debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
-                let mut cursor: usize = record.pos() as usize;
-                for cig in record.cigar().iter() {
-                    debug!("Found cigar {:} from {}", cig, cursor);
-                    match cig.char() {
-                        'M' => {
-                            // if M, increment start and decrement end index
-                            debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
-                            ups_and_downs[cursor] += 1;
-                            let final_pos = cursor + cig.len() as usize;
-                            if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
-                                ups_and_downs[final_pos] -= 1;
-                            }
-                            cursor += cig.len() as usize;
-                        },
-                        'D' => {
-                            // if D, move the cursor
-                            cursor += cig.len() as usize;
-                        },
-                        '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
-                        _ => {}
-                    }
-                }
-                debug!("At end of loop")
+                // reset for next time
+//                coverage_estimator.setup();
+//                if print_zero_coverage_contigs {
+//                    print_previous_zero_coverage_contigs(last_tid, tid, &coverage_estimator,  print_stream);
+//                }
+                ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
+                debug!("Working on new reference {}",
+                       std::str::from_utf8(target_names[tid as usize]).unwrap());
+                last_tid = tid;
             }
+//
+            // for each chunk of the cigar string
+            debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+            let mut cursor: usize = record.pos() as usize;
+            for cig in record.cigar().iter() {
+                debug!("Found cigar {:} from {}", cig, cursor);
+                match cig.char() {
+                    'M' => {
+                        // if M, increment start and decrement end index
+                        debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
+                        ups_and_downs[cursor] += 1;
+                        let final_pos = cursor + cig.len() as usize;
+                        if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
+                            ups_and_downs[final_pos] -= 1;
+                        }
+                        cursor += cig.len() as usize;
+                    },
+                    'D' => {
+                        // if D, move the cursor
+                        cursor += cig.len() as usize;
+                    },
+                    '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
+                    _ => {}
+                }
+            }
+            debug!("At end of loop")
+
 //            write!(print_stream, "\n").unwrap();
         }
 
-        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-        for mut coverage_estimator_b in coverage_estimator_box.clone() {
-            let mut coverage_estimator = coverage_estimator_b;
-            if last_tid != -1 {
-                coverage_estimator.add_contig(&ups_and_downs);
+//        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+        if last_tid != -1 {
+            coverage_estimator_vec = Vec::new();
+            for (i, mut coverage_estimator )in coverage_estimator_box.clone().iter().enumerate() {
+                let mut coverage_estimator = coverage_estimator.clone().add_contig(&ups_and_downs);
+                coverage_estimator_vec.push(coverage_estimator.clone());
                 let coverage = coverage_estimator.calculate_coverage(0);
-                coverage_estimator.print_coverage(
-                    &stoit_name,
-                    std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                    &coverage,
-                    print_stream);
+
+                if coverage > 0.0 {
+                    if i == 0{
+                        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+                    }
+                    coverage_estimator.print_coverage(
+                        &stoit_name,
+                        std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                        &coverage,
+                        print_stream);
+                    if i+1 == coverage_estimator_box.clone().iter().len(){
+                        write!(print_stream, "\n");
+                    }
+                } else if print_zero_coverage_contigs {
+                    if i == 0{
+                        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
+                    }
+                    coverage_estimator.print_zero_coverage(
+                        print_stream);
+                    if i+1 == coverage_estimator_box.clone().iter().len(){
+                        write!(print_stream, "\n");
+                    }
+                }
             }
-            // print zero coverage contigs at the end
-            if print_zero_coverage_contigs {
-                print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32,  &coverage_estimator,  print_stream);
-            }
+            coverage_estimator_box = coverage_estimator_box;
         }
-        write!(print_stream, "\n").unwrap();
+//        // print zero coverage contigs at the end
+//        if print_zero_coverage_contigs {
+//            print_previous_zero_coverage_contigs(last_tid, target_names.len() as i32,  &coverage_estimator,  print_stream);
+//        }
+
         debug!("Outside loop");
         // print the last ref, unless there was no alignments
         bam_generated.finish();

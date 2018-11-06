@@ -572,7 +572,13 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         },
                         _ => *num_covered
                     };
-                    writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
+                    if i == 0 {
+                        writeln!(print_stream, "\t{:}\t{:}", i, cov).unwrap();
+                    } else if i+1 == counts.clone().iter().len(){
+                        write!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
+                    } else {
+                        writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
+                    }
                     i += 1
                 }
                 return print_stream;
