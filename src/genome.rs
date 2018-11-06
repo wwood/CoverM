@@ -30,7 +30,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         match method {
             "mean" =>{
                 coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
-                    min_fraction_covered));
+                                                                   min_fraction_covered));
             },
             "coverage_histogram" =>{
                 coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,

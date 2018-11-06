@@ -93,7 +93,7 @@ pub trait MosdepthGenomeCoverageEstimator {
     }
     fn print_zero_coverage<'a>(&self,
                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-        writeln!(print_stream, "\t0.0").unwrap();
+        write!(print_stream, "\t0.0").unwrap();
         return print_stream;
     }
 

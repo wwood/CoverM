@@ -12,6 +12,7 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
+use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -26,6 +27,7 @@ use env_logger::LogBuilder;
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
+    let mut print_stream = &mut std::io::stdout();
 
     match matches.subcommand_name() {
 
@@ -34,8 +36,30 @@ fn main(){
             set_log_level(m);
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
-
+            let methods: Vec<&str> = m.values_of("method").unwrap().collect();
             if m.is_present("bam-files") {
+                write!(print_stream, "Sample\tGenome and Contig");
+                for method in methods.clone() {
+                    match method {
+                        "mean" =>{
+                            write!(print_stream, "\tMean");
+                        },
+                        "coverage_histogram" =>{
+                            write!(print_stream, "\tIndex\tPileup Counts");
+                        },
+                        "trimmed_mean" =>{
+                            write!(print_stream, "\tTrimmed Mean");
+                        },
+                        "covered_fraction" =>{
+                            write!(print_stream, "\tCovered Fraction");
+                        },
+                        "variance" =>{
+                            write!(print_stream, "\tVariance");
+                        },
+                        _ => panic!("programming error")
+                    }
+                }
+                write!(print_stream, "\n");
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filtering {
                     let filter_params = FilterParameters::generate_from_clap(m);
@@ -44,30 +68,56 @@ fn main(){
                             bam_files,
                             filter_params.min_aligned_length,
                             filter_params.min_percent_identity),
-                        m);
+                        m,
+                        print_stream);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
-                        m);
+                        m,
+                        print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
                 external_command_checker::check_for_samtools();
+                write!(print_stream, "Sample\tGenome");
+                for method in methods.clone() {
+                    match method {
+                        "mean" =>{
+                            write!(print_stream, "\tMean");
+                        },
+                        "coverage_histogram" =>{
+                            write!(print_stream, "\tIndex\tPileup Counts");
+                        },
+                        "trimmed_mean" =>{
+                            write!(print_stream, "\tTrimmed Mean");
+                        },
+                        "covered_fraction" =>{
+                            write!(print_stream, "\tCovered Fraction");
+                        },
+                        "variance" =>{
+                            write!(print_stream, "\tVariance");
+                        },
+                        _ => panic!("programming error")
+                    }
+                }
+                write!(print_stream, "\n");
                 if filtering {
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
                         run_genome(
                             generator_set.generators,
-                            m);
+                            m,
+                            print_stream);
                     }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
                         run_genome(
                             generator_set.generators,
-                            m);
+                            m,
+                            print_stream);
                     }
                 }
             }
@@ -80,7 +130,28 @@ fn main(){
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
-
+            write!(print_stream, "Sample\tContig");
+            for method in methods.clone() {
+                match method {
+                    "mean" =>{
+                        write!(print_stream, "\tMean");
+                    },
+                    "coverage_histogram" =>{
+                        write!(print_stream, "\tIndex\tPileup Counts");
+                    },
+                    "trimmed_mean" =>{
+                        write!(print_stream, "\tTrimmed Mean");
+                    },
+                    "covered_fraction" =>{
+                        write!(print_stream, "\tCovered Fraction");
+                    },
+                    "variance" =>{
+                        write!(print_stream, "\tVariance");
+                    },
+                    _ => panic!("programming error")
+                }
+            }
+            write!(print_stream, "\n");
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filtering {
@@ -89,11 +160,11 @@ fn main(){
                         bam_files,
                         filter_params.min_aligned_length,
                         filter_params.min_percent_identity);
-                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
-                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -104,7 +175,7 @@ fn main(){
                     for generator_set in generator_sets {
                         run_contig(methods.clone(),
                                    generator_set.generators,
-                                   min_fraction_covered, print_zeros, flag_filter, m);
+                                   min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                     }
                 } else {
                     debug!("Not filtering..");
@@ -112,7 +183,7 @@ fn main(){
                     for generator_set in generator_sets {
                         run_contig(methods.clone(),
                                    generator_set.generators,
-                                   min_fraction_covered, print_zeros, flag_filter, m);
+                                   min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                     }
                 }
             }
@@ -167,7 +238,8 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
-    m: &clap::ArgMatches) {
+    m: &clap::ArgMatches,
+    print_stream: &mut std::io::Write) {
 
     let methods: Vec<&str> = m.values_of("method").unwrap().collect();
     let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
@@ -198,7 +270,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         coverm::genome::mosdepth_genome_coverage(
             bam_generators,
             separator,
-            &mut std::io::stdout(),
+            print_stream,
             min_fraction_covered,
             print_zeros,
             methods,
@@ -245,7 +317,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                                                             bam_generators,
                                                             &genomes_and_contigs,
                                                             min_fraction_covered,
-                                                            &mut std::io::stdout(),
+                                                            print_stream,
                                                             print_zeros,
                                                             flag_filter,
                                                             vec!(min, max),
@@ -377,13 +449,14 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     min_fraction_covered: f32,
     print_zeros: bool,
     flag_filter: bool,
-    m: &clap::ArgMatches) {
+    m: &clap::ArgMatches,
+    print_stream: &mut std::io::Write) {
 
     let mut min = value_t!(m.value_of("trim-min"), f32).unwrap();
     let mut max = value_t!(m.value_of("trim-max"), f32).unwrap();
     coverm::contig::contig_coverage(
         bam_readers,
-        &mut std::io::stdout(),
+        print_stream,
         min_fraction_covered,
         methods,
         vec!(min, max),
