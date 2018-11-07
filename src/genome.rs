@@ -152,7 +152,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                         // if D, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    _ => {}
+                    'I' | 'S' | 'H' | 'P' => {},
+                    _ => panic!("Unknown CIGAR string match")
                 }
             }
         }
@@ -471,7 +472,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         // if D or N, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    _ => {}
+                    'I' | 'S' | 'H' | 'P' => {},
+                    _ => panic!("Unknown CIGAR string match")
                 }
             }
         }

@@ -136,7 +136,8 @@ pub fn contig_coverage<R: NamedBamReader,
                         // if D or N, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    _ => {}
+                    'I' | 'S' | 'H' | 'P' => {},
+                    _ => panic!("Unknown CIGAR string match")
                 }
             }
             debug!("At end of loop")
