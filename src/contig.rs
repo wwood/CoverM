@@ -23,23 +23,15 @@ pub fn contig_coverage<R: NamedBamReader,
         let num_estimators = coverage_estimators.len();
 
         let mut num_mapped_reads: u64 = 0;
-        let mut num_total_reads: u64 = 0;
 
         // for record in records
         while bam_generated.read(&mut record).is_ok() {
             debug!("Starting with a new read.. {:?}", record);
-            if flag_filtering {
-                if record.is_secondary() ||
-                    record.is_supplementary() {
-                    continue
-                }
-                num_total_reads += 1;
-                if !record.is_proper_pair() {
-                    continue
-                }
-            } else if !record.is_secondary() &&
-                !record.is_supplementary() {
-                num_total_reads += 1;
+            if flag_filtering &&
+                (record.is_secondary() ||
+                 record.is_supplementary() ||
+                 !record.is_proper_pair()) {
+                    continue;
                 }
             // if reference has changed, print the last record
             let tid = record.tid();
@@ -153,8 +145,9 @@ pub fn contig_coverage<R: NamedBamReader,
         }
 
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
-              stoit_name, num_mapped_reads, num_total_reads, 2,
-              (num_mapped_reads * 100) as f64 / num_total_reads as f64);
+              stoit_name, num_mapped_reads,
+              bam_generated.num_detected_primary_alignments(), 2,
+              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
 
         bam_generated.finish();
     }

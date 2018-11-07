@@ -23,6 +23,9 @@ pub trait NamedBamReader {
     fn header(&self) -> &bam::HeaderView;
 
     fn finish(self);
+
+    // Number of reads that were detected
+    fn num_detected_primary_alignments(&self) -> u64;
 }
 
 pub trait NamedBamReaderGenerator<T> {
@@ -32,7 +35,8 @@ pub trait NamedBamReaderGenerator<T> {
 
 pub struct BamFileNamedReader {
     stoit_name: String,
-    bam_reader: bam::Reader
+    bam_reader: bam::Reader,
+    num_detected_primary_alignments: u64,
 }
 
 impl NamedBamReader for BamFileNamedReader {
@@ -40,19 +44,28 @@ impl NamedBamReader for BamFileNamedReader {
         &(self.stoit_name)
     }
     fn read(&mut self, record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
-        self.bam_reader.read(record)
+        let res = self.bam_reader.read(record);
+        if res.is_ok() && !record.is_secondary() && !record.is_supplementary() {
+            self.num_detected_primary_alignments += 1;
+        }
+        return res;
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
     }
     fn finish(self) {;}
+
+    fn num_detected_primary_alignments(&self) -> u64 {
+        return self.num_detected_primary_alignments
+    }
 }
 
 impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReader {
     fn start(self) -> BamFileNamedReader {
         BamFileNamedReader {
             stoit_name: self.stoit_name,
-            bam_reader: self.bam_reader
+            bam_reader: self.bam_reader,
+            num_detected_primary_alignments: 0,
         }
     }
 }
@@ -65,6 +78,7 @@ pub struct StreamingNamedBamReader {
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
+    num_detected_primary_alignments: u64,
 }
 
 pub struct StreamingNamedBamReaderGenerator {
@@ -99,6 +113,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
+            num_detected_primary_alignments: 0,
         }
     }
 }
@@ -108,7 +123,11 @@ impl NamedBamReader for StreamingNamedBamReader {
         &(self.stoit_name)
     }
     fn read(&mut self, record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
-        self.bam_reader.read(record)
+        let res = self.bam_reader.read(record);
+        if res.is_ok() && !record.is_secondary() && !record.is_supplementary() {
+            self.num_detected_primary_alignments += 1;
+        }
+        return res;
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -136,6 +155,9 @@ impl NamedBamReader for StreamingNamedBamReader {
         // Close tempdir explicitly. Maybe not needed.
         self.tempdir.close().expect("Failed to close tempdir");
     }
+    fn num_detected_primary_alignments(&self) -> u64 {
+        return self.num_detected_primary_alignments
+    }
 }
 
 pub fn generate_named_bam_readers_from_bam_files(
@@ -148,7 +170,8 @@ pub fn generate_named_bam_readers_from_bam_files(
            stoit_name: std::path::Path::new(path).file_stem().unwrap().to_str().expect(
                "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string(),
            bam_reader: bam::Reader::from_path(path).expect(
-               &format!("Unable to find BAM file {}", path))
+               &format!("Unable to find BAM file {}", path)),
+           num_detected_primary_alignments: 0,
        }
     ).collect()
 }
@@ -289,7 +312,7 @@ fn generate_named_bam_readers_from_reads(
 
 pub struct FilteredBamReader {
     stoit_name: String,
-    filtered_stream: ReferenceSortedBamFilter
+    filtered_stream: ReferenceSortedBamFilter,
 }
 
 impl NamedBamReader for FilteredBamReader {
@@ -303,13 +326,16 @@ impl NamedBamReader for FilteredBamReader {
         &self.filtered_stream.reader.header()
     }
     fn finish(self) {;}
+    fn num_detected_primary_alignments(&self) -> u64 {
+        return self.filtered_stream.num_detected_primary_alignments
+    }
 }
 
 impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
     fn start(self) -> FilteredBamReader {
         FilteredBamReader {
             stoit_name: self.stoit_name,
-            filtered_stream: self.filtered_stream
+            filtered_stream: self.filtered_stream,
         }
     }
 }
@@ -329,12 +355,12 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             &format!("Unable to find BAM file {}", path));
 
         filtered = FilteredBamReader {
-                stoit_name: stoit_name,
-                filtered_stream: ReferenceSortedBamFilter::new(
-                    reader,
-                    min_aligned_length,
-                    min_percent_identity)
-            };
+            stoit_name: stoit_name,
+            filtered_stream: ReferenceSortedBamFilter::new(
+                reader,
+                min_aligned_length,
+                min_percent_identity),
+        };
 
         generators.push(
             filtered
@@ -438,6 +464,9 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         }
         // Close tempdir explicitly. Maybe not needed.
         self.tempdir.close().expect("Failed to close tempdir");
+    }
+    fn num_detected_primary_alignments(&self) -> u64 {
+        return self.filtered_stream.num_detected_primary_alignments
     }
 }
 

@@ -66,6 +66,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut seen_ref_ids = BTreeSet::new();
+        let mut num_mapped_reads: u64 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
@@ -75,6 +76,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 }
             let original_tid = record.tid();
             if original_tid != -1 { // if mapped
+                num_mapped_reads += 1;
                 let tid = original_tid as u32;
                 if tid != last_tid || doing_first {
                     debug!("Came across a new tid {}", tid);
@@ -192,6 +194,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             }
         }
 
+        info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
+              stoit_name, num_mapped_reads,
+              bam_generated.num_detected_primary_alignments(), 2,
+              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
+
         bam_generated.finish();
     }
 }
@@ -283,16 +290,17 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let mut record: bam::record::Record = bam::record::Record::new();
         let num_estimators = coverage_estimators.len();
+        let mut num_mapped_reads: u64 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
                  record.is_supplementary() ||
                  !record.is_proper_pair()) {
-                    debug!("skipping record {:?} as it filters out based on flags", record);
                     continue;
                 }
             let original_tid = record.tid();
             if original_tid != -1 {
+                num_mapped_reads += 1;
                 // if reference has changed, finish a genome or not
                 let tid = original_tid as u32;
                 let current_genome: &[u8] = match single_genome {
@@ -452,6 +460,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     &target_names, split_char, print_stream);
             }
         }
+
+        info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
+              stoit_name, num_mapped_reads,
+              bam_generated.num_detected_primary_alignments(), 2,
+              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
 
         bam_generated.finish();
     }
