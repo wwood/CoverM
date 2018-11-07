@@ -308,8 +308,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             info!("Calculating coverage for {} genomes ..", strs.len());
             genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
         } else {
-            eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
-            process::exit(1);
+            panic!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
         }
         coverm::genome::mosdepth_genome_coverage_with_contig_names(
                                                             bam_generators,
@@ -867,6 +866,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["genome-fasta-files","genome-fasta-directory","single-genome"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-files")
                      .short("f")
@@ -875,6 +876,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("separator")
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["separator","genome-fasta-directory","single-genome"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-directory")
                      .short("d")
@@ -882,6 +885,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("separator")
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["genome-fasta-files","separator","single-genome"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-extension")
                      .short("x")
