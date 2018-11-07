@@ -233,8 +233,6 @@ fn generate_named_bam_readers_from_reads(
 
     let bwa_log = tempfile::NamedTempFile::new()
         .expect("Failed to create BWA log tempfile");
-    let samtools1_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create first samtools log tempfile");
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -263,15 +261,12 @@ fn generate_named_bam_readers_from_reads(
     let cmd_string = format!(
         "set -e -o pipefail; \
          bwa mem -t {} '{}' {} 2>{} \
-         | samtools view -Sub -F4  2>{} \
          | samtools sort -l0 -@ {} 2>{} \
          {}",
         // BWA
         threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
-        // samtools 1
-        samtools1_log.path().to_str().expect("Failed to convert tempfile path to str"),
-        // samtools 2
+        // samtools
         threads-1,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // Caching (or not)
@@ -285,9 +280,8 @@ fn generate_named_bam_readers_from_reads(
 
     let mut log_descriptions = vec![
         "BWA".to_string(),
-        "samtools view".to_string(),
         "samtools sort".to_string()];
-    let mut log_files = vec![bwa_log, samtools1_log, samtools2_log];
+    let mut log_files = vec![bwa_log, samtools2_log];
     if cached_bam_file.is_some() {
         log_descriptions.push("samtools view for cache".to_string());
         log_files.push(samtools_view_cache_log);
