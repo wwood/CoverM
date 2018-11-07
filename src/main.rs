@@ -35,7 +35,7 @@ fn main(){
 
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            set_log_level(m, false);
+            set_log_level(m, true);
             let filtering = doing_filtering(m);
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
