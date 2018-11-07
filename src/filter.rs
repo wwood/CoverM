@@ -12,6 +12,7 @@ pub struct ReferenceSortedBamFilter {
     pub reader: bam::Reader,
     min_aligned_length: u32,
     min_percent_identity: f32,
+    min_aligned_percent: f32,
     pub num_detected_primary_alignments: u64,
 }
 
@@ -19,7 +20,8 @@ impl ReferenceSortedBamFilter {
     pub fn new(
         reader: bam::Reader,
         min_aligned_length: u32,
-        min_percent_identity: f32) -> ReferenceSortedBamFilter {
+        min_percent_identity: f32,
+        min_aligned_percent: f32) -> ReferenceSortedBamFilter {
 
         ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),
@@ -28,6 +30,7 @@ impl ReferenceSortedBamFilter {
             reader: reader,
             min_aligned_length: min_aligned_length,
             min_percent_identity: min_percent_identity,
+            min_aligned_percent: min_aligned_percent,
             num_detected_primary_alignments: 0,
         }
     }
@@ -65,6 +68,7 @@ impl ReferenceSortedBamFilter {
                         // add to first read set
                         let qname = String::from(str::from_utf8(record.qname())
                                                  .expect("UTF8 error in conversion of read name"));
+
                         debug!("Testing qname1 {}", qname);
                         self.first_set.insert(Rc::new(qname), Rc::new(record.clone()));
                         // continue the loop without returning as we need to see the second record
@@ -81,7 +85,9 @@ impl ReferenceSortedBamFilter {
                             if read_pair_passes_filter(
                                 &record,
                                 &record1,
-                                self.min_aligned_length, self.min_percent_identity) {
+                                self.min_aligned_length,
+                                self.min_percent_identity,
+                                self.min_aligned_percent) {
 
                                 debug!("Read pair passed QC");
                                 self.known_next_read = Some(record.clone());
@@ -116,7 +122,8 @@ fn read_pair_passes_filter(
     record1: &bam::Record,
     record2: &bam::Record,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> bool {
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> bool {
 
     let edit_distance1 = match record1.aux(b"NM") {
         Some(i) => i.integer(),
@@ -149,11 +156,13 @@ fn read_pair_passes_filter(
     }
 
     let aligned = aligned_length1 + aligned_length2;
-    debug!("num_bases {} {}, edit distances {} {}, perc {}",
-             aligned_length1, aligned_length2, edit_distance1, edit_distance2,
-             1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32));
+    debug!("num_bases {} {}, edit distances {} {}, perc id {}, percent aligned {}",
+           aligned_length1, aligned_length2, edit_distance1, edit_distance2,
+           1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32),
+           aligned as f32 / ((record1.seq().len() + record2.seq().len()) as f32));
 
     if aligned >= min_aligned_length &&
+        aligned as f32 / (record1.seq().len() + record2.seq().len()) as f32 >= min_aligned_percent &&
         1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32) >= min_percent_identity {
             return true
         } else {
@@ -169,10 +178,10 @@ mod tests {
 
     #[test]
     fn test_hello_world(){
-        let mut reader = bam::Reader::from_path(
+        let reader = bam::Reader::from_path(
             &"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 90, 0.99);
+            reader, 90, 0.99, 0.0);
         let queries = vec![
             "9",
             "9",
@@ -209,10 +218,10 @@ mod tests {
 
     #[test]
     fn test_one_bad_read(){
-        let mut reader = bam::Reader::from_path(
+        let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 250, 0.99); // perc too high
+            reader, 250, 0.99, 0.0); // perc too high
         let queries = vec![
             "2",
             "2",
@@ -225,10 +234,10 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let mut reader = bam::Reader::from_path(
+        let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 300, 0.98); // aligned length too high
+            reader, 300, 0.98, 0.0); // aligned length too high
         let queries = vec![
             "2",
             "2",
@@ -240,10 +249,25 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let mut reader = bam::Reader::from_path(
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader, 0, 0.98, 0.94); // aligned percent too high
+        let queries = vec![
+            "2",
+            "2",
+            "3",
+            "3"];
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+
+        let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 299, 0.98);
+            reader, 299, 0.98, 0.0);
         let queries = vec![
             "1",
             "1",

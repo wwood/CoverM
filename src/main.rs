@@ -64,7 +64,8 @@ fn main(){
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
                             filter_params.min_aligned_length,
-                            filter_params.min_percent_identity),
+                            filter_params.min_percent_identity,
+                            filter_params.min_aligned_percent),
                         m,
                         &mut coverage_estimators,
                         print_stream);
@@ -127,7 +128,8 @@ fn main(){
                     let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                         bam_files,
                         filter_params.min_aligned_length,
-                        filter_params.min_percent_identity);
+                        filter_params.min_percent_identity,
+                        filter_params.min_aligned_percent);
                     run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, print_stream);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
@@ -168,6 +170,7 @@ fn main(){
 
             let min_aligned_length = value_t!(m.value_of("min-aligned-length"), u32).unwrap();
             let min_percent_identity = value_t!(m.value_of("min-percent-identity"), f32).unwrap();
+            let min_aligned_percent = value_t!(m.value_of("min-aligned-percent"), f32).unwrap();
 
             let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
 
@@ -182,7 +185,7 @@ fn main(){
                 ).expect(&format!("Failed to write BAM file {}", output));
                 writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
                 let mut filtered = filter::ReferenceSortedBamFilter::new(
-                    reader, min_aligned_length, min_percent_identity);
+                    reader, min_aligned_length, min_percent_identity, min_aligned_percent);
 
                 let mut record = bam::record::Record::new();
                 while filtered.read(&mut record).is_ok() {
@@ -232,7 +235,8 @@ fn generate_coverage_estimator(
 
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
-        m.is_present("min-percent-identity")
+        m.is_present("min-percent-identity") ||
+        m.is_present("min-aligned-percent")
 }
 
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
@@ -322,7 +326,8 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
 
 struct FilterParameters {
     min_aligned_length: u32,
-    min_percent_identity: f32
+    min_percent_identity: f32,
+    min_aligned_percent: f32
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
@@ -333,6 +338,10 @@ impl FilterParameters {
             },
             min_percent_identity: match m.is_present("min-percent-identity") {
                 true => value_t!(m.value_of("min-percent-identity"), f32).unwrap(),
+                false => 0.0
+            },
+            min_aligned_percent: match m.is_present("min-aligned-percent") {
+                true => value_t!(m.value_of("min-aligned-percent"), f32).unwrap(),
                 false => 0.0
             }
         }
@@ -545,7 +554,8 @@ fn get_streamed_filtered_bam_readers(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
                     index.index_path(), read1, read2, params.threads, bam_file_cache,
                     filter_params.min_aligned_length,
-                    filter_params.min_percent_identity
+                    filter_params.min_percent_identity,
+                    filter_params.min_aligned_percent
                 ));
             debug!("Back");
         }
@@ -564,7 +574,8 @@ fn get_streamed_filtered_bam_readers(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_interleaved(
                     index.index_path(), &interleaved, params.threads, bam_file_cache,
                     filter_params.min_aligned_length,
-                    filter_params.min_percent_identity));
+                    filter_params.min_percent_identity,
+                    filter_params.min_aligned_percent));
         }
         for unpaired_read_path in params.unpaired.iter() {
             let bam_file_cache_path;
@@ -581,7 +592,8 @@ fn get_streamed_filtered_bam_readers(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_unpaired_reads(
                     index.index_path(), &unpaired_read_path, params.threads, bam_file_cache,
                     filter_params.min_aligned_length,
-                    filter_params.min_percent_identity));
+                    filter_params.min_percent_identity,
+                    filter_params.min_aligned_percent));
         }
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
@@ -669,6 +681,8 @@ Alignment filtering (optional):
                                          aligned bases [default: 0]
    --min-percent-identity <FLOAT>        Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent <FLOAT>         Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -720,6 +734,8 @@ Alignment filtering (optional):
                                          aligned bases [default: none]
    --min-percent-identity <FLOAT>        Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95% [default: none]
+   --min-aligned-percent <FLOAT>         Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
 
 Other arguments (optional):
    -m, --method METHOD                   Method for calculating coverage. One of:
@@ -762,6 +778,8 @@ Thresholds:
    --min-aligned-length <INT>          Exclude pairs with smaller numbers of
                                        aligned bases [default: 0]
    --min-percent-identity <FLOAT>      Exclude pairs by overall percent
+                                       identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent <FLOAT>       Exclude pairs by percent aligned
                                        identity e.g. 0.95 for 95% [default 0.0]
 
 Other:
@@ -910,6 +928,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("min-percent-identity")
                      .takes_value(true)
                      .conflicts_with("no-flag-filter"))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("methods")
                      .short("m")
@@ -1017,6 +1039,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("min-percent-identity")
                      .takes_value(true)
                      .conflicts_with("no-flag-filter"))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
 
                 .arg(Arg::with_name("methods")
                      .short("m")
@@ -1073,6 +1099,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("0"))
                 .arg(Arg::with_name("min-percent-identity")
                      .long("min-percent-identity")
+                     .default_value("0.0"))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter")
                      .default_value("0.0"))
                 .arg(Arg::with_name("threads")
                      .long("threads")

@@ -337,7 +337,8 @@ impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
 pub fn generate_filtered_bam_readers_from_bam_files(
     bam_paths: Vec<&str>,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> Vec<FilteredBamReader>{
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> Vec<FilteredBamReader>{
 
     let mut generators: Vec<FilteredBamReader> = vec![];
 
@@ -353,7 +354,8 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             filtered_stream: ReferenceSortedBamFilter::new(
                 reader,
                 min_aligned_length,
-                min_percent_identity),
+                min_percent_identity,
+                min_aligned_percent),
         };
 
         generators.push(
@@ -395,6 +397,7 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     command_strings: Vec<String>,
     min_aligned_length: u32,
     min_percent_identity: f32,
+    min_aligned_percent: f32,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
 }
@@ -413,7 +416,8 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
             self.min_aligned_length,
-            self.min_percent_identity);
+            self.min_percent_identity,
+            self.min_aligned_percent);
         return StreamingFilteredNamedBamReader {
             stoit_name: self.stoit_name,
             filtered_stream: filtered_stream,
@@ -472,10 +476,11 @@ pub fn generate_filtered_named_bam_readers_from_read_couple(
     threads: u16,
     cached_bam_file: Option<&str>,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
         reference, read1_path, Some(read2_path), ReadFormat::Coupled, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity
+        min_aligned_length, min_percent_identity, min_aligned_percent
     )
 }
 
@@ -485,10 +490,11 @@ pub fn generate_filtered_named_bam_readers_from_interleaved(
     threads: u16,
     cached_bam_file: Option<&str>,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
         reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity
+        min_aligned_length, min_percent_identity, min_aligned_percent
     )
 }
 
@@ -498,10 +504,11 @@ pub fn generate_filtered_named_bam_readers_from_unpaired_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
     return generate_filtered_named_bam_readers_from_reads(
         reference, unpaired_reads_path, None, ReadFormat::Single, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity
+        min_aligned_length, min_percent_identity, min_aligned_percent
     )
 }
 
@@ -513,7 +520,8 @@ fn generate_filtered_named_bam_readers_from_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     min_aligned_length: u32,
-    min_percent_identity: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_percent_identity: f32,
+    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
         reference, read1_path, read2_path, read_format, threads, cached_bam_file);
@@ -526,7 +534,8 @@ fn generate_filtered_named_bam_readers_from_reads(
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
         min_aligned_length: min_aligned_length,
-        min_percent_identity: min_percent_identity
+        min_percent_identity: min_percent_identity,
+        min_aligned_percent: min_aligned_percent,
     }
 }
 
