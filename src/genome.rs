@@ -138,9 +138,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             for cig in record.cigar().iter() {
                 debug!("Found cigar {:} from {}", cig, cursor);
                 match cig.char() {
-                    'M' => {
-                        // if M, increment start and decrement end index
-                        debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
+                    'M' | 'X' | '=' => {
+                        // if M, X, or =, increment start and decrement end index
+                        debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                         ups_and_downs[cursor] += 1;
                         let final_pos = cursor + cig.len() as usize;
                         if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
@@ -148,11 +148,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                         }
                         cursor += cig.len() as usize;
                     },
-                    'D' => {
+                    'D' | 'N' => {
                         // if D, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
                     _ => {}
                 }
             }
@@ -458,9 +457,9 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             for cig in record.cigar().iter() {
                 //debug!("Found cigar {:} from {}", cig, cursor);
                 match cig.char() {
-                    'M' => {
-                        // if M, increment start and decrement end index
-                        //debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
+                    'M' | 'X' | '=' => {
+                        // if M, X, or =, increment start and decrement end index
+                        debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                         ups_and_downs[cursor] += 1;
                         let final_pos = cursor + cig.len() as usize;
                         if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
@@ -468,15 +467,13 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         }
                         cursor += cig.len() as usize;
                     },
-                    'D' => {
-                        // if D, move the cursor
+                    'D' | 'N' => {
+                        // if D or N, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
                     _ => {}
                 }
             }
-//            write!(print_stream, "\n").unwrap();
         }
 
         if doing_first {
@@ -592,9 +589,7 @@ fn print_previous_zero_coverage_genomes2<'a>(
             coverage_estimator.print_zero_coverage(
                 print_stream);
         }
-//        if i+1 == genomes_to_print.len(){
         write!(print_stream, "\n");
-//        }
     }
     return pileup_coverage_estimator;
 }
@@ -607,7 +602,6 @@ fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
     for el in slice {
         if *el == element {
             return Ok(index)
-            //let res: Result<usize, None> = Ok(index)
         }
         index += 1;
     }
@@ -1006,7 +1000,12 @@ mod tests {
             vec!(0.1, 0.9),
             vec!("mean"));
         assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
             str::from_utf8(stream.get_ref()).unwrap());
 
         stream = Cursor::new(Vec::new());
@@ -1021,6 +1020,63 @@ mod tests {
             vec!("mean"));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_zero_coverage_genomes_contig_names_with_multiple_methods(){
+        let mut stream = Cursor::new(Vec::new());
+        let mut geco = GenomesAndContigs::new();
+        // >genome1~random_sequence_length_11000
+        //     >genome1~random_sequence_length_11010
+        //     >genome2~seq1
+        //     >genome3~random_sequence_length_11001
+        //     >genome4~random_sequence_length_11002
+        //     >genome5~seq2
+        //     >genome6~random_sequence_length_11003
+        let genome1 = geco.establish_genome("genome1".to_string());
+        let genome2 = geco.establish_genome("genome2".to_string());
+        let genome3 = geco.establish_genome("genome3".to_string());
+        let genome4 = geco.establish_genome("genome4".to_string());
+        let genome5 = geco.establish_genome("genome5".to_string());
+        let genome6 = geco.establish_genome("genome6".to_string());
+        geco.insert("genome1~random_sequence_length_11000".to_string(),genome1);
+        geco.insert("genome1~random_sequence_length_11010".to_string(),genome1);
+        geco.insert("genome2~seq1".to_string(),genome2);
+        geco.insert("genome3~random_sequence_length_11001".to_string(),genome3);
+        geco.insert("genome4~random_sequence_length_11002".to_string(),genome4);
+        geco.insert("genome5~seq2".to_string(),genome5);
+        geco.insert("genome6~random_sequence_length_11003".to_string(),genome6);
+        mosdepth_genome_coverage_with_contig_names(
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &geco,
+            0.1,
+            &mut stream,
+            true,
+            false,
+            vec!(0.1, 0.9),
+            vec!("mean", "variance"));
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap());
+
+        stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage_with_contig_names(
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &geco,
+            0.1,
+            &mut stream,
+            false,
+            false,
+            vec!(0.1, 0.9),
+            vec!("mean","variance"));
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }

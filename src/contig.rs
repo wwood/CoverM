@@ -122,9 +122,9 @@ pub fn contig_coverage<R: NamedBamReader,
             for cig in record.cigar().iter() {
                 debug!("Found cigar {:} from {}", cig, cursor);
                 match cig.char() {
-                    'M' => {
-                        // if M, increment start and decrement end index
-                        debug!("Adding M at {} and {}", cursor, cursor + cig.len() as usize);
+                    'M' | 'X' | '=' => {
+                        // if M, X, or = increment start and decrement end index
+                        debug!("Adding M, X, or = at {} and {}", cursor, cursor + cig.len() as usize);
                         ups_and_downs[cursor] += 1;
                         let final_pos = cursor + cig.len() as usize;
                         if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
@@ -132,20 +132,16 @@ pub fn contig_coverage<R: NamedBamReader,
                         }
                         cursor += cig.len() as usize;
                     },
-                    'D' => {
-                        // if D, move the cursor
+                    'D' | 'N' => {
+                        // if D or N, move the cursor
                         cursor += cig.len() as usize;
                     },
-                    '=' => panic!("CIGAR '=' detected, but this case is not correctly handled for now"),
                     _ => {}
                 }
             }
             debug!("At end of loop")
-
-//            write!(print_stream, "\n").unwrap();
         }
 
-//        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
         if last_tid != -1 {
             coverage_estimator_vec = Vec::new();
             for (i, mut coverage_estimator )in coverage_estimator_box.clone().iter().enumerate() {
