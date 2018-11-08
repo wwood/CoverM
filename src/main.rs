@@ -860,6 +860,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required_unless_one(
                          &["bam-files","read1","coupled","interleaved"])
+                     .requires("no-flag-filter")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
@@ -1013,6 +1014,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required_unless_one(
                          &["bam-files","read1","coupled","interleaved"])
+                     .requires("no-flag-filter")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
