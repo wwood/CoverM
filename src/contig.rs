@@ -12,37 +12,11 @@ pub fn contig_coverage<R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
     print_stream: &mut std::io::Write,
-    min_fraction_covered: f32,
-    methods: Vec<&str>,
-    m: Vec<f32>,
+    mut coverage_estimator_box: Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) {
-    let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
-    let mut coverage_estimator_vec: Vec<CoverageEstimator>;
-    for method in methods {
-        match method {
-            "mean" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "coverage_histogram" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "trimmed_mean" =>{
-                coverage_estimator_box.push(get_trimmed_mean_estimator(m.clone(), min_fraction_covered));
-            },
-            "covered_fraction" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "variance" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            _ => panic!("programming error")
-        }
-    }
+
+    let mut coverage_estimator_vec;
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -99,7 +73,7 @@ pub fn contig_coverage<R: NamedBamReader,
                         }
                         coverage_estimator.setup();
                     }
-                    coverage_estimator_box = coverage_estimator_box;
+                    coverage_estimator_box = coverage_estimator_vec;
                 }
                 // reset for next time
                 if print_zero_coverage_contigs {
@@ -173,7 +147,7 @@ pub fn contig_coverage<R: NamedBamReader,
                     }
                 }
             }
-            coverage_estimator_box = coverage_estimator_box;
+            coverage_estimator_box = coverage_estimator_vec;
         }
 //        // print zero coverage contigs at the end
         if print_zero_coverage_contigs {
@@ -236,9 +210,8 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
-            0.0,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -253,9 +226,8 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
-            0.0,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             true,
             false);
         assert_eq!(
@@ -270,9 +242,8 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/1.bam"]),
             &mut stream,
-            0.0,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             true);
         assert_eq!(
@@ -287,9 +258,8 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
-            0.0,
-            vec!("variance"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("variance", 0.0, 0.0,
+                                        0.0)),
             true,
             false);
         assert_eq!(
@@ -309,9 +279,8 @@ mod tests {
                     "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                     4)],
             &mut stream,
-            0.0,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -326,9 +295,10 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
-            0.0,
-            vec!("mean", "variance"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0),
+                                        CoverageEstimator::new("variance", 0.0, 0.0,
+                                                               0.0)),
             true,
             false);
         assert_eq!(

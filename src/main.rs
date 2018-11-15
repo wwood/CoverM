@@ -34,27 +34,44 @@ fn main(){
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m);
+            let mut min = value_t!(m.value_of("trim-min"), f32).unwrap();
+            let mut max = value_t!(m.value_of("trim-max"), f32).unwrap();
             let filtering = doing_filtering(m);
+            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+            if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+                eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+                process::exit(1)
+            }
             debug!("Doing filtering? {}", filtering);
             let methods: Vec<&str> = m.values_of("method").unwrap().collect();
             if m.is_present("bam-files") {
                 write!(print_stream, "Sample\tGenome and Contig");
+                let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
                 for method in methods.clone() {
                     match method {
                         "mean" =>{
                             write!(print_stream, "\tMean");
+                            coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "coverage_histogram" =>{
                             write!(print_stream, "\tIndex\tPileup Counts");
+                            coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "trimmed_mean" =>{
                             write!(print_stream, "\tTrimmed Mean");
+                            coverage_estimator_box.push(get_trimmed_mean_estimator(vec!(min, max), min_fraction_covered));
                         },
                         "covered_fraction" =>{
                             write!(print_stream, "\tCovered Fraction");
+                            coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "variance" =>{
                             write!(print_stream, "\tVariance");
+                            coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         _ => panic!("programming error")
                     }
@@ -69,34 +86,46 @@ fn main(){
                             filter_params.min_aligned_length,
                             filter_params.min_percent_identity),
                         m,
+                        coverage_estimator_box,
                         print_stream);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
+                        coverage_estimator_box,
                         print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
                 external_command_checker::check_for_samtools();
                 write!(print_stream, "Sample\tGenome");
+                let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
                 for method in methods.clone() {
                     match method {
                         "mean" =>{
                             write!(print_stream, "\tMean");
+                            coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "coverage_histogram" =>{
                             write!(print_stream, "\tIndex\tPileup Counts");
+                            coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "trimmed_mean" =>{
                             write!(print_stream, "\tTrimmed Mean");
+                            coverage_estimator_box.push(get_trimmed_mean_estimator(vec!(min, max), min_fraction_covered));
                         },
                         "covered_fraction" =>{
                             write!(print_stream, "\tCovered Fraction");
+                            coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         "variance" =>{
                             write!(print_stream, "\tVariance");
+                            coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
+                                                                               min_fraction_covered));
                         },
                         _ => panic!("programming error")
                     }
@@ -109,6 +138,7 @@ fn main(){
                         run_genome(
                             generator_set.generators,
                             m,
+                            coverage_estimator_box.clone(),
                             print_stream);
                     }
                 } else {
@@ -117,6 +147,7 @@ fn main(){
                         run_genome(
                             generator_set.generators,
                             m,
+                            coverage_estimator_box.clone(),
                             print_stream);
                     }
                 }
@@ -125,28 +156,40 @@ fn main(){
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m);
+            let mut min = value_t!(m.value_of("trim-min"), f32).unwrap();
+            let mut max = value_t!(m.value_of("trim-max"), f32).unwrap();
             let methods: Vec<&str> = m.values_of("method").unwrap().collect();
             let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
             write!(print_stream, "Sample\tContig");
+            let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
             for method in methods.clone() {
                 match method {
                     "mean" =>{
                         write!(print_stream, "\tMean");
+                        coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
+                                                                           min_fraction_covered));
                     },
                     "coverage_histogram" =>{
                         write!(print_stream, "\tIndex\tPileup Counts");
+                        coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                                                           min_fraction_covered));
                     },
                     "trimmed_mean" =>{
                         write!(print_stream, "\tTrimmed Mean");
+                        coverage_estimator_box.push(get_trimmed_mean_estimator(vec!(min, max), min_fraction_covered));
                     },
                     "covered_fraction" =>{
                         write!(print_stream, "\tCovered Fraction");
+                        coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
+                                                                           min_fraction_covered));
                     },
                     "variance" =>{
                         write!(print_stream, "\tVariance");
+                        coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
+                                                                           min_fraction_covered));
                     },
                     _ => panic!("programming error")
                 }
@@ -160,11 +203,11 @@ fn main(){
                         bam_files,
                         filter_params.min_aligned_length,
                         filter_params.min_percent_identity);
-                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
+                    run_contig(coverage_estimator_box.clone(), bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
-                    run_contig(methods, bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
+                    run_contig(coverage_estimator_box.clone(), bam_readers, min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -173,7 +216,7 @@ fn main(){
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(methods.clone(),
+                        run_contig(coverage_estimator_box.clone(),
                                    generator_set.generators,
                                    min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                     }
@@ -181,7 +224,7 @@ fn main(){
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(methods.clone(),
+                        run_contig(coverage_estimator_box.clone(),
                                    generator_set.generators,
                                    min_fraction_covered, print_zeros, flag_filter, m, print_stream);
                     }
@@ -239,19 +282,14 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
+    coverage_estimator_box: Vec<CoverageEstimator>,
     print_stream: &mut std::io::Write) {
 
     let methods: Vec<&str> = m.values_of("method").unwrap().collect();
-    let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-    if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-        eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-        process::exit(1)
-    }
+
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
     let single_genome = m.is_present("single-genome");
-    let mut min = value_t!(m.value_of("trim-min"), f32).unwrap();
-    let mut max = value_t!(m.value_of("trim-max"), f32).unwrap();
     if m.is_present("separator") || single_genome {
         let separator: u8 = match single_genome {
             true => "0".as_bytes()[0],
@@ -271,10 +309,8 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             bam_generators,
             separator,
             print_stream,
-            min_fraction_covered,
             print_zeros,
-            methods,
-            vec!(min, max),
+            coverage_estimator_box,
             flag_filter,
             single_genome);
     } else {
@@ -316,12 +352,10 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         coverm::genome::mosdepth_genome_coverage_with_contig_names(
                                                             bam_generators,
                                                             &genomes_and_contigs,
-                                                            min_fraction_covered,
                                                             print_stream,
                                                             print_zeros,
                                                             flag_filter,
-                                                            vec!(min, max),
-                                                            methods);
+                                                            coverage_estimator_box);
     }
 }
 
@@ -344,6 +378,18 @@ impl FilterParameters {
     }
 }
 
+pub fn get_trimmed_mean_estimator(
+    bounds: Vec<f32>,
+    min_fraction_covered: f32) -> CoverageEstimator{
+    let min = *bounds.first().unwrap();
+    let max = *bounds.last().unwrap();
+    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+        process::exit(1)
+    }
+    CoverageEstimator::new("trimmed_mean",
+                           min, max, min_fraction_covered)
+}
 
 struct MappingParameters<'a> {
     references: Vec<&'a str>,
@@ -444,7 +490,7 @@ fn get_streamed_filtered_bam_readers(
 
 fn run_contig<R: coverm::bam_generator::NamedBamReader,
         T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
-    methods: Vec<&str>,
+    coverage_estimator_box: Vec<CoverageEstimator>,
     bam_readers: Vec<T>,
     min_fraction_covered: f32,
     print_zeros: bool,
@@ -457,9 +503,7 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     coverm::contig::contig_coverage(
         bam_readers,
         print_stream,
-        min_fraction_covered,
-        methods,
-        vec!(min, max),
+        coverage_estimator_box,
         print_zeros,
         flag_filter);
 }

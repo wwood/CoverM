@@ -18,38 +18,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
     contigs_and_genomes: &GenomesAndContigs,
-    min_fraction_covered: f32,
     print_stream: &mut std::io::Write,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool,
-    m: Vec<f32>,
-    methods: Vec<&str>) {
-    let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
-    let mut coverage_estimator_vec: Vec<CoverageEstimator>;
-    for method in methods {
-        match method {
-            "mean" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "coverage_histogram" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "trimmed_mean" =>{
-                coverage_estimator_box.push(get_trimmed_mean_estimator(m.clone(), min_fraction_covered));
-            },
-            "covered_fraction" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "variance" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            _ => panic!("programming error")
-        }
-    }
+    coverage_estimator_box: Vec<CoverageEstimator>) {
+    let mut coverage_estimator_vec;
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -241,38 +214,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     bam_readers: Vec<G>,
     split_char: u8,
     print_stream: &mut std::io::Write,
-    min_fraction_covered: f32,
     print_zero_coverage_genomes: bool,
-    methods: Vec<&str>,
-    m: Vec<f32>,
+    mut coverage_estimator_box: Vec<CoverageEstimator>,
     flag_filtering: bool,
     single_genome: bool) {
-    let mut coverage_estimator_box: Vec<CoverageEstimator> = Vec::new();
-    let mut coverage_estimator_vec: Vec<CoverageEstimator>;
-    for method in methods {
-        match method {
-            "mean" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("mean", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "coverage_histogram" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "trimmed_mean" =>{
-                coverage_estimator_box.push(get_trimmed_mean_estimator(m.clone(), min_fraction_covered));
-            },
-            "covered_fraction" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("covered_fraction", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            "variance" =>{
-                coverage_estimator_box.push(CoverageEstimator::new("variance", 0.0, 0.0,
-                                                                   min_fraction_covered));
-            },
-            _ => panic!("programming error")
-        }
-    }
+    let mut coverage_estimator_vec;
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -363,12 +309,10 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 true => "".as_bytes(),
                 false => extract_genome(tid as u32, &target_names, split_char)
             };
-//            let mut coverage_estimator;
             if tid != last_tid || doing_first {
                 if doing_first == true {
                     coverage_estimator_vec = Vec::new();
                     for (i, mut coverage_estimator) in coverage_estimator_box.clone().iter().enumerate() {
-//                        coverage_estimator = coverage_estimator_b;
                         let mut coverage_estimator = coverage_estimator.clone().setup();
                         coverage_estimator_vec.push(coverage_estimator.clone());
                     }
@@ -396,7 +340,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     }
                     coverage_estimator_box = coverage_estimator_vec;
                 } else {
-//                    print_genome(stoit_name, &str::from_utf8(current_genome).unwrap(), print_stream);
                     coverage_estimator_vec = Vec::new();
                     for (i, mut coverage_estimator) in coverage_estimator_box.clone().iter().enumerate(){
                         let mut coverage_estimator = coverage_estimator.clone().add_contig(&ups_and_downs);
@@ -632,10 +575,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             'q' as u8,
             &mut stream,
-            0.0,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -653,12 +595,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &geco,
-            0.0,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)));
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -671,10 +612,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
             'q' as u8,
             &mut stream,
-            0.0,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -692,12 +632,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
             &geco,
-            0.0,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)));
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -710,10 +649,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             &mut stream,
-            0.0,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -731,12 +669,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.0,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -749,10 +686,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             &mut stream,
-            0.76,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.76)),
             false,
             false);
         assert_eq!(
@@ -770,12 +706,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.76,
             &mut stream,
             false,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.76)));
         assert_eq!(
             "",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -788,10 +723,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             &mut stream,
-            0.759,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.759)),
             false,
             false);
         assert_eq!(
@@ -810,12 +744,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.759,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.759)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -828,10 +761,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             &mut stream,
-            0.759,
             true,
-            vec!("trimmed_mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("trimmed_mean", 0.1, 0.9,
+                                        0.759)),
             false,
             false);
         assert_eq!(
@@ -849,12 +781,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.0,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("trimmed_mean"));
+            vec!(CoverageEstimator::new("trimmed_mean", 0.1, 0.9,
+                                        0.0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -867,10 +798,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             &mut stream,
-            0.0,
             true,
-            vec!("coverage_histogram"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                        0.0)),
             false,
             false);
         assert_eq!(
@@ -888,12 +818,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.0,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("coverage_histogram"));
+            vec!(CoverageEstimator::new("coverage_histogram", 0.0, 0.0,
+                                        0.0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -906,10 +835,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             &mut stream,
-            0.1,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1)),
             false,
             false);
         assert_eq!(
@@ -921,10 +849,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             &mut stream,
-            0.1,
             false,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1)),
             false,
             false);
         assert_eq!(
@@ -939,10 +866,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             &mut stream,
-            0.759,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.759)),
             false,
             false);
         assert_eq!(
@@ -957,10 +883,9 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             &mut stream,
-            0.0,
             true,
-            vec!("mean"),
-            vec!(0.1, 0.9),
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.0)),
             false,
             true);
         assert_eq!(
@@ -995,12 +920,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.1,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n\
@@ -1014,12 +938,11 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.1,
             &mut stream,
             false,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -1052,12 +975,13 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.1,
             &mut stream,
             true,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean", "variance"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1),
+                 CoverageEstimator::new("variance", 0.0, 0.0,
+                                        0.1)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\t0.0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
@@ -1071,12 +995,13 @@ mod tests {
         mosdepth_genome_coverage_with_contig_names(
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
-            0.1,
             &mut stream,
             false,
             false,
-            vec!(0.1, 0.9),
-            vec!("mean","variance"));
+            vec!(CoverageEstimator::new("mean", 0.0, 0.0,
+                                        0.1),
+                                    CoverageEstimator::new("variance", 0.0, 0.0,
+                                                           0.1)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n",
             str::from_utf8(stream.get_ref()).unwrap())
