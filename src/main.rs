@@ -11,6 +11,7 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
+use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -25,6 +26,7 @@ use env_logger::LogBuilder;
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
+    let print_stream = &mut std::io::stdout();
 
     match matches.subcommand_name() {
 
@@ -32,7 +34,24 @@ fn main(){
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m);
             let filtering = doing_filtering(m);
+            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+            if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+                eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+                process::exit(1)
+            }
             debug!("Doing filtering? {}", filtering);
+
+            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+            let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
+            write!(print_stream, "Sample\tGenome");
+            for method in methods {
+                let estimator = generate_coverage_estimator(method, m);
+                for ref header in estimator.column_headers() {
+                    write!(print_stream, "\t{}", header);
+                }
+                coverage_estimators.push(estimator);
+            }
+            writeln!(print_stream);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -43,12 +62,16 @@ fn main(){
                             bam_files,
                             filter_params.min_aligned_length,
                             filter_params.min_percent_identity),
-                        m);
+                        m,
+                        &mut coverage_estimators,
+                        print_stream);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
-                        m);
+                        m,
+                        &mut coverage_estimators,
+                        print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -59,14 +82,18 @@ fn main(){
                     for generator_set in generator_sets {
                         run_genome(
                             generator_set.generators,
-                            m);
+                            m,
+                            &mut coverage_estimators,
+                            print_stream);
                     }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
                         run_genome(
                             generator_set.generators,
-                            m);
+                            m,
+                            &mut coverage_estimators,
+                            print_stream);
                     }
                 }
             }
@@ -74,11 +101,21 @@ fn main(){
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m);
-            let method = m.value_of("method").unwrap();
-            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
+
+            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+            let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
+            write!(print_stream, "Sample\tContig");
+            for method in methods {
+                let estimator = generate_coverage_estimator(method, m);
+                for ref header in estimator.column_headers() {
+                    write!(print_stream, "\t{}", header);
+                }
+                coverage_estimators.push(estimator);
+            }
+            writeln!(print_stream);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -88,11 +125,11 @@ fn main(){
                         bam_files,
                         filter_params.min_aligned_length,
                         filter_params.min_percent_identity);
-                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, print_stream);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
-                    run_contig(method, bam_readers, min_fraction_covered, print_zeros, flag_filter, m);
+                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, print_stream);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -101,17 +138,17 @@ fn main(){
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(method,
+                        run_contig(&mut coverage_estimators,
                                    generator_set.generators,
-                                   min_fraction_covered, print_zeros, flag_filter, m);
+                                   print_zeros, flag_filter, print_stream);
                     }
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(method,
+                        run_contig(&mut coverage_estimators,
                                    generator_set.generators,
-                                   min_fraction_covered, print_zeros, flag_filter, m);
+                                   print_zeros, flag_filter, print_stream);
                     }
                 }
             }
@@ -158,6 +195,38 @@ fn main(){
     }
 }
 
+fn generate_coverage_estimator(
+    method: &str, m: &clap::ArgMatches)
+    -> CoverageEstimator {
+
+    let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+    let estimator = match method {
+        "mean" => {
+            CoverageEstimator::new_estimator_mean(min_fraction_covered)
+        },
+        "coverage_histogram" => {
+            CoverageEstimator::new_estimator_pileup_counts(min_fraction_covered)
+        },
+        "trimmed_mean" => {
+            let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+            let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+            if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+                eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+                process::exit(1)
+            }
+            CoverageEstimator::new_estimator_trimmed_mean(min, max, min_fraction_covered)
+        },
+        "covered_fraction" => {
+            CoverageEstimator::new_estimator_covered_fraction(min_fraction_covered)
+        },
+        "variance" =>{
+            CoverageEstimator::new_estimator_variance(min_fraction_covered)
+        },
+        _ => panic!("programming error")
+    };
+    return estimator;
+}
+
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
         m.is_present("min-percent-identity")
@@ -166,18 +235,13 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
-    m: &clap::ArgMatches) {
+    m: &clap::ArgMatches,
+    coverage_estimators: &mut Vec<CoverageEstimator>,
+    print_stream: &mut std::io::Write) {
 
-    let method = m.value_of("method").unwrap();
-    let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-    if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-        eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-        process::exit(1)
-    }
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
     let single_genome = m.is_present("single-genome");
-
     if m.is_present("separator") || single_genome {
         let separator: u8 = match single_genome {
             true => "0".as_bytes()[0],
@@ -193,54 +257,14 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
                 separator_str[0]
             }
         };
-
-        match method {
-            "mean" => coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut std::io::stdout(),
-                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome),
-            "coverage_histogram" => coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut std::io::stdout(),
-                &mut PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome),
-            "trimmed_mean" => {
-                coverm::genome::mosdepth_genome_coverage(
-                    bam_generators,
-                    separator,
-                    &mut std::io::stdout(),
-                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                    print_zeros,
-                    flag_filter,
-                    single_genome)},
-            "covered_fraction" => coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut std::io::stdout(),
-                &mut CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome),
-            "variance" => coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-                &mut std::io::stdout(),
-                &mut VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter,
-                single_genome),
-            _ => panic!("programming error")
-        }
+        coverm::genome::mosdepth_genome_coverage(
+            bam_generators,
+            separator,
+            print_stream,
+            print_zeros,
+            coverage_estimators,
+            flag_filter,
+            single_genome);
     } else {
         let genomes_and_contigs;
         if m.is_present("genome-fasta-files"){
@@ -277,49 +301,13 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             eprintln!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
             process::exit(1);
         }
-        match method {
-            "mean" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut std::io::stdout(),
-                &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-                print_zeros,
-                flag_filter),
-            "coverage_histogram" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut std::io::stdout(),
-                &mut PileupCountsGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter),
-            "trimmed_mean" => {
-                coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                    bam_generators,
-                    &genomes_and_contigs,
-                    &mut std::io::stdout(),
-                    &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                    print_zeros,
-                    flag_filter)},
-            "covered_fraction" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut std::io::stdout(),
-                &mut CoverageFractionGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter),
-            "variance" => coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut std::io::stdout(),
-                &mut VarianceGenomeCoverageEstimator::new(
-                    min_fraction_covered),
-                print_zeros,
-                flag_filter),
-
-            _ => panic!("programming error")
-        }
+        coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                                                            bam_generators,
+                                                            &genomes_and_contigs,
+                                                            print_stream,
+                                                            print_zeros,
+                                                            flag_filter,
+                                                            coverage_estimators);
     }
 }
 
@@ -438,65 +426,22 @@ fn get_streamed_filtered_bam_readers(
     return generator_set;
 }
 
-fn get_trimmed_mean_estimator(
-    m: &clap::ArgMatches,
-    min_fraction_covered: f32) -> TrimmedMeanGenomeCoverageEstimator {
-    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-        process::exit(1)
-    }
-    TrimmedMeanGenomeCoverageEstimator::new(
-        min, max, min_fraction_covered)
-}
 
 
 fn run_contig<R: coverm::bam_generator::NamedBamReader,
         T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
-    method: &str,
+    coverage_estimators: &mut Vec<CoverageEstimator>,
     bam_readers: Vec<T>,
-    min_fraction_covered: f32,
     print_zeros: bool,
     flag_filter: bool,
-    m: &clap::ArgMatches) {
-    match method {
-        "mean" => coverm::contig::contig_coverage(
-            bam_readers,
-            &mut std::io::stdout(),
-            &mut MeanGenomeCoverageEstimator::new(min_fraction_covered),
-            print_zeros,
-            flag_filter),
-        "coverage_histogram" => coverm::contig::contig_coverage(
-            bam_readers,
-            &mut std::io::stdout(),
-            &mut PileupCountsGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter),
-        "trimmed_mean" => {
-            coverm::contig::contig_coverage(
-                bam_readers,
-                &mut std::io::stdout(),
-                &mut get_trimmed_mean_estimator(m, min_fraction_covered),
-                print_zeros,
-                flag_filter)},
-        "covered_fraction" => coverm::contig::contig_coverage(
-            bam_readers,
-            &mut std::io::stdout(),
-            &mut CoverageFractionGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter),
-        "variance" => coverm::contig::contig_coverage(
-            bam_readers,
-            &mut std::io::stdout(),
-            &mut VarianceGenomeCoverageEstimator::new(
-                min_fraction_covered),
-            print_zeros,
-            flag_filter),
-        _ => panic!("programming error")
-    }
+    print_stream: &mut std::io::Write) {
+
+    coverm::contig::contig_coverage(
+        bam_readers,
+        print_stream,
+        coverage_estimators,
+        print_zeros,
+        flag_filter);
 }
 
 
@@ -748,15 +693,18 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .conflicts_with("no-flag-filter"))
 
-                .arg(Arg::with_name("method")
+                .arg(Arg::with_name("methods")
                      .short("m")
                      .long("method")
+                     .long("methods")
                      .takes_value(true)
+                     .multiple(true)
                      .possible_values(&[
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -834,15 +782,18 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .conflicts_with("no-flag-filter"))
 
-                .arg(Arg::with_name("method")
+                .arg(Arg::with_name("methods")
                      .short("m")
                      .long("method")
+                     .long("methods")
                      .takes_value(true)
+                     .multiple(true)
                      .possible_values(&[
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
-                         "covered_fraction"])
+                         "covered_fraction",
+                         "variance"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
