@@ -1,9 +1,10 @@
 use std::rc::Rc;
 use std::str;
+use std::collections::BTreeMap;
 
 use rust_htslib::bam;
-use std::collections::BTreeMap;
 use rust_htslib::bam::Read;
+use rust_htslib::bam::record::Cigar;
 
 pub struct ReferenceSortedBamFilter {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
@@ -137,8 +138,10 @@ fn read_pair_passes_filter(
     let mut aligned_length1: u32 = 0;
     for cig in record1.cigar().iter() {
         match cig {
-            bam::record::Cigar::Match(i) |
-            bam::record::Cigar::Ins(i) => {
+            Cigar::Match(i) |
+            Cigar::Ins(i) |
+            Cigar::Diff(i) |
+            Cigar::Equal(i) => {
                 aligned_length1 = aligned_length1 + i;
             },
             _ => {}
@@ -147,8 +150,10 @@ fn read_pair_passes_filter(
     let mut aligned_length2: u32 = 0;
     for cig in record2.cigar().iter() {
         match cig {
-            bam::record::Cigar::Match(i) |
-            bam::record::Cigar::Ins(i) => {
+            Cigar::Match(i) |
+            Cigar::Ins(i) |
+            Cigar::Diff(i) |
+            Cigar::Equal(i) => {
                 aligned_length2 = aligned_length2 + i;
             },
             _ => {}
