@@ -552,7 +552,6 @@ fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use env_logger;
 
     #[test]
     fn test_one_genome_two_contigs_first_covered(){

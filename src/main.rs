@@ -685,7 +685,8 @@ Alignment filtering (optional):
                                          identity e.g. 0.95 for 95% [default 0.0]
 
 Other arguments (optional):
-   -m, --method METHOD                   Method for calculating coverage. One of:
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One of:
                                               mean (default)
                                               trimmed_mean
                                               coverage_histogram
@@ -738,7 +739,8 @@ Alignment filtering (optional):
                                          identity e.g. 0.95 for 95% [default 0.0]
 
 Other arguments (optional):
-   -m, --method METHOD                   Method for calculating coverage. One of:
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One of:
                                               mean (default)
                                               trimmed_mean
                                               coverage_histogram
