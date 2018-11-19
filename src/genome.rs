@@ -1,6 +1,7 @@
 use std;
 use std::result::Result;
 use rust_htslib::bam;
+use rust_htslib::bam::record::Cigar;
 
 use std::str;
 use std::collections::BTreeSet;
@@ -106,8 +107,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
                     debug!("Found cigar {:} from {}", cig, cursor);
-                    match cig.char() {
-                        'M' | 'X' | '=' => {
+                    match cig {
+                        Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
                             debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                             ups_and_downs[cursor] += 1;
@@ -117,12 +118,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                             }
                             cursor += cig.len() as usize;
                         },
-                        'D' | 'N' => {
+                        Cigar::Del(_) | Cigar::RefSkip(_) => {
                             // if D, move the cursor
                             cursor += cig.len() as usize;
                         },
-                        'I' | 'S' | 'H' | 'P' => {},
-                        _ => panic!("Unknown CIGAR string match")
+                        Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
                 }
             }
@@ -388,8 +388,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
                     //debug!("Found cigar {:} from {}", cig, cursor);
-                    match cig.char() {
-                        'M' | 'X' | '=' => {
+                    match cig {
+                        Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
                             debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                             ups_and_downs[cursor] += 1;
@@ -399,12 +399,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             }
                             cursor += cig.len() as usize;
                         },
-                        'D' | 'N' => {
+                        Cigar::Del(_) | Cigar::RefSkip(_) => {
                             // if D or N, move the cursor
                             cursor += cig.len() as usize;
                         },
-                        'I' | 'S' | 'H' | 'P' => {},
-                        _ => panic!("Unknown CIGAR string match")
+                        Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
                 }
             }
