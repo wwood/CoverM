@@ -308,4 +308,22 @@ mod tests {
 2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
+
+    #[test]
+    fn test_trimmed_mean_bug(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            &mut stream,
+            &mut vec!(
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+            ),
+            true,
+            false);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tseq1\t0.0\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
 }

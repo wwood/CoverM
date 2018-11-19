@@ -196,6 +196,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let len1 = ups_and_downs.len();
                 debug!("Adding len1 {}", len1);
                 *observed_contig_length += len1 as u32;
+                debug!("Total observed length now {}", *observed_contig_length);
                 let mut cumulative_sum: i32 = 0;
                 for current in ups_and_downs {
                     if *current != 0 {
@@ -257,8 +258,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 max
             } => {
                 let total_bases = *observed_contig_length + unobserved_contig_length;
-                debug!("Calculating coverage with observed length {}, unobserved_length {} and counts {:?}",
-                       num_covered_bases, unobserved_contig_length, counts);
+                debug!("Calculating coverage with num_covered_bases {}, observed_length {}, unobserved_length {} and counts {:?}",
+                       num_covered_bases, observed_contig_length, unobserved_contig_length, counts);
                 let answer = match total_bases {
                     0 => 0.0,
                     _ => {
@@ -281,7 +282,13 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                                     debug!("inside");
                                     if started {
                                         if num_accounted_for > max_index {
-                                            let num_wanted = max_index - (num_accounted_for - *num_covered as usize) + 1;
+                                            debug!("num_accounted_for {}, *num_covered {}",
+                                                   num_accounted_for, *num_covered);
+                                            let num_excess = num_accounted_for - *num_covered as usize;
+                                            let num_wanted = match max_index >= num_excess {
+                                                true => max_index - num_excess + 1,
+                                                false => 0
+                                            };
                                             debug!("num wanted1: {}", num_wanted);
                                             total += num_wanted * i;
                                             break;
