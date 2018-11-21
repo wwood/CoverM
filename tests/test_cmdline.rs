@@ -50,6 +50,8 @@ mod tests {
                 "contig",
                 "--min-percent-identity",
                 "0.95",
+                "--contig-end-exclusion",
+                "0",
                 "-r",
                 t_full,
                 "-1",
@@ -76,6 +78,8 @@ mod tests {
                 "contig",
                 "--min-percent-identity",
                 "0.95",
+                "--contig-end-exclusion",
+                "0",
                 "-r",
                 "tests/data/7seqs.fna",
                 "tests/data/2seqs.fasta",
@@ -103,6 +107,8 @@ mod tests {
                 "contig",
                 "--min-percent-identity",
                 "0.95",
+                "--contig-end-exclusion",
+                "0",
                 "-r",
                 "tests/data/7seqs.fna",
                 "tests/data/2seqs.fasta",
@@ -140,6 +146,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--contig-end-exclusion",
+                "0",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--interleaved",
@@ -161,7 +169,9 @@ mod tests {
                 "--interleaved",
                 "tests/data/bad_reads.all.interleaved.fa",
                 "--min-aligned-length",
-                "300"
+                "300",
+                "--contig-end-exclusion",
+                "0",
             ])
             .succeeds()
             .stdout().contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
@@ -178,6 +188,8 @@ mod tests {
                 "--single",
                 "tests/data/bad_reads.interleaved.fq",
                 "--no-flag-filter",
+                "--contig-end-exclusion",
+                "0",
             ])
             .succeeds()
             .stdout().contains("2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899

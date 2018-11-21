@@ -37,11 +37,6 @@ fn main(){
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m, true);
             let filtering = doing_filtering(m);
-            let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-            if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-                eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-                process::exit(1)
-            }
             debug!("Doing filtering? {}", filtering);
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
@@ -206,12 +201,19 @@ fn generate_coverage_estimator(
     -> CoverageEstimator {
 
     let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+    if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+        eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+        process::exit(1)
+    }
+    let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
     let estimator = match method {
         "mean" => {
-            CoverageEstimator::new_estimator_mean(min_fraction_covered)
+            CoverageEstimator::new_estimator_mean(
+                min_fraction_covered, contig_end_exclusion)
         },
         "coverage_histogram" => {
-            CoverageEstimator::new_estimator_pileup_counts(min_fraction_covered)
+            CoverageEstimator::new_estimator_pileup_counts(
+                min_fraction_covered, contig_end_exclusion)
         },
         "trimmed_mean" => {
             let min = value_t!(m.value_of("trim-min"), f32).unwrap();
@@ -220,13 +222,16 @@ fn generate_coverage_estimator(
                 eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
                 process::exit(1)
             }
-            CoverageEstimator::new_estimator_trimmed_mean(min, max, min_fraction_covered)
+            CoverageEstimator::new_estimator_trimmed_mean(
+                min, max, min_fraction_covered, contig_end_exclusion)
         },
         "covered_fraction" => {
-            CoverageEstimator::new_estimator_covered_fraction(min_fraction_covered)
+            CoverageEstimator::new_estimator_covered_fraction(
+                min_fraction_covered, contig_end_exclusion)
         },
         "variance" =>{
-            CoverageEstimator::new_estimator_variance(min_fraction_covered)
+            CoverageEstimator::new_estimator_variance(
+                min_fraction_covered, contig_end_exclusion)
         },
         _ => panic!("programming error")
     };
@@ -695,6 +700,8 @@ Other arguments (optional):
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.10]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
    --trim-min FRACTION                   Remove this smallest fraction of positions
                                          when calculating trimmed_mean
                                          [default: 0.05]
@@ -749,6 +756,8 @@ Other arguments (optional):
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
    --trim-min FRACTION                   Remove this smallest fraction of positions
                                          when calculating trimmed_mean
                                          [default: 0.05]
@@ -958,6 +967,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
                      .default_value("0.10"))
+                .arg(Arg::with_name("contig-end-exclusion")
+                     .long("contig-end-exclusion")
+                     .default_value("75"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
@@ -1064,6 +1076,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
                      .default_value("0.0"))
+                .arg(Arg::with_name("contig-end-exclusion")
+                     .long("contig-end-exclusion")
+                     .default_value("75"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
                      .default_value("0.05"))

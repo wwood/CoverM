@@ -560,7 +560,7 @@ mod tests {
             'q' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -581,7 +581,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
         assert_eq!(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -595,7 +595,7 @@ mod tests {
             'q' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -616,7 +616,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
         assert_eq!(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -630,7 +630,7 @@ mod tests {
             'e' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -651,7 +651,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -665,7 +665,7 @@ mod tests {
             'e' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.76)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0)),
             false,
             false);
         assert_eq!(
@@ -686,7 +686,7 @@ mod tests {
             &mut stream,
             false,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.76)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0)));
         assert_eq!(
             "",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -700,7 +700,7 @@ mod tests {
             'e' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)),
             false,
             false);
         assert_eq!(
@@ -722,7 +722,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -737,7 +737,7 @@ mod tests {
             &mut stream,
             true,
             &mut vec!(CoverageEstimator::new_estimator_trimmed_mean(
-                0.1, 0.9, 0.759)),
+                0.1, 0.9, 0.759,0)),
             false,
             false);
         assert_eq!(
@@ -759,7 +759,7 @@ mod tests {
             true,
             false,
             &mut vec!(CoverageEstimator::new_estimator_trimmed_mean(
-                0.1, 0.9, 0.0)));
+                0.1, 0.9, 0.0,0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t1.08875\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -773,7 +773,7 @@ mod tests {
             'e' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -794,7 +794,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0)));
+            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0,0)));
         assert_eq!(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -808,7 +808,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
             false,
             false);
         assert_eq!(
@@ -821,7 +821,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
             false,
             false);
         assert_eq!(
@@ -837,7 +837,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)),
             false,
             false);
         assert_eq!(
@@ -853,7 +853,7 @@ mod tests {
             '~' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             true);
         assert_eq!(
@@ -891,7 +891,7 @@ mod tests {
             &mut stream,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n\
@@ -908,7 +908,7 @@ mod tests {
             &mut stream,
             false,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -945,8 +945,8 @@ mod tests {
             true,
             false,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1),
-                CoverageEstimator::new_estimator_variance(0.1)));
+                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_variance(0.1,0)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\t0.0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
@@ -964,8 +964,8 @@ mod tests {
             false,
             false,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1),
-                CoverageEstimator::new_estimator_variance(0.1)));
+                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_variance(0.1,0)));
         assert_eq!(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n",
             str::from_utf8(stream.get_ref()).unwrap())
@@ -981,7 +981,7 @@ mod tests {
             '\0' as u8,
             &mut stream,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
             false,
             true);
         assert_eq!(
@@ -999,10 +999,10 @@ mod tests {
             &mut stream,
             true,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
             ),
             false,
             true);
@@ -1021,10 +1021,10 @@ mod tests {
             &mut stream,
             true,
             &mut vec!(
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
             ),
             false,
             true);
@@ -1043,10 +1043,10 @@ mod tests {
             &mut stream,
             true,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
             ),
             false,
             false);
@@ -1067,8 +1067,8 @@ mod tests {
             &mut vec!(
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
             ),
             false,
             false);

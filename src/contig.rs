@@ -164,7 +164,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -179,7 +179,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             true,
             false);
         assert_eq!(
@@ -194,7 +194,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/1.bam"]),
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             true);
         assert_eq!(
@@ -209,7 +209,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_variance(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_variance(0.0,0)),
             true,
             false);
         assert_eq!(
@@ -230,7 +230,7 @@ mod tests {
                     4,
                     None)],
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
         assert_eq!(
@@ -246,8 +246,8 @@ mod tests {
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0),
-                CoverageEstimator::new_estimator_variance(0.0)
+                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_variance(0.0,0)
             ),
             true,
             false);
@@ -265,7 +265,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
             &mut stream,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             true,
             false);
         assert_eq!(
@@ -282,7 +282,7 @@ mod tests {
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
             &mut vec!(
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
             ),
             true,
             false);
@@ -300,10 +300,10 @@ mod tests {
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut stream,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
             ),
             false,
             false);
@@ -322,13 +322,35 @@ mod tests {
             &mut vec!(
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
-                CoverageEstimator::new_estimator_mean(0.0),
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0),
             ),
             false,
             false);
         assert_eq!(
             "2seqs.reads_for_seq1\tseq1\t0.0\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_contig_end_exclusion(){
+        // From https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &mut stream,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.0,75),
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_variance(0.0,75)
+            ),
+            false,
+            false);
+        assert_eq!(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t1.3049262\n".to_owned()+
+            "7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t0.6862065\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }
