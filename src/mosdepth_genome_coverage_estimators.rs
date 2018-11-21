@@ -451,7 +451,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
-                write!(print_stream, "\t{}", coverage).unwrap();
+                match coverage {
+                    0.0 => write!(print_stream, "\t0.0").unwrap(),
+                    _ => write!(print_stream, "\t{}", coverage).unwrap()
+                }
                 return print_stream;
             },
             CoverageEstimator::PileupCountsGenomeCoverageEstimator {

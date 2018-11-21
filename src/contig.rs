@@ -5,6 +5,7 @@ use bam_generator::*;
 
 use rust_htslib::bam::record::Cigar;
 
+
 pub fn contig_coverage<R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>>(
     bam_readers: Vec<G>,
@@ -22,9 +23,41 @@ pub fn contig_coverage<R: NamedBamReader,
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
-        let num_estimators = coverage_estimators.len();
 
         let mut num_mapped_reads: u64 = 0;
+
+        let mut process_previous_contigs = |last_tid, tid,
+        coverage_estimators: &mut Vec<CoverageEstimator>,
+        ups_and_downs| {
+            if last_tid != -2 {
+                for estimator in coverage_estimators.iter_mut() {
+                    estimator.add_contig(&ups_and_downs)
+                }
+                let coverages: Vec<f32> = coverage_estimators.iter_mut()
+                    .map(|estimator| estimator.calculate_coverage(0)).collect();
+                if print_zero_coverage_contigs ||
+                    coverages.iter().any(|&coverage| coverage > 0.0) {
+                        print_contig(
+                            stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                            print_stream);
+                        for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
+                            estimator.print_coverage(
+                                &stoit_name,
+                                std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                                &coverage,
+                                print_stream);
+                            estimator.setup();
+                        }
+                        write!(print_stream, "\n");
+                    }
+            }
+            if print_zero_coverage_contigs {
+                print_previous_zero_coverage_contigs(
+                    match last_tid { -2 => -1, _ => last_tid},
+                    tid, stoit_name, coverage_estimators, &target_names, print_stream);
+            }
+        };
+
 
         // for record in records
         while bam_generated.read(&mut record).is_ok() {
@@ -41,41 +74,7 @@ pub fn contig_coverage<R: NamedBamReader,
                 num_mapped_reads += 1;
                 // if reference has changed, print the last record
                 if tid != last_tid {
-                    for (i, mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-                        if last_tid != -2 { // if this new record is from the second contig or after
-                            coverage_estimator.add_contig(&ups_and_downs);
-                            let coverage = coverage_estimator.calculate_coverage(0);
-
-                            if coverage > 0.0 {
-                                if i == 0 {
-                                    print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-                                }
-                                coverage_estimator.print_coverage(
-                                    &stoit_name,
-                                    std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                                    &coverage,
-                                    print_stream);
-                                if i+1 == num_estimators {
-                                    write!(print_stream, "\n");
-                                }
-                            } else if print_zero_coverage_contigs {
-                                if i == 0 {
-                                    print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-                                }
-                                coverage_estimator.print_zero_coverage(
-                                    print_stream);
-                                if i+1 == num_estimators {
-                                    write!(print_stream, "\n");
-                                }
-                            }
-                            coverage_estimator.setup();
-                        }
-                    }
-                    if print_zero_coverage_contigs {
-                        print_previous_zero_coverage_contigs(
-                            match last_tid { -2 => -1, _ => last_tid},
-                            tid, stoit_name, coverage_estimators, &target_names, print_stream);
-                    }
+                    process_previous_contigs(last_tid, tid, coverage_estimators, ups_and_downs);
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     debug!("Working on new reference {}",
                            std::str::from_utf8(target_names[tid as usize]).unwrap());
@@ -109,41 +108,7 @@ pub fn contig_coverage<R: NamedBamReader,
             }
         }
 
-        if last_tid != -2 {
-            for (i, mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-                coverage_estimator.add_contig(&ups_and_downs);
-                let coverage = coverage_estimator.calculate_coverage(0);
-
-                if coverage > 0.0 {
-                    if i == 0 {
-                        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-                    }
-                    coverage_estimator.print_coverage(
-                        &stoit_name,
-                        std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                        &coverage,
-                        print_stream);
-                    if i+1 == num_estimators {
-                        write!(print_stream, "\n");
-                    }
-                } else if print_zero_coverage_contigs {
-                    if i == 0 {
-                        print_contig(stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(), print_stream);
-                    }
-                    coverage_estimator.print_zero_coverage(
-                        print_stream);
-                    if i+1 == num_estimators {
-                        write!(print_stream, "\n");
-                    }
-                }
-            }
-            // print zero coverage contigs at the end
-            if print_zero_coverage_contigs {
-                print_previous_zero_coverage_contigs(
-                    last_tid, target_names.len() as i32, stoit_name,
-                    coverage_estimators, &target_names, print_stream);
-            }
-        }
+        process_previous_contigs(last_tid, target_names.len() as i32, coverage_estimators, ups_and_downs);
 
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
               stoit_name, num_mapped_reads,
@@ -324,6 +289,46 @@ mod tests {
         assert_eq!(
             "2seqs.reads_for_seq1\tseq1\t0.0\n".to_owned()+
                 "2seqs.reads_for_seq1\tseq2\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            &mut stream,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.0),
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+            ),
+            false,
+            false);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tseq1\t1.2\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes_reverse_order(){
+        let mut stream = Cursor::new(Vec::new());
+        contig_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            &mut stream,
+            &mut vec!(
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
+                CoverageEstimator::new_estimator_mean(0.0),
+            ),
+            false,
+            false);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tseq1\t0.0\t1.2\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
 }
