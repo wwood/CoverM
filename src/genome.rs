@@ -988,4 +988,92 @@ mod tests {
             "2seqs.reads_for_seq1.with_unmapped\tgenome1\t1.4995\n",
             str::from_utf8(stream.get_ref()).unwrap())
     }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes_single_genome(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            'q' as u8,
+            &mut stream,
+            true,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.0),
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+            ),
+            false,
+            true);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tgenome1\t0.6\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes_single_genome_reverse(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            'q' as u8,
+            &mut stream,
+            true,
+            &mut vec!(
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_mean(0.0),
+            ),
+            false,
+            true);
+        assert_eq!(
+            "2seqs.reads_for_seq1\tgenome1\t0.0\t0.6\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes_separator(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/7seqs.reads_for_seq1.bam"]),
+            '~' as u8,
+            &mut stream,
+            true,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.0),
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0)
+            ),
+            false,
+            false);
+        assert_eq!(
+            "7seqs.reads_for_seq1\tgenome1\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome2\t1.2\t0.0\n7seqs.reads_for_seq1\tgenome3\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome4\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome5\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome6\t0.0\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    #[test]
+    fn test_multiple_outputs_one_zero_no_print_zeroes_separator_reverse(){
+        let mut stream = Cursor::new(Vec::new());
+        mosdepth_genome_coverage(
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/7seqs.reads_for_seq1.bam"]),
+            '~' as u8,
+            &mut stream,
+            true,
+            &mut vec!(
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0),
+                CoverageEstimator::new_estimator_mean(0.0),
+            ),
+            false,
+            false);
+        assert_eq!(
+            "7seqs.reads_for_seq1\tgenome1\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome2\t0.0\t1.2\n7seqs.reads_for_seq1\tgenome3\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome4\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome5\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome6\t0.0\t0.0\n",
+            str::from_utf8(stream.get_ref()).unwrap())
+    }
 }
