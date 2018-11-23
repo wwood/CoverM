@@ -2,14 +2,16 @@ use std;
 use rust_htslib::bam;
 use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
+use coverage_formatters::*;
 
 use rust_htslib::bam::record::Cigar;
 
 
 pub fn contig_coverage<R: NamedBamReader,
-                       G: NamedBamReaderGenerator<R>>(
+                       G: NamedBamReaderGenerator<R>,
+                       T: CoverageTaker>(
     bam_readers: Vec<G>,
-    print_stream: &mut std::io::Write,
+    coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
     flag_filtering: bool) {
@@ -37,24 +39,22 @@ pub fn contig_coverage<R: NamedBamReader,
                     .map(|estimator| estimator.calculate_coverage(0)).collect();
                 if print_zero_coverage_contigs ||
                     coverages.iter().any(|&coverage| coverage > 0.0) {
-                        print_contig(
-                            stoit_name, std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            print_stream);
+                        coverage_taker.start_entry(
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
+                            stoit_name);
                         for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
                             estimator.print_coverage(
-                                &stoit_name,
-                                std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
                                 &coverage,
-                                print_stream);
+                                coverage_taker);
                             estimator.setup();
                         }
-                        write!(print_stream, "\n");
+                        coverage_taker.finish_entry();
                     }
             }
             if print_zero_coverage_contigs {
                 print_previous_zero_coverage_contigs(
                     match last_tid { -2 => -1, _ => last_tid},
-                    tid, stoit_name, coverage_estimators, &target_names, print_stream);
+                    tid, stoit_name, coverage_estimators, &target_names, coverage_taker);
             }
         };
 
@@ -120,33 +120,24 @@ pub fn contig_coverage<R: NamedBamReader,
 }
 
 
-fn print_previous_zero_coverage_contigs(
+fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
     last_tid: i32,
     current_tid: i32,
     stoit_name: &str,
     coverage_estimators: &Vec<CoverageEstimator>,
     target_names: &Vec<&[u8]>,
-    print_stream: &mut std::io::Write) {
+    coverage_taker: &mut T) {
     let mut my_tid = last_tid + 1;
     while my_tid < current_tid {
-        print_contig(stoit_name,
-                     std::str::from_utf8(target_names[my_tid as usize]).unwrap(),
-                     print_stream);
+        coverage_taker.start_entry(
+            std::str::from_utf8(target_names[my_tid as usize]).unwrap(),
+            stoit_name);
         for ref coverage_estimator in coverage_estimators.iter() {
-            coverage_estimator.print_zero_coverage(print_stream);
+            coverage_estimator.print_zero_coverage(coverage_taker);
         }
-        write!(print_stream, "\n");
+        coverage_taker.finish_entry();
         my_tid += 1;
     };
-}
-
-fn print_contig<'a >(stoit_name: &str,
-                     contig: &str,
-                     print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
-    write!(print_stream, "{}\t{}",
-           stoit_name,
-           contig).unwrap();
-    return print_stream;
 }
 
 
@@ -157,71 +148,76 @@ mod tests {
     use std::io::Cursor;
     use std::str;
 
+    fn test_with_stream<R: NamedBamReader,
+                        G: NamedBamReaderGenerator<R>>(
+        expected: &str,
+        bam_readers: Vec<G>,
+        coverage_estimators: &mut Vec<CoverageEstimator>,
+        print_zero_coverage_contigs: bool,
+        flag_filtering: bool) {
+        let mut stream = Cursor::new(Vec::new());
+        {
+            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+                print_stream: &mut stream};
+            contig_coverage(
+                bam_readers,
+                &mut coverage_taker,
+                coverage_estimators,
+                print_zero_coverage_contigs,
+                flag_filtering);
+        }
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+    }
+
     #[test]
     fn test_one_genome_two_contigs_first_covered_no_zeros(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
-        assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0.0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             true,
             false);
-        assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_flag_filtering(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/1.bam"]),
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             true);
-        assert_eq!(
-            "",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_one_contig_variance(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            &("2seqs.reads_for_seq1\tseq1\t0.9489489\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0.0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_variance(0.0,0)),
             true,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1\tseq1\t0.9489489\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_streaming_bam_file(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             vec![
                 generate_named_bam_readers_from_read_couple(
                     "tests/data/7seqs.fna",
@@ -229,76 +225,59 @@ mod tests {
                     "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                     4,
                     None)],
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
             false);
-        assert_eq!(
-            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_multiple_coverage_methods(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            &("2seqs.reads_for_seq1\tseq1\t1.2\t0.9489489\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0.0\t0.0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
             &mut vec!(
                 CoverageEstimator::new_estimator_mean(0.0,0),
                 CoverageEstimator::new_estimator_variance(0.0,0)
             ),
             true,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1\tseq1\t1.2\t0.9489489\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_julian_error(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "2seqs.reads_for_seq1.with_unmapped\tseq1\t1.499
+2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
             // has unmapped reads, which caused problems with --no-flag-filter.
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
-            &mut stream,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             true,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1.with_unmapped\tseq1\t1.499
-2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_trimmed_mean_bug(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            &("2seqs.reads_for_seq1\tseq1\t0.0\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0.0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
             &mut vec!(
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
             ),
             true,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1\tseq1\t0.0\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "2seqs.reads_for_seq1\tseq1\t1.2\t0.0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
             &mut vec!(
                 CoverageEstimator::new_estimator_mean(0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
@@ -307,18 +286,14 @@ mod tests {
             ),
             false,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1\tseq1\t1.2\t0.0\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_reverse_order(){
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            "2seqs.reads_for_seq1\tseq1\t0.0\t1.2\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            &mut stream,
             &mut vec!(
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
@@ -327,19 +302,16 @@ mod tests {
             ),
             false,
             false);
-        assert_eq!(
-            "2seqs.reads_for_seq1\tseq1\t0.0\t1.2\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 
     #[test]
     fn test_contig_end_exclusion(){
         // From https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage
-        let mut stream = Cursor::new(Vec::new());
-        contig_coverage(
+        test_with_stream(
+            &("7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t1.3049262\n".to_owned()+
+                "7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t0.6862065\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut stream,
             &mut vec!(
                 CoverageEstimator::new_estimator_mean(0.0,75),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
@@ -348,9 +320,5 @@ mod tests {
             ),
             false,
             false);
-        assert_eq!(
-            "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t1.3049262\n".to_owned()+
-            "7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t0.6862065\n",
-            str::from_utf8(stream.get_ref()).unwrap())
     }
 }

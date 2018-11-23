@@ -3,6 +3,7 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
+use coverm::coverage_formatters::SingleFloatCoverageStreamingCoveragePrinter;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -39,6 +40,11 @@ fn main(){
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
 
+            let mut stream = std::io::stdout();
+            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+                print_stream: &mut stream
+            };
+
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
             write!(print_stream, "Sample\tGenome");
@@ -63,14 +69,14 @@ fn main(){
                             filter_params.min_aligned_percent),
                         m,
                         &mut coverage_estimators,
-                        print_stream);
+                        &mut coverage_taker);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
                         &mut coverage_estimators,
-                        print_stream);
+                        &mut coverage_taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -83,7 +89,7 @@ fn main(){
                             generator_set.generators,
                             m,
                             &mut coverage_estimators,
-                            print_stream);
+                            &mut coverage_taker);
                     }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
@@ -92,7 +98,7 @@ fn main(){
                             generator_set.generators,
                             m,
                             &mut coverage_estimators,
-                            print_stream);
+                            &mut coverage_taker);
                     }
                 }
             }
@@ -103,6 +109,11 @@ fn main(){
             let print_zeros = !m.is_present("no-zeros");
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
+
+            let mut stream = std::io::stdout();
+            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+                print_stream: &mut stream
+            };
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
@@ -125,11 +136,11 @@ fn main(){
                         filter_params.min_aligned_length,
                         filter_params.min_percent_identity,
                         filter_params.min_aligned_percent);
-                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, print_stream);
+                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, &mut coverage_taker);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
-                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, print_stream);
+                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, &mut coverage_taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -140,7 +151,7 @@ fn main(){
                     for generator_set in generator_sets {
                         run_contig(&mut coverage_estimators,
                                    generator_set.generators,
-                                   print_zeros, flag_filter, print_stream);
+                                   print_zeros, flag_filter, &mut coverage_taker);
                     }
                 } else {
                     debug!("Not filtering..");
@@ -148,7 +159,7 @@ fn main(){
                     for generator_set in generator_sets {
                         run_contig(&mut coverage_estimators,
                                    generator_set.generators,
-                                   print_zeros, flag_filter, print_stream);
+                                   print_zeros, flag_filter, &mut coverage_taker);
                     }
                 }
             }
@@ -245,11 +256,12 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
 }
 
 fn run_genome<R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>,
+              C: coverm::coverage_formatters::CoverageTaker>(
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
     coverage_estimators: &mut Vec<CoverageEstimator>,
-    print_stream: &mut std::io::Write) {
+    coverage_taker: &mut C) {
 
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
@@ -272,7 +284,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         coverm::genome::mosdepth_genome_coverage(
             bam_generators,
             separator,
-            print_stream,
+            coverage_taker,
             print_zeros,
             coverage_estimators,
             flag_filter,
@@ -320,12 +332,12 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
             panic!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
         }
         coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                                                            bam_generators,
-                                                            &genomes_and_contigs,
-                                                            print_stream,
-                                                            print_zeros,
-                                                            flag_filter,
-                                                            coverage_estimators);
+            bam_generators,
+            &genomes_and_contigs,
+            coverage_taker,
+            print_zeros,
+            flag_filter,
+            coverage_estimators);
     }
 }
 
@@ -613,16 +625,17 @@ fn get_streamed_filtered_bam_readers(
 
 
 fn run_contig<R: coverm::bam_generator::NamedBamReader,
-        T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>,
+              C: coverm::coverage_formatters::CoverageTaker>(
     coverage_estimators: &mut Vec<CoverageEstimator>,
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filter: bool,
-    print_stream: &mut std::io::Write) {
+    coverage_taker: &mut C) {
 
     coverm::contig::contig_coverage(
         bam_readers,
-        print_stream,
+        coverage_taker,
         coverage_estimators,
         print_zeros,
         flag_filter);
@@ -753,7 +766,8 @@ Other arguments (optional):
                                               coverage_histogram
                                               covered_fraction
                                               variance
-   --min-covered-fraction FRACTION       Genomes with less coverage than this
+   --min-covered-fraction FRACTION       Genom
+es with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
    --contig-end-exclusion                Exclude bases at the ends of reference

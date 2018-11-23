@@ -1,4 +1,4 @@
-use std;
+use coverage_formatters::CoverageTaker;
 
 #[derive(Clone, Debug)]
 pub enum CoverageEstimator {
@@ -124,12 +124,12 @@ pub trait MosdepthGenomeCoverageEstimator {
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
 
-    fn print_coverage<'a >(&self,
-                           stoit_name: &str, genome: &str, coverage: &f32,
-                           print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write;
+    fn print_coverage<T: CoverageTaker>(
+        &self,
+        coverage: &f32,
+        coverage_taker: &mut T);
 
-    fn print_zero_coverage<'a>(&self,
-                               print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write;
+    fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T);
 
     fn copy(&self) -> CoverageEstimator;
 }
@@ -511,26 +511,22 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
         }
     }
 
-    fn print_coverage<'a >(&self,
-                           stoit_name: &str, genome: &str, coverage: &f32,
-                           print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write{
+    fn print_coverage<T: CoverageTaker>(
+        &self,
+        coverage: &f32,
+        coverage_taker:&mut T) {
+
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator {..} |
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
-                if *coverage == 0.0 {
-                    write!(print_stream, "\t0.0").unwrap()
-                } else {
-                    write!(print_stream, "\t{}", coverage).unwrap()
-                }
-                return print_stream;
+                coverage_taker.add_single_coverage(*coverage);
             },
             CoverageEstimator::PileupCountsGenomeCoverageEstimator {
                 counts, ..
             } => {
                 let mut i = 0;
-                debug!("starting to print {}", genome);
                 debug!("{:?}", counts);
                 for num_covered in counts.iter() {
                     let cov: u32 = match i {
@@ -543,33 +539,22 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         },
                         _ => *num_covered
                     };
-                    if i == 0 {
-                        writeln!(print_stream, "\t{:}\t{:}", i, cov).unwrap();
-                    } else if i+1 == counts.clone().iter().len(){
-                        write!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
-                    } else {
-                        writeln!(print_stream, "{}\t{}\t{:}\t{:}", stoit_name, genome, i, cov).unwrap();
-                    }
+                    coverage_taker.add_coverage_entry(i, cov);
                     i += 1
                 }
-                return print_stream;
             }
         }
     }
 
-    fn print_zero_coverage<'a >(&self,
-                                print_stream: &'a mut std::io::Write) -> &'a mut std::io::Write {
+    fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T) {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator{..} |
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
-                write!(print_stream, "\t0.0").unwrap();
-                return print_stream;
+                coverage_taker.add_single_coverage(0.0);
             },
-            CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {
-                return print_stream
-            }
+            CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {}
         }
     }
 }
