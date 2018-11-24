@@ -3,7 +3,7 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
-use coverm::coverage_formatters::SingleFloatCoverageStreamingCoveragePrinter;
+use coverm::coverage_formatters::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -40,13 +40,10 @@ fn main(){
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
 
-            let mut stream = std::io::stdout();
-            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
-                print_stream: &mut stream
-            };
-
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
+            let mut stream = std::io::stdout();
+            let mut coverage_taker = generate_coverage_taker(&methods, &m, &mut stream);
             write!(print_stream, "Sample\tGenome");
             for method in methods {
                 let estimator = generate_coverage_estimator(method, m);
@@ -69,14 +66,14 @@ fn main(){
                             filter_params.min_aligned_percent),
                         m,
                         &mut coverage_estimators,
-                        &mut coverage_taker);
+                        coverage_taker);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
                         &mut coverage_estimators,
-                        &mut coverage_taker);
+                        coverage_taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -85,20 +82,20 @@ fn main(){
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_genome(
+                        coverage_taker = run_genome(
                             generator_set.generators,
                             m,
                             &mut coverage_estimators,
-                            &mut coverage_taker);
+                            coverage_taker);
                     }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_genome(
+                        coverage_taker = run_genome(
                             generator_set.generators,
                             m,
                             &mut coverage_estimators,
-                            &mut coverage_taker);
+                            coverage_taker);
                     }
                 }
             }
@@ -110,13 +107,10 @@ fn main(){
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
 
-            let mut stream = std::io::stdout();
-            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
-                print_stream: &mut stream
-            };
-
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
+            let mut stream = std::io::stdout();
+            let mut coverage_taker = generate_coverage_taker(&methods, &m, &mut stream);
             write!(print_stream, "Sample\tContig");
             for method in methods {
                 let estimator = generate_coverage_estimator(method, m);
@@ -249,6 +243,25 @@ fn generate_coverage_estimator(
     return estimator;
 }
 
+fn generate_coverage_taker<'a>(methods: &Vec<&str>, _m: &clap::ArgMatches, stream: &'a mut std::io::Stdout)
+                           -> CoverageTakerType<'a> {
+    if methods.contains(&"coverage_histogram") {
+        if methods.len() > 1 {
+            panic!("Cannot specify the coverage_histogram method with any other coverage methods")
+        } else {
+            return CoverageTakerType::PileupCoverageCoveragePrinter {
+                print_stream: stream,
+                current_stoit: None,
+                current_entry: None
+            }
+        }
+    } else {
+        return CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
+            print_stream: stream
+        }
+    }
+}
+
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
         m.is_present("min-percent-identity") ||
@@ -261,7 +274,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
     coverage_estimators: &mut Vec<CoverageEstimator>,
-    coverage_taker: &mut C) {
+    mut coverage_taker: C) -> C {
 
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
@@ -284,7 +297,7 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         coverm::genome::mosdepth_genome_coverage(
             bam_generators,
             separator,
-            coverage_taker,
+            &mut coverage_taker,
             print_zeros,
             coverage_estimators,
             flag_filter,
@@ -334,11 +347,12 @@ fn run_genome<R: coverm::bam_generator::NamedBamReader,
         coverm::genome::mosdepth_genome_coverage_with_contig_names(
             bam_generators,
             &genomes_and_contigs,
-            coverage_taker,
+            &mut coverage_taker,
             print_zeros,
             flag_filter,
             coverage_estimators);
     }
+    return coverage_taker;
 }
 
 struct FilterParameters {

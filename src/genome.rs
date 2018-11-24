@@ -543,7 +543,7 @@ mod tests {
         single_genome: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
                 print_stream: &mut stream};
             mosdepth_genome_coverage(
                 bam_readers,
@@ -557,8 +557,35 @@ mod tests {
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
     }
 
+    fn test_streaming_with_stream_pileup_counts<R: NamedBamReader,
+                                                G: NamedBamReaderGenerator<R>>(
+        expected: &str,
+        bam_readers: Vec<G>,
+        separator: u8,
+        print_zero_coverage_contigs: bool,
+        coverage_estimators: &mut Vec<CoverageEstimator>,
+        flag_filtering: bool,
+        single_genome: bool) {
+        let mut stream = Cursor::new(Vec::new());
+        {
+            let mut coverage_taker = CoverageTakerType::PileupCoverageCoveragePrinter {
+                print_stream: &mut stream,
+                current_stoit: None,
+                current_entry: None};
+            mosdepth_genome_coverage(
+                bam_readers,
+                separator,
+                &mut coverage_taker,
+                print_zero_coverage_contigs,
+                coverage_estimators,
+                flag_filtering,
+                single_genome);
+        }
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+    }
+
     fn test_contig_names_with_stream<R: NamedBamReader,
-                                  G: NamedBamReaderGenerator<R>>(
+                                     G: NamedBamReaderGenerator<R>>(
         expected: &str,
         bam_readers: Vec<G>,
         geco: &GenomesAndContigs,
@@ -568,8 +595,34 @@ mod tests {
     ) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
                 print_stream: &mut stream};
+            mosdepth_genome_coverage_with_contig_names(
+                bam_readers,
+                geco,
+                &mut coverage_taker,
+                print_zero_coverage_contigs,
+                flag_filtering,
+                coverage_estimators);
+        }
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+    }
+
+    fn test_contig_names_with_stream_pileup_counts<R: NamedBamReader,
+                                                   G: NamedBamReaderGenerator<R>>(
+        expected: &str,
+        bam_readers: Vec<G>,
+        geco: &GenomesAndContigs,
+        print_zero_coverage_contigs: bool,
+        flag_filtering: bool,
+        coverage_estimators: &mut Vec<CoverageEstimator>,
+    ) {
+        let mut stream = Cursor::new(Vec::new());
+        {
+            let mut coverage_taker = CoverageTakerType::PileupCoverageCoveragePrinter {
+                print_stream: &mut stream,
+                current_stoit: None,
+                current_entry: None};
             mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
@@ -748,7 +801,7 @@ mod tests {
 
     #[test]
     fn test_two_contigs_pileup_counts_estimator(){
-        test_streaming_with_stream(
+        test_streaming_with_stream_pileup_counts(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
@@ -764,7 +817,7 @@ mod tests {
         let genome1 = geco.establish_genome("s".to_string());
         geco.insert("seq1".to_string(),genome1);
         geco.insert("seq2".to_string(),genome1);
-        test_contig_names_with_stream(
+        test_contig_names_with_stream_pileup_counts(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,

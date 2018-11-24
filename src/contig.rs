@@ -157,7 +157,7 @@ mod tests {
         flag_filtering: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = SingleFloatCoverageStreamingCoveragePrinter {
+            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
                 print_stream: &mut stream};
             contig_coverage(
                 bam_readers,
