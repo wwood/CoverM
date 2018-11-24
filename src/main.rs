@@ -249,16 +249,11 @@ fn generate_coverage_taker<'a>(methods: &Vec<&str>, _m: &clap::ArgMatches, strea
         if methods.len() > 1 {
             panic!("Cannot specify the coverage_histogram method with any other coverage methods")
         } else {
-            return CoverageTakerType::PileupCoverageCoveragePrinter {
-                print_stream: stream,
-                current_stoit: None,
-                current_entry: None
-            }
+            CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
         }
     } else {
-        return CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
-            print_stream: stream
-        }
+        CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+            stream)
     }
 }
 

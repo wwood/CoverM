@@ -25,6 +25,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
+        coverage_taker.start_stoit(&stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
@@ -170,8 +171,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     // Print coverage of previous genome
                     debug!("Found coverage {} for genome {}", coverage, genome);
                     if coverage > 0.0 {
-                        if j == 0 as usize{
-                            coverage_taker.start_entry(&genome, &stoit_name);
+                        if j == 0 as usize {
+                            coverage_taker.start_entry(&genome);
                         }
                         coverage_estimator.print_coverage(
                             &coverage,
@@ -181,7 +182,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                         }
                     } else if print_zero_coverage_genomes {
                         if j == 0 as usize {
-                            coverage_taker.start_entry(&genome, &stoit_name);
+                            coverage_taker.start_entry(&genome);
                         }
                         coverage_estimator.print_zero_coverage(coverage_taker);
                         if j+1 == coverage_estimators.len() {
@@ -217,6 +218,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
+        coverage_taker.start_stoit(&stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
@@ -317,7 +319,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
 
                         if print_zero_coverage_genomes && !single_genome {
                             print_previous_zero_coverage_genomes2(
-                                stoit_name, b"", current_genome, tid, &coverage_estimators,
+                                b"", current_genome, tid, &coverage_estimators,
                                 &target_names, split_char, coverage_taker);
                         }
 
@@ -344,7 +346,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         // Print coverage of previous genome
                         if coverage > 0.0 {
                             if i == 0 {
-                                coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap(), stoit_name);
+                                coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap());
                             }
                             coverage_estimator.print_coverage(
                                 &coverage,
@@ -354,7 +356,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             }
                         } else if print_zero_coverage_genomes {
                             if i == 0 {
-                                coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap(), stoit_name);
+                                coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap());
                             }
                             coverage_estimator.print_zero_coverage(coverage_taker);
                             if i+1 == num_estimators {
@@ -366,7 +368,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         }
                         if print_zero_coverage_genomes {
                             print_previous_zero_coverage_genomes2(
-                                stoit_name, last_genome, current_genome, tid, &coverage_estimators,
+                                last_genome, current_genome, tid, &coverage_estimators,
                                 &target_names, split_char, coverage_taker);
                         }
                         last_genome = current_genome;
@@ -425,7 +427,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 // Print coverage of previous genome
                 if coverage > 0.0 {
                     if i == 0 {
-                        coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap(), stoit_name);
+                        coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap());
                     }
                     coverage_estimator.print_coverage(
                         &coverage,
@@ -435,7 +437,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     }
                 } else if print_zero_coverage_genomes {
                     if i == 0 {
-                        coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap(), stoit_name);
+                        coverage_taker.start_entry(&str::from_utf8(last_genome).unwrap());
                     }
                     coverage_estimator.print_zero_coverage(coverage_taker);
                     if i+1 == num_estimators {
@@ -446,7 +448,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
             if print_zero_coverage_genomes && !single_genome {
                 print_previous_zero_coverage_genomes2(
-                    stoit_name, last_genome, b"", header.target_count() - 1, &coverage_estimators,
+                    last_genome, b"", header.target_count() - 1, &coverage_estimators,
                     &target_names, split_char, coverage_taker);
             }
         }
@@ -476,7 +478,6 @@ fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) ->
 // detected from the header, counting backwards from the current tid until the
 // last seen genome is encountered, or we reach the beginning of the tid array.
 fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
-    stoit_name: &str,
     last_genome: &[u8],
     current_genome: &[u8],
     current_tid: u32,
@@ -500,7 +501,7 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
         tid = tid - 1;
     };
     for i in (0..genomes_to_print.len()).rev() {
-        coverage_taker.start_entry(&str::from_utf8(genomes_to_print[i]).unwrap(), stoit_name);
+        coverage_taker.start_entry(&str::from_utf8(genomes_to_print[i]).unwrap());
         for coverage_estimator in pileup_coverage_estimators {
             coverage_estimator.print_zero_coverage(coverage_taker);
         }
@@ -543,8 +544,8 @@ mod tests {
         single_genome: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
-                print_stream: &mut stream};
+            let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                &mut stream);
             mosdepth_genome_coverage(
                 bam_readers,
                 separator,
@@ -568,10 +569,8 @@ mod tests {
         single_genome: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = CoverageTakerType::PileupCoverageCoveragePrinter {
-                print_stream: &mut stream,
-                current_stoit: None,
-                current_entry: None};
+            let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
+                &mut stream);
             mosdepth_genome_coverage(
                 bam_readers,
                 separator,
@@ -595,8 +594,8 @@ mod tests {
     ) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
-                print_stream: &mut stream};
+            let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                &mut stream);
             mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
@@ -619,10 +618,8 @@ mod tests {
     ) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = CoverageTakerType::PileupCoverageCoveragePrinter {
-                print_stream: &mut stream,
-                current_stoit: None,
-                current_entry: None};
+            let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
+                &mut stream);
             mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,

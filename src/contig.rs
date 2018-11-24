@@ -20,6 +20,7 @@ pub fn contig_coverage<R: NamedBamReader,
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
+        coverage_taker.start_stoit(stoit_name);
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut last_tid: i32 = -2; // no such tid in a real BAM file
         let mut ups_and_downs: Vec<i32> = Vec::new();
@@ -40,8 +41,7 @@ pub fn contig_coverage<R: NamedBamReader,
                 if print_zero_coverage_contigs ||
                     coverages.iter().any(|&coverage| coverage > 0.0) {
                         coverage_taker.start_entry(
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
-                            stoit_name);
+                            std::str::from_utf8(target_names[last_tid as usize]).unwrap());
                         for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
                             estimator.print_coverage(
                                 &coverage,
@@ -54,7 +54,7 @@ pub fn contig_coverage<R: NamedBamReader,
             if print_zero_coverage_contigs {
                 print_previous_zero_coverage_contigs(
                     match last_tid { -2 => -1, _ => last_tid},
-                    tid, stoit_name, coverage_estimators, &target_names, coverage_taker);
+                    tid, coverage_estimators, &target_names, coverage_taker);
             }
         };
 
@@ -123,15 +123,13 @@ pub fn contig_coverage<R: NamedBamReader,
 fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
     last_tid: i32,
     current_tid: i32,
-    stoit_name: &str,
     coverage_estimators: &Vec<CoverageEstimator>,
     target_names: &Vec<&[u8]>,
     coverage_taker: &mut T) {
     let mut my_tid = last_tid + 1;
     while my_tid < current_tid {
         coverage_taker.start_entry(
-            std::str::from_utf8(target_names[my_tid as usize]).unwrap(),
-            stoit_name);
+            std::str::from_utf8(target_names[my_tid as usize]).unwrap());
         for ref coverage_estimator in coverage_estimators.iter() {
             coverage_estimator.print_zero_coverage(coverage_taker);
         }
@@ -157,8 +155,8 @@ mod tests {
         flag_filtering: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
-            let mut coverage_taker = CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
-                print_stream: &mut stream};
+            let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                &mut stream);
             contig_coverage(
                 bam_readers,
                 &mut coverage_taker,
