@@ -41,6 +41,7 @@ pub fn contig_coverage<R: NamedBamReader,
                 if print_zero_coverage_contigs ||
                     coverages.iter().any(|&coverage| coverage > 0.0) {
                         coverage_taker.start_entry(
+                            last_tid as usize,
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap());
                         for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
                             estimator.print_coverage(
@@ -129,6 +130,7 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
     let mut my_tid = last_tid + 1;
     while my_tid < current_tid {
         coverage_taker.start_entry(
+            last_tid as usize,
             std::str::from_utf8(target_names[my_tid as usize]).unwrap());
         for ref coverage_estimator in coverage_estimators.iter() {
             coverage_estimator.print_zero_coverage(coverage_taker);

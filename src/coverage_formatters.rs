@@ -14,7 +14,7 @@ pub enum CoverageTakerType<'a> {
 
 pub trait CoverageTaker {
     fn start_stoit(&mut self, stoit_name: &str);
-    fn start_entry(&mut self, entry_name: &str);
+    fn start_entry(&mut self, entry_order_id: usize, entry_name: &str);
     fn add_single_coverage(&mut self, coverage: f32);
     // This function is only used with
     // CoverageEstimator::PileupCountsGenomeCoverageEstimator, and is a bit of a
@@ -60,7 +60,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
         }
     }
 
-    fn start_entry(&mut self, entry_name: &str) {
+    fn start_entry(&mut self, _entry_order_id: usize, entry_name: &str) {
         match self {
             CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter{
                 print_stream,
