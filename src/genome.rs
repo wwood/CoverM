@@ -10,6 +10,7 @@ use mosdepth_genome_coverage_estimators::*;
 use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
 use coverage_formatters::*;
+use ReadsMapped;
 
 pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>,
@@ -19,7 +20,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     flag_filtering: bool,
-    coverage_estimators: &mut Vec<CoverageEstimator>) {
+    coverage_estimators: &mut Vec<CoverageEstimator>)
+    -> Vec<ReadsMapped> {
+
+    let mut reads_mapped_vector = vec!();
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -193,13 +197,19 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             }
         }
 
+        let reads_mapped = ReadsMapped {
+            num_mapped_reads: num_mapped_reads,
+            num_reads: bam_generated.num_detected_primary_alignments()
+        };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
-              stoit_name, num_mapped_reads,
-              bam_generated.num_detected_primary_alignments(), 2,
-              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
+              stoit_name, reads_mapped.num_mapped_reads,
+              reads_mapped.num_reads, 2,
+              (reads_mapped.num_mapped_reads * 100) as f64 / reads_mapped.num_reads as f64);
+        reads_mapped_vector.push(reads_mapped);
 
         bam_generated.finish();
     }
+    return reads_mapped_vector;
 }
 
 
@@ -212,14 +222,16 @@ struct UnobservedLengthAndFirstTid {
 
 pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                 G: NamedBamReaderGenerator<R>,
-                                T: CoverageTaker>(
+                                T: CoverageTaker> (
     bam_readers: Vec<G>,
     split_char: u8,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     flag_filtering: bool,
-    single_genome: bool) {
+    single_genome: bool)
+    -> Vec<ReadsMapped> {
+    let mut reads_mapped_vector = vec!();
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -491,13 +503,19 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
         }
 
+        let reads_mapped = ReadsMapped {
+            num_mapped_reads: num_mapped_reads,
+            num_reads: bam_generated.num_detected_primary_alignments()
+        };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
-              stoit_name, num_mapped_reads,
-              bam_generated.num_detected_primary_alignments(), 2,
-              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
+              stoit_name, reads_mapped.num_mapped_reads,
+              reads_mapped.num_reads, 2,
+              (reads_mapped.num_mapped_reads * 100) as f64 / reads_mapped.num_reads as f64);
+        reads_mapped_vector.push(reads_mapped);
 
         bam_generated.finish();
     }
+    return reads_mapped_vector;
 }
 
 
@@ -585,12 +603,13 @@ mod tests {
         print_zero_coverage_contigs: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
         flag_filtering: bool,
-        single_genome: bool) {
+        single_genome: bool) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
+        let res;
         {
             let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 &mut stream);
-            mosdepth_genome_coverage(
+            res = mosdepth_genome_coverage(
                 bam_readers,
                 separator,
                 &mut coverage_taker,
@@ -599,7 +618,8 @@ mod tests {
                 flag_filtering,
                 single_genome);
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        return res;
     }
 
     fn test_streaming_with_stream_pileup_counts<R: NamedBamReader,
@@ -610,12 +630,13 @@ mod tests {
         print_zero_coverage_contigs: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
         flag_filtering: bool,
-        single_genome: bool) {
+        single_genome: bool) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
+        let res;
         {
             let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
                 &mut stream);
-            mosdepth_genome_coverage(
+            res = mosdepth_genome_coverage(
                 bam_readers,
                 separator,
                 &mut coverage_taker,
@@ -624,23 +645,25 @@ mod tests {
                 flag_filtering,
                 single_genome);
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        return res;
     }
 
     fn test_contig_names_with_stream<R: NamedBamReader,
-                                     G: NamedBamReaderGenerator<R>>(
+                                     G: NamedBamReaderGenerator<R>> (
         expected: &str,
         bam_readers: Vec<G>,
         geco: &GenomesAndContigs,
         print_zero_coverage_contigs: bool,
         flag_filtering: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
-    ) {
+    ) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
+        let res;
         {
             let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 &mut stream);
-            mosdepth_genome_coverage_with_contig_names(
+            res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
                 &mut coverage_taker,
@@ -648,7 +671,8 @@ mod tests {
                 flag_filtering,
                 coverage_estimators);
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        return res;
     }
 
     fn test_contig_names_with_stream_pileup_counts<R: NamedBamReader,
@@ -659,12 +683,13 @@ mod tests {
         print_zero_coverage_contigs: bool,
         flag_filtering: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
-    ) {
+    ) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
+        let res;
         {
             let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
                 &mut stream);
-            mosdepth_genome_coverage_with_contig_names(
+            res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
                 &mut coverage_taker,
@@ -672,7 +697,8 @@ mod tests {
                 flag_filtering,
                 coverage_estimators);
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        return res;
     }
 
     #[test]
@@ -995,7 +1021,7 @@ mod tests {
                 CoverageEstimator::new_estimator_mean(0.1,0),
                 CoverageEstimator::new_estimator_variance(0.1,0)));
 
-        test_contig_names_with_stream(
+        let reads_mapped = test_contig_names_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
@@ -1004,11 +1030,15 @@ mod tests {
             &mut vec!(
                 CoverageEstimator::new_estimator_mean(0.1,0),
                 CoverageEstimator::new_estimator_variance(0.1,0)));
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 24,
+            num_reads: 24
+        }), reads_mapped);
     }
 
     #[test]
     fn test_julian_error(){
-        test_streaming_with_stream(
+        let reads_mapped = test_streaming_with_stream(
             "2seqs.reads_for_seq1.with_unmapped\tgenome1\t1.4995\n",
             // has unmapped reads, which caused problems with --no-flag-filter.
             generate_named_bam_readers_from_bam_files(
@@ -1018,6 +1048,10 @@ mod tests {
             &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
             false,
             true);
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 20,
+            num_reads: 24
+        }), reads_mapped);
     }
 
     #[test]

@@ -51,6 +51,11 @@ pub fn read_genome_fasta_files(fasta_file_paths: &[&str]) -> GenomesAndContigs {
     return contig_to_genome;
 }
 
+#[derive(PartialEq, Debug)]
+pub struct ReadsMapped {
+    num_mapped_reads: u64,
+    num_reads: u64
+}
 
 #[cfg(test)]
 mod tests {
