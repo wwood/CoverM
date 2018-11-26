@@ -1,4 +1,5 @@
 use std;
+use std::fmt;
 
 pub enum CoverageTakerType<'a> {
     SingleFloatCoverageStreamingCoveragePrinter {
@@ -13,9 +14,40 @@ pub enum CoverageTakerType<'a> {
     CachedSingleFloatCoverageTaker {
         stoit_names: Vec<String>,
         entry_names: Vec<Option<String>>,
+        // list of per-stoit lists of recorded coverages
         coverages: Vec<Vec<CoverageEntry>>,
         current_stoit_index: Option<usize>,
         current_entry_index: Option<usize>,
+        // indices for iterating
+        iter_next_entry_indices: Vec<usize>, // indexes into coverages[stoit]
+        iter_current_stoit_index: usize, // indexes into coverages
+        iter_last_entry_order_index: Option<usize>, // index into entry_names
+        num_coverages: usize, // number of different coverage calculations
+    }
+}
+
+impl<'a> std::fmt::Debug for CoverageTakerType<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CoverageTakerType::CachedSingleFloatCoverageTaker {
+                stoit_names,
+                entry_names:_,
+                coverages:_,
+                current_stoit_index:_,
+                current_entry_index:_,
+                iter_next_entry_indices,
+                iter_current_stoit_index,
+                iter_last_entry_order_index, ..
+            } => {
+                fmt.debug_struct("CachedSingleFloatCoverageTaker")
+                    .field("stoit_names", stoit_names)
+                    .field("iter_next_entry_indicies", iter_next_entry_indices)
+                    .field("iter_current_stoit_index", iter_current_stoit_index)
+                    .field("iter_last_entry_order_index", iter_last_entry_order_index)
+                    .finish()
+            },
+            _ => {panic!()}
+        }
     }
 }
 
@@ -52,13 +84,17 @@ impl<'a> CoverageTakerType<'a> {
             current_entry: None
         }
     }
-    pub fn new_cached_single_float_coverage_taker() -> CoverageTakerType<'a> {
+    pub fn new_cached_single_float_coverage_taker(num_coverages: usize) -> CoverageTakerType<'a> {
         CoverageTakerType::CachedSingleFloatCoverageTaker {
             stoit_names: vec!(),
             entry_names: vec!(),
             coverages: vec!(),
             current_stoit_index: None,
-            current_entry_index: None
+            current_entry_index: None,
+            iter_next_entry_indices: vec!(),
+            iter_current_stoit_index: 0,
+            iter_last_entry_order_index: None,
+            num_coverages: num_coverages,
         }
     }
 }
@@ -83,11 +119,14 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 ref mut stoit_names,
                 entry_names: _,
                 ref mut coverages,
-                ref mut current_stoit_index, ..
+                ref mut current_stoit_index,
+                current_entry_index: _,
+                ref mut iter_next_entry_indices, ..
             } => {
                 stoit_names.push(stoit_name.to_owned());
                 coverages.push(vec!());
-                *current_stoit_index = Some(stoit_names.len() - 1)
+                *current_stoit_index = Some(stoit_names.len() - 1);
+                iter_next_entry_indices.push(0);
             }
         }
     }
@@ -116,7 +155,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 ref mut entry_names,
                 coverages: _,
                 current_stoit_index: _,
-                ref mut current_entry_index
+                ref mut current_entry_index, ..
             } => {
                 // if the first time this entry has been seen, record its name.
                 if entry_order_id >= entry_names.len() {
@@ -159,7 +198,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 entry_names: _,
                 ref mut coverages,
                 ref current_stoit_index,
-                ref current_entry_index
+                ref current_entry_index, ..
             } => {
                 coverages[current_stoit_index.unwrap()].push(CoverageEntry {
                     entry_index: current_entry_index.unwrap(),
@@ -215,13 +254,128 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
 }
 
 
+#[derive(PartialEq, Debug)]
+pub struct EntryAndCoverages {
+    entry_index: usize,
+    stoit_index: usize,
+    coverages: Vec<f32>
+}
+
+
+impl<'a> Iterator for CoverageTakerType<'a> {
+    type Item = EntryAndCoverages;
+
+    fn next(&mut self) -> Option<EntryAndCoverages> {
+        match self {
+            CoverageTakerType::CachedSingleFloatCoverageTaker {
+                ref stoit_names,
+                entry_names: _,
+                ref mut coverages,
+                current_stoit_index: _,
+                current_entry_index: _,
+                ref mut iter_next_entry_indices,
+                ref mut iter_current_stoit_index,
+                ref mut iter_last_entry_order_index,
+                ref num_coverages,
+            } => {
+                while *iter_current_stoit_index <= stoit_names.len() {
+                    let mut lowest_entry_order = None;
+                    // Search for the lowest entry_index amongst the head of the
+                    // queues of entries for each stoit
+                    for (stoit_i, coverage_i) in (*iter_next_entry_indices)
+                        .iter().enumerate() {
+                            // if there are not more entries in this stoit, do nothing
+                            if *coverage_i < coverages[stoit_i].len() {
+                                // if current lowest is None or higher than current, update
+                                let current_coverage_entry = &coverages[stoit_i][*coverage_i];
+                                if iter_last_entry_order_index.is_none() ||
+                                    current_coverage_entry.entry_index >
+                                    iter_last_entry_order_index.unwrap() {
+                                    match lowest_entry_order {
+                                        None => {
+                                            lowest_entry_order = Some(current_coverage_entry.entry_index);
+                                        },
+                                        Some(old_best_entry_order) => {
+                                            if current_coverage_entry.entry_index < old_best_entry_order {
+                                                // new winner
+                                                lowest_entry_order = Some(current_coverage_entry.entry_index);
+                                            }
+                                            // else must be the same or a loser, do nothing
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    // Winning entry picked, update state and return it
+                    match lowest_entry_order {
+                        Some(lowest_entry_i) => {
+                            let mut chosen_stoit_entry_id = iter_next_entry_indices[*iter_current_stoit_index];
+                            let potential_next_stoit_list = &coverages[*iter_current_stoit_index];
+                            let mut struct_to_return;
+                            if chosen_stoit_entry_id >= potential_next_stoit_list.len() ||
+                                potential_next_stoit_list[chosen_stoit_entry_id].entry_index != lowest_entry_i {
+                                    // There are no more coverages from this stoit,
+                                    // now we are just returning zeroes to fill out
+                                    // the larger matrix.
+                                    struct_to_return = Some(EntryAndCoverages{
+                                        entry_index: lowest_entry_i,
+                                        stoit_index: *iter_current_stoit_index,
+                                        coverages: vec![0.0; *num_coverages]
+                                    })
+                                } else {
+                                    let mut to_return = vec!();
+                                    // collect the coverages to return from the
+                                    // stoit currently being iterated.
+                                    for _ in 0..*num_coverages {
+                                        to_return.push(potential_next_stoit_list[chosen_stoit_entry_id].coverage);
+                                        chosen_stoit_entry_id += 1;
+                                    }
+
+                                    struct_to_return = Some(EntryAndCoverages{
+                                        entry_index: lowest_entry_i,
+                                        stoit_index: *iter_current_stoit_index,
+                                        coverages: to_return
+                                    })
+                                }
+
+                            // update the pointers for each stoit
+                            for stoit_i in 0..stoit_names.len() {
+                                if coverages[stoit_i].len() > iter_next_entry_indices[stoit_i] &&
+                                    coverages[stoit_i][iter_next_entry_indices[stoit_i]].entry_index
+                                    == lowest_entry_i {
+                                        iter_next_entry_indices[stoit_i] += *num_coverages
+                                    }
+                            }
+                            *iter_last_entry_order_index = Some(lowest_entry_i);
+                            return struct_to_return;
+                        },
+                        None => {
+                            // all coverages from the current stoit have been returned
+                            *iter_current_stoit_index += 1;
+                            *iter_next_entry_indices = vec![0; stoit_names.len()];
+                            *iter_last_entry_order_index = None;
+                        }
+                    }
+                }
+                return None
+            },
+            _ => panic!("Not implemented, programming error")
+        }
+    }
+}
+
+
+
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_cached_hello_world() {
-        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker();
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
         c.add_single_coverage(1.1);
@@ -232,7 +386,11 @@ mod tests {
                 entry_names,
                 coverages,
                 current_stoit_index,
-                current_entry_index
+                current_entry_index,
+                iter_next_entry_indices,
+                iter_current_stoit_index,
+                iter_last_entry_order_index,
+                num_coverages,
             } => {
                 assert_eq!(vec!("stoit1".to_string()), stoit_names);
                 assert_eq!(vec!(Some("contig1".to_string())), entry_names);
@@ -242,6 +400,10 @@ mod tests {
                            coverages);
                 assert_eq!(0, current_stoit_index.unwrap());
                 assert_eq!(0, current_entry_index.unwrap());
+                assert_eq!(vec![0], iter_next_entry_indices);
+                assert_eq!(0, iter_current_stoit_index);
+                assert_eq!(None, iter_last_entry_order_index);
+                assert_eq!(2, num_coverages);
             },
             _ => panic!()
         }
@@ -249,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_cached_two_samples_matching() {
-        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker();
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
         c.add_single_coverage(1.1);
@@ -270,7 +432,10 @@ mod tests {
                 entry_names,
                 coverages,
                 current_stoit_index,
-                current_entry_index
+                current_entry_index,
+                iter_next_entry_indices,
+                iter_current_stoit_index,
+                ..
             } => {
                 assert_eq!(vec!("stoit1".to_string(), "stoit2".to_string()), stoit_names);
                 assert_eq!(vec!(
@@ -290,6 +455,8 @@ mod tests {
                            coverages);
                 assert_eq!(1, current_stoit_index.unwrap());
                 assert_eq!(3, current_entry_index.unwrap());
+                assert_eq!(vec![0,0], iter_next_entry_indices);
+                assert_eq!(0, iter_current_stoit_index);
             },
             _ => panic!()
         }
@@ -297,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_cached_two_samples_mismatching() {
-        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker();
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
         c.add_single_coverage(1.1);
@@ -321,7 +488,9 @@ mod tests {
                 entry_names,
                 coverages,
                 current_stoit_index,
-                current_entry_index
+                current_entry_index,
+                iter_next_entry_indices,
+                ..
             } => {
                 assert_eq!(vec!("stoit1".to_string(), "stoit2".to_string()), stoit_names);
                 assert_eq!(vec!(
@@ -348,8 +517,142 @@ mod tests {
                            coverages);
                 assert_eq!(1, current_stoit_index.unwrap());
                 assert_eq!(5, current_entry_index.unwrap());
+                assert_eq!(vec![0, 0], iter_next_entry_indices);
             },
             _ => panic!()
         }
     }
+
+
+    #[test]
+    fn test_cached_next() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        c.start_entry(3, "contig2");
+        c.add_single_coverage(2.1);
+        c.add_single_coverage(2.2);
+
+        c.start_stoit("stoit2");
+        c.start_entry(1, "contig1.5");
+        c.add_single_coverage(10.1);
+        c.add_single_coverage(10.2);
+        c.start_entry(3, "contig2");
+        c.add_single_coverage(20.1);
+        c.add_single_coverage(20.2);
+        c.start_entry(5, "contig5");
+        c.add_single_coverage(20.1);
+        c.add_single_coverage(20.2);
+
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 0,
+            stoit_index: 0,
+            coverages: vec![1.1,1.2]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 1,
+            stoit_index: 0,
+            coverages: vec![0.0,0.0]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 3,
+            stoit_index: 0,
+            coverages: vec![2.1,2.2]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 5,
+            stoit_index: 0,
+            coverages: vec![0.0,0.0]
+        }), c.next());
+
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 0,
+            stoit_index: 1,
+            coverages: vec![0.0,0.0]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 1,
+            stoit_index: 1,
+            coverages: vec![10.1,10.2]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 3,
+            stoit_index: 1,
+            coverages: vec![20.1,20.2]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 5,
+            stoit_index: 1,
+            coverages: vec![20.1,20.2]
+        }), c.next());
+    }
+
+    #[test]
+    fn test_cached_next_one_coverage() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(1);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.start_entry(3, "contig2");
+        c.add_single_coverage(2.1);
+
+        c.start_stoit("stoit2");
+        c.start_entry(1, "contig1.5");
+        c.add_single_coverage(10.1);
+        c.start_entry(3, "contig2");
+        c.add_single_coverage(20.1);
+        c.start_entry(5, "contig5");
+        c.add_single_coverage(20.1);
+
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 0,
+            stoit_index: 0,
+            coverages: vec![1.1]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 1,
+            stoit_index: 0,
+            coverages: vec![0.0]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 3,
+            stoit_index: 0,
+            coverages: vec![2.1]
+        }), c.next());
+        println!("{:?}",c);
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 5,
+            stoit_index: 0,
+            coverages: vec![0.0]
+        }), c.next());
+
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 0,
+            stoit_index: 1,
+            coverages: vec![0.0]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 1,
+            stoit_index: 1,
+            coverages: vec![10.1]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 3,
+            stoit_index: 1,
+            coverages: vec![20.1]
+        }), c.next());
+        assert_eq!(Some(EntryAndCoverages{
+            entry_index: 5,
+            stoit_index: 1,
+            coverages: vec![20.1]
+        }), c.next());
+    }
 }
+
