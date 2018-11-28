@@ -83,7 +83,6 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 }
             let original_tid = record.tid();
             if original_tid != -1 { // if mapped
-                num_mapped_reads += 1;
                 let tid = original_tid as u32;
                 if tid != last_tid || doing_first {
                     debug!("Came across a new tid {}", tid);
@@ -109,26 +108,29 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 // TODO: move below into a function for code-reuse purposes.
                 // Add coverage info for the current record
                 // for each chunk of the cigar string
-                debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
-                let mut cursor: usize = record.pos() as usize;
-                for cig in record.cigar().iter() {
-                    debug!("Found cigar {:} from {}", cig, cursor);
-                    match cig {
-                        Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
-                            // if M, X, or =, increment start and decrement end index
-                            debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
-                            ups_and_downs[cursor] += 1;
-                            let final_pos = cursor + cig.len() as usize;
-                            if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
-                                ups_and_downs[final_pos] -= 1;
-                            }
-                            cursor += cig.len() as usize;
-                        },
-                        Cigar::Del(_) | Cigar::RefSkip(_) => {
-                            // if D, move the cursor
-                            cursor += cig.len() as usize;
-                        },
-                        Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
+                if reference_number_to_genome_index[tid as usize].is_some() {
+                    num_mapped_reads += 1;
+                    debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                    let mut cursor: usize = record.pos() as usize;
+                    for cig in record.cigar().iter() {
+                        debug!("Found cigar {:} from {}", cig, cursor);
+                        match cig {
+                            Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
+                                // if M, X, or =, increment start and decrement end index
+                                debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
+                                ups_and_downs[cursor] += 1;
+                                let final_pos = cursor + cig.len() as usize;
+                                if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
+                                    ups_and_downs[final_pos] -= 1;
+                                }
+                                cursor += cig.len() as usize;
+                            },
+                            Cigar::Del(_) | Cigar::RefSkip(_) => {
+                                // if D, move the cursor
+                                cursor += cig.len() as usize;
+                            },
+                            Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
+                        }
                     }
                 }
             }
@@ -1032,6 +1034,36 @@ mod tests {
                 CoverageEstimator::new_estimator_variance(0.1,0)));
         assert_eq!(vec!(ReadsMapped{
             num_mapped_reads: 24,
+            num_reads: 24
+        }), reads_mapped);
+    }
+
+    #[test]
+    fn test_genomes_and_contigs_reads_mapped() {
+        let mut geco = GenomesAndContigs::new();
+        // >genome1~random_sequence_length_11000
+        //     >genome1~random_sequence_length_11010
+        //     >genome2~seq1
+        //     >genome3~random_sequence_length_11001
+        //     >genome4~random_sequence_length_11002
+        //     >genome5~seq2
+        //     >genome6~random_sequence_length_11003
+        let genome2 = geco.establish_genome("genome2".to_string());
+        let genome3 = geco.establish_genome("genome3".to_string());
+        geco.insert("genome2~seq1".to_string(),genome2);
+        geco.insert("genome3~random_sequence_length_11001".to_string(),genome3);
+        let reads_mapped = test_contig_names_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\t0.0\n",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &geco,
+            true,
+            false,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_variance(0.1,0)));
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 12,
             num_reads: 24
         }), reads_mapped);
     }
