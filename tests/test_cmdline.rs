@@ -271,4 +271,22 @@ mod tests {
             ]).fails().unwrap();
     }
 
+    #[test]
+    fn test_make(){
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--output-directory",
+                td.path().to_str().unwrap()
+            ]).succeeds().unwrap();
+        assert!(td.path()
+                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+                .is_file());
+    }
 }

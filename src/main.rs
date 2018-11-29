@@ -195,6 +195,50 @@ fn main(){
                 }
             }
         },
+        Some("make") => {
+            let m = matches.subcommand_matches("make").unwrap();
+            set_log_level(m, true);
+            external_command_checker::check_for_bwa();
+            external_command_checker::check_for_samtools();
+
+            let output_directory = m.value_of("output-directory").unwrap();
+            let params = MappingParameters::generate_from_clap(&m);
+            let mut generator_sets = vec!();
+
+            for reference_wise_params in params {
+                let mut bam_readers = vec![];
+                let index = coverm::bwa_index_maintenance::generate_bwa_index(
+                    reference_wise_params.reference);
+
+                for p in reference_wise_params {
+                    bam_readers.push(
+                        coverm::bam_generator::generate_bam_maker_generator_from_reads(
+                            index.index_path(),
+                            p.read1,
+                            p.read2,
+                            p.read_format.clone(),
+                            p.threads,
+                            &generate_cached_bam_file_name(
+                                output_directory, p.reference, p.read1)));
+                }
+
+                debug!("Finished BAM setup");
+                let to_return = BamGeneratorSet {
+                    generators: bam_readers,
+                    index: index
+                };
+                generator_sets.push(to_return);
+            }
+
+            let mut i = 1;
+            for generator_set in generator_sets {
+                for generator in generator_set.generators {
+                    info!("Running mapping number {} ..", i);
+                    generator.start().finish();
+                    i += 1;
+                }
+            }
+        },
         _ => {
             app.print_help().unwrap();
             println!();
@@ -739,6 +783,24 @@ Other:
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
+    let make_help: &'static str =
+        "coverm make: Generate BAM files through mapping.
+
+Output (required):
+   -o, --output-directory <DIR>          Where generated BAM files will go
+
+Mapping parameters:
+   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
+   -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
+                                         for mapping.
+   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>";
+
     return App::new("coverm")
         .version(crate_version!())
         .author("Ben J. Woodcroft <benjwoodcroft near gmail.com>")
@@ -755,6 +817,7 @@ Main modes:
 \tgenome\tCalculate coverage of genomes
 
 Utilities:
+\tmake\tGenerate BAM files through alignment
 \tfilter\tRemove alignments with insufficient identity
 
 Other options:
@@ -1072,4 +1135,58 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("quiet")
                      .short("q")
                      .long("quiet")))
+        .subcommand(
+            SubCommand::with_name("make")
+                .about("Generate BAM files through mapping")
+                .help(make_help)
+                .arg(Arg::with_name("output-directory")
+                     .short("-o")
+                     .long("output-directory")
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("read1")
+                     .short("-1")
+                     .multiple(true)
+                     .takes_value(true)
+                     .requires("read2")
+                     .required_unless_one(
+                         &["coupled","interleaved","single"]))
+                .arg(Arg::with_name("read2")
+                     .short("-2")
+                     .multiple(true)
+                     .takes_value(true)
+                     .requires("read1")
+                     .required_unless_one(
+                         &["coupled","interleaved","single"]))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .long("coupled")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","interleaved","single"]))
+                .arg(Arg::with_name("interleaved")
+                     .long("interleaved")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","coupled","single"]))
+                .arg(Arg::with_name("single")
+                     .long("single")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","coupled","interleaved"]))
+                .arg(Arg::with_name("reference")
+                     .short("-r")
+                     .long("reference")
+                     .takes_value(true)
+                     .multiple(true)
+                     .required(true))
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
+                     .takes_value(true))
+        )
 }

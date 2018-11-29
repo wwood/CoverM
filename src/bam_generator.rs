@@ -124,7 +124,7 @@ fn complete_processes(
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
-    tempdir: TempDir) {
+    tempdir: Option<TempDir>) {
 
     for mut process in processes {
         let es = process.wait().expect("Failed to glean exitstatus from mapping process");
@@ -146,7 +146,12 @@ fn complete_processes(
         }
     }
     // Close tempdir explicitly. Maybe not needed.
-    tempdir.close().expect("Failed to close tempdir");
+    match tempdir {
+        Some(td) => {
+            td.close().expect("Failed to close tempdir");
+        },
+        None => {}
+    }
 }
 
 impl NamedBamReader for StreamingNamedBamReader {
@@ -169,7 +174,7 @@ impl NamedBamReader for StreamingNamedBamReader {
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
-            self.tempdir)
+            Some(self.tempdir))
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.num_detected_primary_alignments
@@ -425,7 +430,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
-            self.tempdir)
+            Some(self.tempdir))
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments
@@ -467,3 +472,127 @@ pub struct BamGeneratorSet<T> {
     pub generators: Vec<T>,
     pub index: Box<BwaIndexStruct>,
 }
+
+
+
+pub struct NamedBamMaker {
+    stoit_name: String,
+    processes: Vec<std::process::Child>,
+    command_strings: Vec<String>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
+}
+
+pub struct NamedBamMakerGenerator {
+    stoit_name: String,
+    pre_processes: Vec<std::process::Command>,
+    command_strings: Vec<String>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
+}
+
+pub fn generate_bam_maker_generator_from_reads(
+    reference: &str,
+    read1_path: &str,
+    read2_path: Option<&str>,
+    read_format: ReadFormat,
+    threads: u16,
+    cached_bam_file: &str) -> NamedBamMakerGenerator {
+
+    let bwa_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create BWA log tempfile");
+    let samtools2_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create second samtools log tempfile");
+    // tempfile does not need to be created but easier to create than get around
+    // borrow checker.
+    let samtools_view_cache_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create cache samtools view log tempfile");
+
+    let bwa_read_params = match read_format {
+        ReadFormat::Interleaved => format!("-p '{}'", read1_path),
+        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+        ReadFormat::Single => format!("'{}'", read1_path),
+    };
+    let cmd_string = format!(
+        "set -e -o pipefail; \
+         bwa mem -t {} '{}' {} 2>{} \
+         | samtools sort -l0 -@ {} 2>{} \
+         | samtools view -b -o '{}' 2>{}",
+        // BWA
+        threads, reference, bwa_read_params,
+        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // samtools
+        threads-1,
+        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // samtools view
+        cached_bam_file,
+        samtools_view_cache_log.path().to_str()
+            .expect("Failed to convert tempfile path to str"));
+    debug!("Queuing cmd_string: {}", cmd_string);
+    let mut cmd = std::process::Command::new("bash");
+    cmd
+        .arg("-c")
+        .arg(&cmd_string)
+        .stderr(std::process::Stdio::piped());
+
+    let log_descriptions = vec![
+        "BWA".to_string(),
+        "samtools sort".to_string(),
+        "samtools view for cache".to_string()];
+    let log_files = vec![
+        bwa_log,
+        samtools2_log,
+        samtools_view_cache_log];
+
+    return NamedBamMakerGenerator {
+        stoit_name: std::path::Path::new(reference).file_name()
+            .expect("Unable to convert reference to file name").to_str()
+            .expect("Unable to covert file name into str").to_string()+"/"+
+            &std::path::Path::new(read1_path).file_name()
+            .expect("Unable to convert read1 name to file name").to_str()
+            .expect("Unable to covert file name into str").to_string(),
+        pre_processes: vec![cmd],
+        command_strings: vec![format!("bash -c {}", cmd_string)],
+        log_file_descriptions: log_descriptions,
+        log_files: log_files,
+    }
+}
+
+impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
+    fn start(self) -> NamedBamMaker {
+        debug!("Starting mapping processes");
+        let mut processes = vec![];
+        let mut i = 0;
+        for mut preprocess in self.pre_processes {
+            debug!("Running mapping command: {}", self.command_strings[i]);
+            i += 1;
+            processes.push(preprocess
+                           .spawn()
+                           .expect("Unable to execute bash"));
+        }
+        return NamedBamMaker {
+            stoit_name: self.stoit_name,
+            processes: processes,
+            command_strings: self.command_strings,
+            log_file_descriptions: self.log_file_descriptions,
+            log_files: self.log_files,
+        }
+    }
+}
+
+
+
+impl NamedBamMaker {
+    pub fn name(&self) -> &str {
+        &(self.stoit_name)
+    }
+    pub fn finish(self) {
+        complete_processes(
+            self.processes,
+            self.command_strings,
+            self.log_file_descriptions,
+            self.log_files,
+            None)
+    }
+}
+
