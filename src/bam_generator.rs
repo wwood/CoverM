@@ -118,6 +118,36 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     }
 }
 
+fn complete_processes(
+    processes: Vec<std::process::Child>,
+    command_strings: Vec<String>,
+    log_file_descriptions: Vec<String>,
+    log_files: Vec<tempfile::NamedTempFile>,
+    tempdir: TempDir) {
+
+    for mut process in processes {
+        let es = process.wait().expect("Failed to glean exitstatus from mapping process");
+        if !es.success() {
+            error!("Error when running mapping process: {:?}", command_strings);
+            let mut err = String::new();
+            process.stderr.expect("Failed to grab stderr from failed mapping process")
+                .read_to_string(&mut err).expect("Failed to read stderr into string");
+            error!("The overall STDERR was: {:?}", err);
+            for (description, tf) in log_file_descriptions.into_iter().zip(
+                log_files.into_iter()) {
+                let mut contents = String::new();
+                tf.into_file().read_to_string(&mut contents)
+                    .expect(&format!("Failed to read log file for {}", description));
+                error!("The STDERR for the {:} part was: {}",
+                       description, contents);
+            }
+            panic!("Cannot continue since mapping failed.");
+        }
+    }
+    // Close tempdir explicitly. Maybe not needed.
+    tempdir.close().expect("Failed to close tempdir");
+}
+
 impl NamedBamReader for StreamingNamedBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
@@ -133,27 +163,12 @@ impl NamedBamReader for StreamingNamedBamReader {
         self.bam_reader.header()
     }
     fn finish(self) {
-        for mut process in self.processes {
-            let es = process.wait().expect("Failed to glean exitstatus from mapping process");
-            if !es.success() {
-                error!("Error when running mapping process: {:?}", self.command_strings);
-                let mut err = String::new();
-                process.stderr.expect("Failed to grab stderr from failed mapping process")
-                    .read_to_string(&mut err).expect("Failed to read stderr into string");
-                error!("The overall STDERR was: {:?}", err);
-                for (description, tf) in self.log_file_descriptions.into_iter().zip(
-                    self.log_files.into_iter()) {
-                    let mut contents = String::new();
-                    tf.into_file().read_to_string(&mut contents)
-                        .expect(&format!("Failed to read log file for {}", description));
-                    error!("The STDERR for the {:} part was: {}",
-                           description, contents);
-                }
-                panic!("Cannot continue since mapping failed.");
-            }
-        }
-        // Close tempdir explicitly. Maybe not needed.
-        self.tempdir.close().expect("Failed to close tempdir");
+        complete_processes(
+            self.processes,
+            self.command_strings,
+            self.log_file_descriptions,
+            self.log_files,
+            self.tempdir)
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.num_detected_primary_alignments
@@ -441,27 +456,12 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         self.filtered_stream.reader.header()
     }
     fn finish(self) {
-        for mut process in self.processes {
-            let es = process.wait().expect("Failed to glean exitstatus from mapping process");
-            if !es.success() {
-                error!("Error when running mapping process: {:?}", self.command_strings);
-                let mut err = String::new();
-                process.stderr.expect("Failed to grab stderr from failed mapping process")
-                    .read_to_string(&mut err).expect("Failed to read stderr into string");
-                error!("The overall STDERR was: {:?}", err);
-                for (description, tf) in self.log_file_descriptions.into_iter().zip(
-                    self.log_files.into_iter()) {
-                    let mut contents = String::new();
-                    tf.into_file().read_to_string(&mut contents)
-                        .expect(&format!("Failed to read log file for {}", description));
-                    error!("The STDERR for the {:} part was: {}",
-                           description, contents);
-                }
-                panic!("Cannot continue since mapping failed.");
-            }
-        }
-        // Close tempdir explicitly. Maybe not needed.
-        self.tempdir.close().expect("Failed to close tempdir");
+        complete_processes(
+            self.processes,
+            self.command_strings,
+            self.log_file_descriptions,
+            self.log_files,
+            self.tempdir)
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments
