@@ -3,6 +3,7 @@ use std::io::Read;
 
 use filter::*;
 use bwa_index_maintenance::BwaIndexStruct;
+use mapping_parameters::ReadFormat;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Read as BamRead;
@@ -191,44 +192,7 @@ pub fn generate_named_bam_readers_from_bam_files(
     ).collect()
 }
 
-enum ReadFormat {
-    Coupled,
-    Interleaved,
-    Single,
-}
-
-pub fn generate_named_bam_readers_from_read_couple(
-    reference: &str,
-    read1_path: &str,
-    read2_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
-    return generate_named_bam_readers_from_reads(
-        reference, read1_path, Some(read2_path), ReadFormat::Coupled, threads, cached_bam_file
-    )
-}
-
-pub fn generate_named_bam_readers_from_interleaved(
-    reference: &str,
-    interleaved_reads_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
-    return generate_named_bam_readers_from_reads(
-        reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file
-    )
-}
-
-pub fn generate_named_bam_readers_from_unpaired_reads(
-    reference: &str,
-    unpaired_reads_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
-    return generate_named_bam_readers_from_reads(
-        reference, unpaired_reads_path, None, ReadFormat::Single, threads, cached_bam_file
-    )
-}
-
-fn generate_named_bam_readers_from_reads(
+pub fn generate_named_bam_readers_from_reads(
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
@@ -469,50 +433,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
 }
 
 
-pub fn generate_filtered_named_bam_readers_from_read_couple(
-    reference: &str,
-    read1_path: &str,
-    read2_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
-    return generate_filtered_named_bam_readers_from_reads(
-        reference, read1_path, Some(read2_path), ReadFormat::Coupled, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity, min_aligned_percent
-    )
-}
-
-pub fn generate_filtered_named_bam_readers_from_interleaved(
-    reference: &str,
-    interleaved_reads_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
-    return generate_filtered_named_bam_readers_from_reads(
-        reference, interleaved_reads_path, None, ReadFormat::Interleaved, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity, min_aligned_percent
-    )
-}
-
-pub fn generate_filtered_named_bam_readers_from_unpaired_reads(
-    reference: &str,
-    unpaired_reads_path: &str,
-    threads: u16,
-    cached_bam_file: Option<&str>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
-    return generate_filtered_named_bam_readers_from_reads(
-        reference, unpaired_reads_path, None, ReadFormat::Single, threads, cached_bam_file,
-        min_aligned_length, min_percent_identity, min_aligned_percent
-    )
-}
-
-fn generate_filtered_named_bam_readers_from_reads(
+pub fn generate_filtered_named_bam_readers_from_reads(
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,

@@ -147,6 +147,7 @@ mod tests {
     use super::*;
     use std::io::Cursor;
     use std::str;
+    use mapping_parameters::*;
 
     fn test_with_stream<R: NamedBamReader,
                         G: NamedBamReaderGenerator<R>>(
@@ -219,10 +220,11 @@ mod tests {
         test_with_stream(
             "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             vec![
-                generate_named_bam_readers_from_read_couple(
+                generate_named_bam_readers_from_reads(
                     "tests/data/7seqs.fna",
                     "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
-                    "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                    Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
+                    ReadFormat::Coupled,
                     4,
                     None)],
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),

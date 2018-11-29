@@ -4,6 +4,7 @@ use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
 use coverm::coverage_formatters::*;
+use coverm::mapping_parameters::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -375,64 +376,6 @@ impl FilterParameters {
 }
 
 
-struct MappingParameters<'a> {
-    references: Vec<&'a str>,
-    threads: u16,
-    read1: Vec<&'a str>,
-    read2: Vec<&'a str>,
-    interleaved: Vec<&'a str>,
-    unpaired: Vec<&'a str>,
-}
-impl<'a> MappingParameters<'a> {
-    pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
-        let mut read1: Vec<&str> = vec!();
-        let mut read2: Vec<&str> = vec!();
-        let mut interleaved: Vec<&str> = vec!();
-        let mut unpaired: Vec<&str> = vec!();
-
-        if m.is_present("read1") {
-            read1 = m.values_of("read1").unwrap().collect();
-            read2 = m.values_of("read2").unwrap().collect();
-            if read1.len() != read2.len() {
-                panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
-            }
-        }
-
-        // Parse --coupled
-        if m.is_present("coupled") {
-            let coupled: Vec<&str> = m.values_of("coupled").unwrap().collect();
-            if coupled.len() % 2 != 0 {
-                panic!(
-                    "The --coupled flag must be set with pairs of read sets, but an odd number ({}) was specified",
-                    coupled.len()
-                )
-            }
-            let mut i = 0;
-            while i < coupled.len() {
-                read1.push(coupled[i]);
-                read2.push(coupled[i+1]);
-                i += 2;
-            }
-        }
-
-        if m.is_present("interleaved") {
-            interleaved = m.values_of("interleaved").unwrap().collect();
-        }
-        if m.is_present("single") {
-            unpaired = m.values_of("single").unwrap().collect();
-        }
-
-        return MappingParameters {
-            references: m.values_of("reference").unwrap().collect(),
-            threads: m.value_of("threads").unwrap().parse::<u16>()
-                .expect("Failed to convert threads argument into integer"),
-            read1: read1,
-            read2: read2,
-            interleaved: interleaved,
-            unpaired: unpaired,
-        }
-    }
-}
 
 fn get_streamed_bam_readers<'a>(
     m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
@@ -444,41 +387,37 @@ fn get_streamed_bam_readers<'a>(
 
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
-    for r in params.references {
+    for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(
+            reference_wise_params.reference);
 
+        let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
             match m.is_present("bam-file-cache-directory") {
                 false => None,
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(), r, naming_readset);
+                        m.value_of("bam-file-cache-directory").unwrap(),
+                        reference, naming_readset);
                     info!("Caching BAM file to {}", bam_file_cache_path);
                     Some(bam_file_cache_path)
                 }
             }
         };
 
-        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+        for p in reference_wise_params {
             bam_readers.push(
-                coverm::bam_generator::generate_named_bam_readers_from_read_couple(
-                    index.index_path(), read1, read2, params.threads,
-                    bam_file_cache(read1).as_ref().map(String::as_ref)));
+                coverm::bam_generator::generate_named_bam_readers_from_reads(
+                    index.index_path(),
+                    p.read1,
+                    p.read2,
+                    p.read_format.clone(),
+                    p.threads,
+                    bam_file_cache(p.read1).as_ref().map(String::as_ref)));
         }
-        for interleaved in params.interleaved.iter() {
-            bam_readers.push(
-                coverm::bam_generator::generate_named_bam_readers_from_interleaved(
-                    index.index_path(), &interleaved, params.threads,
-                    bam_file_cache(interleaved).as_ref().map(String::as_ref)));
-        }
-        for unpaired_read_path in params.unpaired.iter() {
-            bam_readers.push(
-                coverm::bam_generator::generate_named_bam_readers_from_interleaved(
-                    index.index_path(), &unpaired_read_path, params.threads,
-                    bam_file_cache(unpaired_read_path).as_ref().map(String::as_ref)));
-        }
+
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
@@ -561,66 +500,41 @@ fn get_streamed_filtered_bam_readers(
 
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
-    for r in params.references {
+    for reference_wise_params in params {
         let mut bam_readers = vec![];
         let filter_params = FilterParameters::generate_from_clap(m);
-        let index = coverm::bwa_index_maintenance::generate_bwa_index(&r);
-        for (read1, read2) in params.read1.iter().zip(params.read2.iter()) {
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(
+            reference_wise_params.reference);
+
+        let reference = reference_wise_params.reference;
+        let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
-            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
+            match m.is_present("bam-file-cache-directory") {
                 false => None,
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(), r, read1);
+                        m.value_of("bam-file-cache-directory").unwrap(),
+                        reference, naming_readset);
                     info!("Caching BAM file to {}", bam_file_cache_path);
-                    Some(bam_file_cache_path.as_str())
+                    Some(bam_file_cache_path)
                 }
-            };
+            }
+        };
+
+        for p in reference_wise_params {
             bam_readers.push(
-                coverm::bam_generator::generate_filtered_named_bam_readers_from_read_couple(
-                    index.index_path(), read1, read2, params.threads, bam_file_cache,
-                    filter_params.min_aligned_length,
-                    filter_params.min_percent_identity,
-                    filter_params.min_aligned_percent
-                ));
-            debug!("Back");
-        }
-        for interleaved in params.interleaved.iter() {
-            let bam_file_cache_path;
-            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
-                false => None,
-                true => {
-                    bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(), r, interleaved);
-                    info!("Caching BAM file to {}", bam_file_cache_path);
-                    Some(bam_file_cache_path.as_str())
-                }
-            };
-            bam_readers.push(
-                coverm::bam_generator::generate_filtered_named_bam_readers_from_interleaved(
-                    index.index_path(), &interleaved, params.threads, bam_file_cache,
+                coverm::bam_generator::generate_filtered_named_bam_readers_from_reads(
+                    index.index_path(),
+                    p.read1,
+                    p.read2,
+                    p.read_format.clone(),
+                    p.threads,
+                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
                     filter_params.min_aligned_length,
                     filter_params.min_percent_identity,
                     filter_params.min_aligned_percent));
         }
-        for unpaired_read_path in params.unpaired.iter() {
-            let bam_file_cache_path;
-            let bam_file_cache = match m.is_present("bam-file-cache-directory") {
-                false => None,
-                true => {
-                    bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(), r, unpaired_read_path);
-                    info!("Caching BAM file to {}", bam_file_cache_path);
-                    Some(bam_file_cache_path.as_str())
-                }
-            };
-            bam_readers.push(
-                coverm::bam_generator::generate_filtered_named_bam_readers_from_unpaired_reads(
-                    index.index_path(), &unpaired_read_path, params.threads, bam_file_cache,
-                    filter_params.min_aligned_length,
-                    filter_params.min_percent_identity,
-                    filter_params.min_aligned_percent));
-        }
+
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
