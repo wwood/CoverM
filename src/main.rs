@@ -41,17 +41,14 @@ fn main(){
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
 
-            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
-            let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
             let mut stream = std::io::stdout();
-            let mut coverage_taker = generate_coverage_taker(&methods, &m, &mut stream);
+            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
+                m, &mut stream);
             write!(print_stream, "Sample\tGenome");
-            for method in methods {
-                let estimator = generate_coverage_estimator(method, m);
-                for ref header in estimator.column_headers() {
+            for estimator in &(estimators_and_taker.estimators) {
+                for header in estimator.column_headers() {
                     write!(print_stream, "\t{}", header);
                 }
-                coverage_estimators.push(estimator);
             }
             writeln!(print_stream);
 
@@ -66,15 +63,15 @@ fn main(){
                             filter_params.min_percent_identity,
                             filter_params.min_aligned_percent),
                         m,
-                        &mut coverage_estimators,
-                        coverage_taker);
+                        &mut estimators_and_taker.estimators,
+                        estimators_and_taker.taker);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
-                        &mut coverage_estimators,
-                        coverage_taker);
+                        &mut estimators_and_taker.estimators,
+                        estimators_and_taker.taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -83,20 +80,20 @@ fn main(){
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        coverage_taker = run_genome(
+                        estimators_and_taker.taker = run_genome(
                             generator_set.generators,
                             m,
-                            &mut coverage_estimators,
-                            coverage_taker);
+                            &mut estimators_and_taker.estimators,
+                            estimators_and_taker.taker);
                     }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        coverage_taker = run_genome(
+                        estimators_and_taker.taker = run_genome(
                             generator_set.generators,
                             m,
-                            &mut coverage_estimators,
-                            coverage_taker);
+                            &mut estimators_and_taker.estimators,
+                            estimators_and_taker.taker);
                     }
                 }
             }
@@ -108,17 +105,14 @@ fn main(){
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
 
-            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
-            let mut coverage_estimators: Vec<CoverageEstimator> = Vec::new();
             let mut stream = std::io::stdout();
-            let mut coverage_taker = generate_coverage_taker(&methods, &m, &mut stream);
+            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
+                m, &mut stream);
             write!(print_stream, "Sample\tContig");
-            for method in methods {
-                let estimator = generate_coverage_estimator(method, m);
+            for estimator in &(estimators_and_taker.estimators) {
                 for ref header in estimator.column_headers() {
                     write!(print_stream, "\t{}", header);
                 }
-                coverage_estimators.push(estimator);
             }
             writeln!(print_stream);
 
@@ -131,11 +125,21 @@ fn main(){
                         filter_params.min_aligned_length,
                         filter_params.min_percent_identity,
                         filter_params.min_aligned_percent);
-                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, &mut coverage_taker);
+                    run_contig(
+                        &mut estimators_and_taker.estimators,
+                        bam_readers,
+                        print_zeros,
+                        flag_filter,
+                        &mut estimators_and_taker.taker);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
-                    run_contig(&mut coverage_estimators, bam_readers, print_zeros, flag_filter, &mut coverage_taker);
+                    run_contig(
+                        &mut estimators_and_taker.estimators,
+                        bam_readers,
+                        print_zeros,
+                        flag_filter,
+                        &mut estimators_and_taker.taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -144,17 +148,23 @@ fn main(){
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(&mut coverage_estimators,
-                                   generator_set.generators,
-                                   print_zeros, flag_filter, &mut coverage_taker);
+                        run_contig(
+                            &mut estimators_and_taker.estimators,
+                            generator_set.generators,
+                            print_zeros,
+                            flag_filter,
+                            &mut estimators_and_taker.taker);
                     }
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(&mut coverage_estimators,
-                                   generator_set.generators,
-                                   print_zeros, flag_filter, &mut coverage_taker);
+                        run_contig(
+                            &mut estimators_and_taker.estimators,
+                            generator_set.generators,
+                            print_zeros,
+                            flag_filter,
+                            &mut estimators_and_taker.taker);
                     }
                 }
             }
@@ -246,61 +256,78 @@ fn main(){
     }
 }
 
-fn generate_coverage_estimator(
-    method: &str, m: &clap::ArgMatches)
-    -> CoverageEstimator {
-
-    let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-    if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-        eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-        process::exit(1)
-    }
-    let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
-    let estimator = match method {
-        "mean" => {
-            CoverageEstimator::new_estimator_mean(
-                min_fraction_covered, contig_end_exclusion)
-        },
-        "coverage_histogram" => {
-            CoverageEstimator::new_estimator_pileup_counts(
-                min_fraction_covered, contig_end_exclusion)
-        },
-        "trimmed_mean" => {
-            let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-            let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-            if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-                process::exit(1)
-            }
-            CoverageEstimator::new_estimator_trimmed_mean(
-                min, max, min_fraction_covered, contig_end_exclusion)
-        },
-        "covered_fraction" => {
-            CoverageEstimator::new_estimator_covered_fraction(
-                min_fraction_covered, contig_end_exclusion)
-        },
-        "variance" =>{
-            CoverageEstimator::new_estimator_variance(
-                min_fraction_covered, contig_end_exclusion)
-        },
-        _ => panic!("programming error")
-    };
-    return estimator;
+struct EstimatorsAndTaker<'a> {
+    estimators: Vec<CoverageEstimator>,
+    taker: CoverageTakerType<'a>,
 }
 
-fn generate_coverage_taker<'a>(methods: &Vec<&str>, _m: &clap::ArgMatches, stream: &'a mut std::io::Stdout)
-                           -> CoverageTakerType<'a> {
-    if methods.contains(&"coverage_histogram") {
-        if methods.len() > 1 {
-            panic!("Cannot specify the coverage_histogram method with any other coverage methods")
-        } else {
-            CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
+impl<'a> EstimatorsAndTaker<'a> {
+    pub fn generate_from_clap(
+        m: &clap::ArgMatches, stream: &'a mut std::io::Stdout)
+        -> EstimatorsAndTaker<'a> {
+        let mut estimators = vec!();
+        let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
+
+        if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
+            eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
+            process::exit(1)
         }
-    } else {
-        CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-            stream)
+        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
+
+        let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+
+        let taker;
+        if methods.contains(&"coverage_histogram") {
+            if methods.len() > 1 {
+                panic!("Cannot specify the coverage_histogram method with any other coverage methods")
+            } else {
+                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
+            }
+        } else {
+            taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                stream)
+        }
+
+        for method in methods {
+            let estimator = match method {
+                "mean" => {
+                    CoverageEstimator::new_estimator_mean(
+                        min_fraction_covered, contig_end_exclusion)
+                },
+                "coverage_histogram" => {
+                    CoverageEstimator::new_estimator_pileup_counts(
+                        min_fraction_covered, contig_end_exclusion)
+                },
+                "trimmed_mean" => {
+                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
+                        process::exit(1)
+                    }
+                    CoverageEstimator::new_estimator_trimmed_mean(
+                        min, max, min_fraction_covered, contig_end_exclusion)
+                },
+                "covered_fraction" => {
+                    CoverageEstimator::new_estimator_covered_fraction(
+                        min_fraction_covered, contig_end_exclusion)
+                },
+                "variance" =>{
+                    CoverageEstimator::new_estimator_variance(
+                        min_fraction_covered, contig_end_exclusion)
+                },
+                _ => panic!("programming error")
+            };
+            estimators.push(estimator);
+        }
+
+        return EstimatorsAndTaker {
+            estimators: estimators,
+            taker: taker
+        }
     }
 }
+
 
 fn doing_filtering(m: &clap::ArgMatches) -> bool {
     m.is_present("min-aligned-length") ||
