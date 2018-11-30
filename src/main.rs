@@ -63,15 +63,13 @@ fn main(){
                             filter_params.min_percent_identity,
                             filter_params.min_aligned_percent),
                         m,
-                        &mut estimators_and_taker.estimators,
-                        estimators_and_taker.taker);
+                        &mut estimators_and_taker);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
-                        &mut estimators_and_taker.estimators,
-                        estimators_and_taker.taker);
+                        &mut estimators_and_taker);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -79,23 +77,29 @@ fn main(){
                 if filtering {
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
-                    for generator_set in generator_sets {
-                        estimators_and_taker.taker = run_genome(
-                            generator_set.generators,
-                            m,
-                            &mut estimators_and_taker.estimators,
-                            estimators_and_taker.taker);
+                    let mut all_generators = vec!();
+                    for set in generator_sets {
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
                     }
+                    run_genome(
+                        all_generators,
+                        m,
+                        &mut estimators_and_taker);
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
-                    for generator_set in generator_sets {
-                        estimators_and_taker.taker = run_genome(
-                            generator_set.generators,
-                            m,
-                            &mut estimators_and_taker.estimators,
-                            estimators_and_taker.taker);
+                    let mut all_generators = vec!();
+                    for set in generator_sets {
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
                     }
-                }
+                    run_genome(
+                        all_generators,
+                        m,
+                        &mut estimators_and_taker);
+                };
             }
         },
         Some("contig") => {
@@ -259,6 +263,7 @@ fn main(){
 struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
+    columns_to_normalise: Vec<usize>,
 }
 
 impl<'a> EstimatorsAndTaker<'a> {
@@ -275,30 +280,19 @@ impl<'a> EstimatorsAndTaker<'a> {
         let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
 
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+        let mut columns_to_normalise: Vec<usize> = vec!();
 
-        let taker;
-        if methods.contains(&"coverage_histogram") {
-            if methods.len() > 1 {
-                panic!("Cannot specify the coverage_histogram method with any other coverage methods")
-            } else {
-                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
-            }
-        } else {
-            taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                stream)
-        }
-
-        for method in methods {
+        for (i, method) in methods.iter().enumerate() {
             let estimator = match method {
-                "mean" => {
+                &"mean" => {
                     CoverageEstimator::new_estimator_mean(
                         min_fraction_covered, contig_end_exclusion)
                 },
-                "coverage_histogram" => {
+                &"coverage_histogram" => {
                     CoverageEstimator::new_estimator_pileup_counts(
                         min_fraction_covered, contig_end_exclusion)
                 },
-                "trimmed_mean" => {
+                &"trimmed_mean" => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                     let max = value_t!(m.value_of("trim-max"), f32).unwrap();
                     if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
@@ -308,22 +302,47 @@ impl<'a> EstimatorsAndTaker<'a> {
                     CoverageEstimator::new_estimator_trimmed_mean(
                         min, max, min_fraction_covered, contig_end_exclusion)
                 },
-                "covered_fraction" => {
+                &"covered_fraction" => {
                     CoverageEstimator::new_estimator_covered_fraction(
                         min_fraction_covered, contig_end_exclusion)
                 },
-                "variance" =>{
+                &"variance" =>{
                     CoverageEstimator::new_estimator_variance(
                         min_fraction_covered, contig_end_exclusion)
                 },
+                &"relative_abundance" => {
+                    columns_to_normalise.push(i);
+                    CoverageEstimator::new_estimator_mean(
+                        min_fraction_covered, contig_end_exclusion)
+                }
                 _ => panic!("programming error")
             };
             estimators.push(estimator);
         }
 
+        let taker;
+        if methods.contains(&"coverage_histogram") {
+            if methods.len() > 1 {
+                panic!("Cannot specify the coverage_histogram method with any other coverage methods")
+            } else {
+                debug!("Coverage histogram type coverage taker being used");
+                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
+            }
+        } else if columns_to_normalise.len() == 0 {
+            debug!("Streaming regular coverage output");
+            taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                stream)
+        } else {
+            debug!("Cached regular coverage taker from columns: {:?}",
+                   columns_to_normalise);
+            taker = CoverageTakerType::new_cached_single_float_coverage_taker(
+                estimators.len())
+        }
+
         return EstimatorsAndTaker {
             estimators: estimators,
-            taker: taker
+            taker: taker,
+            columns_to_normalise: columns_to_normalise
         }
     }
 }
@@ -335,91 +354,97 @@ fn doing_filtering(m: &clap::ArgMatches) -> bool {
         m.is_present("min-aligned-percent")
 }
 
-fn run_genome<R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>,
-              C: coverm::coverage_formatters::CoverageTaker>(
+fn run_genome<'a,
+              R: coverm::bam_generator::NamedBamReader,
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
-    coverage_estimators: &mut Vec<CoverageEstimator>,
-    mut coverage_taker: C) -> C {
+    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>) {
 
     let print_zeros = !m.is_present("no-zeros");
     let flag_filter = !m.is_present("no-flag-filter");
     let single_genome = m.is_present("single-genome");
-    if m.is_present("separator") || single_genome {
-        let separator: u8 = match single_genome {
-            true => "0".as_bytes()[0],
-            false => {
-                let separator_str = m.value_of("separator").unwrap().as_bytes();
-                if separator_str.len() != 1 {
-                    eprintln!(
-                        "error: Separator can only be a single character, found {} ({}).",
-                        separator_str.len(),
-                        str::from_utf8(separator_str).unwrap());
-                    process::exit(1);
+    let reads_mapped = match m.is_present("separator") || single_genome {
+        true => {
+            let separator: u8 = match single_genome {
+                true => "0".as_bytes()[0],
+                false => {
+                    let separator_str = m.value_of("separator").unwrap().as_bytes();
+                    if separator_str.len() != 1 {
+                        eprintln!(
+                            "error: Separator can only be a single character, found {} ({}).",
+                            separator_str.len(),
+                            str::from_utf8(separator_str).unwrap());
+                        process::exit(1);
+                    }
+                    separator_str[0]
                 }
-                separator_str[0]
-            }
-        };
-        coverm::genome::mosdepth_genome_coverage(
-            bam_generators,
-            separator,
-            &mut coverage_taker,
-            print_zeros,
-            coverage_estimators,
-            flag_filter,
-            single_genome);
-    } else {
-        let genomes_and_contigs;
-        if m.is_present("genome-fasta-files"){
-            let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
-            genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
-        } else if m.is_present("genome-fasta-directory") {
-            let dir = m.value_of("genome-fasta-directory").unwrap();
-            let paths = std::fs::read_dir(dir).unwrap();
-            let mut genome_fasta_files: Vec<String> = vec!();
-            let extension = m.value_of("genome-fasta-extension").unwrap();
-            for path in paths {
-                let file = path.unwrap().path();
-                match file.extension() {
-                    Some(ext) => {
-                        if ext == extension {
-                            let s = String::from(file.to_string_lossy());
-                            genome_fasta_files.push(s);
-                        } else {
-                            info!(
-                                "Not using directory entry '{}' as a genome FASTA file, as it does not end with the extension '{}'",
-                                file.to_str().expect("UTF8 error in filename"),
-                                extension);
+            };
+            coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator,
+	              &mut estimators_and_taker.taker,
+                print_zeros,
+                &mut estimators_and_taker.estimators,
+                flag_filter,
+                single_genome)
+        },
+
+        false => {
+            let genomes_and_contigs;
+            if m.is_present("genome-fasta-files"){
+                let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
+                genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
+            } else if m.is_present("genome-fasta-directory") {
+                let dir = m.value_of("genome-fasta-directory").unwrap();
+                let paths = std::fs::read_dir(dir).unwrap();
+                let mut genome_fasta_files: Vec<String> = vec!();
+                let extension = m.value_of("genome-fasta-extension").unwrap();
+                for path in paths {
+                    let file = path.unwrap().path();
+                    match file.extension() {
+                        Some(ext) => {
+                            if ext == extension {
+                                let s = String::from(file.to_string_lossy());
+                                genome_fasta_files.push(s);
+                            } else {
+                                info!(
+                                    "Not using directory entry '{}' as a genome FASTA file, as it does not end with the extension '{}'",
+                                    file.to_str().expect("UTF8 error in filename"),
+                                    extension);
+                            }
+                        },
+                        None => {
+                            info!("Not using directory entry '{}' as a genome FASTA file",
+                                  file.to_str().expect("UTF8 error in filename"));
                         }
-                    },
-                    None => {
-                        info!("Not using directory entry '{}' as a genome FASTA file",
-                              file.to_str().expect("UTF8 error in filename"));
                     }
                 }
+                let mut strs: Vec<&str> = vec!();
+                for f in &genome_fasta_files {
+                    strs.push(f);
+                }
+                if strs.len() == 0 {
+                    panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.")
+                }
+                info!("Calculating coverage for {} genomes ..", strs.len());
+                genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
+            } else {
+                panic!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
             }
-            let mut strs: Vec<&str> = vec!();
-            for f in &genome_fasta_files {
-                strs.push(f);
-            }
-            if strs.len() == 0 {
-                panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.")
-            }
-            info!("Calculating coverage for {} genomes ..", strs.len());
-            genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
-        } else {
-            panic!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
+            coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                bam_generators,
+                &genomes_and_contigs,
+                &mut estimators_and_taker.taker,
+                print_zeros,
+                flag_filter,
+                &mut estimators_and_taker.estimators)
         }
-        coverm::genome::mosdepth_genome_coverage_with_contig_names(
-            bam_generators,
-            &genomes_and_contigs,
-            &mut coverage_taker,
-            print_zeros,
-            flag_filter,
-            coverage_estimators);
-    }
-    return coverage_taker;
+    };
+
+    coverm::coverage_formatters::print_sparse_cached_coverage_taker(
+        &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
+        &estimators_and_taker.columns_to_normalise);
 }
 
 struct FilterParameters {
@@ -699,7 +724,8 @@ Alignment filtering (optional):
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
                                          One of:
-                                              mean (default)
+                                              relative_abundance (default)
+                                              mean
                                               trimmed_mean
                                               coverage_histogram
                                               covered_fraction
@@ -979,12 +1005,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .multiple(true)
                      .possible_values(&[
+                         "relative_abundance",
                          "mean",
                          "trimmed_mean",
                          "coverage_histogram",
                          "covered_fraction",
                          "variance"])
-                     .default_value("mean"))
+                     .default_value("relative_abundance"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
                      .default_value("0.05"))
@@ -1098,7 +1125,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "trimmed_mean",
                          "coverage_histogram",
                          "covered_fraction",
-                         "variance"])
+                         "variance",])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")

@@ -550,18 +550,39 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     let mut last_tid = current_tid;
     let mut genomes_to_print: Vec<&[u8]> = vec![];
     let mut genome_first_tids: Vec<usize> = vec![];
+    // Need to record the first TID from each genome, but we are iterating down.
+    // Gah.
+    let mut last_first_id = None;
     while tid > 0 {
         let genome = extract_genome(tid, &target_names, split_char);
+        info!("tid {}, genome {}", tid, str::from_utf8(genome).unwrap());
         if genome == last_genome { break; }
         else if genome != my_current_genome {
             // In-between genome encountered for the first time.
-            genomes_to_print.push(genome);
+            // Push the last
+            match last_first_id {
+                Some(id) => {
+                    info!("setting last at {}", id);
+                    genome_first_tids.push(id as usize);
+                    genomes_to_print.push(last_genome);},
+                None => {}
+            }
             my_current_genome = genome;
-            genome_first_tids.push(last_tid as usize);
+            last_first_id = Some(tid);
+        } else {
+            info!("now {}", tid);
+            last_first_id = Some(tid);
         }
-        last_tid = tid;
         tid = tid - 1;
     };
+    match last_first_id {
+        Some(id) => {
+            genome_first_tids.push(id as usize);
+            genomes_to_print.push(last_genome);},
+        None => {}
+    }
+    info!("genomes_to_print {:?}, genome_first_tids {:?}", genomes_to_print, genome_first_tids);
+
     for i in (0..genomes_to_print.len()).rev() {
         coverage_taker.start_entry(
             genome_first_tids[i],
