@@ -55,7 +55,8 @@ pub fn contig_coverage<R: NamedBamReader,
             if print_zero_coverage_contigs {
                 print_previous_zero_coverage_contigs(
                     match last_tid { -2 => -1, _ => last_tid},
-                    tid, coverage_estimators, &target_names, coverage_taker);
+                    tid, coverage_estimators, &target_names, coverage_taker,
+                    &header);
             }
         };
 
@@ -126,7 +127,8 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
     current_tid: i32,
     coverage_estimators: &Vec<CoverageEstimator>,
     target_names: &Vec<&[u8]>,
-    coverage_taker: &mut T) {
+    coverage_taker: &mut T,
+    header: &bam::HeaderView) {
     let mut my_tid = last_tid + 1;
     while my_tid < current_tid {
         debug!("printing zero coverage for tid {}", my_tid);
@@ -134,7 +136,8 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
             my_tid as usize,
             std::str::from_utf8(target_names[my_tid as usize]).unwrap());
         for ref coverage_estimator in coverage_estimators.iter() {
-            coverage_estimator.print_zero_coverage(coverage_taker);
+            coverage_estimator.print_zero_coverage(
+                coverage_taker, header.target_len(my_tid as u32).unwrap());
         }
         coverage_taker.finish_entry();
         my_tid += 1;

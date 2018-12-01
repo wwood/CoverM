@@ -39,8 +39,8 @@ pub trait CoverageTaker {
 
 #[derive(PartialEq, Debug)]
 pub struct CoverageEntry {
-    entry_index: usize,
-    coverage: f32
+    pub entry_index: usize,
+    pub coverage: f32
 }
 
 impl<'a> CoverageTakerType<'a> {

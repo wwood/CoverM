@@ -37,6 +37,9 @@ pub enum CoverageEstimator {
         num_covered_bases: u32,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
+    },
+    ReferenceLengthCalculator {
+        observed_contig_length: u32,
     }
 }
 
@@ -47,7 +50,8 @@ impl CoverageEstimator {
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} => {vec!("TrimmedMean")},
             CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {vec!("Coverage","Bases")},
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} => {vec!("CoveredFraction")},
-            CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {vec!("Variance")}
+            CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {vec!("Variance")},
+            CoverageEstimator::ReferenceLengthCalculator{..} => vec!("Length"),
         }
     }
 }
@@ -114,6 +118,11 @@ impl CoverageEstimator {
             contig_end_exclusion: contig_end_exclusion,
         }
     }
+    pub fn new_estimator_length() -> CoverageEstimator {
+        CoverageEstimator::ReferenceLengthCalculator {
+            observed_contig_length: 0
+        }
+    }
 }
 
 pub trait MosdepthGenomeCoverageEstimator {
@@ -129,7 +138,8 @@ pub trait MosdepthGenomeCoverageEstimator {
         coverage: &f32,
         coverage_taker: &mut T);
 
-    fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T);
+    fn print_zero_coverage<T: CoverageTaker>(
+        &self, coverage_taker: &mut T, entry_length: u32);
 
     fn copy(&self) -> CoverageEstimator;
 }
@@ -170,6 +180,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *total_bases = 0;
                 *num_covered_bases = 0;
+            },
+            CoverageEstimator::ReferenceLengthCalculator {
+                ref mut observed_contig_length
+            } => {
+                *observed_contig_length = 0;
             }
         }
     }
@@ -280,6 +295,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         }
                     }
                 }
+            },
+            CoverageEstimator::ReferenceLengthCalculator {
+                ref mut observed_contig_length
+            } => {
+                *observed_contig_length += ups_and_downs.len() as u32;
             }
         }
     }
@@ -451,6 +471,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         }
                     }
                 }
+            },
+            CoverageEstimator::ReferenceLengthCalculator {
+                observed_contig_length
+            } => {
+                (*observed_contig_length + unobserved_contig_length) as f32
             }
         }
     }
@@ -507,6 +532,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 CoverageEstimator::new_estimator_variance(
                     *min_fraction_covered_bases, *contig_end_exclusion)
+            },
+            CoverageEstimator::ReferenceLengthCalculator {..} => {
+                CoverageEstimator::new_estimator_length()
             }
         }
     }
@@ -520,7 +548,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::MeanGenomeCoverageEstimator {..} |
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
-            CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
+            CoverageEstimator::VarianceGenomeCoverageEstimator{..} |
+            CoverageEstimator::ReferenceLengthCalculator{..} => {
                 coverage_taker.add_single_coverage(*coverage);
             },
             CoverageEstimator::PileupCountsGenomeCoverageEstimator {
@@ -542,11 +571,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     coverage_taker.add_coverage_entry(i, cov);
                     i += 1
                 }
-            }
+            },
         }
     }
 
-    fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T) {
+    fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T, entry_length: u32) {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator{..} |
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
@@ -554,7 +583,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
                 coverage_taker.add_single_coverage(0.0);
             },
-            CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {}
+            CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {},
+            CoverageEstimator::ReferenceLengthCalculator{..} => {
+                coverage_taker.add_single_coverage(entry_length as f32);
+            }
         }
     }
 }
