@@ -414,43 +414,47 @@ pub fn print_sparse_cached_coverage_taker<'a>(
             current_stoit_coverages: &Vec<Vec<f32>>,
             current_stoit_entry_indices: &Vec<usize>,
             current_stoit_index: usize| {
-                for i in 0..*num_coverages {
-                    if columns_to_normalise.contains(&i) {
-                        let mut total_coverage = 0.0;
-                        // Calculate the total coverage from all recorded coverages
-                        for coverage_set in current_stoit_coverages {
-                            total_coverage += coverage_set[i]
-                        }
+                let mut coverage_multipliers: Vec<Option<f32>> = vec!(None; *num_coverages);
+                let mut coverage_totals: Vec<Option<f32>> = vec!(None; *num_coverages);
 
-                        // print out each coverage divided by total, then
-                        // multiplied by the fraction of reads that mapped,
-                        // times 100.
-                        let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
-                        let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
-                            reads_mapped.num_reads as f32;
-                        for (entry_i, coverages) in
-                            current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
-                                writeln!(print_stream, "{}\t{}\t{}",
-                                         stoit_names[current_stoit_index],
-                                         match &entry_names[*entry_i] {
-                                             Some(s) => s,
-                                             None => panic!("Didn't find entry name string as expected")
-                                         },
-                                         coverages[i]*100.0*fraction_mapped/total_coverage).unwrap();
-                            }
-                    } else {
-                        for (entry_i, coverages) in
-                            current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
-                                writeln!(print_stream, "{}\t{}\t{}",
-                                         stoit_names[current_stoit_index],
-                                         match &entry_names[*entry_i] {
-                                             Some(s) => s,
-                                             None => panic!("Didn't find entry name string as expected")
-                                         },
-                                         coverages[i]).unwrap();
-                            }
+                // Calculate totals and multipliers for each normalised sample.
+                for i in columns_to_normalise {
+                    let mut total_coverage = 0.0;
+                    for coverage_set in current_stoit_coverages {
+                        total_coverage += coverage_set[*i]
                     }
+                    coverage_totals[*i] = Some(total_coverage);
+
+                    let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
+                    let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
+                        reads_mapped.num_reads as f32;
+                    coverage_multipliers[*i] = Some(fraction_mapped);
                 }
+
+                for (entry_i, coverages) in
+                    current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
+                        write!(print_stream, "{}\t{}",
+                                 stoit_names[current_stoit_index],
+                                 match &entry_names[*entry_i] {
+                                     Some(s) => s,
+                                     None => panic!("Didn't find entry name string as expected")
+                                 }).unwrap();
+
+                        for i in 0..*num_coverages {
+                            if columns_to_normalise.contains(&i) {
+                                write!(
+                                    print_stream, "\t{}",
+                                    coverages[i]
+                                        *100.0
+                                        *coverage_multipliers[i].unwrap()
+                                        /coverage_totals[i].unwrap()).unwrap();
+                            } else {
+                                write!(print_stream, "\t{}",
+                                       coverages[i]).unwrap();
+                            }
+                        }
+                        writeln!(print_stream);
+                    }
             };
             for entry_and_coverages in iterator {
                 if current_stoit_index != entry_and_coverages.stoit_index {

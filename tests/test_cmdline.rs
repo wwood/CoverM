@@ -310,4 +310,26 @@ mod tests {
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6	0"
             ).unwrap();
     }
+
+    #[test]
+    fn test_relative_abundance_and_mean() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "relative_abundance",
+                "mean",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "-s",
+                "~",
+                "--no-flag-filter"]).succeeds().stdout().contains(
+                "Sample	Genome	Relative Abundance (%)	Mean
+7seqs.reads_for_seq1_and_seq2	genome1	0	0
+7seqs.reads_for_seq1_and_seq2	genome2	53.16792	1.4117647
+7seqs.reads_for_seq1_and_seq2	genome3	0	0
+7seqs.reads_for_seq1_and_seq2	genome4	0	0
+7seqs.reads_for_seq1_and_seq2	genome5	46.832077	1.2435294
+7seqs.reads_for_seq1_and_seq2	genome6	0	0").unwrap();
+    }
 }
