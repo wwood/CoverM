@@ -56,7 +56,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         info!("Of {} reference IDs, {} were assigned to a genome and {} were not",
               num_refs_in_genomes + num_refs_not_in_genomes,
               num_refs_in_genomes, num_refs_not_in_genomes);
-        debug!("Reference number to genoems: {:?}", reference_number_to_genome_index);
+        debug!("Reference number to genomes: {:?}", reference_number_to_genome_index);
         if num_refs_in_genomes == 0 {
             eprintln!("Error: There are no found reference sequences that are a part of a genome");
             std::process::exit(2);
@@ -265,35 +265,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
             return extra
         };
-        let fill_genome_length_backwards = |current_tid, target_genome| {
-            if current_tid == 0 {
-                return UnobservedLengthAndFirstTid {
-                    unobserved_contig_length: 0,
-                    first_tid: current_tid as usize
-                }
-            }
-            let mut extra: u32 = 0;
-            let mut my_tid = current_tid - 1;
-            loop {
-                if single_genome ||
-                    extract_genome(my_tid, &target_names, split_char) == target_genome {
 
-                    extra += header.target_len(my_tid)
-                        .expect("Malformed bam header or programming error encountered");
-                    if my_tid == 0 {
-                        break
-                    } else {
-                        my_tid -= 1;
-                    }
-                } else {
-                    break;
-                }
-            }
-            return UnobservedLengthAndFirstTid {
-                unobserved_contig_length: extra,
-                first_tid: my_tid as usize
-            }
-        };
         let fill_genome_length_backwards_to_last = |current_tid, last_tid, target_genome| {
             if current_tid == 0 {return 0};
             let mut extra: u32 = 0;
@@ -341,13 +313,26 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     false => extract_genome(tid as u32, &target_names, split_char)
                 };
                 if tid != last_tid || doing_first {
+                    debug!("Processing a change in tid, from {} to {} (first is {}). Current \
+                           unobserved_and_first: unobserved {}, first {}",
+                          last_tid,
+                          tid,
+                          doing_first,
+                          unobserved_contig_length_and_first_tid.unobserved_contig_length,
+                          unobserved_contig_length_and_first_tid.first_tid);
                     if doing_first == true {
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
                             coverage_estimator.setup()
                         }
-                        last_genome = current_genome;
                         unobserved_contig_length_and_first_tid = fill_genome_length_backwards(
-                            tid, current_genome);
+                            tid,
+                            current_genome,
+                            single_genome,
+                            &target_names,
+                            split_char,
+                            &header);
+                        last_genome = current_genome;
+                        debug!("doing first..");
                         doing_first = false;
 
                         if print_zero_coverage_genomes && !single_genome {
@@ -414,8 +399,14 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                 &target_names, split_char, coverage_taker);
                         }
                         last_genome = current_genome;
-                        unobserved_contig_length_and_first_tid =
-                            fill_genome_length_backwards(tid, current_genome);
+
+                        unobserved_contig_length_and_first_tid = fill_genome_length_backwards(
+                            tid,
+                            current_genome,
+                            single_genome,
+                            &target_names,
+                            split_char,
+                            &header);
                         debug!(
                             "Setting unobserved contig length to be {}",
                             unobserved_contig_length_and_first_tid.unobserved_contig_length);
@@ -464,8 +455,9 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             // Collect the length of refs from the end of the last genome that had no hits
             unobserved_contig_length_and_first_tid.unobserved_contig_length +=
                 fill_genome_length_forwards(last_tid, last_genome);
-            debug!("At end, unobserved_contig_length now {}",
-                   unobserved_contig_length_and_first_tid.unobserved_contig_length);
+            debug!("At end, unobserved_contig_length now {} and first {}",
+                   unobserved_contig_length_and_first_tid.unobserved_contig_length,
+                   unobserved_contig_length_and_first_tid.first_tid);
             // Determine coverage of previous genome
             for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
                 coverage_estimator.add_contig(&ups_and_downs);
@@ -531,6 +523,47 @@ fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) ->
     return &target_name[(0..offset)];
 }
 
+fn fill_genome_length_backwards(
+    current_tid: u32,
+    target_genome: &[u8],
+    single_genome: bool,
+    target_names: &Vec<&[u8]>,
+    split_char: u8,
+    header: &bam::HeaderView)
+    -> UnobservedLengthAndFirstTid {
+    debug!("At start of fill_genome_length_backwards, found current_tid {}, target_genome {}",
+          current_tid, str::from_utf8(target_genome).unwrap());
+    if current_tid == 0 {
+        info!("Returning (first) UnobservedLengthAndFirstTid length {}, first_tid {}",
+              0, current_tid);
+        return UnobservedLengthAndFirstTid {
+            unobserved_contig_length: 0,
+            first_tid: current_tid as usize
+        }
+    }
+
+    let mut extra: u32 = 0;
+    let mut my_tid = current_tid - 1;
+    while single_genome ||
+        extract_genome(my_tid, &target_names, split_char) == target_genome {
+            extra += header.target_len(my_tid)
+                .expect("Malformed bam header or programming error encountered");
+            if my_tid == 0 {
+                return UnobservedLengthAndFirstTid {
+                    unobserved_contig_length: extra,
+                    first_tid: 0 as usize
+                }
+            } else {
+                my_tid -= 1;
+            }
+        }
+    debug!("Returning UnobservedLengthAndFirstTid length {}, first_tid {}",
+          extra, my_tid+1);
+    return UnobservedLengthAndFirstTid {
+        unobserved_contig_length: extra,
+        first_tid: (my_tid+1) as usize
+    }
+}
 
 // Print zero coverage for genomes that have no reads mapped. Genomes are
 // detected from the header, counting backwards from the current tid until the
@@ -547,21 +580,45 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
 
     let mut my_current_genome = current_genome;
     let mut tid = current_tid;
-    let mut last_tid = current_tid;
     let mut genomes_to_print: Vec<&[u8]> = vec![];
     let mut genome_first_tids: Vec<usize> = vec![];
-    while tid > 0 {
+    // Need to record the first TID from each genome, but we are iterating down.
+    // Gah.
+    let mut last_first_id = None;
+    loop {
         let genome = extract_genome(tid, &target_names, split_char);
+        debug!("in print_previous_zero_coverage_genomes2: tid {}, genome {}", tid, str::from_utf8(genome).unwrap());
         if genome == last_genome { break; }
         else if genome != my_current_genome {
             // In-between genome encountered for the first time.
-            genomes_to_print.push(genome);
+            // Push the last
+            match last_first_id {
+                Some(id) => {
+                    if genome != last_genome {
+                        genome_first_tids.push(id as usize);
+                        genomes_to_print.push(my_current_genome);
+                    }
+                },
+                None => {}
+            }
             my_current_genome = genome;
-            genome_first_tids.push(last_tid as usize);
+            last_first_id = Some(tid);
+        } else if genome != current_genome {
+            last_first_id = Some(tid);
         }
-        last_tid = tid;
+        if tid == 0 { break; }
         tid = tid - 1;
     };
+    match last_first_id {
+        Some(id) => {
+            genome_first_tids.push(id as usize);
+            genomes_to_print.push(my_current_genome);},
+        None => {}
+    }
+    debug!("genomes_to_print {:?}, genome_first_tids {:?}",
+          genomes_to_print,
+          genome_first_tids);
+
     for i in (0..genomes_to_print.len()).rev() {
         coverage_taker.start_entry(
             genome_first_tids[i],
@@ -596,6 +653,7 @@ fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
 mod tests {
     use super::*;
     use std::io::Cursor;
+    use rust_htslib::prelude::*;
 
     fn test_streaming_with_stream<R: NamedBamReader,
                                   G: NamedBamReaderGenerator<R>>(
@@ -1156,5 +1214,67 @@ mod tests {
             ),
             false,
             false);
+    }
+
+    #[test]
+    fn test_fill_genome_length_backwards1(){
+        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let uf = fill_genome_length_backwards(
+            2,
+            "genome2".as_bytes(),
+            false,
+            &bam.header().target_names(),
+            '~' as u8,
+            bam.header());
+        assert_eq!(0, uf.unobserved_contig_length);
+        assert_eq!(2, uf.first_tid);
+    }
+
+    #[test]
+    fn test_fill_genome_length_backwards2(){
+        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let uf = fill_genome_length_backwards(
+            1,
+            "genome1".as_bytes(),
+            false,
+            &bam.header().target_names(),
+            '~' as u8,
+            bam.header());
+        assert_eq!(11000, uf.unobserved_contig_length);
+        assert_eq!(0, uf.first_tid);
+    }
+
+    #[test]
+    fn test_fill_genome_length_backwards3(){
+        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let uf = fill_genome_length_backwards(
+            5,
+            "genome5".as_bytes(),
+            false,
+            &bam.header().target_names(),
+            '~' as u8,
+            bam.header());
+        assert_eq!(0, uf.unobserved_contig_length);
+        assert_eq!(5, uf.first_tid);
+    }
+
+    #[test]
+    fn test_print_previous_zero_coverage_genomes2(){
+        let mut coverage_taker = CoverageTakerType::new_cached_single_float_coverage_taker(1);
+        let estimator = CoverageEstimator::new_estimator_mean(0.0,0);
+        coverage_taker.start_stoit("dummy");
+        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        print_previous_zero_coverage_genomes2(
+            b"", "genome2".as_bytes(), 2, &vec!(estimator),
+            &bam.header().target_names(),
+            '~' as u8,
+            &mut coverage_taker);
+        match coverage_taker {
+            CoverageTakerType::CachedSingleFloatCoverageTaker{
+                stoit_names, entry_names, ..} => {
+                assert_eq!(vec!("dummy"), stoit_names);
+                assert_eq!(vec!(Some("genome1".to_string())), entry_names);
+            }, _ => panic!()
+        }
     }
 }

@@ -1,6 +1,8 @@
 use std;
 use std::fmt;
 
+use ReadsMapped;
+
 pub enum CoverageTakerType<'a> {
     SingleFloatCoverageStreamingCoveragePrinter {
         print_stream: &'a mut std::io::Write,
@@ -69,6 +71,8 @@ impl<'a> CoverageTakerType<'a> {
     }
 }
 
+
+
 impl<'a> CoverageTaker for CoverageTakerType<'a> {
     fn start_stoit(&mut self, stoit_name: &str) {
         match self {
@@ -125,8 +129,12 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 current_stoit_index: _,
                 ref mut current_entry_index, ..
             } => {
+                debug!("Starting an entry with ID {} and name {}",
+                      entry_order_id, entry_name);
                 // if the first time this entry has been seen, record its name.
                 if entry_order_id >= entry_names.len() {
+                    debug!("Adding 1 to entry order id {}, where names size is {}",
+                           entry_order_id, entry_names.len());
                     entry_names.resize(entry_order_id+1, None)
                 }
                 if entry_names[entry_order_id].is_none() {
@@ -137,7 +145,9 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                         if prev != entry_name {
                             panic!("Found a difference amongst the reference sets used for \
                                     mapping. For this (non-streaming) usage of CoverM, all \
-                                    BAM files must have the same set of reference sequences.")
+                                    BAM files must have the same set of reference sequences. \
+                                    Previous entry was {}, new is {}",
+                            prev, entry_name)
                         }
                     },
                     None => {} // should never happen. There's probably a more
@@ -355,6 +365,9 @@ impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
                         None => {
                             // all coverages from the current stoit have been returned
                             self.iter_current_stoit_index += 1;
+                            if self.iter_current_stoit_index >= stoit_names.len() {
+                                return None // Finished all iteration now.
+                            }
                             self.iter_next_entry_indices = vec![0; stoit_names.len()];
                             self.iter_last_entry_order_index = None;
                         }
@@ -367,6 +380,99 @@ impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
     }
 }
 
+
+
+
+pub fn print_sparse_cached_coverage_taker<'a>(
+    cached_coverage_taker: &'a CoverageTakerType<'a>,
+    print_stream: &mut std::io::Write,
+    reads_mapped_per_sample: &Vec<ReadsMapped>,
+    columns_to_normalise: &Vec<usize>) {
+
+    let iterator = cached_coverage_taker.generate_iterator();
+
+    match &cached_coverage_taker {
+        CoverageTakerType::CachedSingleFloatCoverageTaker{
+            stoit_names,
+            ref entry_names,
+            coverages:_,
+            current_stoit_index:_,
+            current_entry_index:_,
+            num_coverages
+        } => {
+            debug!("Generating iterator for cached coverage taker with stoit names {:?},\
+                    entry_names {:?}\
+                    num_coverages {}",
+                   stoit_names, entry_names, num_coverages);
+            // Print the relative abundance of each genome, with an
+            // 'unmapped' entry for reads that don't map.
+            let mut current_stoit_coverages: Vec<Vec<f32>> = vec!();
+            let mut current_stoit_entry_indices: Vec<usize> = vec!();
+            let mut current_stoit_index = 0;
+
+            let mut print_previous_stoit = |
+            current_stoit_coverages: &Vec<Vec<f32>>,
+            current_stoit_entry_indices: &Vec<usize>,
+            current_stoit_index: usize| {
+                for i in 0..*num_coverages {
+                    if columns_to_normalise.contains(&i) {
+                        let mut total_coverage = 0.0;
+                        // Calculate the total coverage from all recorded coverages
+                        for coverage_set in current_stoit_coverages {
+                            total_coverage += coverage_set[i]
+                        }
+
+                        // print out each coverage divided by total, then
+                        // multiplied by the fraction of reads that mapped,
+                        // times 100.
+                        let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
+                        let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
+                            reads_mapped.num_reads as f32;
+                        for (entry_i, coverages) in
+                            current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
+                                writeln!(print_stream, "{}\t{}\t{}",
+                                         stoit_names[current_stoit_index],
+                                         match &entry_names[*entry_i] {
+                                             Some(s) => s,
+                                             None => panic!("Didn't find entry name string as expected")
+                                         },
+                                         coverages[i]*100.0*fraction_mapped/total_coverage).unwrap();
+                            }
+                    } else {
+                        for (entry_i, coverages) in
+                            current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
+                                writeln!(print_stream, "{}\t{}\t{}",
+                                         stoit_names[current_stoit_index],
+                                         match &entry_names[*entry_i] {
+                                             Some(s) => s,
+                                             None => panic!("Didn't find entry name string as expected")
+                                         },
+                                         coverages[i]).unwrap();
+                            }
+                    }
+                }
+            };
+            for entry_and_coverages in iterator {
+                if current_stoit_index != entry_and_coverages.stoit_index {
+                    print_previous_stoit(
+                        &current_stoit_coverages,
+                        &current_stoit_entry_indices,
+                        current_stoit_index);
+                    current_stoit_coverages = vec!();
+                    current_stoit_entry_indices = vec!();
+                    current_stoit_index = entry_and_coverages.stoit_index;
+                }
+                current_stoit_coverages.push(entry_and_coverages.coverages);
+                current_stoit_entry_indices.push(entry_and_coverages.entry_index);
+            }
+            print_previous_stoit(
+                &current_stoit_coverages,
+                &current_stoit_entry_indices,
+                current_stoit_index);
+        },
+        _ => panic!("programming error")
+    }
+}
 
 
 
@@ -580,6 +686,7 @@ mod tests {
             stoit_index: 1,
             coverages: vec![20.1,20.2]
         }), it.next());
+        assert_eq!(None, it.next());
     }
 
     #[test]
@@ -644,6 +751,8 @@ mod tests {
             stoit_index: 1,
             coverages: vec![20.1]
         }), it.next());
+        assert_eq!(None, it.next());
     }
 }
+
 
