@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
         test_with_stream(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
@@ -211,7 +211,7 @@ mod tests {
     fn test_one_contig_variance(){
         test_with_stream(
             &("2seqs.reads_for_seq1\tseq1\t0.9489489\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\n"),
+                "2seqs.reads_for_seq1\tseq2\t0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(CoverageEstimator::new_estimator_variance(0.0,0)),
@@ -240,7 +240,7 @@ mod tests {
     fn test_multiple_coverage_methods(){
         test_with_stream(
             &("2seqs.reads_for_seq1\tseq1\t1.2\t0.9489489\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\t0.0\n"),
+                "2seqs.reads_for_seq1\tseq2\t0\t0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(
@@ -267,8 +267,8 @@ mod tests {
     #[test]
     fn test_trimmed_mean_bug(){
         test_with_stream(
-            &("2seqs.reads_for_seq1\tseq1\t0.0\n".to_owned()+
-                "2seqs.reads_for_seq1\tseq2\t0.0\n"),
+            &("2seqs.reads_for_seq1\tseq1\t0\n".to_owned()+
+                "2seqs.reads_for_seq1\tseq2\t0\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes(){
         test_with_stream(
-            "2seqs.reads_for_seq1\tseq1\t1.2\t0.0\n",
+            "2seqs.reads_for_seq1\tseq1\t1.2\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_reverse_order(){
         test_with_stream(
-            "2seqs.reads_for_seq1\tseq1\t0.0\t1.2\n",
+            "2seqs.reads_for_seq1\tseq1\t0\t1.2\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(

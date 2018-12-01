@@ -163,7 +163,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
             CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter{
                 print_stream, .. } => {
                 if coverage == 0.0 {
-                    write!(print_stream, "\t0.0").unwrap()
+                    write!(print_stream, "\t0").unwrap()
                 } else {
                     write!(print_stream, "\t{}", coverage).unwrap()
                 }

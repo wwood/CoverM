@@ -865,7 +865,7 @@ mod tests {
     #[test]
     fn test_one_genome_min_fraction_covered_under_min(){
         test_streaming_with_stream(
-            "2seqs.reads_for_seq1_and_seq2\ts\t0.0\n",
+            "2seqs.reads_for_seq1_and_seq2\ts\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             true,
@@ -976,7 +976,7 @@ mod tests {
     #[test]
     fn test_zero_coverage_genomes(){
         test_streaming_with_stream(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             true,
@@ -997,7 +997,7 @@ mod tests {
     #[test]
     fn test_zero_coverage_genomes_after_min_fraction(){
         test_streaming_with_stream(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             true,
@@ -1042,12 +1042,12 @@ mod tests {
         geco.insert("genome5~seq2".to_string(),genome5);
         geco.insert("genome6~random_sequence_length_11003".to_string(),genome6);
         test_contig_names_with_stream(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\n\
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\n",
+            7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
             true,
@@ -1087,12 +1087,12 @@ mod tests {
         geco.insert("genome5~seq2".to_string(),genome5);
         geco.insert("genome6~random_sequence_length_11003".to_string(),genome6);
         test_contig_names_with_stream(
-            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0.0\t0.0\n\
+            "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\t0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\t0.0\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome4\t0.0\t0.0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0\t0\n\
+            7seqs.reads_for_seq1_and_seq2\tgenome4\t0\t0\n\
             7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome6\t0.0\t0.0\n",
+            7seqs.reads_for_seq1_and_seq2\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
             true,
@@ -1132,7 +1132,7 @@ mod tests {
         geco.insert("genome3~random_sequence_length_11001".to_string(),genome3);
         let reads_mapped = test_contig_names_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
-            7seqs.reads_for_seq1_and_seq2\tgenome3\t0.0\t0.0\n",
+            7seqs.reads_for_seq1_and_seq2\tgenome3\t0\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &geco,
             true,
@@ -1167,7 +1167,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_single_genome(){
         test_streaming_with_stream(
-            "2seqs.reads_for_seq1\tgenome1\t0.6\t0.0\n",
+            "2seqs.reads_for_seq1\tgenome1\t0.6\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             'q' as u8,
@@ -1185,7 +1185,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_single_genome_reverse(){
         test_streaming_with_stream(
-            "2seqs.reads_for_seq1\tgenome1\t0.0\t0.6\n",
+            "2seqs.reads_for_seq1\tgenome1\t0\t0.6\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             'q' as u8,
@@ -1203,7 +1203,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_separator(){
         test_streaming_with_stream(
-            "7seqs.reads_for_seq1\tgenome1\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome2\t1.2\t0.0\n7seqs.reads_for_seq1\tgenome3\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome4\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome5\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome6\t0.0\t0.0\n",
+            "7seqs.reads_for_seq1\tgenome1\t0\t0\n7seqs.reads_for_seq1\tgenome2\t1.2\t0\n7seqs.reads_for_seq1\tgenome3\t0\t0\n7seqs.reads_for_seq1\tgenome4\t0\t0\n7seqs.reads_for_seq1\tgenome5\t0\t0\n7seqs.reads_for_seq1\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
             '~' as u8,
@@ -1221,7 +1221,7 @@ mod tests {
     #[test]
     fn test_multiple_outputs_one_zero_no_print_zeroes_separator_reverse(){
         test_streaming_with_stream(
-            "7seqs.reads_for_seq1\tgenome1\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome2\t0.0\t1.2\n7seqs.reads_for_seq1\tgenome3\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome4\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome5\t0.0\t0.0\n7seqs.reads_for_seq1\tgenome6\t0.0\t0.0\n",
+            "7seqs.reads_for_seq1\tgenome1\t0\t0\n7seqs.reads_for_seq1\tgenome2\t0\t1.2\n7seqs.reads_for_seq1\tgenome3\t0\t0\n7seqs.reads_for_seq1\tgenome4\t0\t0\n7seqs.reads_for_seq1\tgenome5\t0\t0\n7seqs.reads_for_seq1\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
             '~' as u8,
