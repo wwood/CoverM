@@ -302,6 +302,7 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "-s","~"]).succeeds().stdout().contains(
                 "Sample	Genome	Relative Abundance (%)
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	unmapped	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome2	53.16792
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3	0
@@ -325,6 +326,7 @@ mod tests {
                 "~",
                 "--no-flag-filter"]).succeeds().stdout().contains(
                 "Sample	Genome	Relative Abundance (%)	Mean
+7seqs.reads_for_seq1_and_seq2	unmapped	0	NA
 7seqs.reads_for_seq1_and_seq2	genome1	0	0
 7seqs.reads_for_seq1_and_seq2	genome2	53.16792	1.4117647
 7seqs.reads_for_seq1_and_seq2	genome3	0	0

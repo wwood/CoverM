@@ -431,10 +431,33 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                     coverage_multipliers[*i] = Some(fraction_mapped);
                 }
 
+                // Print unmapped entries at the top
+                let stoit = &stoit_names[current_stoit_index];
+                write!(print_stream, "{}\tunmapped", stoit).unwrap();
+                for (i, column) in columns_to_normalise.iter().enumerate() {
+                    if i == 0 {
+                        for _ in 0..*column {
+                            write!(print_stream, "\tNA").unwrap();
+                        }
+                    } else {
+                        for _ in (columns_to_normalise[i-1]+1)..*column {
+                            write!(print_stream, "\tNA").unwrap();
+                        }
+                    }
+                    write!(print_stream, "\t{}",
+                           100.0*(1.0-(coverage_multipliers[*column].unwrap())));
+                }
+                for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
+                    ..*num_coverages {
+                    write!(print_stream, "\tNA").unwrap();
+                }
+                writeln!(print_stream).unwrap();
+
+                // Print the actual coverage values
                 for (entry_i, coverages) in
                     current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
                         write!(print_stream, "{}\t{}",
-                                 stoit_names[current_stoit_index],
+                                 stoit,
                                  match &entry_names[*entry_i] {
                                      Some(s) => s,
                                      None => panic!("Didn't find entry name string as expected")
