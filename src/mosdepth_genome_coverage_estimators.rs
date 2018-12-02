@@ -1,4 +1,4 @@
-use coverage_formatters::CoverageTaker;
+use coverage_takers::CoverageTaker;
 
 #[derive(Clone, Debug)]
 pub enum CoverageEstimator {

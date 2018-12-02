@@ -3,7 +3,7 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::bam_generator::*;
 use coverm::filter;
 use coverm::external_command_checker;
-use coverm::coverage_formatters::*;
+use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
 
 extern crate rust_htslib;
@@ -451,7 +451,7 @@ fn run_genome<'a,
 
     match estimators_and_taker.taker {
         CoverageTakerType::CachedSingleFloatCoverageTaker{..} => {
-            coverm::coverage_formatters::print_sparse_cached_coverage_taker(
+            coverm::coverage_takers::print_sparse_cached_coverage_taker(
                 &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
                 &estimators_and_taker.columns_to_normalise);
         }, _ => {}
@@ -656,7 +656,7 @@ fn get_streamed_filtered_bam_readers(
 
 fn run_contig<R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>,
-              C: coverm::coverage_formatters::CoverageTaker>(
+              C: coverm::coverage_takers::CoverageTaker>(
     coverage_estimators: &mut Vec<CoverageEstimator>,
     bam_readers: Vec<T>,
     print_zeros: bool,

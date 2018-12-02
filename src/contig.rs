@@ -2,7 +2,7 @@ use std;
 use rust_htslib::bam;
 use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
-use coverage_formatters::*;
+use coverage_takers::*;
 
 use rust_htslib::bam::record::Cigar;
 

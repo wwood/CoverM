@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use mosdepth_genome_coverage_estimators::*;
 use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
-use coverage_formatters::*;
+use coverage_takers::*;
 use ReadsMapped;
 
 pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
