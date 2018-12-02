@@ -715,7 +715,7 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -773,7 +773,7 @@ Define mapping(s) (required):
     -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
 
   Or do mapping:
-   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -856,7 +856,7 @@ Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
 
 Mapping parameters:
-   -r, --reference <PATH> ..             FASTA file of contig(s) or BWA index stem(s)
+   -r, --reference <PATH>                FASTA file of contig(s) or BWA index stem
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -943,7 +943,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
@@ -1102,7 +1101,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .multiple(true)
                      .required_unless("bam-files")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
@@ -1250,7 +1248,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .multiple(true)
                      .required(true))
                 .arg(Arg::with_name("threads")
                      .short("-t")
