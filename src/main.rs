@@ -5,6 +5,7 @@ use coverm::filter;
 use coverm::external_command_checker;
 use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
+use coverm::coverage_printer::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -268,6 +269,7 @@ struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
     columns_to_normalise: Vec<usize>,
+    printer: CoveragePrinter<'a>,
 }
 
 impl<'a> EstimatorsAndTaker<'a> {
@@ -328,28 +330,33 @@ impl<'a> EstimatorsAndTaker<'a> {
         }
 
         let taker;
+        let printer;
         if methods.contains(&"coverage_histogram") {
             if methods.len() > 1 {
                 panic!("Cannot specify the coverage_histogram method with any other coverage methods")
             } else {
                 debug!("Coverage histogram type coverage taker being used");
-                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream)
+                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
+                printer = CoveragePrinter::StreamedCoveragePrinter;
             }
         } else if columns_to_normalise.len() == 0 {
             debug!("Streaming regular coverage output");
             taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                stream)
+                stream);
+            printer = CoveragePrinter::StreamedCoveragePrinter;
         } else {
             debug!("Cached regular coverage taker from columns: {:?}",
                    columns_to_normalise);
             taker = CoverageTakerType::new_cached_single_float_coverage_taker(
-                estimators.len())
+                estimators.len());
+            printer = CoveragePrinter::SparseCachedCoveragePrinter;
         }
 
         return EstimatorsAndTaker {
             estimators: estimators,
             taker: taker,
-            columns_to_normalise: columns_to_normalise
+            columns_to_normalise: columns_to_normalise,
+            printer: printer,
         }
     }
 }
@@ -449,13 +456,9 @@ fn run_genome<'a,
         }
     };
 
-    match estimators_and_taker.taker {
-        CoverageTakerType::CachedSingleFloatCoverageTaker{..} => {
-            coverm::coverage_takers::print_sparse_cached_coverage_taker(
-                &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
-                &estimators_and_taker.columns_to_normalise);
-        }, _ => {}
-    }
+    estimators_and_taker.printer.finalise_printing(
+        &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
+        &estimators_and_taker.columns_to_normalise);
 }
 
 struct FilterParameters {

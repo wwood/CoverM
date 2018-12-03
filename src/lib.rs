@@ -8,6 +8,7 @@ pub mod external_command_checker;
 pub mod bwa_index_maintenance;
 pub mod coverage_takers;
 pub mod mapping_parameters;
+pub mod coverage_printer;
 
 extern crate bio;
 #[macro_use]

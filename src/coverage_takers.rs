@@ -1,8 +1,6 @@
 use std;
 use std::fmt;
 
-use ReadsMapped;
-
 pub enum CoverageTakerType<'a> {
     SingleFloatCoverageStreamingCoveragePrinter {
         print_stream: &'a mut std::io::Write,
@@ -234,9 +232,9 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
 
 #[derive(PartialEq, Debug)]
 pub struct EntryAndCoverages {
-    entry_index: usize,
-    stoit_index: usize,
-    coverages: Vec<f32>
+    pub entry_index: usize,
+    pub stoit_index: usize,
+    pub coverages: Vec<f32>
 }
 
 
@@ -379,128 +377,6 @@ impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
         }
     }
 }
-
-
-
-
-pub fn print_sparse_cached_coverage_taker<'a>(
-    cached_coverage_taker: &'a CoverageTakerType<'a>,
-    print_stream: &mut std::io::Write,
-    reads_mapped_per_sample: &Vec<ReadsMapped>,
-    columns_to_normalise: &Vec<usize>) {
-
-    let iterator = cached_coverage_taker.generate_iterator();
-
-    match &cached_coverage_taker {
-        CoverageTakerType::CachedSingleFloatCoverageTaker{
-            stoit_names,
-            ref entry_names,
-            coverages:_,
-            current_stoit_index:_,
-            current_entry_index:_,
-            num_coverages
-        } => {
-            debug!("Generating iterator for cached coverage taker with stoit names {:?},\
-                    entry_names {:?}\
-                    num_coverages {}",
-                   stoit_names, entry_names, num_coverages);
-            // Print the relative abundance of each genome, with an
-            // 'unmapped' entry for reads that don't map.
-            let mut current_stoit_coverages: Vec<Vec<f32>> = vec!();
-            let mut current_stoit_entry_indices: Vec<usize> = vec!();
-            let mut current_stoit_index = 0;
-
-            let mut print_previous_stoit = |
-            current_stoit_coverages: &Vec<Vec<f32>>,
-            current_stoit_entry_indices: &Vec<usize>,
-            current_stoit_index: usize| {
-                let mut coverage_multipliers: Vec<Option<f32>> = vec!(None; *num_coverages);
-                let mut coverage_totals: Vec<Option<f32>> = vec!(None; *num_coverages);
-
-                // Calculate totals and multipliers for each normalised sample.
-                for i in columns_to_normalise {
-                    let mut total_coverage = 0.0;
-                    for coverage_set in current_stoit_coverages {
-                        total_coverage += coverage_set[*i]
-                    }
-                    coverage_totals[*i] = Some(total_coverage);
-
-                    let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
-                    let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
-                        reads_mapped.num_reads as f32;
-                    coverage_multipliers[*i] = Some(fraction_mapped);
-                }
-
-                // Print unmapped entries at the top
-                let stoit = &stoit_names[current_stoit_index];
-                write!(print_stream, "{}\tunmapped", stoit).unwrap();
-                for (i, column) in columns_to_normalise.iter().enumerate() {
-                    if i == 0 {
-                        for _ in 0..*column {
-                            write!(print_stream, "\tNA").unwrap();
-                        }
-                    } else {
-                        for _ in (columns_to_normalise[i-1]+1)..*column {
-                            write!(print_stream, "\tNA").unwrap();
-                        }
-                    }
-                    write!(print_stream, "\t{}",
-                           100.0*(1.0-(coverage_multipliers[*column].unwrap())));
-                }
-                for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
-                    ..*num_coverages {
-                    write!(print_stream, "\tNA").unwrap();
-                }
-                writeln!(print_stream).unwrap();
-
-                // Print the actual coverage values
-                for (entry_i, coverages) in
-                    current_stoit_entry_indices.iter().zip(current_stoit_coverages.iter()) {
-                        write!(print_stream, "{}\t{}",
-                                 stoit,
-                                 match &entry_names[*entry_i] {
-                                     Some(s) => s,
-                                     None => panic!("Didn't find entry name string as expected")
-                                 }).unwrap();
-
-                        for i in 0..*num_coverages {
-                            if columns_to_normalise.contains(&i) {
-                                write!(
-                                    print_stream, "\t{}",
-                                    coverages[i]
-                                        *100.0
-                                        *coverage_multipliers[i].unwrap()
-                                        /coverage_totals[i].unwrap()).unwrap();
-                            } else {
-                                write!(print_stream, "\t{}",
-                                       coverages[i]).unwrap();
-                            }
-                        }
-                        writeln!(print_stream);
-                    }
-            };
-            for entry_and_coverages in iterator {
-                if current_stoit_index != entry_and_coverages.stoit_index {
-                    print_previous_stoit(
-                        &current_stoit_coverages,
-                        &current_stoit_entry_indices,
-                        current_stoit_index);
-                    current_stoit_coverages = vec!();
-                    current_stoit_entry_indices = vec!();
-                    current_stoit_index = entry_and_coverages.stoit_index;
-                }
-                current_stoit_coverages.push(entry_and_coverages.coverages);
-                current_stoit_entry_indices.push(entry_and_coverages.entry_index);
-            }
-            print_previous_stoit(
-                &current_stoit_coverages,
-                &current_stoit_entry_indices,
-                current_stoit_index);
-        },
-        _ => panic!("programming error")
-    }
-}
-
 
 
 
