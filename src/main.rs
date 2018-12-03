@@ -118,20 +118,18 @@ fn main(){
                         filter_params.min_percent_identity,
                         filter_params.min_aligned_percent);
                     run_contig(
-                        &mut estimators_and_taker.estimators,
+                        estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter,
-                        &mut estimators_and_taker.taker);
+                        flag_filter);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
                     run_contig(
-                        &mut estimators_and_taker.estimators,
+                        estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter,
-                        &mut estimators_and_taker.taker);
+                        flag_filter);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -140,23 +138,21 @@ fn main(){
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(
-                            &mut estimators_and_taker.estimators,
+                        estimators_and_taker = run_contig(
+                            estimators_and_taker,
                             generator_set.generators,
                             print_zeros,
-                            flag_filter,
-                            &mut estimators_and_taker.taker);
+                            flag_filter);
                     }
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
                     for generator_set in generator_sets {
-                        run_contig(
-                            &mut estimators_and_taker.estimators,
+                        estimators_and_taker = run_contig(
+                            estimators_and_taker,
                             generator_set.generators,
                             print_zeros,
-                            flag_filter,
-                            &mut estimators_and_taker.taker);
+                            flag_filter);
                     }
                 }
             }
@@ -465,7 +461,7 @@ fn run_genome<'a,
 
     debug!("Finalising printing ..");
     estimators_and_taker.printer.finalise_printing(
-        &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
+        &estimators_and_taker.taker, &mut std::io::stdout(), Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise);
 }
 
@@ -665,32 +661,28 @@ fn get_streamed_filtered_bam_readers(
 
 
 
-fn run_contig<R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>,
-              C: coverm::coverage_takers::CoverageTaker>(
-    coverage_estimators: &mut Vec<CoverageEstimator>,
+fn run_contig<'a,
+              R: coverm::bam_generator::NamedBamReader,
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+    mut estimators_and_taker: EstimatorsAndTaker<'a>,
     bam_readers: Vec<T>,
     print_zeros: bool,
-    flag_filter: bool,
-    coverage_taker: &mut C,
-    coverage_printer: &mut CoveragePrinter) {
+    flag_filter: bool) -> EstimatorsAndTaker<'a> {
 
     coverm::contig::contig_coverage(
         bam_readers,
-        coverage_taker,
-        coverage_estimators,
+        &mut estimators_and_taker.taker,
+        &mut estimators_and_taker.estimators,
         print_zeros,
         flag_filter);
 
     debug!("Finalising printing ..");
     estimators_and_taker.printer.finalise_printing(
-        &coverage_taker, &mut std::io::stdout(),
-        ReadsMapped{
-            num_mapped_reads: 1,
-            num_reads: 1
-        },
+        &(estimators_and_taker.taker),
+        &mut std::io::stdout(),
+        None,
         &estimators_and_taker.columns_to_normalise);
-
+    return estimators_and_taker;
 }
 
 

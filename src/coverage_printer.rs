@@ -17,7 +17,7 @@ impl CoveragePrinter {
         &mut self,
         cached_coverage_taker: &'a CoverageTakerType<'a>,
         print_stream: &mut std::io::Write,
-        reads_mapped_per_sample: &Vec<ReadsMapped>,
+        reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
         columns_to_normalise: &Vec<usize>) {
         match self {
             CoveragePrinter::StreamedCoveragePrinter => {},
@@ -71,7 +71,7 @@ impl CoveragePrinter {
 pub fn print_sparse_cached_coverage_taker<'a>(
     cached_coverage_taker: &'a CoverageTakerType<'a>,
     print_stream: &mut std::io::Write,
-    reads_mapped_per_sample: &Vec<ReadsMapped>,
+    reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>) {
 
     let iterator = cached_coverage_taker.generate_iterator();
@@ -110,33 +110,38 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                     }
                     coverage_totals[*i] = Some(total_coverage);
 
-                    let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
-                    let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
-                        reads_mapped.num_reads as f32;
-                    coverage_multipliers[*i] = Some(fraction_mapped);
+                    if reads_mapped_per_sample.is_some() {
+                        let reads_mapped = &reads_mapped_per_sample
+                            .as_ref().unwrap()[current_stoit_index];
+                        let fraction_mapped = reads_mapped.num_mapped_reads as f32 /
+                            reads_mapped.num_reads as f32;
+                        coverage_multipliers[*i] = Some(fraction_mapped);
+                    }
                 }
 
                 // Print unmapped entries at the top
                 let stoit = &stoit_names[current_stoit_index];
-                write!(print_stream, "{}\tunmapped", stoit).unwrap();
-                for (i, column) in columns_to_normalise.iter().enumerate() {
-                    if i == 0 {
-                        for _ in 0..*column {
-                            write!(print_stream, "\tNA").unwrap();
+                if reads_mapped_per_sample.is_some() {
+                    write!(print_stream, "{}\tunmapped", stoit).unwrap();
+                    for (i, column) in columns_to_normalise.iter().enumerate() {
+                        if i == 0 {
+                            for _ in 0..*column {
+                                write!(print_stream, "\tNA").unwrap();
+                            }
+                        } else {
+                            for _ in (columns_to_normalise[i-1]+1)..*column {
+                                write!(print_stream, "\tNA").unwrap();
+                            }
                         }
-                    } else {
-                        for _ in (columns_to_normalise[i-1]+1)..*column {
-                            write!(print_stream, "\tNA").unwrap();
-                        }
+                        write!(print_stream, "\t{}",
+                               100.0*(1.0-(coverage_multipliers[*column].unwrap())));
                     }
-                    write!(print_stream, "\t{}",
-                           100.0*(1.0-(coverage_multipliers[*column].unwrap())));
+                    for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
+                        ..*num_coverages {
+                            write!(print_stream, "\tNA").unwrap();
+                        }
+                    writeln!(print_stream).unwrap();
                 }
-                for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
-                    ..*num_coverages {
-                    write!(print_stream, "\tNA").unwrap();
-                }
-                writeln!(print_stream).unwrap();
 
                 // Print the actual coverage values
                 for (entry_i, coverages) in
@@ -192,7 +197,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
     estimator_headers: &Vec<String>,
     cached_coverage_taker: &'a CoverageTakerType<'a>,
     print_stream: &mut std::io::Write,
-    reads_mapped_per_sample: &Vec<ReadsMapped>,
+    reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>) {
 
     match &cached_coverage_taker {
@@ -221,12 +226,16 @@ pub fn print_dense_cached_coverage_taker<'a>(
 
             // There is a coverage multiplier for each stoit
             let mut coverage_multipliers: Vec<f32> =
-                reads_mapped_per_sample.iter().map(
-                    |r| r.num_mapped_reads as f32 / r.num_reads as f32)
-                .collect();
+                match reads_mapped_per_sample {
+                    Some(rm) => rm.iter().map(
+                        |r| r.num_mapped_reads as f32 / r.num_reads as f32)
+                        .collect(),
+                    None => vec!()
+                };
 
             // Print unmapped entries at the top if needed
-            if columns_to_normalise.len() > 0 {
+            let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec!();
+            if reads_mapped_per_sample.is_some() {
                 write!(print_stream, "unmapped").unwrap();
                 for (stoit_i, _) in stoit_names.iter().enumerate() {
                     for (i, column) in columns_to_normalise.iter().enumerate() {
@@ -253,21 +262,22 @@ pub fn print_dense_cached_coverage_taker<'a>(
             // Iterate over all entries for one stoit, and then entries for the next,
             // etc. Since we print all entries for each stoit first, because I'm too
             // lazy to re-write the iterator to be stoit by entry.
-            let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec!();
             let iterator = cached_coverage_taker.generate_iterator();
             // Coverage total for each stoit for each coverage type
             let mut coverage_totals: Vec<Vec<Option<f32>>> = vec![
                 vec!(None; *num_coverages); stoit_names.len()];
             for ecs in iterator {
-                for i in columns_to_normalise {
-                    coverage_totals[ecs.stoit_index as usize][*i] =
-                        match coverage_totals[ecs.stoit_index as usize][*i] {
-                            Some(total) => {
-                                Some(total + ecs.coverages[*i])},
-                            None => {
-                                Some(ecs.coverages[*i])
+                if reads_mapped_per_sample.is_some() {
+                    for i in columns_to_normalise {
+                        coverage_totals[ecs.stoit_index as usize][*i] =
+                            match coverage_totals[ecs.stoit_index as usize][*i] {
+                                Some(total) => {
+                                    Some(total + ecs.coverages[*i])},
+                                None => {
+                                    Some(ecs.coverages[*i])
+                                }
                             }
-                        }
+                    }
                 }
 
                 // If first entry in stoit, make room
@@ -328,10 +338,7 @@ mod tests {
             &vec!("mean".to_string(),"std".to_string()),
             &c,
             &mut stream,
-            &vec!(ReadsMapped {
-                num_mapped_reads: 1,
-                num_reads: 2
-            }),
+            None,
             &vec!());
         assert_eq!("Contig\tstoit1 mean\tstoit1 std\n\
                     contig1\t1.1\t1.2\n",
@@ -351,10 +358,10 @@ mod tests {
             &vec!("mean".to_string(),"std".to_string()),
             &c,
             &mut stream,
-            &vec!(ReadsMapped {
+            Some(&vec!(ReadsMapped {
                 num_mapped_reads: 1,
                 num_reads: 2
-            }),
+            })),
             &vec!(0));
         assert_eq!("Contig\tstoit1 mean\tstoit1 std\n\
                     unmapped\t50\tNA\n\
