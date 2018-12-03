@@ -14,7 +14,6 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
-use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -31,7 +30,7 @@ extern crate tempfile;
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let print_stream = &mut std::io::stdout();
+    let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
 
     match matches.subcommand_name() {
@@ -42,20 +41,10 @@ fn main(){
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
 
-            let mut stream = std::io::stdout();
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut stream);
-            write!(print_stream, "Sample\tGenome");
-            for (i, estimator) in estimators_and_taker.estimators.iter().enumerate() {
-                for header in estimator.column_headers() {
-                    if estimators_and_taker.columns_to_normalise.contains(&i) {
-                        write!(print_stream, "\tRelative Abundance (%)");
-                    } else {
-                        write!(print_stream, "\t{}", header);
-                    }
-                }
-            }
-            writeln!(print_stream);
+                m, print_stream);
+            estimators_and_taker = estimators_and_taker.print_headers(
+                &"Genome", &mut std::io::stdout());
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -114,16 +103,10 @@ fn main(){
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
 
-            let mut stream = std::io::stdout();
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut stream);
-            write!(print_stream, "Sample\tContig");
-            for estimator in &(estimators_and_taker.estimators) {
-                for ref header in estimator.column_headers() {
-                    write!(print_stream, "\t{}", header);
-                }
-            }
-            writeln!(print_stream);
+                m, &mut print_stream);
+            estimators_and_taker = estimators_and_taker.print_headers(
+                &"Contig", &mut std::io::stdout());
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -269,7 +252,7 @@ struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
     columns_to_normalise: Vec<usize>,
-    printer: CoveragePrinter<'a>,
+    printer: CoveragePrinter,
 }
 
 impl<'a> EstimatorsAndTaker<'a> {
@@ -330,6 +313,7 @@ impl<'a> EstimatorsAndTaker<'a> {
         }
 
         let taker;
+        let output_format = m.value_of("output-format").unwrap();
         let printer;
         if methods.contains(&"coverage_histogram") {
             if methods.len() > 1 {
@@ -339,7 +323,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                 taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             }
-        } else if columns_to_normalise.len() == 0 {
+        } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
             debug!("Streaming regular coverage output");
             taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 stream);
@@ -349,7 +333,12 @@ impl<'a> EstimatorsAndTaker<'a> {
                    columns_to_normalise);
             taker = CoverageTakerType::new_cached_single_float_coverage_taker(
                 estimators.len());
-            printer = CoveragePrinter::SparseCachedCoveragePrinter;
+            printer = match output_format {
+                "sparse" => CoveragePrinter::SparseCachedCoveragePrinter,
+                "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
+                    entry_type: None, estimator_headers: None},
+                _ => panic!("Unexpected output format seen. Programming error")
+            }
         }
 
         return EstimatorsAndTaker {
@@ -358,6 +347,24 @@ impl<'a> EstimatorsAndTaker<'a> {
             columns_to_normalise: columns_to_normalise,
             printer: printer,
         }
+    }
+
+    pub fn print_headers(
+        mut self,
+        entry_type: &str,
+        print_stream: &mut std::io::Write) -> Self {
+
+        let mut headers: Vec<String> = vec!();
+        for e in self.estimators.iter() {
+            for h in e.column_headers() {
+                headers.push(h.to_string())
+            }
+        }
+        for i in self.columns_to_normalise.iter() {
+            headers[*i] = "Relative Abundance (%)".to_string();
+        }
+        self.printer.print_headers(&entry_type, headers, print_stream);
+        return self;
     }
 }
 
@@ -456,6 +463,7 @@ fn run_genome<'a,
         }
     };
 
+    debug!("Finalising printing ..");
     estimators_and_taker.printer.finalise_printing(
         &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
         &estimators_and_taker.columns_to_normalise);
@@ -664,7 +672,8 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filter: bool,
-    coverage_taker: &mut C) {
+    coverage_taker: &mut C,
+    coverage_printer: &mut CoveragePrinter) {
 
     coverm::contig::contig_coverage(
         bam_readers,
@@ -672,6 +681,16 @@ fn run_contig<R: coverm::bam_generator::NamedBamReader,
         coverage_estimators,
         print_zeros,
         flag_filter);
+
+    debug!("Finalising printing ..");
+    estimators_and_taker.printer.finalise_printing(
+        &coverage_taker, &mut std::io::stdout(),
+        ReadsMapped{
+            num_mapped_reads: 1,
+            num_reads: 1
+        },
+        &estimators_and_taker.columns_to_normalise);
+
 }
 
 
@@ -745,6 +764,8 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
+   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+                                         [default: sparse]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.10]
@@ -802,8 +823,9 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
-   --min-covered-fraction FRACTION       Genom
-es with less coverage than this
+   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+                                         [default: sparse]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
    --contig-end-exclusion                Exclude bases at the ends of reference
@@ -1044,6 +1066,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("output-format")
+                     .long("output-format")
+                     .possible_values(&["sparse","dense"])
+                     .default_value("sparse"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
@@ -1159,6 +1185,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("output-format")
+                     .long("output-format")
+                     .possible_values(&["sparse","dense"])
+                     .default_value("sparse"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))

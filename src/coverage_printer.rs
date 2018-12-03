@@ -3,21 +3,22 @@ use std;
 use coverage_takers::*;
 use ReadsMapped;
 
-pub enum CoveragePrinter<'a> {
+pub enum CoveragePrinter {
     StreamedCoveragePrinter,
     SparseCachedCoveragePrinter,
     DenseCachedCoveragePrinter {
-        entry_type: &'a str,
-        estimator_headers: Vec<&'a str>,
+        entry_type: Option<String>,
+        estimator_headers: Option<Vec<String>>,
     },
 }
 
-impl<'b> CoveragePrinter<'b> {
-    pub fn finalise_printing<'a>(&mut self,
-                 cached_coverage_taker: &'a CoverageTakerType<'a>,
-                 print_stream: &mut std::io::Write,
-                 reads_mapped_per_sample: &Vec<ReadsMapped>,
-                 columns_to_normalise: &Vec<usize>) {
+impl CoveragePrinter {
+    pub fn finalise_printing<'a>(
+        &mut self,
+        cached_coverage_taker: &'a CoverageTakerType<'a>,
+        print_stream: &mut std::io::Write,
+        reads_mapped_per_sample: &Vec<ReadsMapped>,
+        columns_to_normalise: &Vec<usize>) {
         match self {
             CoveragePrinter::StreamedCoveragePrinter => {},
             CoveragePrinter::SparseCachedCoveragePrinter => {
@@ -30,7 +31,7 @@ impl<'b> CoveragePrinter<'b> {
                 estimator_headers
             } => {
                 print_dense_cached_coverage_taker(
-                    entry_type, estimator_headers,
+                    &(entry_type.as_ref().unwrap()), estimator_headers.as_ref().unwrap(),
                     cached_coverage_taker, print_stream, reads_mapped_per_sample,
                     &columns_to_normalise);
             }
@@ -39,8 +40,8 @@ impl<'b> CoveragePrinter<'b> {
 
     pub fn print_headers(
         &mut self,
-        entry_type_str: &'b str,
-        estimator_headers_vec: Vec<&'b str>,
+        entry_type_str: &str,
+        estimator_headers_vec: Vec<String>,
         print_stream: &mut std::io::Write) {
 
         match self {
@@ -56,8 +57,9 @@ impl<'b> CoveragePrinter<'b> {
                 ref mut entry_type,
                 ref mut estimator_headers
             } => {
-                *entry_type = entry_type_str;
-                *estimator_headers = estimator_headers_vec;
+                *entry_type = Some(entry_type_str.to_string());
+                *estimator_headers = Some(estimator_headers_vec.iter().map(
+                    |s| s.to_string()).collect());
             }
         }
     }
@@ -187,7 +189,7 @@ pub fn print_sparse_cached_coverage_taker<'a>(
 
 pub fn print_dense_cached_coverage_taker<'a>(
     entry_type: &str,
-    estimator_headers: &Vec<&str>,
+    estimator_headers: &Vec<String>,
     cached_coverage_taker: &'a CoverageTakerType<'a>,
     print_stream: &mut std::io::Write,
     reads_mapped_per_sample: &Vec<ReadsMapped>,
@@ -323,7 +325,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         print_dense_cached_coverage_taker(
             &"Contig",
-            &vec!("mean","std"),
+            &vec!("mean".to_string(),"std".to_string()),
             &c,
             &mut stream,
             &vec!(ReadsMapped {
@@ -346,7 +348,7 @@ mod tests {
         let mut stream = Cursor::new(Vec::new());
         print_dense_cached_coverage_taker(
             &"Contig",
-            &vec!("mean","std"),
+            &vec!("mean".to_string(),"std".to_string()),
             &c,
             &mut stream,
             &vec!(ReadsMapped {
