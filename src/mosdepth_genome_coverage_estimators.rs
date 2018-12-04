@@ -56,9 +56,9 @@ impl CoverageEstimator {
     pub fn column_headers(&self) -> Vec<&str> {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator{..} => {vec!("Mean")},
-            CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} => {vec!("TrimmedMean")},
+            CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} => {vec!("Trimmed Mean")},
             CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {vec!("Coverage","Bases")},
-            CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} => {vec!("CoveredFraction")},
+            CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} => {vec!("Covered Fraction")},
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {vec!("Variance")},
             CoverageEstimator::ReferenceLengthCalculator{..} => vec!("Length"),
             CoverageEstimator::ReadCountCalculator{..} => vec!("Read Count"),
