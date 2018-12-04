@@ -14,7 +14,6 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
-use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -31,7 +30,7 @@ extern crate tempfile;
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let print_stream = &mut std::io::stdout();
+    let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
 
     match matches.subcommand_name() {
@@ -42,20 +41,10 @@ fn main(){
             let filtering = doing_filtering(m);
             debug!("Doing filtering? {}", filtering);
 
-            let mut stream = std::io::stdout();
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut stream);
-            write!(print_stream, "Sample\tGenome");
-            for (i, estimator) in estimators_and_taker.estimators.iter().enumerate() {
-                for header in estimator.column_headers() {
-                    if estimators_and_taker.columns_to_normalise.contains(&i) {
-                        write!(print_stream, "\tRelative Abundance (%)");
-                    } else {
-                        write!(print_stream, "\t{}", header);
-                    }
-                }
-            }
-            writeln!(print_stream);
+                m, print_stream);
+            estimators_and_taker = estimators_and_taker.print_headers(
+                &"Genome", &mut std::io::stdout());
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -83,7 +72,9 @@ fn main(){
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
+                        indices.push(set.index);
                         for g in set.generators {
                             all_generators.push(g)
                         }
@@ -95,7 +86,9 @@ fn main(){
                 } else {
                     let generator_sets = get_streamed_bam_readers(m);
                     let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
+                        indices.push(set.index);
                         for g in set.generators {
                             all_generators.push(g)
                         }
@@ -114,16 +107,10 @@ fn main(){
             let flag_filter = !m.is_present("no-flag-filter");
             let filtering = doing_filtering(m);
 
-            let mut stream = std::io::stdout();
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut stream);
-            write!(print_stream, "Sample\tContig");
-            for estimator in &(estimators_and_taker.estimators) {
-                for ref header in estimator.column_headers() {
-                    write!(print_stream, "\t{}", header);
-                }
-            }
-            writeln!(print_stream);
+                m, &mut print_stream);
+            estimators_and_taker = estimators_and_taker.print_headers(
+                &"Contig", &mut std::io::stdout());
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -135,20 +122,18 @@ fn main(){
                         filter_params.min_percent_identity,
                         filter_params.min_aligned_percent);
                     run_contig(
-                        &mut estimators_and_taker.estimators,
+                        &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter,
-                        &mut estimators_and_taker.taker);
+                        flag_filter);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
                     run_contig(
-                        &mut estimators_and_taker.estimators,
+                        &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter,
-                        &mut estimators_and_taker.taker);
+                        flag_filter);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -156,25 +141,36 @@ fn main(){
                 if filtering {
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
-                    for generator_set in generator_sets {
-                        run_contig(
-                            &mut estimators_and_taker.estimators,
-                            generator_set.generators,
-                            print_zeros,
-                            flag_filter,
-                            &mut estimators_and_taker.taker);
+                    let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
+                    for set in generator_sets {
+                        indices.push(set.index);
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
                     }
+                    debug!("Finished collecting generators.");
+                    run_contig(
+                        &mut estimators_and_taker,
+                        all_generators,
+                        print_zeros,
+                        flag_filter);
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
-                    for generator_set in generator_sets {
-                        run_contig(
-                            &mut estimators_and_taker.estimators,
-                            generator_set.generators,
-                            print_zeros,
-                            flag_filter,
-                            &mut estimators_and_taker.taker);
+                    let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
+                    for set in generator_sets {
+                        indices.push(set.index);
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
                     }
+                    run_contig(
+                        &mut estimators_and_taker,
+                        all_generators,
+                        print_zeros,
+                        flag_filter);
                 }
             }
         },
@@ -269,7 +265,7 @@ struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
     columns_to_normalise: Vec<usize>,
-    printer: CoveragePrinter<'a>,
+    printer: CoveragePrinter,
 }
 
 impl<'a> EstimatorsAndTaker<'a> {
@@ -330,6 +326,7 @@ impl<'a> EstimatorsAndTaker<'a> {
         }
 
         let taker;
+        let output_format = m.value_of("output-format").unwrap();
         let printer;
         if methods.contains(&"coverage_histogram") {
             if methods.len() > 1 {
@@ -339,17 +336,22 @@ impl<'a> EstimatorsAndTaker<'a> {
                 taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             }
-        } else if columns_to_normalise.len() == 0 {
+        } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
             debug!("Streaming regular coverage output");
             taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 stream);
             printer = CoveragePrinter::StreamedCoveragePrinter;
         } else {
-            debug!("Cached regular coverage taker from columns: {:?}",
+            debug!("Cached regular coverage taker with columns to normlise: {:?}",
                    columns_to_normalise);
             taker = CoverageTakerType::new_cached_single_float_coverage_taker(
                 estimators.len());
-            printer = CoveragePrinter::SparseCachedCoveragePrinter;
+            printer = match output_format {
+                "sparse" => CoveragePrinter::SparseCachedCoveragePrinter,
+                "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
+                    entry_type: None, estimator_headers: None},
+                _ => panic!("Unexpected output format seen. Programming error")
+            }
         }
 
         return EstimatorsAndTaker {
@@ -358,6 +360,24 @@ impl<'a> EstimatorsAndTaker<'a> {
             columns_to_normalise: columns_to_normalise,
             printer: printer,
         }
+    }
+
+    pub fn print_headers(
+        mut self,
+        entry_type: &str,
+        print_stream: &mut std::io::Write) -> Self {
+
+        let mut headers: Vec<String> = vec!();
+        for e in self.estimators.iter() {
+            for h in e.column_headers() {
+                headers.push(h.to_string())
+            }
+        }
+        for i in self.columns_to_normalise.iter() {
+            headers[*i] = "Relative Abundance (%)".to_string();
+        }
+        self.printer.print_headers(&entry_type, headers, print_stream);
+        return self;
     }
 }
 
@@ -456,8 +476,9 @@ fn run_genome<'a,
         }
     };
 
+    debug!("Finalising printing ..");
     estimators_and_taker.printer.finalise_printing(
-        &estimators_and_taker.taker, &mut std::io::stdout(), &reads_mapped,
+        &estimators_and_taker.taker, &mut std::io::stdout(), Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise);
 }
 
@@ -657,21 +678,28 @@ fn get_streamed_filtered_bam_readers(
 
 
 
-fn run_contig<R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>,
-              C: coverm::coverage_takers::CoverageTaker>(
-    coverage_estimators: &mut Vec<CoverageEstimator>,
+fn run_contig<'a,
+              R: coverm::bam_generator::NamedBamReader,
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
     bam_readers: Vec<T>,
     print_zeros: bool,
-    flag_filter: bool,
-    coverage_taker: &mut C) {
+    flag_filter: bool) {
 
     coverm::contig::contig_coverage(
         bam_readers,
-        coverage_taker,
-        coverage_estimators,
+        &mut estimators_and_taker.taker,
+        &mut estimators_and_taker.estimators,
         print_zeros,
         flag_filter);
+
+    debug!("Finalising printing ..");
+
+    estimators_and_taker.printer.finalise_printing(
+        &estimators_and_taker.taker,
+        &mut std::io::stdout(),
+        None,
+        &estimators_and_taker.columns_to_normalise);
 }
 
 
@@ -745,6 +773,8 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
+   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+                                         [default: sparse]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.10]
@@ -802,8 +832,9 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
-   --min-covered-fraction FRACTION       Genom
-es with less coverage than this
+   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+                                         [default: sparse]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
    --contig-end-exclusion                Exclude bases at the ends of reference
@@ -1044,6 +1075,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("output-format")
+                     .long("output-format")
+                     .possible_values(&["sparse","dense"])
+                     .default_value("sparse"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
@@ -1159,6 +1194,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("no-flag-filter")
                      .long("no-flag-filter"))
+                .arg(Arg::with_name("output-format")
+                     .long("output-format")
+                     .possible_values(&["sparse","dense"])
+                     .default_value("sparse"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))
