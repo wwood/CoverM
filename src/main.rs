@@ -319,6 +319,9 @@ impl<'a> EstimatorsAndTaker<'a> {
                     columns_to_normalise.push(i);
                     CoverageEstimator::new_estimator_mean(
                         min_fraction_covered, contig_end_exclusion)
+                },
+                &"count" => {
+                    CoverageEstimator::new_estimator_read_count()
                 }
                 _ => panic!("programming error")
             };
@@ -773,6 +776,7 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
+                                              count
    --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
                                          [default: sparse]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
@@ -832,6 +836,7 @@ Other arguments (optional):
                                               covered_fraction
                                               variance
                                               length
+                                              count
    --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
                                          [default: sparse]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
@@ -1057,7 +1062,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "coverage_histogram",
                          "covered_fraction",
                          "variance",
-                         "length"])
+                         "length",
+                         "count"])
                      .default_value("relative_abundance"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -1176,7 +1182,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "coverage_histogram",
                          "covered_fraction",
                          "variance",
-                         "length"])
+                         "length",
+                         "count"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
