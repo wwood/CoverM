@@ -28,13 +28,18 @@ pub fn contig_coverage<R: NamedBamReader,
         let target_names = header.target_names();
 
         let mut num_mapped_reads: u64 = 0;
+        let mut num_mapped_reads_in_current_contig: u64 = 0;
 
         let mut process_previous_contigs = |last_tid, tid,
         coverage_estimators: &mut Vec<CoverageEstimator>,
-        ups_and_downs| {
+        ups_and_downs,
+        num_mapped_reads_in_current_contig| {
             if last_tid != -2 {
+                debug!("Found {} reads mapped to tid {}",
+                       num_mapped_reads_in_current_contig, last_tid);
                 for estimator in coverage_estimators.iter_mut() {
-                    estimator.add_contig(&ups_and_downs)
+                    estimator.add_contig(
+                        &ups_and_downs, num_mapped_reads_in_current_contig)
                 }
                 let coverages: Vec<f32> = coverage_estimators.iter_mut()
                     .map(|estimator| estimator.calculate_coverage(0)).collect();
@@ -76,12 +81,20 @@ pub fn contig_coverage<R: NamedBamReader,
                 num_mapped_reads += 1;
                 // if reference has changed, print the last record
                 if tid != last_tid {
-                    process_previous_contigs(last_tid, tid, coverage_estimators, ups_and_downs);
+                    process_previous_contigs(
+                        last_tid,
+                        tid,
+                        coverage_estimators,
+                        ups_and_downs,
+                        num_mapped_reads_in_current_contig);
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     debug!("Working on new reference {}",
                            std::str::from_utf8(target_names[tid as usize]).unwrap());
                     last_tid = tid;
+                    num_mapped_reads_in_current_contig = 0;
                 }
+
+                num_mapped_reads_in_current_contig += 1;
 
                 // for each chunk of the cigar string
                 debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
@@ -110,7 +123,12 @@ pub fn contig_coverage<R: NamedBamReader,
             }
         }
 
-        process_previous_contigs(last_tid, target_names.len() as i32, coverage_estimators, ups_and_downs);
+        process_previous_contigs(
+            last_tid,
+            target_names.len() as i32,
+            coverage_estimators,
+            ups_and_downs,
+            num_mapped_reads_in_current_contig);
 
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
               stoit_name, num_mapped_reads,

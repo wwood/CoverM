@@ -6,6 +6,7 @@ pub enum CoverageEstimator {
         total_count: u32,
         total_bases: u32,
         num_covered_bases: u32,
+        num_mapped_reads: u64,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
     },
@@ -13,6 +14,7 @@ pub enum CoverageEstimator {
         counts: Vec<u32>,
         observed_contig_length: u32,
         num_covered_bases: u32,
+        num_mapped_reads: u64,
         min: f32,
         max: f32,
         min_fraction_covered_bases: f32,
@@ -22,12 +24,14 @@ pub enum CoverageEstimator {
         counts: Vec<u32>,
         observed_contig_length: u32,
         num_covered_bases: u32,
+        num_mapped_reads: u64,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
     },
     CoverageFractionGenomeCoverageEstimator {
         total_bases: u32,
         num_covered_bases: u32,
+        num_mapped_reads: u64,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
     },
@@ -35,11 +39,16 @@ pub enum CoverageEstimator {
         counts: Vec<u32>,
         observed_contig_length: u32,
         num_covered_bases: u32,
+        num_mapped_reads: u64,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
     },
     ReferenceLengthCalculator {
         observed_contig_length: u32,
+        num_mapped_reads: u64
+    },
+    ReadCountCalculator {
+        num_mapped_reads: u64,
     }
 }
 
@@ -52,6 +61,7 @@ impl CoverageEstimator {
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} => {vec!("CoveredFraction")},
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {vec!("Variance")},
             CoverageEstimator::ReferenceLengthCalculator{..} => vec!("Length"),
+            CoverageEstimator::ReadCountCalculator{..} => vec!("Read Count"),
         }
     }
 }
@@ -65,6 +75,7 @@ impl CoverageEstimator {
             total_count: 0,
             total_bases: 0,
             num_covered_bases: 0,
+            num_mapped_reads: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
         }
@@ -77,6 +88,7 @@ impl CoverageEstimator {
             counts: vec!(),
             observed_contig_length: 0,
             num_covered_bases: 0,
+            num_mapped_reads: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             min: min,
             max: max,
@@ -91,6 +103,7 @@ impl CoverageEstimator {
             counts: vec!(),
             observed_contig_length: 0,
             num_covered_bases: 0,
+            num_mapped_reads: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
         }
@@ -102,6 +115,7 @@ impl CoverageEstimator {
         CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
+            num_mapped_reads: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
         }
@@ -114,13 +128,20 @@ impl CoverageEstimator {
             counts: vec!(),
             observed_contig_length: 0,
             num_covered_bases: 0,
+            num_mapped_reads: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
         }
     }
     pub fn new_estimator_length() -> CoverageEstimator {
         CoverageEstimator::ReferenceLengthCalculator {
-            observed_contig_length: 0
+            observed_contig_length: 0,
+            num_mapped_reads: 0,
+        }
+    }
+    pub fn new_estimator_read_count() -> CoverageEstimator {
+        CoverageEstimator::ReadCountCalculator {
+            num_mapped_reads: 0
         }
     }
 }
@@ -129,7 +150,7 @@ pub trait MosdepthGenomeCoverageEstimator {
 
     fn setup(&mut self);
 
-    fn add_contig(&mut self, ups_and_downs: &Vec<i32>);
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>, num_mapped_reads: u64);
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
 
@@ -142,6 +163,8 @@ pub trait MosdepthGenomeCoverageEstimator {
         &self, coverage_taker: &mut T, entry_length: u32);
 
     fn copy(&self) -> CoverageEstimator;
+
+    fn num_mapped_reads(&self) -> u64;
 }
 
 impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
@@ -151,52 +174,69 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::MeanGenomeCoverageEstimator {
                 ref mut total_count,
                 ref mut total_bases,
-                ref mut num_covered_bases, ..
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, ..
             } => {
                 *total_count = 0;
                 *total_bases = 0;
                 *num_covered_bases = 0;
+                *num_mapped_reads = 0;
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
                 ref mut counts,
                 ref mut observed_contig_length,
-                ref mut num_covered_bases, ..
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, ..
             } | CoverageEstimator::PileupCountsGenomeCoverageEstimator {
                 ref mut counts,
                 ref mut observed_contig_length,
-                ref mut num_covered_bases, ..
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, ..
             } | CoverageEstimator::VarianceGenomeCoverageEstimator {
                 ref mut observed_contig_length,
                 ref mut counts,
-                ref mut num_covered_bases, ..
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, ..
             } => {
                 *counts = vec!();
                 *observed_contig_length = 0;
                 *num_covered_bases = 0;
+                *num_mapped_reads = 0;
             },
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
                 ref mut total_bases,
-                ref mut num_covered_bases, ..
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, ..
             } => {
                 *total_bases = 0;
                 *num_covered_bases = 0;
+                *num_mapped_reads = 0;
             },
             CoverageEstimator::ReferenceLengthCalculator {
-                ref mut observed_contig_length
+                ref mut observed_contig_length,
+                ref mut num_mapped_reads,
             } => {
                 *observed_contig_length = 0;
+                *num_mapped_reads = 0;
+            },
+            CoverageEstimator::ReadCountCalculator {
+                ref mut num_mapped_reads
+            } => {
+                *num_mapped_reads = 0;
             }
         }
     }
 
-    fn add_contig(&mut self, ups_and_downs: &Vec<i32>) {
+    fn add_contig(&mut self, ups_and_downs: &Vec<i32>, num_mapped_reads_in_contig: u64) {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator {
                 ref mut total_count,
                 ref mut total_bases,
                 ref mut num_covered_bases,
+                ref mut num_mapped_reads,
                 contig_end_exclusion, ..
             } => {
+                *num_mapped_reads = num_mapped_reads_in_contig;
                 let len = ups_and_downs.len();
                 match *contig_end_exclusion*2 < len as u32 {
                     true => {
@@ -226,18 +266,22 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 ref mut counts,
                 ref mut observed_contig_length,
                 ref mut num_covered_bases,
+                ref mut num_mapped_reads,
                 contig_end_exclusion, ..
             } | CoverageEstimator::PileupCountsGenomeCoverageEstimator {
                 ref mut counts,
                 ref mut observed_contig_length,
                 ref mut num_covered_bases,
+                ref mut num_mapped_reads,
                 contig_end_exclusion, ..
             } | CoverageEstimator::VarianceGenomeCoverageEstimator {
                 ref mut counts,
                 ref mut observed_contig_length,
                 ref mut num_covered_bases,
+                ref mut num_mapped_reads,
                 contig_end_exclusion, ..
             } => {
+                *num_mapped_reads = num_mapped_reads_in_contig;
                 let len1 = ups_and_downs.len();
                 match *contig_end_exclusion*2 < len1 as u32 {
                     true => {
@@ -272,8 +316,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
                 ref mut total_bases,
                 ref mut num_covered_bases,
+                ref mut num_mapped_reads,
                 contig_end_exclusion, ..
             } => {
+                *num_mapped_reads = num_mapped_reads_in_contig;
                 let len = ups_and_downs.len();
                 match *contig_end_exclusion*2 < len as u32 {
                     true => {
@@ -297,9 +343,16 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 }
             },
             CoverageEstimator::ReferenceLengthCalculator {
-                ref mut observed_contig_length
+                ref mut observed_contig_length,
+                ref mut num_mapped_reads,
             } => {
                 *observed_contig_length += ups_and_downs.len() as u32;
+                *num_mapped_reads += num_mapped_reads_in_contig;
+            },
+            CoverageEstimator::ReadCountCalculator {
+                ref mut num_mapped_reads
+            } => {
+                *num_mapped_reads += num_mapped_reads_in_contig;
             }
         }
     }
@@ -310,6 +363,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 total_count,
                 total_bases,
                 num_covered_bases,
+                num_mapped_reads: _,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases
             } => {
@@ -327,6 +381,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 counts,
                 observed_contig_length,
                 num_covered_bases,
+                num_mapped_reads: _,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases,
                 min,
@@ -399,6 +454,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 counts: _,
                 observed_contig_length,
                 num_covered_bases,
+                num_mapped_reads: _,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases
             } => {
@@ -422,6 +478,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
                 total_bases,
                 num_covered_bases,
+                num_mapped_reads: _,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases
             } => {
@@ -437,6 +494,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 observed_contig_length,
                 ref mut counts,
                 num_covered_bases,
+                num_mapped_reads: _,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases
             } => {
@@ -473,9 +531,14 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 }
             },
             CoverageEstimator::ReferenceLengthCalculator {
-                observed_contig_length
+                observed_contig_length, ..
             } => {
                 (*observed_contig_length + unobserved_contig_length) as f32
+            },
+            CoverageEstimator::ReadCountCalculator {
+                num_mapped_reads
+            } => {
+                *num_mapped_reads as f32
             }
         }
     }
@@ -486,6 +549,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 total_count: _,
                 total_bases: _,
                 num_covered_bases: _,
+                num_mapped_reads: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases
             } =>  {
@@ -496,6 +560,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 counts: _,
                 observed_contig_length: _,
                 num_covered_bases: _,
+                num_mapped_reads: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases,
                 min,
@@ -508,6 +573,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 counts: _,
                 observed_contig_length: _,
                 num_covered_bases: _,
+                num_mapped_reads: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases
             } => {
@@ -517,6 +583,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
                 total_bases: _,
                 num_covered_bases: _,
+                num_mapped_reads: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases
             } => {
@@ -527,6 +594,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 observed_contig_length: _,
                 counts: _,
                 num_covered_bases: _,
+                num_mapped_reads: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases
             } => {
@@ -535,6 +603,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             },
             CoverageEstimator::ReferenceLengthCalculator {..} => {
                 CoverageEstimator::new_estimator_length()
+            },
+            CoverageEstimator::ReadCountCalculator {..} => {
+                CoverageEstimator::new_estimator_read_count()
             }
         }
     }
@@ -549,7 +620,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
             CoverageEstimator::VarianceGenomeCoverageEstimator{..} |
-            CoverageEstimator::ReferenceLengthCalculator{..} => {
+            CoverageEstimator::ReferenceLengthCalculator{..} |
+            CoverageEstimator::ReadCountCalculator{..} => {
                 coverage_taker.add_single_coverage(*coverage);
             },
             CoverageEstimator::PileupCountsGenomeCoverageEstimator {
@@ -580,13 +652,57 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::MeanGenomeCoverageEstimator{..} |
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator{..} |
             CoverageEstimator::CoverageFractionGenomeCoverageEstimator{..} |
-            CoverageEstimator::VarianceGenomeCoverageEstimator{..} => {
+            CoverageEstimator::VarianceGenomeCoverageEstimator{..} |
+            CoverageEstimator::ReadCountCalculator{..} => {
                 coverage_taker.add_single_coverage(0.0);
             },
             CoverageEstimator::PileupCountsGenomeCoverageEstimator{..} => {},
             CoverageEstimator::ReferenceLengthCalculator{..} => {
                 coverage_taker.add_single_coverage(entry_length as f32);
             }
+        }
+    }
+
+    fn num_mapped_reads(&self) -> u64 {
+        match self {
+            CoverageEstimator::MeanGenomeCoverageEstimator {
+                total_count: _,
+                total_bases: _,
+                num_covered_bases: _,
+                num_mapped_reads, ..
+            } |
+            CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
+                counts: _,
+                observed_contig_length: _,
+                num_covered_bases: _,
+                num_mapped_reads, ..
+            } |
+            CoverageEstimator::PileupCountsGenomeCoverageEstimator {
+                counts: _,
+                observed_contig_length: _,
+                num_covered_bases: _,
+                num_mapped_reads, ..
+            } |
+            CoverageEstimator::CoverageFractionGenomeCoverageEstimator {
+                total_bases: _,
+                num_covered_bases: _,
+                num_mapped_reads, ..
+            } |
+            CoverageEstimator::VarianceGenomeCoverageEstimator {
+                observed_contig_length: _,
+                counts: _,
+                num_covered_bases: _,
+                num_mapped_reads, ..
+            } |
+            CoverageEstimator::ReferenceLengthCalculator {
+                observed_contig_length: _,
+                num_mapped_reads,
+            } |
+            CoverageEstimator::ReadCountCalculator {
+                num_mapped_reads
+            } => {
+                *num_mapped_reads
+            },
         }
     }
 }

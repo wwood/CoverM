@@ -78,6 +78,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut seen_ref_ids = BTreeSet::new();
         let mut num_mapped_reads: u64 = 0;
+        let mut num_mapped_reads_in_current_contig: u64 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
@@ -95,9 +96,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     } else {
                         match reference_number_to_genome_index[last_tid as usize] {
                             Some(genome_index) => {
+                                debug!("Found {} reads mapped to tid {}",
+                                       num_mapped_reads_in_current_contig, last_tid);
                                 for ref mut coverage_estimator in
                                     per_genome_coverage_estimators[genome_index].iter_mut() {
-                                        coverage_estimator.add_contig(&ups_and_downs);
+                                        coverage_estimator.add_contig(
+                                            &ups_and_downs, num_mapped_reads_in_current_contig);
                                     }
                             },
                             None => {}
@@ -105,6 +109,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     }
 
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
+                    num_mapped_reads_in_current_contig = 0;
                     last_tid = tid;
                     seen_ref_ids.insert(tid);
                 }
@@ -114,6 +119,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 // for each chunk of the cigar string
                 if reference_number_to_genome_index[tid as usize].is_some() {
                     num_mapped_reads += 1;
+                    num_mapped_reads_in_current_contig += 1;
                     debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
                     let mut cursor: usize = record.pos() as usize;
                     for cig in record.cigar().iter() {
@@ -147,7 +153,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             match reference_number_to_genome_index[last_tid as usize] {
                 Some(genome_index) => {
                     for ref mut coverage_estimator in per_genome_coverage_estimators[genome_index].iter_mut() {
-                        coverage_estimator.add_contig(&ups_and_downs)
+                        coverage_estimator.add_contig(
+                            &ups_and_downs, num_mapped_reads_in_current_contig)
                     }
                 },
                 None => {}
@@ -304,6 +311,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let mut record: bam::record::Record = bam::record::Record::new();
         let num_estimators = coverage_estimators.len();
         let mut num_mapped_reads: u64 = 0;
+        let mut num_mapped_reads_in_current_contig: u64 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
@@ -350,8 +358,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         }
 
                     } else if current_genome == last_genome {
+                        debug!("Found {} reads mapped to tid {}",
+                               num_mapped_reads_in_current_contig, last_tid);
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
-                            coverage_estimator.add_contig(&ups_and_downs);
+                            coverage_estimator.add_contig(
+                                &ups_and_downs, num_mapped_reads_in_current_contig);
                         }
                         // Collect the length of reference sequences from this
                         // genome that had no hits that were just skipped over.
@@ -360,8 +371,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             fill_genome_length_backwards_to_last(
                                 tid, last_tid as u32, current_genome);
                     } else {
+                        debug!("Found {} reads mapped to tid {}",
+                               num_mapped_reads_in_current_contig, last_tid);
                         for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
-                            coverage_estimator.add_contig(&ups_and_downs);
+                            coverage_estimator.add_contig(
+                                &ups_and_downs, num_mapped_reads_in_current_contig);
                             // Collect the length of refs from the end of the last genome that had no hits
                             debug!("Filling unobserved from {} to {} for {}",
                                    last_tid, tid, &str::from_utf8(last_genome).unwrap());
@@ -424,12 +438,14 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     }
 
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
+                    num_mapped_reads_in_current_contig = 0;
                     last_tid = tid;
                 }
 
                 // Add coverage info for the current record
                 // for each chunk of the cigar string
                 debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                num_mapped_reads_in_current_contig += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
                     //debug!("Found cigar {:} from {}", cig, cursor);
@@ -463,6 +479,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 last_genome = "genome1".as_bytes()
             }
 
+            debug!("Found {} reads mapped to tid {}",
+                   num_mapped_reads_in_current_contig, last_tid);
             // Collect the length of refs from the end of the last genome that had no hits
             unobserved_contig_length_and_first_tid.unobserved_contig_length +=
                 fill_genome_length_forwards(last_tid, last_genome);
@@ -471,7 +489,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                    unobserved_contig_length_and_first_tid.first_tid);
             // Determine coverage of previous genome
             for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-                coverage_estimator.add_contig(&ups_and_downs);
+                coverage_estimator.add_contig(
+                    &ups_and_downs, num_mapped_reads_in_current_contig);
                 let coverage = coverage_estimator.calculate_coverage(
                     unobserved_contig_length_and_first_tid.unobserved_contig_length);
 
@@ -1326,4 +1345,35 @@ mod tests {
             }, _ => panic!()
         }
     }
+
+    #[test]
+    fn test_read_count_calculator(){
+        test_streaming_with_stream(
+            "7seqs.reads_for_seq1\tgenome1\t0\n\
+             7seqs.reads_for_seq1\tgenome2\t12\n\
+             7seqs.reads_for_seq1\tgenome3\t0\n\
+             7seqs.reads_for_seq1\tgenome4\t0\n\
+             7seqs.reads_for_seq1\tgenome5\t0\n\
+             7seqs.reads_for_seq1\tgenome6\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome2\t12\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t12\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
+            generate_named_bam_readers_from_bam_files(
+                vec![
+                    "tests/data/7seqs.reads_for_seq1.bam",
+                    "tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            '~' as u8,
+            true,
+            &mut vec!(
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_read_count(),
+            ),
+            false,
+            false);
+    }
+
 }
