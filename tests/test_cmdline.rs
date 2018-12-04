@@ -336,4 +336,75 @@ mod tests {
 7seqs.reads_for_seq1_and_seq2	genome5	46.832077	1.2435294
 7seqs.reads_for_seq1_and_seq2	genome6	0	0").unwrap();
     }
+
+    #[test]
+    fn test_genome_dense_output() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "relative_abundance",
+                "mean",
+                "variance",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-c",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single",
+                "tests/data/reads_for_seq1_and_seq2.fna",
+                "-s",
+                "~",
+                "--no-flag-filter"]).succeeds().stdout().contains(
+                "Sample	Genome	Relative Abundance (%)	Mean	Variance
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	unmapped	0	NA	NA
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome2	53.16792	1.4117647	1.3049262
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome4	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome5	46.832077	1.2435294	0.6862065
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	unmapped	0	NA	NA
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome1	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome2	53.16792	1.4117647	1.3049262
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome3	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome4	0	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome5	46.832077	1.2435294	0.6862065
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome6	0	0	0
+").unwrap();
+    }
+
+    #[test]
+    fn test_contig_dense_output() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "variance",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-c",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single",
+                "tests/data/reads_for_seq1_and_seq2.fna",
+                "--no-flag-filter"]).succeeds().stdout().contains(
+                "Sample	Contig	Mean	Variance
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11000	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11010	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome2~seq1	1.4117647	1.3049262
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3~random_sequence_length_11001	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome4~random_sequence_length_11002	0	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome5~seq2	1.2435294	0.6862065
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6~random_sequence_length_11003	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome1~random_sequence_length_11000	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome1~random_sequence_length_11010	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome2~seq1	1.4117647	1.3049262
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome3~random_sequence_length_11001	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome4~random_sequence_length_11002	0	0
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome5~seq2	1.2435294	0.6862065
+7seqs.fna/reads_for_seq1_and_seq2.fna	genome6~random_sequence_length_11003	0	0
+").unwrap();
+    }
 }
