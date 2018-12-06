@@ -157,8 +157,10 @@ mod tests {
                 "--no-flag-filter",
             ])
             .succeeds()
-            .stdout().contains("2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899
-2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0").unwrap();
+            .stdout().contains(
+                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.897\n\
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
+            ).unwrap();
     }
 
     #[test]
@@ -194,8 +196,10 @@ mod tests {
                 "0",
             ])
             .succeeds()
-            .stdout().contains("2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899
-2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0").unwrap();
+            .stdout().contains(
+                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.897\n\
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
+            ).unwrap();
     }
 
     #[test]

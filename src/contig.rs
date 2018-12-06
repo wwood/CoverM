@@ -29,17 +29,26 @@ pub fn contig_coverage<R: NamedBamReader,
 
         let mut num_mapped_reads: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
+        let mut total_indels_in_current_contig: u32 = 0;
+        let mut total_edit_distance_in_current_contig: u32 = 0;
 
         let mut process_previous_contigs = |last_tid, tid,
         coverage_estimators: &mut Vec<CoverageEstimator>,
         ups_and_downs,
-        num_mapped_reads_in_current_contig| {
+        num_mapped_reads_in_current_contig,
+        total_edit_distance_in_current_contig,
+        total_indels_in_current_contig| {
             if last_tid != -2 {
-                debug!("Found {} reads mapped to tid {}",
-                       num_mapped_reads_in_current_contig, last_tid);
+                debug!("Found {} reads mapped to tid {}, with total edit \
+                        distance {} and {} indels",
+                       num_mapped_reads_in_current_contig, last_tid,
+                       total_edit_distance_in_current_contig,
+                       total_indels_in_current_contig);
                 for estimator in coverage_estimators.iter_mut() {
                     estimator.add_contig(
-                        &ups_and_downs, num_mapped_reads_in_current_contig)
+                        &ups_and_downs,
+                        num_mapped_reads_in_current_contig,
+                        total_edit_distance_in_current_contig - total_indels_in_current_contig)
                 }
                 let coverages: Vec<f32> = coverage_estimators.iter_mut()
                     .map(|estimator| estimator.calculate_coverage(0)).collect();
@@ -86,12 +95,16 @@ pub fn contig_coverage<R: NamedBamReader,
                         tid,
                         coverage_estimators,
                         ups_and_downs,
-                        num_mapped_reads_in_current_contig);
+                        num_mapped_reads_in_current_contig,
+                        total_edit_distance_in_current_contig,
+                        total_indels_in_current_contig);
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     debug!("Working on new reference {}",
                            std::str::from_utf8(target_names[tid as usize]).unwrap());
                     last_tid = tid;
                     num_mapped_reads_in_current_contig = 0;
+                    total_edit_distance_in_current_contig = 0;
+                    total_indels_in_current_contig = 0;
                 }
 
                 num_mapped_reads_in_current_contig += 1;
@@ -112,13 +125,35 @@ pub fn contig_coverage<R: NamedBamReader,
                             }
                             cursor += cig.len() as usize;
                         },
-                        Cigar::Del(_) | Cigar::RefSkip(_) => {
+                        Cigar::Del(_) => {
+                            cursor += cig.len() as usize;
+                            total_indels_in_current_contig += cig.len() as u32;
+                        },
+                        Cigar::RefSkip(_) => {
                             // if D or N, move the cursor
                             cursor += cig.len() as usize;
                         },
-                        Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
+                        Cigar::Ins(_) => {
+                            total_indels_in_current_contig += cig.len() as u32;
+                        },
+                        Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
                 }
+
+                // Determine the number of mismatching bases in this read by
+                // looking at the NM tag.
+                total_edit_distance_in_current_contig += match
+                    record.aux("NM".as_bytes()) {
+                        Some(aux) => {
+                            aux.integer() as u32
+                        },
+                        None => {
+                            panic!("Mapping record encountered that does not have an 'NM' \
+                                    auxiliary tag in the SAM/BAM format. This is required \
+                                    to work out some coverage statistics");
+                        }
+                    };
+
                 debug!("At end of loop")
             }
         }
@@ -128,7 +163,9 @@ pub fn contig_coverage<R: NamedBamReader,
             target_names.len() as i32,
             coverage_estimators,
             ups_and_downs,
-            num_mapped_reads_in_current_contig);
+            num_mapped_reads_in_current_contig,
+            total_edit_distance_in_current_contig,
+            total_indels_in_current_contig);
 
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
               stoit_name, num_mapped_reads,
@@ -272,8 +309,8 @@ mod tests {
     #[test]
     fn test_julian_error(){
         test_with_stream(
-            "2seqs.reads_for_seq1.with_unmapped\tseq1\t1.499
-2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
+            "2seqs.reads_for_seq1.with_unmapped\tseq1\t1.497\n\
+             2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
             // has unmapped reads, which caused problems with --no-flag-filter.
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),

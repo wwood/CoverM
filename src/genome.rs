@@ -79,6 +79,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut seen_ref_ids = BTreeSet::new();
         let mut num_mapped_reads: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
+        let mut total_edit_distance_in_current_contig: u32 = 0;
+        let mut total_indels_in_current_contig: u32 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
@@ -101,7 +103,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                 for ref mut coverage_estimator in
                                     per_genome_coverage_estimators[genome_index].iter_mut() {
                                         coverage_estimator.add_contig(
-                                            &ups_and_downs, num_mapped_reads_in_current_contig);
+                                            &ups_and_downs, num_mapped_reads_in_current_contig,
+                                            total_edit_distance_in_current_contig -
+                                                total_indels_in_current_contig);
                                     }
                             },
                             None => {}
@@ -110,6 +114,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
 
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     num_mapped_reads_in_current_contig = 0;
+                    total_edit_distance_in_current_contig = 0;
+                    total_indels_in_current_contig = 0;
                     last_tid = tid;
                     seen_ref_ids.insert(tid);
                 }
@@ -135,13 +141,33 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                 }
                                 cursor += cig.len() as usize;
                             },
-                            Cigar::Del(_) | Cigar::RefSkip(_) => {
-                                // if D, move the cursor
+                            Cigar::Del(_) => {
+                                cursor += cig.len() as usize;
+                                total_indels_in_current_contig += cig.len() as u32;
+                            },
+                            Cigar::RefSkip(_) => {
                                 cursor += cig.len() as usize;
                             },
-                            Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
+                            Cigar::Ins(_) => {
+                                total_indels_in_current_contig += cig.len() as u32;
+                            },
+                            Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                         }
                     }
+
+                    // Determine the number of mismatching bases in this read by
+                    // looking at the NM tag.
+                    total_edit_distance_in_current_contig += match
+                        record.aux("NM".as_bytes()) {
+                            Some(aux) => {
+                                aux.integer() as u32
+                            },
+                            None => {
+                                panic!("Mapping record encountered that does not have an 'NM' \
+                                        auxiliary tag in the SAM/BAM format. This is required \
+                                        to work out some coverage statistics");
+                            }
+                        };
                 }
             }
         }
@@ -154,7 +180,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 Some(genome_index) => {
                     for ref mut coverage_estimator in per_genome_coverage_estimators[genome_index].iter_mut() {
                         coverage_estimator.add_contig(
-                            &ups_and_downs, num_mapped_reads_in_current_contig)
+                            &ups_and_downs, num_mapped_reads_in_current_contig,
+                            total_edit_distance_in_current_contig -
+                                total_indels_in_current_contig)
                     }
                 },
                 None => {}
@@ -312,6 +340,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let num_estimators = coverage_estimators.len();
         let mut num_mapped_reads: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
+        let mut total_edit_distance_in_current_contig: u32 = 0;
+        let mut total_indels_in_current_contig: u32 = 0;
         while bam_generated.read(&mut record).is_ok() {
             if flag_filtering &&
                 (record.is_secondary() ||
@@ -362,7 +392,9 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                num_mapped_reads_in_current_contig, last_tid);
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
                             coverage_estimator.add_contig(
-                                &ups_and_downs, num_mapped_reads_in_current_contig);
+                                &ups_and_downs, num_mapped_reads_in_current_contig,
+                                total_edit_distance_in_current_contig -
+                                    total_indels_in_current_contig);
                         }
                         // Collect the length of reference sequences from this
                         // genome that had no hits that were just skipped over.
@@ -375,7 +407,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                num_mapped_reads_in_current_contig, last_tid);
                         for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
                             coverage_estimator.add_contig(
-                                &ups_and_downs, num_mapped_reads_in_current_contig);
+                                &ups_and_downs, num_mapped_reads_in_current_contig,
+                                total_edit_distance_in_current_contig);
                             // Collect the length of refs from the end of the last genome that had no hits
                             debug!("Filling unobserved from {} to {} for {}",
                                    last_tid, tid, &str::from_utf8(last_genome).unwrap());
@@ -439,6 +472,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
 
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     num_mapped_reads_in_current_contig = 0;
+                    total_edit_distance_in_current_contig = 0;
+                    total_indels_in_current_contig = 0;
                     last_tid = tid;
                 }
 
@@ -460,13 +495,33 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             }
                             cursor += cig.len() as usize;
                         },
-                        Cigar::Del(_) | Cigar::RefSkip(_) => {
-                            // if D or N, move the cursor
+                        Cigar::Del(_) => {
+                            cursor += cig.len() as usize;
+                            total_indels_in_current_contig += cig.len() as u32;
+                        },
+                        Cigar::RefSkip(_) => {
                             cursor += cig.len() as usize;
                         },
-                        Cigar::Ins(_) | Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
+                        Cigar::Ins(_) => {
+                            total_indels_in_current_contig += cig.len() as u32;
+                        },
+                        Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
                 }
+
+                // Determine the number of mismatching bases in this read by
+                // looking at the NM tag.
+                total_edit_distance_in_current_contig += match
+                    record.aux("NM".as_bytes()) {
+                        Some(aux) => {
+                            aux.integer() as u32
+                        },
+                        None => {
+                            panic!("Mapping record encountered that does not have an 'NM' \
+                                    auxiliary tag in the SAM/BAM format. This is required \
+                                    to work out some coverage statistics");
+                        }
+                    };
             }
         }
 
@@ -490,7 +545,9 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             // Determine coverage of previous genome
             for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
                 coverage_estimator.add_contig(
-                    &ups_and_downs, num_mapped_reads_in_current_contig);
+                    &ups_and_downs, num_mapped_reads_in_current_contig,
+                    total_edit_distance_in_current_contig -
+                        total_indels_in_current_contig);
                 let coverage = coverage_estimator.calculate_coverage(
                     unobserved_contig_length_and_first_tid.unobserved_contig_length);
 
@@ -1168,7 +1225,7 @@ mod tests {
     #[test]
     fn test_julian_error(){
         let reads_mapped = test_streaming_with_stream(
-            "2seqs.reads_for_seq1.with_unmapped\tgenome1\t1.4995\n",
+            "2seqs.reads_for_seq1.with_unmapped\tgenome1\t1.4985\n",
             // has unmapped reads, which caused problems with --no-flag-filter.
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),

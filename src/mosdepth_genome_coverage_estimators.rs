@@ -7,6 +7,7 @@ pub enum CoverageEstimator {
         total_bases: u32,
         num_covered_bases: u32,
         num_mapped_reads: u64,
+        total_mismatches: u32,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
     },
@@ -76,6 +77,7 @@ impl CoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
+            total_mismatches: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
         }
@@ -150,7 +152,10 @@ pub trait MosdepthGenomeCoverageEstimator {
 
     fn setup(&mut self);
 
-    fn add_contig(&mut self, ups_and_downs: &Vec<i32>, num_mapped_reads: u64);
+    fn add_contig(
+        &mut self, ups_and_downs: &Vec<i32>,
+        num_mapped_reads: u64,
+        total_mismatches: u32);
 
     fn calculate_coverage(&mut self, unobserved_contig_length: u32) -> f32;
 
@@ -175,12 +180,14 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 ref mut total_count,
                 ref mut total_bases,
                 ref mut num_covered_bases,
-                ref mut num_mapped_reads, ..
+                ref mut num_mapped_reads,
+                ref mut total_mismatches, ..
             } => {
                 *total_count = 0;
                 *total_bases = 0;
                 *num_covered_bases = 0;
                 *num_mapped_reads = 0;
+                *total_mismatches = 0;
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
                 ref mut counts,
@@ -227,16 +234,22 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
         }
     }
 
-    fn add_contig(&mut self, ups_and_downs: &Vec<i32>, num_mapped_reads_in_contig: u64) {
+    fn add_contig(
+        &mut self, ups_and_downs: &Vec<i32>,
+        num_mapped_reads_in_contig: u64,
+        total_mismatches_in_contig: u32) {
+
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator {
                 ref mut total_count,
                 ref mut total_bases,
                 ref mut num_covered_bases,
                 ref mut num_mapped_reads,
+                ref mut total_mismatches,
                 contig_end_exclusion, ..
             } => {
-                *num_mapped_reads = num_mapped_reads_in_contig;
+                *num_mapped_reads += num_mapped_reads_in_contig;
+                *total_mismatches += total_mismatches_in_contig;
                 let len = ups_and_downs.len();
                 match *contig_end_exclusion*2 < len as u32 {
                     true => {
@@ -259,8 +272,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         *total_count += cumulative_sum as u32;
                     }
                 }
-                debug!("After adding contig, have total_count {}, total_bases {}, num_covered_bases {}",
-                       total_count, total_bases, num_covered_bases);
+                debug!("After adding contig, have total_count {}, total_bases {}, \
+                        num_covered_bases {}, mismatches {}",
+                       total_count, total_bases, num_covered_bases, total_mismatches_in_contig);
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
                 ref mut counts,
@@ -364,17 +378,21 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 total_bases,
                 num_covered_bases,
                 num_mapped_reads: _,
+                total_mismatches,
                 contig_end_exclusion: _,
                 min_fraction_covered_bases
             } => {
-                debug!("Calculating coverage with unobserved {}, total bases {}, num_covered_bases {}, total_count {}",
-                       unobserved_contig_length, total_bases, num_covered_bases, total_count);
+                debug!("Calculating coverage with unobserved {}, \
+                        total bases {}, num_covered_bases {}, total_count {}, \
+                        total_mismatches {}",
+                       unobserved_contig_length, total_bases, num_covered_bases,
+                       total_count, total_mismatches);
                 let final_total_bases = *total_bases + unobserved_contig_length;
                 if final_total_bases == 0 ||
                     (*num_covered_bases as f32 / final_total_bases as f32) < *min_fraction_covered_bases {
                     return 0.0
                 } else {
-                    return *total_count as f32 / final_total_bases as f32
+                    return (*total_count - *total_mismatches) as f32 / final_total_bases as f32
                 }
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
@@ -550,6 +568,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 total_bases: _,
                 num_covered_bases: _,
                 num_mapped_reads: _,
+                total_mismatches: _,
                 contig_end_exclusion,
                 min_fraction_covered_bases
             } =>  {
