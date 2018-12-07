@@ -11,27 +11,27 @@ pub struct ReferenceSortedBamFilter {
     current_reference: i32,
     known_next_read: Option<bam::Record>,
     pub reader: bam::Reader,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32,
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32,
     pub num_detected_primary_alignments: u64,
 }
 
 impl ReferenceSortedBamFilter {
     pub fn new(
         reader: bam::Reader,
-        min_aligned_length: u32,
-        min_percent_identity: f32,
-        min_aligned_percent: f32) -> ReferenceSortedBamFilter {
+        min_aligned_length_pair: u32,
+        min_percent_identity_pair: f32,
+        min_aligned_percent_pair: f32) -> ReferenceSortedBamFilter {
 
         ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),
             current_reference: -1,
             known_next_read: None,
             reader: reader,
-            min_aligned_length: min_aligned_length,
-            min_percent_identity: min_percent_identity,
-            min_aligned_percent: min_aligned_percent,
+            min_aligned_length_pair: min_aligned_length_pair,
+            min_percent_identity_pair: min_percent_identity_pair,
+            min_aligned_percent_pair: min_aligned_percent_pair,
             num_detected_primary_alignments: 0,
         }
     }
@@ -86,9 +86,9 @@ impl ReferenceSortedBamFilter {
                             if read_pair_passes_filter(
                                 &record,
                                 &record1,
-                                self.min_aligned_length,
-                                self.min_percent_identity,
-                                self.min_aligned_percent) {
+                                self.min_aligned_length_pair,
+                                self.min_percent_identity_pair,
+                                self.min_aligned_percent_pair) {
 
                                 debug!("Read pair passed QC");
                                 self.known_next_read = Some(record.clone());
@@ -122,9 +122,9 @@ impl ReferenceSortedBamFilter {
 fn read_pair_passes_filter(
     record1: &bam::Record,
     record2: &bam::Record,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> bool {
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32) -> bool {
 
     let edit_distance1 = match record1.aux(b"NM") {
         Some(i) => i.integer(),
@@ -166,9 +166,9 @@ fn read_pair_passes_filter(
            1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32),
            aligned as f32 / ((record1.seq().len() + record2.seq().len()) as f32));
 
-    if aligned >= min_aligned_length &&
-        aligned as f32 / (record1.seq().len() + record2.seq().len()) as f32 >= min_aligned_percent &&
-        1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32) >= min_percent_identity {
+    if aligned >= min_aligned_length_pair &&
+        aligned as f32 / (record1.seq().len() + record2.seq().len()) as f32 >= min_aligned_percent_pair &&
+        1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32) >= min_percent_identity_pair {
             return true
         } else {
             return false
