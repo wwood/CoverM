@@ -320,9 +320,9 @@ impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
 
 pub fn generate_filtered_bam_readers_from_bam_files(
     bam_paths: Vec<&str>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> Vec<FilteredBamReader>{
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32) -> Vec<FilteredBamReader>{
 
     let mut generators: Vec<FilteredBamReader> = vec![];
 
@@ -337,9 +337,9 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             stoit_name: stoit_name,
             filtered_stream: ReferenceSortedBamFilter::new(
                 reader,
-                min_aligned_length,
-                min_percent_identity,
-                min_aligned_percent),
+                min_aligned_length_pair,
+                min_percent_identity_pair,
+                min_aligned_percent_pair),
         };
 
         generators.push(
@@ -379,9 +379,9 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
     command_strings: Vec<String>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32,
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
 }
@@ -399,9 +399,9 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
-            self.min_aligned_length,
-            self.min_percent_identity,
-            self.min_aligned_percent);
+            self.min_aligned_length_pair,
+            self.min_percent_identity_pair,
+            self.min_aligned_percent_pair);
         return StreamingFilteredNamedBamReader {
             stoit_name: self.stoit_name,
             filtered_stream: filtered_stream,
@@ -445,9 +445,9 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
         reference, read1_path, read2_path, read_format, threads, cached_bam_file);
@@ -459,9 +459,9 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         command_strings: streaming.command_strings,
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
-        min_aligned_length: min_aligned_length,
-        min_percent_identity: min_percent_identity,
-        min_aligned_percent: min_aligned_percent,
+        min_aligned_length_pair: min_aligned_length_pair,
+        min_percent_identity_pair: min_percent_identity_pair,
+        min_aligned_percent_pair: min_aligned_percent_pair,
     }
 }
 
