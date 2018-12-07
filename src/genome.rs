@@ -172,8 +172,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             }
         }
 
-        if doing_first {
-            warn!("No reads were observed - perhaps something went wrong in the mapping?");
+        if doing_first && bam_generated.num_detected_primary_alignments() == 0 {
+            warn!("No primary alignments were observed for sample {} \
+                   - perhaps something went wrong in the mapping?",
+                  stoit_name);
         } else {
             // Record the last contig
             match reference_number_to_genome_index[last_tid as usize] {
@@ -525,8 +527,10 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
         }
 
-        if doing_first {
-            warn!("No reads were observed - perhaps something went wrong in the mapping?");
+        if doing_first && bam_generated.num_detected_primary_alignments() == 0 {
+            warn!("No primary alignments were observed for sample {} \
+                   - perhaps something went wrong in the mapping?",
+                  stoit_name);
         } else {
             // Print the last genome
             // Give the single genome a dummy name

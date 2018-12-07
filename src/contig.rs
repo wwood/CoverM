@@ -172,6 +172,12 @@ pub fn contig_coverage<R: NamedBamReader,
               bam_generated.num_detected_primary_alignments(), 2,
               (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
 
+        if bam_generated.num_detected_primary_alignments() == 0 {
+            warn!("No primary alignments were observed for sample {} \
+                   - perhaps something went wrong in the mapping?",
+                  stoit_name);
+        }
+
         bam_generated.finish();
     }
 }
