@@ -320,6 +320,9 @@ impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
 
 pub fn generate_filtered_bam_readers_from_bam_files(
     bam_paths: Vec<&str>,
+    min_aligned_length_single: u32,
+    min_percent_identity_single: f32,
+    min_aligned_percent_single: f32,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32) -> Vec<FilteredBamReader>{
@@ -337,6 +340,9 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             stoit_name: stoit_name,
             filtered_stream: ReferenceSortedBamFilter::new(
                 reader,
+                min_aligned_length_single,
+                min_percent_identity_single,
+                min_aligned_percent_single,
                 min_aligned_length_pair,
                 min_percent_identity_pair,
                 min_aligned_percent_pair),
@@ -379,6 +385,9 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
     command_strings: Vec<String>,
+    min_aligned_length_single: u32,
+    min_percent_identity_single: f32,
+    min_aligned_percent_single: f32,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
@@ -399,6 +408,9 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
+            self.min_aligned_length_single,
+            self.min_percent_identity_single,
+            self.min_aligned_percent_single,
             self.min_aligned_length_pair,
             self.min_percent_identity_pair,
             self.min_aligned_percent_pair);
@@ -445,6 +457,9 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
+    min_aligned_length_single: u32,
+    min_percent_identity_single: f32,
+    min_aligned_percent_single: f32,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32) -> StreamingFilteredNamedBamReaderGenerator {
@@ -459,6 +474,9 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         command_strings: streaming.command_strings,
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
+        min_aligned_length_single: min_aligned_length_single,
+        min_percent_identity_single: min_percent_identity_single,
+        min_aligned_percent_single: min_aligned_percent_single,
         min_aligned_length_pair: min_aligned_length_pair,
         min_percent_identity_pair: min_percent_identity_pair,
         min_aligned_percent_pair: min_aligned_percent_pair,

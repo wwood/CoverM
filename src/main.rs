@@ -53,9 +53,12 @@ fn main(){
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
-                            filter_params.min_aligned_length,
-                            filter_params.min_percent_identity,
-                            filter_params.min_aligned_percent),
+                            filter_params.min_aligned_length_single,
+                            filter_params.min_percent_identity_single,
+                            filter_params.min_aligned_percent_single,
+                            filter_params.min_aligned_length_pair,
+                            filter_params.min_percent_identity_pair,
+                            filter_params.min_aligned_percent_pair),
                         m,
                         &mut estimators_and_taker);
                 } else {
@@ -118,9 +121,12 @@ fn main(){
                     let filter_params = FilterParameters::generate_from_clap(m);
                     let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                         bam_files,
-                        filter_params.min_aligned_length,
-                        filter_params.min_percent_identity,
-                        filter_params.min_aligned_percent);
+                        filter_params.min_aligned_length_single,
+                        filter_params.min_percent_identity_single,
+                        filter_params.min_aligned_percent_single,
+                        filter_params.min_aligned_length_pair,
+                        filter_params.min_percent_identity_pair,
+                        filter_params.min_aligned_percent_pair);
                     run_contig(
                         &mut estimators_and_taker,
                         bam_readers,
@@ -184,12 +190,9 @@ fn main(){
                 panic!("The number of input BAM files must be the same as the number output")
             }
 
-            let min_aligned_length = value_t!(m.value_of("min-aligned-length-pair"), u32).unwrap();
-            let min_percent_identity = value_t!(m.value_of("min-percent-identity-pair"), f32).unwrap();
-            let min_aligned_percent = value_t!(m.value_of("min-aligned-percent-pair"), f32).unwrap();
+            let filter_params = FilterParameters::generate_from_clap(m);
 
             let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
-
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
                 let mut reader = bam::Reader::from_path(bam).expect(
@@ -201,7 +204,13 @@ fn main(){
                 ).expect(&format!("Failed to write BAM file {}", output));
                 writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
                 let mut filtered = filter::ReferenceSortedBamFilter::new(
-                    reader, min_aligned_length, min_percent_identity, min_aligned_percent);
+                    reader,
+                    filter_params.min_aligned_length_single,
+                    filter_params.min_percent_identity_single,
+                    filter_params.min_aligned_percent_single,
+                    filter_params.min_aligned_length_pair,
+                    filter_params.min_percent_identity_pair,
+                    filter_params.min_aligned_percent_pair);
 
                 let mut record = bam::record::Record::new();
                 while filtered.read(&mut record).is_ok() {
@@ -487,22 +496,37 @@ fn run_genome<'a,
 }
 
 struct FilterParameters {
-    min_aligned_length: u32,
-    min_percent_identity: f32,
-    min_aligned_percent: f32
+    min_aligned_length_single: u32,
+    min_percent_identity_single: f32,
+    min_aligned_percent_single: f32,
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32,
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
         FilterParameters {
-            min_aligned_length: match m.is_present("min-aligned-length-pair") {
+            min_aligned_length_single: match m.is_present("min-aligned-length") {
+                true => value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
+                false => 0
+            },
+            min_percent_identity_single: match m.is_present("min-percent-identity") {
+                true => value_t!(m.value_of("min-percent-identity"), f32).unwrap(),
+                false => 0.0
+            },
+            min_aligned_percent_single: match m.is_present("min-aligned-percent") {
+                true => value_t!(m.value_of("min-aligned-percent"), f32).unwrap(),
+                false => 0.0
+            },
+            min_aligned_length_pair: match m.is_present("min-aligned-length-pair") {
                 true => value_t!(m.value_of("min-aligned-length-pair"), u32).unwrap(),
                 false => 0
             },
-            min_percent_identity: match m.is_present("min-percent-identity-pair") {
+            min_percent_identity_pair: match m.is_present("min-percent-identity-pair") {
                 true => value_t!(m.value_of("min-percent-identity-pair"), f32).unwrap(),
                 false => 0.0
             },
-            min_aligned_percent: match m.is_present("min-aligned-percent-pair") {
+            min_aligned_percent_pair: match m.is_present("min-aligned-percent-pair") {
                 true => value_t!(m.value_of("min-aligned-percent-pair"), f32).unwrap(),
                 false => 0.0
             }
@@ -665,9 +689,12 @@ fn get_streamed_filtered_bam_readers(
                     p.read_format.clone(),
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
-                    filter_params.min_aligned_length,
-                    filter_params.min_percent_identity,
-                    filter_params.min_aligned_percent));
+                    filter_params.min_aligned_length_single,
+                    filter_params.min_percent_identity_single,
+                    filter_params.min_aligned_percent_single,
+                    filter_params.min_aligned_length_pair,
+                    filter_params.min_percent_identity_pair,
+                    filter_params.min_aligned_percent_pair));
         }
 
         debug!("Finished BAM setup");
@@ -760,6 +787,12 @@ Define mapping(s) (required):
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
 Alignment filtering (optional):
+   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
    --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases [default: 0]
    --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
@@ -821,10 +854,16 @@ Define mapping(s) (required):
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
 Alignment filtering (optional):
+   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
    --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: none]
+                                         aligned bases [default: 0]
    --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default: none]
+                                         identity e.g. 0.95 for 95% [default 0.0]
    --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
 
@@ -869,23 +908,29 @@ Only primary, non-supplementary alignments are considered, and output files
 are grouped by reference, but not sorted by position.
 
 Files (both required):
-   -b, --bam-files <PATH> ..           Path to reference-sorted BAM file(s)
-   -o, --output-bam-files <PATH> ..    Path to corresponding output file(s)
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
 
 Thresholds:
-   --min-aligned-length-pair <INT>     Exclude pairs with smaller numbers of
-                                       aligned bases [default: 0]
-   --min-percent-identity-pair <FLOAT> Exclude pairs by overall percent
-                                       identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-percent-pair <FLOAT>  Exclude pairs by percent aligned
-                                       identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
 
 Other:
-   -t, --threads <INT>                 Number of threads for output compression
-                                       [default 1]
-   -v, --verbose                       Print extra debugging information
-   -q, --quiet                         Unless there is an error, do not print
-                                       log messages
+   -t, --threads <INT>                   Number of threads for output compression
+                                         [default 1]
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
@@ -1037,6 +1082,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("genome-fasta-directory"))
 
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true))
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
                      .takes_value(true)
@@ -1158,6 +1212,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("1")
                      .takes_value(true))
 
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true))
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
                      .takes_value(true)
@@ -1230,17 +1293,28 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required(true))
 
+                .arg(Arg::with_name("min-aligned-length")
+                     .long("min-aligned-length")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-percent-identity")
+                     .long("min-percent-identity")
+                     .takes_value(true))
+                .arg(Arg::with_name("min-aligned-percent")
+                     .long("min-aligned-percent")
+                     .takes_value(true))
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
-                     .default_value("0"))
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
                 .arg(Arg::with_name("min-percent-identity-pair")
                      .long("min-percent-identity-pair")
-                     .default_value("0.0"))
+                     .takes_value(true)
+                     .conflicts_with("no-flag-filter"))
                 .arg(Arg::with_name("min-aligned-percent-pair")
                      .long("min-aligned-percent-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter")
-                     .default_value("0.0"))
+                     .conflicts_with("no-flag-filter"))
+
                 .arg(Arg::with_name("threads")
                      .long("threads")
                      .short("t")
