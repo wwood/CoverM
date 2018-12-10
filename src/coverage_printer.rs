@@ -10,6 +10,7 @@ pub enum CoveragePrinter {
         entry_type: Option<String>,
         estimator_headers: Option<Vec<String>>,
     },
+    MetabatAdjustedCoveragePrinter,
 }
 
 impl CoveragePrinter {
@@ -34,6 +35,56 @@ impl CoveragePrinter {
                     &(entry_type.as_ref().unwrap()), estimator_headers.as_ref().unwrap(),
                     cached_coverage_taker, print_stream, reads_mapped_per_sample,
                     &columns_to_normalise);
+            },
+            CoveragePrinter::MetabatAdjustedCoveragePrinter => {
+                // Print header e.g.
+                // contigName      contigLen       totalAvgDepth   2seqs.bad_read.1.bam    2seqs.bad_read.1.bam-var
+                write!(print_stream, "contigName\tcontigLen\ttotalAvgDepth").unwrap();
+                match &cached_coverage_taker {
+                    CoverageTakerType::CachedSingleFloatCoverageTaker {
+                        stoit_names,
+                        ref entry_names,
+                        ref coverages, ..
+                    } => {
+                        for stoit in stoit_names.iter() {
+                            write!(print_stream, "\t{}\t{}-var", &stoit, &stoit).unwrap();
+                        }
+                        writeln!(print_stream).unwrap();
+
+                        // Collect data into an easier to index shape
+                        let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec!();
+                        let iterator = cached_coverage_taker.generate_iterator();
+                        for ecs in iterator {
+                            // If first entry in stoit, make room
+                            if stoit_by_entry_by_coverage.len() <= ecs.stoit_index {
+                                stoit_by_entry_by_coverage.push(vec![]);
+                            }
+                            stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
+                        }
+
+                        // Assumes that all entries are given some coverage.
+                        // Assumes length, mean, variance have been calculated
+                        // in that order, and no other modes have been
+                        // calculated.
+                        for (entry_i, _) in stoit_by_entry_by_coverage[0].iter().enumerate() {
+                            // Calculate the total average across each sample.
+                            let mut total_depth = 0.0;
+                            for stoit_i in 0..stoit_by_entry_by_coverage.len() {
+                                total_depth += stoit_by_entry_by_coverage[stoit_i][entry_i].coverages[1];
+                            }
+                            write!(print_stream, "{}\t{}\t{}",
+                                   entry_names[entry_i].as_ref().unwrap(),
+                                   stoit_by_entry_by_coverage[0][entry_i].coverages[0],
+                                   total_depth / coverages.len() as f32).unwrap();
+                            for stoit_i in 0..coverages.len() {
+                                let c = &stoit_by_entry_by_coverage[stoit_i][entry_i].coverages;
+                                write!(print_stream, "\t{}\t{}", c[1], c[2]).unwrap();
+                            }
+                            writeln!(print_stream).unwrap();
+                        }
+                    },
+                    _ => panic!("programming error")
+                }
             }
         }
     }
@@ -60,7 +111,8 @@ impl CoveragePrinter {
                 *entry_type = Some(entry_type_str.to_string());
                 *estimator_headers = Some(estimator_headers_vec.iter().map(
                     |s| s.to_string()).collect());
-            }
+            },
+            CoveragePrinter::MetabatAdjustedCoveragePrinter => {},
         }
     }
 }
@@ -134,7 +186,8 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                             }
                         }
                         write!(print_stream, "\t{}",
-                               100.0*(1.0-(coverage_multipliers[*column].unwrap())));
+                               100.0*(1.0-(coverage_multipliers[*column].unwrap())))
+                            .unwrap();
                     }
                     for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
                         ..*num_coverages {
@@ -166,7 +219,7 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                                        coverages[i]).unwrap();
                             }
                         }
-                        writeln!(print_stream);
+                        writeln!(print_stream).unwrap();
                     }
             };
             for entry_and_coverages in iterator {
@@ -249,7 +302,8 @@ pub fn print_dense_cached_coverage_taker<'a>(
                             }
                         }
                         write!(print_stream, "\t{}",
-                               100.0*(1.0-(coverage_multipliers[stoit_i])));
+                               100.0*(1.0-(coverage_multipliers[stoit_i])))
+                            .unwrap();
                     }
                     for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
                         ..*num_coverages {
@@ -367,5 +421,43 @@ mod tests {
                     unmapped\t50\tNA\n\
                     contig1\t50\t1.2\n",
                    str::from_utf8(stream.get_ref()).unwrap());
+    }
+
+    #[test]
+    fn test_metabat_mode_printer_easy(){
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(3);
+
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1024.0);
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        c.start_entry(1, "contig2");
+        c.add_single_coverage(1025.0);
+        c.add_single_coverage(2.1);
+        c.add_single_coverage(2.2);
+
+        c.start_stoit("stoit2");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1024.0);
+        c.add_single_coverage(21.1);
+        c.add_single_coverage(21.2);
+        c.start_entry(1, "contig2");
+        c.add_single_coverage(1025.0);
+        c.add_single_coverage(22.1);
+        c.add_single_coverage(22.2);
+
+        let mut stream = Cursor::new(Vec::new());
+        let mut metabat = CoveragePrinter::MetabatAdjustedCoveragePrinter;
+        metabat.finalise_printing(
+            &c,
+            &mut stream,
+            None,
+            &vec!());
+        assert_eq!(
+            "contigName\tcontigLen\ttotalAvgDepth\tstoit1\tstoit1-var\tstoit2\tstoit2-var\n\
+             contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
+             contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
+            str::from_utf8(stream.get_ref()).unwrap());
     }
 }

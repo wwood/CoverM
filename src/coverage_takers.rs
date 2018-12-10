@@ -212,7 +212,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                     stoit,
                     entry,
                     num_reads,
-                    num_bases);
+                    num_bases).unwrap();
             }
         }
     }
