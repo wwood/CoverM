@@ -294,14 +294,14 @@ impl<'a> EstimatorsAndTaker<'a> {
         let mut columns_to_normalise: Vec<usize> = vec!();
 
         for (i, method) in methods.iter().enumerate() {
-            let estimator = match method {
+            match method {
                 &"mean" => {
-                    CoverageEstimator::new_estimator_mean(
-                        min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_mean(
+                        min_fraction_covered, contig_end_exclusion));
                 },
                 &"coverage_histogram" => {
-                    CoverageEstimator::new_estimator_pileup_counts(
-                        min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_pileup_counts(
+                        min_fraction_covered, contig_end_exclusion));
                 },
                 &"trimmed_mean" => {
                     let min = value_t!(m.value_of("trim-min"), f32).unwrap();
@@ -310,31 +310,37 @@ impl<'a> EstimatorsAndTaker<'a> {
                         eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
                         process::exit(1)
                     }
-                    CoverageEstimator::new_estimator_trimmed_mean(
-                        min, max, min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
+                        min, max, min_fraction_covered, contig_end_exclusion));
                 },
                 &"covered_fraction" => {
-                    CoverageEstimator::new_estimator_covered_fraction(
-                        min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_covered_fraction(
+                        min_fraction_covered, contig_end_exclusion));
                 },
                 &"variance" =>{
-                    CoverageEstimator::new_estimator_variance(
-                        min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_variance(
+                        min_fraction_covered, contig_end_exclusion));
                 },
                 &"length" =>{
-                    CoverageEstimator::new_estimator_length()
+                    estimators.push(CoverageEstimator::new_estimator_length());
                 },
                 &"relative_abundance" => {
                     columns_to_normalise.push(i);
-                    CoverageEstimator::new_estimator_mean(
-                        min_fraction_covered, contig_end_exclusion)
+                    estimators.push(CoverageEstimator::new_estimator_mean(
+                        min_fraction_covered, contig_end_exclusion));
                 },
                 &"count" => {
-                    CoverageEstimator::new_estimator_read_count()
+                    estimators.push(CoverageEstimator::new_estimator_read_count());
+                },
+                &"metabat" => {
+                    estimators.push(CoverageEstimator::new_estimator_length());
+                    estimators.push(CoverageEstimator::new_estimator_mean(
+                        min_fraction_covered, contig_end_exclusion));
+                    estimators.push(CoverageEstimator::new_estimator_variance(
+                        min_fraction_covered, contig_end_exclusion));
                 }
                 _ => panic!("programming error")
             };
-            estimators.push(estimator);
         }
 
         let taker;
@@ -347,6 +353,15 @@ impl<'a> EstimatorsAndTaker<'a> {
                 debug!("Coverage histogram type coverage taker being used");
                 taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                 printer = CoveragePrinter::StreamedCoveragePrinter;
+            }
+        } else if methods.contains(&"metabat") {
+            if methods.len() > 1 {
+                panic!("Cannot specify the metabat method with any other coverage methods")
+            } else {
+                debug!("Cached regular coverage taker being used");
+                taker = CoverageTakerType::new_cached_single_float_coverage_taker(
+                    estimators.len());
+                printer = CoveragePrinter::MetabatAdjustedCoveragePrinter;
             }
         } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
             debug!("Streaming regular coverage output");
@@ -1247,7 +1262,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "covered_fraction",
                          "variance",
                          "length",
-                         "count"])
+                         "count",
+                         "metabat"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
