@@ -243,7 +243,8 @@ fn main(){
                             p.read_format.clone(),
                             p.threads,
                             &generate_cached_bam_file_name(
-                                output_directory, p.reference, p.read1)));
+                                output_directory, p.reference, p.read1),
+                            p.bwa_options));
                 }
 
                 debug!("Finished BAM setup");
@@ -589,7 +590,8 @@ fn get_streamed_bam_readers<'a>(
                     p.read2,
                     p.read_format.clone(),
                     p.threads,
-                    bam_file_cache(p.read1).as_ref().map(String::as_ref)));
+                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    p.bwa_options));
         }
 
         debug!("Finished BAM setup");
@@ -709,7 +711,8 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_aligned_percent_single,
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
-                    filter_params.min_aligned_percent_pair));
+                    filter_params.min_aligned_percent_pair,
+                    p.bwa_options));
         }
 
         debug!("Finished BAM setup");
@@ -800,6 +803,10 @@ Define mapping(s) (required):
                                          for mapping.
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -866,6 +873,10 @@ Define mapping(s) (required):
                                          for mapping.
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -969,6 +980,10 @@ Mapping parameters:
                                          for mapping.
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
@@ -1058,6 +1073,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+                .arg(Arg::with_name("bwa-params")
+                     .long("bwa-params")
+                     .long("bwa-parameters")
+                     .takes_value(true)
+                     .allow_hyphen_values(true)
+                     .requires("reference"))
 
                 .arg(Arg::with_name("separator")
                      .short("s")
@@ -1229,6 +1250,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+                .arg(Arg::with_name("bwa-params")
+                     .long("bwa-params")
+                     .long("bwa-parameters")
+                     .takes_value(true)
+                     .allow_hyphen_values(true)
+                     .requires("reference"))
 
                 .arg(Arg::with_name("min-aligned-length")
                      .long("min-aligned-length")
@@ -1399,5 +1426,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+                .arg(Arg::with_name("bwa-params")
+                     .long("bwa-params")
+                     .long("bwa-parameters")
+                     .takes_value(true)
+                     .allow_hyphen_values(true)
+                     .requires("reference"))
         )
 }

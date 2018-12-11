@@ -409,4 +409,31 @@ mod tests {
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome6~random_sequence_length_11003	0	0
 ").unwrap();
     }
+
+    #[test]
+    fn test_bwa_parameters() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/2seqs.fasta"]).succeeds().stdout().contains(
+                "Sample	Contig	Mean\n\
+                 2seqs.fasta/2seqs.fasta	seq1	1\n\
+                 2seqs.fasta/2seqs.fasta	seq2	1\n").unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--bwa-parameters",
+                "'-k 5000'", // seed length longer than both sequences
+                "--single",
+                "tests/data/2seqs.fasta"]).succeeds().stdout().contains(
+                "Sample	Contig	Mean\n\
+                 2seqs.fasta/2seqs.fasta	seq1	0\n\
+                 2seqs.fasta/2seqs.fasta	seq2	0\n").unwrap();
+    }
 }

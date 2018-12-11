@@ -203,7 +203,8 @@ pub fn generate_named_bam_readers_from_reads(
     read2_path: Option<&str>,
     read_format: ReadFormat,
     threads: u16,
-    cached_bam_file: Option<&str>) -> StreamingNamedBamReaderGenerator {
+    cached_bam_file: Option<&str>,
+    bwa_options: Option<&str>) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -244,11 +245,11 @@ pub fn generate_named_bam_readers_from_reads(
     };
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem -t {} '{}' {} 2>{} \
+         bwa mem {} -t {} '{}' {} 2>{} \
          | samtools sort -l0 -@ {} 2>{} \
          {}",
         // BWA
-        threads, reference, bwa_read_params,
+        bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         threads-1,
@@ -462,10 +463,12 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     min_aligned_percent_single: f32,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
-    min_aligned_percent_pair: f32) -> StreamingFilteredNamedBamReaderGenerator {
+    min_aligned_percent_pair: f32,
+    bwa_options: Option<&str>) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
-        reference, read1_path, read2_path, read_format, threads, cached_bam_file);
+        reference, read1_path, read2_path, read_format, threads,
+        cached_bam_file, bwa_options);
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,
@@ -515,7 +518,8 @@ pub fn generate_bam_maker_generator_from_reads(
     read2_path: Option<&str>,
     read_format: ReadFormat,
     threads: u16,
-    cached_bam_file: &str) -> NamedBamMakerGenerator {
+    cached_bam_file: &str,
+    bwa_options: Option<&str>) -> NamedBamMakerGenerator {
 
     let bwa_log = tempfile::NamedTempFile::new()
         .expect("Failed to create BWA log tempfile");
@@ -533,11 +537,11 @@ pub fn generate_bam_maker_generator_from_reads(
     };
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem -t {} '{}' {} 2>{} \
+         bwa mem {} -t {} '{}' {} 2>{} \
          | samtools sort -l0 -@ {} 2>{} \
          | samtools view -b -o '{}' 2>{}",
         // BWA
-        threads, reference, bwa_read_params,
+        bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         threads-1,

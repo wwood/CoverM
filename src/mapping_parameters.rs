@@ -15,6 +15,7 @@ pub struct MappingParameters<'a> {
     interleaved: Vec<&'a str>,
     unpaired: Vec<&'a str>,
     iter_reference_index: usize,
+    bwa_options: Option<&'a str>
 }
 
 impl<'a> MappingParameters<'a> {
@@ -56,6 +57,15 @@ impl<'a> MappingParameters<'a> {
             unpaired = m.values_of("single").unwrap().collect();
         }
 
+        let bwa_options = match m.is_present("bwa-params") {
+            true => {
+                let params = m.value_of("bwa-params");
+                params
+            }
+            false => None
+        };
+        debug!("Setting BWA options as '{:?}'", bwa_options);
+
         return MappingParameters {
             references: m.values_of("reference").unwrap().collect(),
             threads: m.value_of("threads").unwrap().parse::<u16>()
@@ -65,6 +75,7 @@ impl<'a> MappingParameters<'a> {
             interleaved: interleaved,
             unpaired: unpaired,
             iter_reference_index: 0,
+            bwa_options: bwa_options,
         }
     }
 }
@@ -76,6 +87,7 @@ pub struct SingleReferenceMappingParameters<'a> {
     read2: Vec<&'a str>,
     interleaved: Vec<&'a str>,
     unpaired: Vec<&'a str>,
+    bwa_options: Option<&'a str>,
 
     iter_read_pair_index: usize,
     iter_interleaved_index: usize,
@@ -96,6 +108,7 @@ impl<'a> Iterator for MappingParameters<'a> {
                 read2: self.read2.clone(),
                 interleaved: self.interleaved.clone(),
                 unpaired: self.unpaired.clone(),
+                bwa_options: self.bwa_options,
                 iter_read_pair_index: 0,
                 iter_interleaved_index: 0,
                 iter_unpaired_index: 0,
@@ -118,7 +131,8 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read_format: ReadFormat::Coupled,
                 read1: self.read1[i],
                 read2: Some(self.read2[i]),
-                threads: self.threads
+                threads: self.threads,
+                bwa_options: self.bwa_options,
             })
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
@@ -128,7 +142,8 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read_format: ReadFormat::Interleaved,
                 read1: self.interleaved[i],
                 read2: None,
-                threads: self.threads
+                threads: self.threads,
+                bwa_options: self.bwa_options,
             })
         } else if self.iter_unpaired_index < self.unpaired.len() {
             let i = self.iter_unpaired_index;
@@ -138,7 +153,8 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read_format: ReadFormat::Single,
                 read1: self.unpaired[i],
                 read2: None,
-                threads: self.threads
+                threads: self.threads,
+                bwa_options: self.bwa_options,
             })
         } else {
             return None
@@ -152,4 +168,5 @@ pub struct OneSampleMappingParameters<'a> {
     pub read1: &'a str,
     pub read2: Option<&'a str>,
     pub threads: u16,
+    pub bwa_options: Option<&'a str>
 }

@@ -284,7 +284,8 @@ mod tests {
     #[test]
     fn test_streaming_bam_file(){
         test_with_stream(
-            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
+            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             vec![
                 generate_named_bam_readers_from_reads(
                     "tests/data/7seqs.fna",
@@ -292,6 +293,7 @@ mod tests {
                     Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
                     ReadFormat::Coupled,
                     4,
+                    None,
                     None)],
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,
