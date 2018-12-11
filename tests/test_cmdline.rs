@@ -34,7 +34,8 @@ mod tests {
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
                 "-o",
-                "/tmp/o"]).succeeds().unwrap();
+                "/tmp/o",
+                "--proper-pairs-only"]).succeeds().unwrap();
         Assert::command(&["samtools","view",t])
             .stdout().doesnt_contain("1\t99\tseq1").unwrap();
     }
@@ -58,6 +59,7 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--proper-pairs-only",
             ])
             .succeeds()
             .stdout().contains(format!(
@@ -154,7 +156,6 @@ mod tests {
                 "tests/data/2seqs.fasta",
                 "--interleaved",
                 "tests/data/bad_reads.interleaved.fq",
-                "--no-flag-filter",
             ])
             .succeeds()
             .stdout().contains(
@@ -176,6 +177,7 @@ mod tests {
                 "300",
                 "--contig-end-exclusion",
                 "0",
+                "--proper-pairs-only",
             ])
             .succeeds()
             .stdout().contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
@@ -191,7 +193,6 @@ mod tests {
                 "tests/data/2seqs.fasta",
                 "--single",
                 "tests/data/bad_reads.interleaved.fq",
-                "--no-flag-filter",
                 "--contig-end-exclusion",
                 "0",
             ])
@@ -329,8 +330,7 @@ mod tests {
                 "-b",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
                 "-s",
-                "~",
-                "--no-flag-filter"]).succeeds().stdout().contains(
+                "~"]).succeeds().stdout().contains(
                 "Sample	Genome	Relative Abundance (%)	Mean
 7seqs.reads_for_seq1_and_seq2	unmapped	0	NA
 7seqs.reads_for_seq1_and_seq2	genome1	0	0
@@ -358,8 +358,7 @@ mod tests {
                 "--single",
                 "tests/data/reads_for_seq1_and_seq2.fna",
                 "-s",
-                "~",
-                "--no-flag-filter"]).succeeds().stdout().contains(
+                "~"]).succeeds().stdout().contains(
                 "Sample	Genome	Relative Abundance (%)	Mean	Variance
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	unmapped	0	NA	NA
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1	0	0	0
@@ -392,8 +391,7 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--single",
-                "tests/data/reads_for_seq1_and_seq2.fna",
-                "--no-flag-filter"]).succeeds().stdout().contains(
+                "tests/data/reads_for_seq1_and_seq2.fna"]).succeeds().stdout().contains(
                 "Sample	Contig	Mean	Variance
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11000	0	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11010	0	0

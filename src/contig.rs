@@ -14,7 +14,7 @@ pub fn contig_coverage<R: NamedBamReader,
     coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
-    flag_filtering: bool) {
+    proper_pairs_only: bool) {
 
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
@@ -78,12 +78,13 @@ pub fn contig_coverage<R: NamedBamReader,
         // for record in records
         while bam_generated.read(&mut record).is_ok() {
             debug!("Starting with a new read.. {:?}", record);
-            if flag_filtering &&
-                (record.is_secondary() ||
-                 record.is_supplementary() ||
-                 !record.is_proper_pair()) {
+            if record.is_secondary() ||
+                record.is_supplementary() {
                     continue;
                 }
+            if proper_pairs_only && !record.is_proper_pair() {
+                continue;
+            }
             // if reference has changed, print the last record
             let tid = record.tid();
             if tid != -1 { // if mapped
@@ -220,7 +221,7 @@ mod tests {
         bam_readers: Vec<G>,
         coverage_estimators: &mut Vec<CoverageEstimator>,
         print_zero_coverage_contigs: bool,
-        flag_filtering: bool) {
+        proper_pairs_only: bool) {
         let mut stream = Cursor::new(Vec::new());
         {
             let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
@@ -230,7 +231,7 @@ mod tests {
                 &mut coverage_taker,
                 coverage_estimators,
                 print_zero_coverage_contigs,
-                flag_filtering);
+                proper_pairs_only);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
     }
@@ -258,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn test_flag_filtering(){
+    fn test_proper_pairs_only(){
         test_with_stream(
             "",
             generate_named_bam_readers_from_bam_files(
@@ -317,7 +318,7 @@ mod tests {
         test_with_stream(
             "2seqs.reads_for_seq1.with_unmapped\tseq1\t1.497\n\
              2seqs.reads_for_seq1.with_unmapped\tseq2\t1.5\n",
-            // has unmapped reads, which caused problems with --no-flag-filter.
+            // has unmapped reads, which caused problems with --proper-pairs-only.
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),

@@ -19,7 +19,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     contigs_and_genomes: &GenomesAndContigs,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
-    flag_filtering: bool,
+    proper_pairs_only: bool,
     coverage_estimators: &mut Vec<CoverageEstimator>)
     -> Vec<ReadsMapped> {
 
@@ -82,12 +82,12 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
         while bam_generated.read(&mut record).is_ok() {
-            if flag_filtering &&
-                (record.is_secondary() ||
-                 record.is_supplementary() ||
-                 !record.is_proper_pair()) {
-                    continue;
-                }
+            if record.is_secondary() || record.is_supplementary() {
+                continue;
+            }
+            if proper_pairs_only && !record.is_proper_pair() {
+                continue;
+            }
             let original_tid = record.tid();
             if original_tid != -1 { // if mapped
                 let tid = original_tid as u32;
@@ -275,7 +275,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     coverage_estimators: &mut Vec<CoverageEstimator>,
-    flag_filtering: bool,
+    proper_pairs_only: bool,
     single_genome: bool)
     -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec!();
@@ -345,12 +345,12 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
         while bam_generated.read(&mut record).is_ok() {
-            if flag_filtering &&
-                (record.is_secondary() ||
-                 record.is_supplementary() ||
-                 !record.is_proper_pair()) {
-                    continue;
-                }
+            if record.is_secondary() || record.is_supplementary() {
+                continue;
+            }
+            if proper_pairs_only && !record.is_proper_pair() {
+                continue;
+            }
             let original_tid = record.tid();
             if original_tid != -1 {
                 num_mapped_reads += 1;
@@ -762,7 +762,7 @@ mod tests {
         separator: u8,
         print_zero_coverage_contigs: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
-        flag_filtering: bool,
+        proper_pairs_only: bool,
         single_genome: bool) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
         let res;
@@ -775,7 +775,7 @@ mod tests {
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 coverage_estimators,
-                flag_filtering,
+                proper_pairs_only,
                 single_genome);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
@@ -789,7 +789,7 @@ mod tests {
         separator: u8,
         print_zero_coverage_contigs: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
-        flag_filtering: bool,
+        proper_pairs_only: bool,
         single_genome: bool) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
         let res;
@@ -802,7 +802,7 @@ mod tests {
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 coverage_estimators,
-                flag_filtering,
+                proper_pairs_only,
                 single_genome);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
@@ -815,7 +815,7 @@ mod tests {
         bam_readers: Vec<G>,
         geco: &GenomesAndContigs,
         print_zero_coverage_contigs: bool,
-        flag_filtering: bool,
+        proper_pairs_only: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
     ) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
@@ -828,7 +828,7 @@ mod tests {
                 geco,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
-                flag_filtering,
+                proper_pairs_only,
                 coverage_estimators);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
@@ -841,7 +841,7 @@ mod tests {
         bam_readers: Vec<G>,
         geco: &GenomesAndContigs,
         print_zero_coverage_contigs: bool,
-        flag_filtering: bool,
+        proper_pairs_only: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
     ) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
@@ -854,7 +854,7 @@ mod tests {
                 geco,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
-                flag_filtering,
+                proper_pairs_only,
                 coverage_estimators);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
@@ -1230,7 +1230,7 @@ mod tests {
     fn test_julian_error(){
         let reads_mapped = test_streaming_with_stream(
             "2seqs.reads_for_seq1.with_unmapped\tgenome1\t1.4985\n",
-            // has unmapped reads, which caused problems with --no-flag-filter.
+            // has unmapped reads, which caused problems with --proper-pairs-only
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
             '\0' as u8,

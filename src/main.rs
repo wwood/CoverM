@@ -107,7 +107,7 @@ fn main(){
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
-            let flag_filter = !m.is_present("no-flag-filter");
+            let proper_pairs_only = m.is_present("proper-pairs-only");
             let filtering = doing_filtering(m);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
@@ -131,7 +131,7 @@ fn main(){
                         &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter);
+                        proper_pairs_only);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
@@ -139,7 +139,7 @@ fn main(){
                         &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        flag_filter);
+                        proper_pairs_only);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -160,7 +160,7 @@ fn main(){
                         &mut estimators_and_taker,
                         all_generators,
                         print_zeros,
-                        flag_filter);
+                        proper_pairs_only);
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
@@ -176,7 +176,7 @@ fn main(){
                         &mut estimators_and_taker,
                         all_generators,
                         print_zeros,
-                        flag_filter);
+                        proper_pairs_only);
                 }
             }
         },
@@ -423,7 +423,7 @@ fn run_genome<'a,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>) {
 
     let print_zeros = !m.is_present("no-zeros");
-    let flag_filter = !m.is_present("no-flag-filter");
+    let proper_pairs_only = m.is_present("proper-pairs-only");
     let single_genome = m.is_present("single-genome");
     let reads_mapped = match m.is_present("separator") || single_genome {
         true => {
@@ -447,7 +447,7 @@ fn run_genome<'a,
 	              &mut estimators_and_taker.taker,
                 print_zeros,
                 &mut estimators_and_taker.estimators,
-                flag_filter,
+                proper_pairs_only,
                 single_genome)
         },
 
@@ -499,7 +499,7 @@ fn run_genome<'a,
                 &genomes_and_contigs,
                 &mut estimators_and_taker.taker,
                 print_zeros,
-                flag_filter,
+                proper_pairs_only,
                 &mut estimators_and_taker.estimators)
         }
     };
@@ -730,14 +730,14 @@ fn run_contig<'a,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
     bam_readers: Vec<T>,
     print_zeros: bool,
-    flag_filter: bool) {
+    proper_pairs_only: bool) {
 
     coverm::contig::contig_coverage(
         bam_readers,
         &mut estimators_and_taker.taker,
         &mut estimators_and_taker.estimators,
         print_zeros,
-        flag_filter);
+        proper_pairs_only);
 
     debug!("Finalising printing ..");
 
@@ -840,8 +840,7 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --no-flag-filter                      Do not ignore secondary and supplementary
-                                         alignments, and improperly paired reads
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    -v, --verbose                         Print extra debugging information
@@ -876,11 +875,14 @@ Alignment filtering (optional):
    --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
    --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: 0]
+                                         aligned bases.
+                                         Implies --proper-pairs-only.[default: 0]
    --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
    --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -906,8 +908,7 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --no-flag-filter                      Do not ignore secondary and supplementary
-                                         alignments, and improperly paired reads
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    -v, --verbose                         Print extra debugging information
@@ -934,11 +935,15 @@ Thresholds:
    --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
    --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: 0]
+                                         aligned bases.
+                                         Implies --proper-pairs-only.[default: 0]
    --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
    --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
 
 Other:
    -t, --threads <INT>                   Number of threads for output compression
@@ -1037,7 +1042,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required_unless_one(
                          &["bam-files","read1","coupled","interleaved"])
-                     .requires("no-flag-filter")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
@@ -1109,15 +1113,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-percent-identity-pair")
                      .long("min-percent-identity-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-aligned-percent-pair")
                      .long("min-aligned-percent-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
 
                 .arg(Arg::with_name("methods")
                      .short("m")
@@ -1149,8 +1153,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("75"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros"))
-                .arg(Arg::with_name("no-flag-filter")
-                     .long("no-flag-filter"))
+                .arg(Arg::with_name("proper-pairs-only")
+                     .long("proper-pairs-only"))
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
@@ -1209,7 +1213,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required_unless_one(
                          &["bam-files","read1","coupled","interleaved"])
-                     .requires("no-flag-filter")
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
@@ -1239,15 +1242,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-percent-identity-pair")
                      .long("min-percent-identity-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-aligned-percent-pair")
                      .long("min-aligned-percent-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
 
                 .arg(Arg::with_name("methods")
                      .short("m")
@@ -1279,8 +1282,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("0.95"))
                 .arg(Arg::with_name("no-zeros")
                      .long("no-zeros"))
-                .arg(Arg::with_name("no-flag-filter")
-                     .long("no-flag-filter"))
+                .arg(Arg::with_name("proper-pairs-only")
+                     .long("proper-pairs-only"))
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
@@ -1321,16 +1324,18 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("min-aligned-length-pair")
                      .long("min-aligned-length-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-percent-identity-pair")
                      .long("min-percent-identity-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
                 .arg(Arg::with_name("min-aligned-percent-pair")
                      .long("min-aligned-percent-pair")
                      .takes_value(true)
-                     .conflicts_with("no-flag-filter"))
+                     .requires("proper-pairs-only"))
 
+                .arg(Arg::with_name("proper-pairs-only")
+                     .long("proper-pairs-only"))
                 .arg(Arg::with_name("threads")
                      .long("threads")
                      .short("t")
