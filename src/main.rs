@@ -898,16 +898,17 @@ Alignment filtering (optional):
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
                                          One of:
-                                              mean (default)
-                                              trimmed_mean
-                                              coverage_histogram
-                                              covered_fraction
-                                              variance
-                                              length
-                                              count
+                                           mean (default)
+                                           trimmed_mean
+                                           coverage_histogram
+                                           covered_fraction
+                                           variance
+                                           length
+                                           count
+                                           metabat (\"metabat adjusted coverage\")
    --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
                                          [default: sparse]
-   --min-covered-fraction FRACTION       Genomes with less coverage than this
+   --min-covered-fraction FRACTION       Contigs with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
    --contig-end-exclusion                Exclude bases at the ends of reference
