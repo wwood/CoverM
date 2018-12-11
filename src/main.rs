@@ -294,92 +294,91 @@ impl<'a> EstimatorsAndTaker<'a> {
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
         let mut columns_to_normalise: Vec<usize> = vec!();
 
-        for (i, method) in methods.iter().enumerate() {
-            match method {
-                &"mean" => {
-                    estimators.push(CoverageEstimator::new_estimator_mean(
-                        min_fraction_covered, contig_end_exclusion));
-                },
-                &"coverage_histogram" => {
-                    estimators.push(CoverageEstimator::new_estimator_pileup_counts(
-                        min_fraction_covered, contig_end_exclusion));
-                },
-                &"trimmed_mean" => {
-                    let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-                    let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-                    if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                        eprintln!("error: Trim bounds must be between 0 and 1, and min must be less than max, found {} and {}", min, max);
-                        process::exit(1)
-                    }
-                    estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
-                        min, max, min_fraction_covered, contig_end_exclusion));
-                },
-                &"covered_fraction" => {
-                    estimators.push(CoverageEstimator::new_estimator_covered_fraction(
-                        min_fraction_covered, contig_end_exclusion));
-                },
-                &"variance" =>{
-                    estimators.push(CoverageEstimator::new_estimator_variance(
-                        min_fraction_covered, contig_end_exclusion));
-                },
-                &"length" =>{
-                    estimators.push(CoverageEstimator::new_estimator_length());
-                },
-                &"relative_abundance" => {
-                    columns_to_normalise.push(i);
-                    estimators.push(CoverageEstimator::new_estimator_mean(
-                        min_fraction_covered, contig_end_exclusion));
-                },
-                &"count" => {
-                    estimators.push(CoverageEstimator::new_estimator_read_count());
-                },
-                &"metabat" => {
-                    estimators.push(CoverageEstimator::new_estimator_length());
-                    estimators.push(CoverageEstimator::new_estimator_mean(
-                        min_fraction_covered, contig_end_exclusion));
-                    estimators.push(CoverageEstimator::new_estimator_variance(
-                        min_fraction_covered, contig_end_exclusion));
-                }
-                _ => panic!("programming error")
-            };
-        }
-
         let taker;
         let output_format = m.value_of("output-format").unwrap();
         let printer;
-        if methods.contains(&"coverage_histogram") {
-            if methods.len() > 1 {
-                panic!("Cannot specify the coverage_histogram method with any other coverage methods")
-            } else {
-                debug!("Coverage histogram type coverage taker being used");
-                taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
-                printer = CoveragePrinter::StreamedCoveragePrinter;
-            }
-        } else if methods.contains(&"metabat") {
-            if methods.len() > 1 {
-                panic!("Cannot specify the metabat method with any other coverage methods")
-            } else {
-                debug!("Cached regular coverage taker being used");
-                taker = CoverageTakerType::new_cached_single_float_coverage_taker(
-                    estimators.len());
-                printer = CoveragePrinter::MetabatAdjustedCoveragePrinter;
-            }
-        } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
-            debug!("Streaming regular coverage output");
-            taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                stream);
-            printer = CoveragePrinter::StreamedCoveragePrinter;
-        } else {
-            debug!("Cached regular coverage taker with columns to normlise: {:?}",
-                   columns_to_normalise);
+
+        if doing_metabat(&m) {
+            estimators.push(CoverageEstimator::new_estimator_length());
+            estimators.push(CoverageEstimator::new_estimator_mean(
+                min_fraction_covered, contig_end_exclusion));
+            estimators.push(CoverageEstimator::new_estimator_variance(
+                min_fraction_covered, contig_end_exclusion));
+
+            debug!("Cached regular coverage taker for metabat mode being used");
             taker = CoverageTakerType::new_cached_single_float_coverage_taker(
                 estimators.len());
-            printer = match output_format {
-                "sparse" => CoveragePrinter::SparseCachedCoveragePrinter,
-                "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
-                    entry_type: None, estimator_headers: None},
-                _ => panic!("Unexpected output format seen. Programming error")
+            printer = CoveragePrinter::MetabatAdjustedCoveragePrinter;
+        } else {
+            for (i, method) in methods.iter().enumerate() {
+                match method {
+                    &"mean" => {
+                        estimators.push(CoverageEstimator::new_estimator_mean(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"coverage_histogram" => {
+                        estimators.push(CoverageEstimator::new_estimator_pileup_counts(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"trimmed_mean" => {
+                        let min = value_t!(m.value_of("trim-min"), f32).unwrap();
+                        let max = value_t!(m.value_of("trim-max"), f32).unwrap();
+                        if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
+                            panic!("error: Trim bounds must be between 0 and 1, and \
+                                    min must be less than max, found {} and {}", min, max);
+                        }
+                        estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
+                            min, max, min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"covered_fraction" => {
+                        estimators.push(CoverageEstimator::new_estimator_covered_fraction(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"variance" =>{
+                        estimators.push(CoverageEstimator::new_estimator_variance(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"length" =>{
+                        estimators.push(CoverageEstimator::new_estimator_length());
+                    },
+                    &"relative_abundance" => {
+                        columns_to_normalise.push(i);
+                        estimators.push(CoverageEstimator::new_estimator_mean(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"count" => {
+                        estimators.push(CoverageEstimator::new_estimator_read_count());
+                    },
+                    _ => panic!("programming error")
+                };
             }
+
+            if methods.contains(&"coverage_histogram") {
+                if methods.len() > 1 {
+                    panic!("Cannot specify the coverage_histogram method with any other coverage methods")
+                } else {
+                    debug!("Coverage histogram type coverage taker being used");
+                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
+                    printer = CoveragePrinter::StreamedCoveragePrinter;
+                }
+            } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
+                debug!("Streaming regular coverage output");
+                taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                    stream);
+                printer = CoveragePrinter::StreamedCoveragePrinter;
+            } else {
+                debug!("Cached regular coverage taker with columns to normlise: {:?}",
+                       columns_to_normalise);
+                taker = CoverageTakerType::new_cached_single_float_coverage_taker(
+                    estimators.len());
+                printer = match output_format {
+                    "sparse" => CoveragePrinter::SparseCachedCoveragePrinter,
+                    "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
+                        entry_type: None, estimator_headers: None},
+                    _ => panic!("Unexpected output format seen. Programming error")
+                }
+            }
+
         }
 
         return EstimatorsAndTaker {
@@ -511,6 +510,23 @@ fn run_genome<'a,
         &estimators_and_taker.columns_to_normalise);
 }
 
+fn doing_metabat(m: &clap::ArgMatches) -> bool {
+    match m.subcommand_name() {
+        Some("contig") => {
+            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+            if methods.contains(&"metabat") {
+                if methods.len() > 1 {
+                    panic!("Cannot specify the metabat method with any other coverage methods")
+                } else {
+                    return true
+                }
+            }
+            return false
+        },
+        _ => return false
+    }
+}
+
 struct FilterParameters {
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
@@ -521,7 +537,7 @@ struct FilterParameters {
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
-        FilterParameters {
+        let mut f = FilterParameters {
             min_aligned_length_single: match m.is_present("min-aligned-length") {
                 true => value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
                 false => 0
@@ -546,7 +562,13 @@ impl FilterParameters {
                 true => value_t!(m.value_of("min-aligned-percent-pair"), f32).unwrap(),
                 false => 0.0
             }
+        };
+        if doing_metabat(&m) {
+            debug!("Setting single read percent identity threshold at 0.97 for \
+                    MetaBAT adjusted coverage.");
+            f.min_percent_identity_single = 0.97;
         }
+        return f
     }
 }
 
@@ -628,7 +650,6 @@ fn setup_bam_cache_directory(cache_directory: &str) {
     } else {
         match path.parent() {
             Some(parent) => {
-                println!("parent: {:?}",parent);
                 let parent2 = match parent == std::path::Path::new("") {
                     true => std::path::Path::new("."),
                     false => parent
@@ -905,7 +926,7 @@ Other arguments (optional):
                                            variance
                                            length
                                            count
-                                           metabat (\"metabat adjusted coverage\")
+                                           metabat (\"MetaBAT adjusted coverage\")
    --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
                                          [default: sparse]
    --min-covered-fraction FRACTION       Contigs with less coverage than this
