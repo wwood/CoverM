@@ -38,18 +38,16 @@ fn main(){
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             set_log_level(m, true);
-            let filtering = doing_filtering(m);
-            debug!("Doing filtering? {}", filtering);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
                 m, print_stream);
             estimators_and_taker = estimators_and_taker.print_headers(
                 &"Genome", &mut std::io::stdout());
+            let filter_params = FilterParameters::generate_from_clap(m);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filtering {
-                    let filter_params = FilterParameters::generate_from_clap(m);
+                if filter_params.doing_filtering() {
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
@@ -71,7 +69,7 @@ fn main(){
             } else {
                 external_command_checker::check_for_bwa();
                 external_command_checker::check_for_samtools();
-                if filtering {
+                if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     let mut all_generators = vec!();
@@ -108,7 +106,7 @@ fn main(){
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let proper_pairs_only = m.is_present("proper-pairs-only");
-            let filtering = doing_filtering(m);
+            let filter_params = FilterParameters::generate_from_clap(m);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
                 m, &mut print_stream);
@@ -117,7 +115,7 @@ fn main(){
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filtering {
+                if filter_params.doing_filtering() {
                     let filter_params = FilterParameters::generate_from_clap(m);
                     let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                         bam_files,
@@ -144,7 +142,7 @@ fn main(){
             } else {
                 external_command_checker::check_for_bwa();
                 external_command_checker::check_for_samtools();
-                if filtering {
+                if filter_params.doing_filtering() {
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(m);
                     let mut all_generators = vec!();
@@ -409,12 +407,6 @@ impl<'a> EstimatorsAndTaker<'a> {
 }
 
 
-fn doing_filtering(m: &clap::ArgMatches) -> bool {
-    m.is_present("min-aligned-length-pair") ||
-        m.is_present("min-percent-identity-pair") ||
-        m.is_present("min-aligned-percent-pair")
-}
-
 fn run_genome<'a,
               R: coverm::bam_generator::NamedBamReader,
               T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
@@ -512,7 +504,8 @@ fn run_genome<'a,
 
 fn doing_metabat(m: &clap::ArgMatches) -> bool {
     match m.subcommand_name() {
-        Some("contig") => {
+        Some("contig") | None => {
+            if !m.is_present("methods") { return false; }
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"metabat") {
                 if methods.len() > 1 {
@@ -523,7 +516,10 @@ fn doing_metabat(m: &clap::ArgMatches) -> bool {
             }
             return false
         },
-        _ => return false
+        _ => {
+            debug!("Not running in contig mode so cannot be in metabat mode");
+            return false
+        }
     }
 }
 
@@ -569,6 +565,12 @@ impl FilterParameters {
             f.min_percent_identity_single = 0.97;
         }
         return f
+    }
+
+    pub fn doing_filtering(&self) -> bool {
+        return self.min_percent_identity_single > 0.0 || self.min_percent_identity_pair > 0.0 ||
+            self.min_aligned_percent_single > 0.0 || self.min_aligned_percent_pair > 0.0 ||
+            self.min_aligned_length_single > 0 || self.min_aligned_length_pair > 0
     }
 }
 

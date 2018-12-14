@@ -65,7 +65,8 @@ impl ReferenceSortedBamFilter {
         if self.filter_single_reads && !self.filter_pairs {
             loop {
                 self.reader.read(&mut record)?;
-                if !record.is_secondary() &&
+                if !record.is_unmapped() &&
+                    !record.is_secondary() &&
                     !record.is_supplementary() &&
                     single_read_passes_filter(
                         &record,
