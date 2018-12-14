@@ -89,7 +89,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 continue;
             }
             let original_tid = record.tid();
-            if original_tid != -1 { // if mapped
+            if !record.is_unmapped() { // if mapped
                 let tid = original_tid as u32;
                 if tid != last_tid || doing_first {
                     debug!("Came across a new tid {}", tid);
@@ -352,7 +352,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 continue;
             }
             let original_tid = record.tid();
-            if original_tid != -1 {
+            if !record.is_unmapped() {
                 num_mapped_reads += 1;
                 // if reference has changed, finish a genome or not
                 let tid = original_tid as u32;

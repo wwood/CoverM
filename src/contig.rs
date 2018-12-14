@@ -87,7 +87,7 @@ pub fn contig_coverage<R: NamedBamReader,
             }
             // if reference has changed, print the last record
             let tid = record.tid();
-            if tid != -1 { // if mapped
+            if !record.is_unmapped() { // if mapped
                 num_mapped_reads += 1;
                 // if reference has changed, print the last record
                 if tid != last_tid {
@@ -379,7 +379,7 @@ mod tests {
         // From https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage
         test_with_stream(
             &("7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t1.3049262\n".to_owned()+
-                "7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t0.6862065\n"),
+              "7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t0.6862065\n"),
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut vec!(
@@ -387,6 +387,20 @@ mod tests {
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_variance(0.0,75)
+            ),
+            false,
+            false);
+    }
+
+    #[test]
+    fn test_one_read_of_pair_mapped(){
+        // In the second read, tid is != -1, because the first in the pair is assigned somewhere.
+        test_with_stream(
+            &("1read_of_pair_mapped\t73.20100900_E1D.16_contig_9606\t0.011293635\n".to_owned()),
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/1read_of_pair_mapped.bam"]),
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.0,75),
             ),
             false,
             false);
