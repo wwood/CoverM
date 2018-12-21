@@ -226,6 +226,7 @@ fn main(){
             let output_directory = m.value_of("output-directory").unwrap();
             let params = MappingParameters::generate_from_clap(&m);
             let mut generator_sets = vec!();
+            let discard_unmapped_reads = m.is_present("discard-unmapped");
 
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
@@ -242,6 +243,7 @@ fn main(){
                             p.threads,
                             &generate_cached_bam_file_name(
                                 output_directory, p.reference, p.read1),
+                            discard_unmapped_reads,
                             p.bwa_options));
                 }
 
@@ -1008,6 +1010,7 @@ Mapping parameters:
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --discard-unmapped                    Exclude unmapped reads from the final BAM file.
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
@@ -1450,6 +1453,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+                .arg(Arg::with_name("discard-unmapped")
+                     .long("discard-unmapped"))
                 .arg(Arg::with_name("bwa-params")
                      .long("bwa-params")
                      .long("bwa-parameters")

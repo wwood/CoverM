@@ -519,6 +519,7 @@ pub fn generate_bam_maker_generator_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: &str,
+    discard_unmapped: bool,
     bwa_options: Option<&str>) -> NamedBamMakerGenerator {
 
     let bwa_log = tempfile::NamedTempFile::new()
@@ -539,7 +540,7 @@ pub fn generate_bam_maker_generator_from_reads(
         "set -e -o pipefail; \
          bwa mem {} -t {} '{}' {} 2>{} \
          | samtools sort -l0 -@ {} 2>{} \
-         | samtools view -b -o '{}' 2>{}",
+         | samtools view {} -b -t {} -o '{}' 2>{}",
         // BWA
         bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
@@ -547,6 +548,8 @@ pub fn generate_bam_maker_generator_from_reads(
         threads-1,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools view
+        match discard_unmapped { true => "-F4", false => ""},
+        threads,
         cached_bam_file,
         samtools_view_cache_log.path().to_str()
             .expect("Failed to convert tempfile path to str"));
