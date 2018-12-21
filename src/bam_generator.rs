@@ -228,10 +228,11 @@ pub fn generate_named_bam_readers_from_reads(
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
             format!(
-                "|tee {:?} |samtools view -b -o '{}' 2>{}",
+                "|tee {:?} |samtools view -t {} -b -o '{}' 2>{}",
                 // tee
                 fifo_path,
                 // samtools view
+                threads,
                 path,
                 samtools_view_cache_log.path().to_str()
                     .expect("Failed to convert tempfile path to str"))
