@@ -242,7 +242,15 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
                 td.path().to_str().unwrap()
-            ]).succeeds().unwrap();
+            ]).succeeds().stdout().contains(
+                "Sample	Contig	Mean
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11000	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11010	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome2~seq1	1.4117647
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3~random_sequence_length_11001	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome4~random_sequence_length_11002	0
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome5~seq2	1.2435294
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6~random_sequence_length_11003	0").unwrap();
         assert!(td.path()
                 .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
                 .is_file());

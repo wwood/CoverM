@@ -67,15 +67,17 @@ impl ReferenceSortedBamFilter {
                 self.reader.read(&mut record)?;
                 if !record.is_unmapped() &&
                     !record.is_secondary() &&
-                    !record.is_supplementary() &&
-                    single_read_passes_filter(
-                        &record,
-                        self.min_aligned_length_single,
-                        self.min_percent_identity_single,
-                        self.min_aligned_percent_single) {
-                        return Ok(())
+                    !record.is_supplementary(){
+                        self.num_detected_primary_alignments += 1;
+                        if single_read_passes_filter(
+                            &record,
+                            self.min_aligned_length_single,
+                            self.min_percent_identity_single,
+                            self.min_aligned_percent_single) {
+                            return Ok(())
+                        }
+                        // else this read shall not pass, try another
                     }
-                // else this read shall not pass, try another
             }
         }
 
