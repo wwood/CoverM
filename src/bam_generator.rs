@@ -204,6 +204,7 @@ pub fn generate_named_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
+    discard_unmapped: bool,
     bwa_options: Option<&str>) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
@@ -228,10 +229,11 @@ pub fn generate_named_bam_readers_from_reads(
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
             format!(
-                "|tee {:?} |samtools view -t {} -b -o '{}' 2>{}",
+                "|tee {:?} |samtools view {} -t {} -b -o '{}' 2>{}",
                 // tee
                 fifo_path,
                 // samtools view
+                match discard_unmapped { true => "-F4", false => "" },
                 threads,
                 path,
                 samtools_view_cache_log.path().to_str()
@@ -465,11 +467,12 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
-    bwa_options: Option<&str>) -> StreamingFilteredNamedBamReaderGenerator {
+    bwa_options: Option<&str>,
+    discard_unmapped: bool) -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
         reference, read1_path, read2_path, read_format, threads,
-        cached_bam_file, bwa_options);
+        cached_bam_file, discard_unmapped, bwa_options);
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,

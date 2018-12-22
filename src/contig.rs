@@ -294,6 +294,7 @@ mod tests {
                     ReadFormat::Coupled,
                     4,
                     None,
+                    false,
                     None)],
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
             false,

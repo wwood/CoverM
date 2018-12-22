@@ -585,6 +585,7 @@ fn get_streamed_bam_readers<'a>(
     if m.is_present("bam-file-cache-directory") {
         setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
     }
+    let discard_unmapped = m.is_present("discard-unmapped");
 
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
@@ -617,6 +618,7 @@ fn get_streamed_bam_readers<'a>(
                     p.read_format.clone(),
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    discard_unmapped,
                     p.bwa_options));
         }
 
@@ -698,6 +700,7 @@ fn get_streamed_filtered_bam_readers(
     if m.is_present("bam-file-cache-directory") {
         setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
     }
+    let discard_unmapped = m.is_present("discard-unmapped");
 
     let params = MappingParameters::generate_from_clap(&m);
     let mut generator_set = vec!();
@@ -737,7 +740,8 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,
-                    p.bwa_options));
+                    p.bwa_options,
+                    discard_unmapped));
         }
 
         debug!("Finished BAM setup");
@@ -832,6 +836,7 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -902,6 +907,7 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -1010,7 +1016,7 @@ Mapping parameters:
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
-   --discard-unmapped                    Exclude unmapped reads from the final BAM file.
+   --discard-unmapped                    Exclude unmapped reads from generated BAM files.
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
@@ -1106,6 +1112,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .allow_hyphen_values(true)
                      .requires("reference"))
+                .arg(Arg::with_name("discard-unmapped")
+                     .long("discard-unmapped")
+                     .requires("bam-file-cache-directory"))
 
                 .arg(Arg::with_name("separator")
                      .short("s")
@@ -1283,6 +1292,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .allow_hyphen_values(true)
                      .requires("reference"))
+                .arg(Arg::with_name("discard-unmapped")
+                     .long("discard-unmapped")
+                     .requires("bam-file-cache-directory"))
 
                 .arg(Arg::with_name("min-aligned-length")
                      .long("min-aligned-length")
