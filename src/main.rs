@@ -836,7 +836,6 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -880,6 +879,7 @@ Other arguments (optional):
    --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -907,7 +907,6 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
 
 Alignment filtering (optional):
    --min-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -954,6 +953,7 @@ Other arguments (optional):
    --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
    -v, --verbose                         Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
