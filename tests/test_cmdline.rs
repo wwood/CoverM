@@ -306,6 +306,26 @@ mod tests {
     }
 
     #[test]
+    fn test_make_with_mkdir(){
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--output-directory",
+                format!("{}/unmade_directory",td.path().to_str().unwrap()).as_str()
+            ]).succeeds().unwrap();
+        assert!(td.path()
+                .join("unmade_directory")
+                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+                .is_file());
+    }
+
+    #[test]
     fn test_relative_abundance_all_mapped() {
         Assert::main_binary()
             .with_args(&[

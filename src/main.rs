@@ -224,6 +224,7 @@ fn main(){
             external_command_checker::check_for_samtools();
 
             let output_directory = m.value_of("output-directory").unwrap();
+            setup_bam_cache_directory(output_directory);
             let params = MappingParameters::generate_from_clap(&m);
             let mut generator_sets = vec!();
             let discard_unmapped_reads = m.is_present("discard-unmapped");
