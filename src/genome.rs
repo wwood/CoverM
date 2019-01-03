@@ -868,7 +868,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             'q' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
     }
@@ -885,7 +885,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)));
     }
 
     #[test]
@@ -895,7 +895,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
             'q' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
     }
@@ -912,7 +912,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)));
     }
 
     #[test]
@@ -922,7 +922,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
     }
@@ -939,7 +939,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)));
     }
 
     #[test]
@@ -949,7 +949,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0,false)),
             false,
             false);
     }
@@ -966,7 +966,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.76,0,false)));
     }
 
     #[test]
@@ -976,7 +976,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             'e' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0,false)),
             false,
             false);
     }
@@ -994,7 +994,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0,false)));
     }
 
     #[test]
@@ -1060,7 +1060,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
             false,
             false);
 
@@ -1069,7 +1069,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
             false,
             false);
     }
@@ -1081,7 +1081,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0,false)),
             false,
             false);
     }
@@ -1093,7 +1093,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             true);
     }
@@ -1132,7 +1132,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)));
 
         test_contig_names_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
@@ -1140,7 +1140,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)));
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)));
     }
 
     #[test]
@@ -1178,7 +1178,7 @@ mod tests {
             true,
             false,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_mean(0.1,0,false),
                 CoverageEstimator::new_estimator_variance(0.1,0)));
 
         let reads_mapped = test_contig_names_with_stream(
@@ -1188,7 +1188,7 @@ mod tests {
             false,
             false,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_mean(0.1,0,false),
                 CoverageEstimator::new_estimator_variance(0.1,0)));
         assert_eq!(vec!(ReadsMapped{
             num_mapped_reads: 24,
@@ -1218,7 +1218,7 @@ mod tests {
             true,
             false,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1,0),
+                CoverageEstimator::new_estimator_mean(0.1,0,false),
                 CoverageEstimator::new_estimator_variance(0.1,0)));
         assert_eq!(vec!(ReadsMapped{
             num_mapped_reads: 12,
@@ -1235,7 +1235,7 @@ mod tests {
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
             '\0' as u8,
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,true)),
             false,
             true);
         assert_eq!(vec!(ReadsMapped{
@@ -1253,7 +1253,7 @@ mod tests {
             'q' as u8,
             true,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
@@ -1274,7 +1274,7 @@ mod tests {
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
             ),
             false,
             true);
@@ -1289,7 +1289,7 @@ mod tests {
             '~' as u8,
             true,
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
@@ -1310,7 +1310,7 @@ mod tests {
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
             ),
             false,
             false);
@@ -1361,7 +1361,7 @@ mod tests {
     #[test]
     fn test_print_previous_zero_coverage_genomes2(){
         let mut coverage_taker = CoverageTakerType::new_cached_single_float_coverage_taker(1);
-        let estimator = CoverageEstimator::new_estimator_mean(0.0,0);
+        let estimator = CoverageEstimator::new_estimator_mean(0.0,0,false);
         coverage_taker.start_stoit("dummy");
         let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
         print_previous_zero_coverage_genomes2(

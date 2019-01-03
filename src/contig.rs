@@ -50,7 +50,8 @@ pub fn contig_coverage<R: NamedBamReader,
                     estimator.add_contig(
                         &ups_and_downs,
                         num_mapped_reads_in_current_contig,
-                        total_edit_distance_in_current_contig - total_indels_in_current_contig)
+                        total_edit_distance_in_current_contig -
+                            total_indels_in_current_contig)
                 }
                 let coverages: Vec<f32> = coverage_estimators.iter_mut()
                     .map(|estimator| estimator.calculate_coverage(0)).collect();
@@ -248,7 +249,7 @@ mod tests {
             "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
     }
@@ -259,7 +260,7 @@ mod tests {
             "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             true,
             false);
     }
@@ -270,7 +271,7 @@ mod tests {
             "",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/1.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             true);
     }
@@ -302,7 +303,7 @@ mod tests {
                     None,
                     false,
                     None)],
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
     }
@@ -315,7 +316,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
                 CoverageEstimator::new_estimator_variance(0.0,0)
             ),
             true,
@@ -330,7 +331,7 @@ mod tests {
             // has unmapped reads, which caused problems with --proper-pairs-only.
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.with_unmapped.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,true)),
             true,
             false);
     }
@@ -356,7 +357,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/2seqs.reads_for_seq1.bam"]),
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
@@ -375,7 +376,7 @@ mod tests {
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
-                CoverageEstimator::new_estimator_mean(0.0,0),
+                CoverageEstimator::new_estimator_mean(0.0,0,false),
             ),
             false,
             false);
@@ -390,7 +391,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,75),
+                CoverageEstimator::new_estimator_mean(0.0,75,false),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_variance(0.0,75)
@@ -407,7 +408,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/1read_of_pair_mapped.bam"]),
             &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.0,75),
+                CoverageEstimator::new_estimator_mean(0.0,75,true),
             ),
             false,
             false);

@@ -10,6 +10,7 @@ pub enum CoverageEstimator {
         total_mismatches: u32,
         min_fraction_covered_bases: f32,
         contig_end_exclusion: u32,
+        exclude_mismatches: bool,
     },
     TrimmedMeanGenomeCoverageEstimator {
         counts: Vec<u32>,
@@ -70,7 +71,8 @@ impl CoverageEstimator {
 impl CoverageEstimator {
     pub fn new_estimator_mean(
         min_fraction_covered_bases: f32,
-        contig_end_exclusion: u32)
+        contig_end_exclusion: u32,
+        exclude_mismatches: bool)
         -> CoverageEstimator {
         CoverageEstimator::MeanGenomeCoverageEstimator {
             total_count: 0,
@@ -80,6 +82,7 @@ impl CoverageEstimator {
             total_mismatches: 0,
             min_fraction_covered_bases: min_fraction_covered_bases,
             contig_end_exclusion: contig_end_exclusion,
+            exclude_mismatches: exclude_mismatches,
         }
     }
     pub fn new_estimator_trimmed_mean(
@@ -380,7 +383,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 num_mapped_reads: _,
                 total_mismatches,
                 contig_end_exclusion: _,
-                min_fraction_covered_bases
+                min_fraction_covered_bases,
+                exclude_mismatches
             } => {
                 debug!("Calculating coverage with unobserved {}, \
                         total bases {}, num_covered_bases {}, total_count {}, \
@@ -392,7 +396,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     (*num_covered_bases as f32 / final_total_bases as f32) < *min_fraction_covered_bases {
                     return 0.0
                 } else {
-                    return (*total_count - *total_mismatches) as f32 / final_total_bases as f32
+                        return match exclude_mismatches {
+                            true => (*total_count - *total_mismatches) as f32,
+                            false => *total_count as f32
+                        } / final_total_bases as f32
                 }
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
@@ -570,10 +577,13 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 num_mapped_reads: _,
                 total_mismatches: _,
                 contig_end_exclusion,
-                min_fraction_covered_bases
+                min_fraction_covered_bases,
+                exclude_mismatches,
             } =>  {
                 CoverageEstimator::new_estimator_mean(
-                    *min_fraction_covered_bases, *contig_end_exclusion)
+                    *min_fraction_covered_bases,
+                    *contig_end_exclusion,
+                    *exclude_mismatches)
             },
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
                 counts: _,

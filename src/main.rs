@@ -304,7 +304,7 @@ impl<'a> EstimatorsAndTaker<'a> {
         if doing_metabat(&m) {
             estimators.push(CoverageEstimator::new_estimator_length());
             estimators.push(CoverageEstimator::new_estimator_mean(
-                min_fraction_covered, contig_end_exclusion));
+                min_fraction_covered, contig_end_exclusion, false));
             estimators.push(CoverageEstimator::new_estimator_variance(
                 min_fraction_covered, contig_end_exclusion));
 
@@ -317,7 +317,9 @@ impl<'a> EstimatorsAndTaker<'a> {
                 match method {
                     &"mean" => {
                         estimators.push(CoverageEstimator::new_estimator_mean(
-                            min_fraction_covered, contig_end_exclusion));
+                            min_fraction_covered,
+                            contig_end_exclusion,
+                            false)); // TODO: Parameterise exclude_mismatches
                     },
                     &"coverage_histogram" => {
                         estimators.push(CoverageEstimator::new_estimator_pileup_counts(
@@ -347,7 +349,8 @@ impl<'a> EstimatorsAndTaker<'a> {
                     &"relative_abundance" => {
                         columns_to_normalise.push(i);
                         estimators.push(CoverageEstimator::new_estimator_mean(
-                            min_fraction_covered, contig_end_exclusion));
+                            min_fraction_covered, contig_end_exclusion, false));
+                        // TODO: Parameterise exclude_mismatches
                     },
                     &"count" => {
                         estimators.push(CoverageEstimator::new_estimator_read_count());

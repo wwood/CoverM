@@ -159,7 +159,7 @@ mod tests {
             ])
             .succeeds()
             .stdout().contains(
-                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.897\n\
+                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
                  2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
             ).unwrap();
     }
@@ -198,7 +198,7 @@ mod tests {
             ])
             .succeeds()
             .stdout().contains(
-                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.897\n\
+                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
                  2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
             ).unwrap();
     }
@@ -476,6 +476,9 @@ mod tests {
                 "tests/data/k141_7.reheadered.bam", // includes a supplementary alignment
             ]).succeeds().stdout().contains(
                 "contigName	contigLen	totalAvgDepth	k141_7.reheadered.bam	k141_7.reheadered.bam-var
-k141_7	350	0.685	0.685	2.0843215").unwrap();
+k141_7	350	0.69	0.69	2.0843215").unwrap();
     }
 }
+
+
+// TODO: Add mismatching bases test
