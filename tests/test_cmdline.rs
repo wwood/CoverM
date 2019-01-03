@@ -464,4 +464,18 @@ mod tests {
                  2seqs.fasta/2seqs.fasta	seq1	0\n\
                  2seqs.fasta/2seqs.fasta	seq2	0\n").unwrap();
     }
+
+    #[test]
+    fn test_metabat_include_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/k141_7.reheadered.bam", // includes a supplementary alignment
+            ]).succeeds().stdout().contains(
+                "contigName	contigLen	totalAvgDepth	k141_7.reheadered.bam	k141_7.reheadered.bam-var
+k141_7	350	0.685	0.685	2.0843215").unwrap();
+    }
 }

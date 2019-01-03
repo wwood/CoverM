@@ -4,6 +4,7 @@ use std::io::Read;
 use filter::*;
 use bwa_index_maintenance::BwaIndexStruct;
 use mapping_parameters::ReadFormat;
+use FlagFilter;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Read as BamRead;
@@ -324,6 +325,7 @@ impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
 
 pub fn generate_filtered_bam_readers_from_bam_files(
     bam_paths: Vec<&str>,
+    flag_filters: FlagFilter,
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
@@ -344,6 +346,7 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             stoit_name: stoit_name,
             filtered_stream: ReferenceSortedBamFilter::new(
                 reader,
+                flag_filters.clone(),
                 min_aligned_length_single,
                 min_percent_identity_single,
                 min_aligned_percent_single,
@@ -389,6 +392,7 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     fifo_path: std::path::PathBuf,
     pre_processes: Vec<std::process::Command>,
     command_strings: Vec<String>,
+    flag_filters: FlagFilter,
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
@@ -412,6 +416,7 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
+            self.flag_filters,
             self.min_aligned_length_single,
             self.min_percent_identity_single,
             self.min_aligned_percent_single,
@@ -461,6 +466,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
+    flag_filters: FlagFilter,
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
@@ -481,6 +487,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         command_strings: streaming.command_strings,
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
+        flag_filters: flag_filters,
         min_aligned_length_single: min_aligned_length_single,
         min_percent_identity_single: min_percent_identity_single,
         min_aligned_percent_single: min_aligned_percent_single,

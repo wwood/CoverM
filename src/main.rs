@@ -6,6 +6,7 @@ use coverm::external_command_checker;
 use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
 use coverm::coverage_printer::*;
+use coverm::FlagFilter;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -51,6 +52,7 @@ fn main(){
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
+                            filter_params.flag_filters,
                             filter_params.min_aligned_length_single,
                             filter_params.min_percent_identity_single,
                             filter_params.min_aligned_percent_single,
@@ -105,7 +107,6 @@ fn main(){
             let m = matches.subcommand_matches("contig").unwrap();
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
-            let proper_pairs_only = m.is_present("proper-pairs-only");
             let filter_params = FilterParameters::generate_from_clap(m);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
@@ -116,9 +117,9 @@ fn main(){
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filter_params.doing_filtering() {
-                    let filter_params = FilterParameters::generate_from_clap(m);
                     let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                         bam_files,
+                        filter_params.flag_filters.clone(),
                         filter_params.min_aligned_length_single,
                         filter_params.min_percent_identity_single,
                         filter_params.min_aligned_percent_single,
@@ -129,7 +130,7 @@ fn main(){
                         &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        proper_pairs_only);
+                        filter_params.flag_filters);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
@@ -137,7 +138,7 @@ fn main(){
                         &mut estimators_and_taker,
                         bam_readers,
                         print_zeros,
-                        proper_pairs_only);
+                        filter_params.flag_filters);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -158,7 +159,7 @@ fn main(){
                         &mut estimators_and_taker,
                         all_generators,
                         print_zeros,
-                        proper_pairs_only);
+                        filter_params.flag_filters);
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m);
@@ -174,7 +175,7 @@ fn main(){
                         &mut estimators_and_taker,
                         all_generators,
                         print_zeros,
-                        proper_pairs_only);
+                        filter_params.flag_filters.clone());
                 }
             }
         },
@@ -203,6 +204,7 @@ fn main(){
                 writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
                 let mut filtered = filter::ReferenceSortedBamFilter::new(
                     reader,
+                    filter_params.flag_filters.clone(),
                     filter_params.min_aligned_length_single,
                     filter_params.min_percent_identity_single,
                     filter_params.min_aligned_percent_single,
@@ -526,7 +528,9 @@ fn doing_metabat(m: &clap::ArgMatches) -> bool {
     }
 }
 
+#[derive(Debug)]
 struct FilterParameters {
+    flag_filters: FlagFilter,
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
@@ -537,6 +541,11 @@ struct FilterParameters {
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
         let mut f = FilterParameters {
+            flag_filters: FlagFilter {
+                include_improper_pairs: !m.is_present("proper-pairs-only"),
+                include_secondary: false,
+                include_supplementary: false,
+            },
             min_aligned_length_single: match m.is_present("min-aligned-length") {
                 true => value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
                 false => 0
@@ -566,7 +575,11 @@ impl FilterParameters {
             debug!("Setting single read percent identity threshold at 0.97 for \
                     MetaBAT adjusted coverage.");
             f.min_percent_identity_single = 0.97;
+            f.flag_filters.include_improper_pairs = true;
+            f.flag_filters.include_supplementary = true;
+            f.flag_filters.include_secondary = true;
         }
+        debug!("Filter parameters set as {:?}", f);
         return f
     }
 
@@ -735,6 +748,7 @@ fn get_streamed_filtered_bam_readers(
                     p.read_format.clone(),
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    filter_params.flag_filters.clone(),
                     filter_params.min_aligned_length_single,
                     filter_params.min_percent_identity_single,
                     filter_params.min_aligned_percent_single,
@@ -763,14 +777,14 @@ fn run_contig<'a,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
     bam_readers: Vec<T>,
     print_zeros: bool,
-    proper_pairs_only: bool) {
+    flag_filters: FlagFilter) {
 
     coverm::contig::contig_coverage(
         bam_readers,
         &mut estimators_and_taker.taker,
         &mut estimators_and_taker.estimators,
         print_zeros,
-        proper_pairs_only);
+        flag_filters);
 
     debug!("Finalising printing ..");
 

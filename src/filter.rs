@@ -2,6 +2,8 @@ use std::rc::Rc;
 use std::str;
 use std::collections::BTreeMap;
 
+use FlagFilter;
+
 use rust_htslib::bam;
 use rust_htslib::bam::Read;
 use rust_htslib::bam::record::Cigar;
@@ -20,11 +22,13 @@ pub struct ReferenceSortedBamFilter {
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
     pub num_detected_primary_alignments: u64,
+    flag_filters: FlagFilter,
 }
 
 impl ReferenceSortedBamFilter {
     pub fn new(
         reader: bam::Reader,
+        flag_filters: FlagFilter,
         min_aligned_length_single: u32,
         min_percent_identity_single: f32,
         min_aligned_percent_single: f32,
@@ -55,6 +59,7 @@ impl ReferenceSortedBamFilter {
             min_percent_identity_pair: min_percent_identity_pair,
             min_aligned_percent_pair: min_aligned_percent_pair,
             num_detected_primary_alignments: 0,
+            flag_filters: flag_filters,
         }
     }
 }
@@ -66,8 +71,8 @@ impl ReferenceSortedBamFilter {
             loop {
                 self.reader.read(&mut record)?;
                 if !record.is_unmapped() &&
-                    !record.is_secondary() &&
-                    !record.is_supplementary(){
+                    (self.flag_filters.include_supplementary || !record.is_supplementary()) &&
+                    (self.flag_filters.include_secondary || !record.is_secondary()) {
                         self.num_detected_primary_alignments += 1;
                         if single_read_passes_filter(
                             &record,
@@ -275,7 +280,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0,0.0,0.0, 90, 0.99, 0.0);
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 90, 0.99, 0.0);
         let queries = vec![
             "9",
             "9",
@@ -315,7 +326,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0,0.0,0.0, 250, 0.99, 0.0); // perc too high
+            reader, 
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 250, 0.99, 0.0); // perc too high
         let queries = vec![
             "2",
             "2",
@@ -331,7 +348,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0,0.0,0.0, 300, 0.98, 0.0); // aligned length too high
+            reader, 
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 300, 0.98, 0.0); // aligned length too high
         let queries = vec![
             "2",
             "2",
@@ -346,7 +369,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0,0.0,0.0, 0, 0.98, 0.94); // aligned percent too high
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 0, 0.98, 0.94); // aligned percent too high
         let queries = vec![
             "2",
             "2",
@@ -361,7 +390,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0,0.0,0.0, 299, 0.98, 0.0);
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 299, 0.98, 0.0);
         let queries = vec![
             "1",
             "1",
@@ -379,7 +414,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0, 0.99, 0.0, 0,0.0,0.0); // perc too high
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0, 0.99, 0.0, 0,0.0,0.0); // perc too high
         assert_eq!(true, sorted.filter_single_reads);
         assert_eq!(false, sorted.filter_pairs);
         let queries = vec!["2",
@@ -399,7 +440,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 0, 0.95, 0.0, 300,0.0,0.0); // perc OK, but pair fails on length
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0, 0.95, 0.0, 300,0.0,0.0); // perc OK, but pair fails on length
         assert_eq!(true, sorted.filter_single_reads);
         assert_eq!(true, sorted.filter_pairs);
         let queries = vec!["2",

@@ -59,6 +59,13 @@ pub struct ReadsMapped {
     num_reads: u64
 }
 
+#[derive(Clone, Debug)]
+pub struct FlagFilter {
+    pub include_improper_pairs: bool,
+    pub include_supplementary: bool,
+    pub include_secondary: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

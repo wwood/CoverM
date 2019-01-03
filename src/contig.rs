@@ -1,10 +1,12 @@
 use std;
+
 use rust_htslib::bam;
+use rust_htslib::bam::record::Cigar;
+
 use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
 use coverage_takers::*;
-
-use rust_htslib::bam::record::Cigar;
+use FlagFilter;
 
 
 pub fn contig_coverage<R: NamedBamReader,
@@ -14,7 +16,7 @@ pub fn contig_coverage<R: NamedBamReader,
     coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
-    proper_pairs_only: bool) {
+    flag_filters: FlagFilter) {
 
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
@@ -78,13 +80,12 @@ pub fn contig_coverage<R: NamedBamReader,
         // for record in records
         while bam_generated.read(&mut record).is_ok() {
             debug!("Starting with a new read.. {:?}", record);
-            if record.is_secondary() ||
-                record.is_supplementary() {
+            if (!flag_filters.include_supplementary && record.is_supplementary()) ||
+                (!flag_filters.include_secondary && record.is_secondary()) ||
+                (!flag_filters.include_improper_pairs && !record.is_proper_pair()){
+                    debug!("Skipping read based on flag filtering");
                     continue;
                 }
-            if proper_pairs_only && !record.is_proper_pair() {
-                continue;
-            }
             // if reference has changed, print the last record
             let tid = record.tid();
             if !record.is_unmapped() { // if mapped
@@ -223,6 +224,11 @@ mod tests {
         print_zero_coverage_contigs: bool,
         proper_pairs_only: bool) {
         let mut stream = Cursor::new(Vec::new());
+        let flag_filters = FlagFilter {
+            include_improper_pairs: !proper_pairs_only,
+            include_secondary: false,
+            include_supplementary: false,
+        };
         {
             let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 &mut stream);
@@ -231,7 +237,7 @@ mod tests {
                 &mut coverage_taker,
                 coverage_estimators,
                 print_zero_coverage_contigs,
-                proper_pairs_only);
+                flag_filters);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
     }
