@@ -544,6 +544,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             let mut ex = 0;
                             let mut ex2 = 0;
                             for (x, num_covered) in counts.iter().enumerate() {
+                                if *num_covered == 0 { continue }
                                 let nc = *num_covered as usize;
                                 ex += (x-k) * nc;
                                 ex2 += (x-k)*(x-k) * nc;

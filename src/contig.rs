@@ -413,4 +413,18 @@ mod tests {
             false,
             false);
     }
+
+    #[test]
+    fn test_variance_estimator_all_bases_covered(){
+        // In the past this threw up a underflow error
+        test_with_stream(
+            &("k141_2005182	k141_2005182	5.107387\n".to_owned()),
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/k141_2005182.bam"]),
+            &mut vec!(
+                CoverageEstimator::new_estimator_variance(0.0,75),
+            ),
+            false,
+            false);
+    }
 }
