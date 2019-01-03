@@ -199,6 +199,7 @@ fn single_read_passes_filter(
         match cig {
             Cigar::Match(i) |
             Cigar::Ins(i) |
+            Cigar::Del(i) |
             Cigar::Diff(i) |
             Cigar::Equal(i) => {
                 aligned += i;

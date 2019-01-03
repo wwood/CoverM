@@ -494,6 +494,20 @@ k141_7	350	0.69	0.69	2.0843215").unwrap();
                 "contigName	contigLen	totalAvgDepth	k141_2005182.head11.bam	k141_2005182.head11.bam-var
 k141_2005182	225	1.9333333	1.9333333	0.063063025").unwrap();
     }
+
+    #[test]
+    fn test_deletions_count_towards_perc_id() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/k141_109815.stray_read.bam", // If D not counted, perc ID filters out
+            ]).succeeds().stdout().contains(
+        "contigName	contigLen	totalAvgDepth	k141_109815.stray_read.bam	k141_109815.stray_read.bam-var
+k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
+    }
 }
 
 
