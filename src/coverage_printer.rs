@@ -47,7 +47,7 @@ impl CoveragePrinter {
                         ref coverages, ..
                     } => {
                         for stoit in stoit_names.iter() {
-                            write!(print_stream, "\t{}\t{}-var", &stoit, &stoit).unwrap();
+                            write!(print_stream, "\t{}.bam\t{}.bam-var", &stoit, &stoit).unwrap();
                         }
                         writeln!(print_stream).unwrap();
 
@@ -455,7 +455,7 @@ mod tests {
             None,
             &vec!());
         assert_eq!(
-            "contigName\tcontigLen\ttotalAvgDepth\tstoit1\tstoit1-var\tstoit2\tstoit2-var\n\
+            "contigName\tcontigLen\ttotalAvgDepth\tstoit1.bam\tstoit1.bam-var\tstoit2.bam\tstoit2.bam-var\n\
              contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
              contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
             str::from_utf8(stream.get_ref()).unwrap());
