@@ -577,7 +577,8 @@ impl FilterParameters {
         if doing_metabat(&m) {
             debug!("Setting single read percent identity threshold at 0.97 for \
                     MetaBAT adjusted coverage.");
-            f.min_percent_identity_single = 0.97;
+            // we use >= where metabat uses >. Gah.
+            f.min_percent_identity_single = 0.97001;
             f.flag_filters.include_improper_pairs = true;
             f.flag_filters.include_supplementary = true;
             f.flag_filters.include_secondary = true;
