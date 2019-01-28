@@ -830,7 +830,8 @@ fn build_cli() -> App<'static, 'static> {
 Define the contigs in each genome (exactly one of the following is required):
    -s, --separator <CHARACTER>           This character separates genome names
                                          from contig names
-   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome
+   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome e.g.
+                                         'pathA/genome1.fna pathB/genome2.fa'
    -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
                                          genome
    -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
@@ -844,11 +845,14 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+                                         e.g. assembly output
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
-                                         for mapping.
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -903,6 +907,10 @@ Other arguments (optional):
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
 
+Example usage:
+
+  coverm genome -f bins/*fa -c read1.fq.gz read2.fq.gz -r concatenated_genomes.fna
+
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ";
 
@@ -915,11 +923,14 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+                                         e.g. concatenated genomes or assembly
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
-                                         for mapping.
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -977,6 +988,10 @@ Other arguments (optional):
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
 
+Example usage:
+
+  coverm contig -b mapping.bam
+
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     let filter_help: &'static str =
@@ -1014,6 +1029,10 @@ Other:
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
 
+Example usage:
+
+  coverm filter -b in.bam -o out.bam --min-aligned-length 75
+
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     let make_help: &'static str =
@@ -1027,8 +1046,10 @@ Mapping parameters:
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        Forward and reverse pairs of FASTA/Q files(s)
-                                         for mapping.
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -1036,6 +1057,10 @@ Mapping parameters:
                                          implications if untrusted input is specified.
                                          [default \"\"]
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
+
+Example usage:
+
+  coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
