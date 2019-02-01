@@ -885,7 +885,8 @@ Other arguments (optional):
                                               variance
                                               length
                                               count
-   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
                                          [default: sparse]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
@@ -966,7 +967,8 @@ Other arguments (optional):
                                            length
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
-   --output-format FORMAT                Shape of output: 'sparse' or 'dense'.
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
                                          [default: sparse]
    --min-covered-fraction FRACTION       Contigs with less coverage than this
                                          reported as having zero coverage.
