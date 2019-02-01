@@ -34,7 +34,7 @@ mod tests {
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
                 "-o",
-                "/tmp/o",
+                t,
                 "--proper-pairs-only"]).succeeds().unwrap();
         Assert::command(&["samtools","view",t])
             .stdout().doesnt_contain("1\t99\tseq1").unwrap();
