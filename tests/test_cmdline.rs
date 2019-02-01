@@ -370,7 +370,30 @@ mod tests {
     }
 
     #[test]
-    fn test_genome_dense_output() {
+    fn test_genome_dense_output_simple() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "relative_abundance",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "-s",
+                "~",
+                "--output-format",
+                "dense"]).succeeds().stdout().contains(
+                "Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)
+unmapped	0
+genome1	0
+genome2	53.16792
+genome3	0
+genome4	0
+genome5	46.832077
+genome6	0").unwrap();
+    }
+
+    #[test]
+    fn test_genome_dense_output2() {
         Assert::main_binary()
             .with_args(&[
                 "genome",

@@ -31,6 +31,7 @@ impl CoveragePrinter {
                 entry_type,
                 estimator_headers
             } => {
+                debug!("Finalising DenseCachedCoveragePrinter ..");
                 print_dense_cached_coverage_taker(
                     &(entry_type.as_ref().unwrap()), estimator_headers.as_ref().unwrap(),
                     cached_coverage_taker, print_stream, reads_mapped_per_sample,
@@ -344,7 +345,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
             // Print out coverages iterating over entry IDs.
             for my_entry_i in 0..(stoit_by_entry_by_coverage[0].len()) {
                 write!(print_stream, "{}",
-                       entry_names[stoit_by_entry_by_coverage[0][0].entry_index]
+                       entry_names[stoit_by_entry_by_coverage[0][my_entry_i].entry_index]
                        .as_ref().unwrap())
                     .unwrap();
                 for stoit_entries in stoit_by_entry_by_coverage.iter() {
