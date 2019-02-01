@@ -370,6 +370,25 @@ mod tests {
     }
 
     #[test]
+    fn test_contig_dense_output_simple() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "--output-format",
+                "dense"]).succeeds().stdout().contains(
+                "Contig	7seqs.reads_for_seq1_and_seq2 Mean
+genome1~random_sequence_length_11000	0
+genome1~random_sequence_length_11010	0
+genome2~seq1	1.4117647
+genome3~random_sequence_length_11001	0
+genome4~random_sequence_length_11002	0
+genome5~seq2	1.2435294
+genome6~random_sequence_length_11003	0").unwrap();
+    }
+
+    #[test]
     fn test_genome_dense_output_simple() {
         Assert::main_binary()
             .with_args(&[
