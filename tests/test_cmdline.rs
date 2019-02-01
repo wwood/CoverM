@@ -393,7 +393,7 @@ genome6	0").unwrap();
     }
 
     #[test]
-    fn test_genome_dense_output2() {
+    fn test_genome_unknown_reason() {
         Assert::main_binary()
             .with_args(&[
                 "genome",
@@ -429,7 +429,7 @@ genome6	0").unwrap();
     }
 
     #[test]
-    fn test_contig_dense_output() {
+    fn test_contig_unknown_reason() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
