@@ -1,25 +1,36 @@
 # CoverM
 
-CoverM is a read coverage calculator focused on metagenomics applications. It
-calculates coverage from sorted BAM files, comprised of reads mapped to either a
-collection of genomes, or to each contig individually.
+CoverM aims to be is an easy to use and configurable read coverage calculator focused on metagenomics applications. 
+
+Calculating coverage by read mapping, its input can either be BAM files sorted by reference, or raw reads and reference FASTA sequences.
+
+CoverM calculates the coverage either or genomes/MAGs (`coverm genome`) or individual contigs (`coverm contig`).
 
 ## Installation
 
-To install CoverM, first install [Rust](https://www.rust-lang.org/). CoverM is currently tested on Rust
-1.25.0, but likely works on other versions also.
+To install CoverM, the most straightforward way is to download the statically compiled binaries available on the [releases page](https://github.com/wwood/CoverM/releases).
 
-To install CoverM itself:
-```
-cargo install coverm
-```
+CoverM can also be installed from source, using the cargo build system after installing [Rust](https://www.rust-lang.org/). CoverM is not currently on crates.io.
 
 ## Usage
-See `coverm -h`.
+```
+Main modes:
+	contig	Calculate coverage of contigs
+	genome	Calculate coverage of genomes
+
+Utilities:
+	make	Generate BAM files through alignment
+	filter	Remove alignments with insufficient identity
+
+Other options:
+	-V, --version	Print version information
+```
+
+For detailed usage see `coverm <command> -h`.
 
 ## License
 
 CoverM is made available under GPL3+. See LICENSE.txt for details. Copyright Ben
 Woodcroft.
 
-Developed at the [Australian Centre for Ecogenomics](http://ecogenomic.org).
+Developed by Ben Woodcroft at the [Australian Centre for Ecogenomics](http://ecogenomic.org).
