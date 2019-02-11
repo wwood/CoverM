@@ -12,6 +12,12 @@ To install CoverM, the most straightforward way is to download the statically co
 
 CoverM can also be installed from source, using the cargo build system after installing [Rust](https://www.rust-lang.org/). CoverM is not currently on crates.io.
 
+### Dependencies
+For the full suite of options, these additional programs must be installed:
+
+* [samtools](https://github.com/samtools/samtools)
+* [bwa](https://github.com/lh3/bwa)
+
 ## Usage
 ```
 Main modes:
