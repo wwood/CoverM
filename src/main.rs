@@ -876,7 +876,7 @@ Alignment filtering (optional):
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One of:
+                                         One or more (space separated) of:
                                               relative_abundance (default)
                                               mean
                                               trimmed_mean
@@ -958,7 +958,7 @@ Alignment filtering (optional):
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One of:
+                                         One or more (space separated) of:
                                            mean (default)
                                            trimmed_mean
                                            coverage_histogram
