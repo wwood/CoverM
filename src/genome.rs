@@ -211,35 +211,30 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             }
             // print the genomes out
             for (i, genome) in contigs_and_genomes.genomes.iter().enumerate() {
-                for (j, ref mut coverage_estimator) in per_genome_coverage_estimators[i].iter_mut().enumerate() {
-                    let coverage = coverage_estimator
-                        .calculate_coverage(unobserved_lengths[i]);
+                // Determine if any coverages are non-zero.
+                let coverages: Vec<f32> = per_genome_coverage_estimators[i].iter_mut().map( |coverage_estimator|
+                    coverage_estimator.calculate_coverage(unobserved_lengths[i])
+                ).collect();
+                if print_zero_coverage_genomes || coverages.iter().any(|c| *c > 0.0) {
+                    coverage_taker.start_entry(i, &genome);
+                    for (j, ref mut coverage_estimator) in per_genome_coverage_estimators[i].iter_mut().enumerate() {
+                        let coverage = coverages[j];
 
-                    // Print coverage of previous genome
-                    debug!("Found coverage {} for genome {}", coverage, genome);
-                    if coverage > 0.0 {
-                        if j == 0 as usize {
-                            coverage_taker.start_entry(i, &genome);
-                        }
-                        coverage_estimator.print_coverage(
-                            &coverage,
-                            coverage_taker);
-                        if j+1 == coverage_estimators.len() {
-                            coverage_taker.finish_entry();
-                        }
-                    } else if print_zero_coverage_genomes {
-                        if j == 0 as usize {
-                            coverage_taker.start_entry(i, &genome);
-                        }
-                        coverage_estimator.print_zero_coverage(
-                            coverage_taker,
-                            genome_index_to_references[i].iter()
-                                .map(|tid| header.target_len(*tid).unwrap())
-                                .sum());
-                        if j+1 == coverage_estimators.len() {
-                            coverage_taker.finish_entry();
+                        // Print coverage of previous genome
+                        debug!("Found coverage {} for genome {}", coverage, genome);
+                        if coverage > 0.0 {
+                            coverage_estimator.print_coverage(
+                                &coverage,
+                                coverage_taker);
+                        } else {
+                            coverage_estimator.print_zero_coverage(
+                                coverage_taker,
+                                genome_index_to_references[i].iter()
+                                    .map(|tid| header.target_len(*tid).unwrap())
+                                    .sum());
                         }
                     }
+                    coverage_taker.finish_entry();
                 }
             }
         }
