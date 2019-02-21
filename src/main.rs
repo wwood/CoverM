@@ -549,28 +549,28 @@ impl FilterParameters {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            min_aligned_length_single: match m.is_present("min-aligned-length") {
-                true => value_t!(m.value_of("min-aligned-length"), u32).unwrap(),
+            min_aligned_length_single: match m.is_present("min-read-aligned-length") {
+                true => value_t!(m.value_of("min-read-aligned-length"), u32).unwrap(),
                 false => 0
             },
-            min_percent_identity_single: match m.is_present("min-percent-identity") {
-                true => value_t!(m.value_of("min-percent-identity"), f32).unwrap(),
+            min_percent_identity_single: match m.is_present("min-read-percent-identity") {
+                true => value_t!(m.value_of("min-read-percent-identity"), f32).unwrap(),
                 false => 0.0
             },
-            min_aligned_percent_single: match m.is_present("min-aligned-percent") {
-                true => value_t!(m.value_of("min-aligned-percent"), f32).unwrap(),
+            min_aligned_percent_single: match m.is_present("min-read-aligned-percent") {
+                true => value_t!(m.value_of("min-read-aligned-percent"), f32).unwrap(),
                 false => 0.0
             },
-            min_aligned_length_pair: match m.is_present("min-aligned-length-pair") {
-                true => value_t!(m.value_of("min-aligned-length-pair"), u32).unwrap(),
+            min_aligned_length_pair: match m.is_present("min-read-aligned-length-pair") {
+                true => value_t!(m.value_of("min-read-aligned-length-pair"), u32).unwrap(),
                 false => 0
             },
-            min_percent_identity_pair: match m.is_present("min-percent-identity-pair") {
-                true => value_t!(m.value_of("min-percent-identity-pair"), f32).unwrap(),
+            min_percent_identity_pair: match m.is_present("min-read-percent-identity-pair") {
+                true => value_t!(m.value_of("min-read-percent-identity-pair"), f32).unwrap(),
                 false => 0.0
             },
-            min_aligned_percent_pair: match m.is_present("min-aligned-percent-pair") {
-                true => value_t!(m.value_of("min-aligned-percent-pair"), f32).unwrap(),
+            min_aligned_percent_pair: match m.is_present("min-read-aligned-percent-pair") {
+                true => value_t!(m.value_of("min-read-aligned-percent-pair"), f32).unwrap(),
                 false => 0.0
             }
         };
@@ -861,17 +861,17 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Alignment filtering (optional):
-   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
-   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases [default: 0]
-   --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
 
 Other arguments (optional):
@@ -940,19 +940,19 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Alignment filtering (optional):
-   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
-   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
                                          Implies --proper-pairs-only.[default: 0]
-   --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
 
@@ -1007,19 +1007,19 @@ Files (both required):
    -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
 
 Thresholds:
-   --min-aligned-length <INT>            Exclude reads with smaller numbers of
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
-   --min-percent-identity <FLOAT>        Exclude reads by overall percent
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-percent <FLOAT>         Exclude reads by percent aligned
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
                                          identity e.g. 0.95 for 95% [default 0.0]
-   --min-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
                                          Implies --proper-pairs-only.[default: 0]
-   --min-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
@@ -1033,7 +1033,7 @@ Other:
 
 Example usage:
 
-  coverm filter -b in.bam -o out.bam --min-aligned-length 75
+  coverm filter -b in.bam -o out.bam --min-read-aligned-length 75
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
@@ -1204,25 +1204,25 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("genome-fasta-directory"))
 
-                .arg(Arg::with_name("min-aligned-length")
-                     .long("min-aligned-length")
+                .arg(Arg::with_name("min-read-aligned-length")
+                     .long("min-read-aligned-length")
                      .takes_value(true))
-                .arg(Arg::with_name("min-percent-identity")
-                     .long("min-percent-identity")
+                .arg(Arg::with_name("min-read-percent-identity")
+                     .long("min-read-percent-identity")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-percent")
-                     .long("min-aligned-percent")
+                .arg(Arg::with_name("min-read-aligned-percent")
+                     .long("min-read-aligned-percent")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-length-pair")
-                     .long("min-aligned-length-pair")
+                .arg(Arg::with_name("min-read-aligned-length-pair")
+                     .long("min-read-aligned-length-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-percent-identity-pair")
-                     .long("min-percent-identity-pair")
+                .arg(Arg::with_name("min-read-percent-identity-pair")
+                     .long("min-read-percent-identity-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-aligned-percent-pair")
-                     .long("min-aligned-percent-pair")
+                .arg(Arg::with_name("min-read-aligned-percent-pair")
+                     .long("min-read-aligned-percent-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
 
@@ -1342,25 +1342,25 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("discard-unmapped")
                      .requires("bam-file-cache-directory"))
 
-                .arg(Arg::with_name("min-aligned-length")
-                     .long("min-aligned-length")
+                .arg(Arg::with_name("min-read-aligned-length")
+                     .long("min-read-aligned-length")
                      .takes_value(true))
-                .arg(Arg::with_name("min-percent-identity")
-                     .long("min-percent-identity")
+                .arg(Arg::with_name("min-read-percent-identity")
+                     .long("min-read-percent-identity")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-percent")
-                     .long("min-aligned-percent")
+                .arg(Arg::with_name("min-read-aligned-percent")
+                     .long("min-read-aligned-percent")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-length-pair")
-                     .long("min-aligned-length-pair")
+                .arg(Arg::with_name("min-read-aligned-length-pair")
+                     .long("min-read-aligned-length-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-percent-identity-pair")
-                     .long("min-percent-identity-pair")
+                .arg(Arg::with_name("min-read-percent-identity-pair")
+                     .long("min-read-percent-identity-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-aligned-percent-pair")
-                     .long("min-aligned-percent-pair")
+                .arg(Arg::with_name("min-read-aligned-percent-pair")
+                     .long("min-read-aligned-percent-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
 
@@ -1424,25 +1424,25 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .required(true))
 
-                .arg(Arg::with_name("min-aligned-length")
-                     .long("min-aligned-length")
+                .arg(Arg::with_name("min-read-aligned-length")
+                     .long("min-read-aligned-length")
                      .takes_value(true))
-                .arg(Arg::with_name("min-percent-identity")
-                     .long("min-percent-identity")
+                .arg(Arg::with_name("min-read-percent-identity")
+                     .long("min-read-percent-identity")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-percent")
-                     .long("min-aligned-percent")
+                .arg(Arg::with_name("min-read-aligned-percent")
+                     .long("min-read-aligned-percent")
                      .takes_value(true))
-                .arg(Arg::with_name("min-aligned-length-pair")
-                     .long("min-aligned-length-pair")
+                .arg(Arg::with_name("min-read-aligned-length-pair")
+                     .long("min-read-aligned-length-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-percent-identity-pair")
-                     .long("min-percent-identity-pair")
+                .arg(Arg::with_name("min-read-percent-identity-pair")
+                     .long("min-read-percent-identity-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
-                .arg(Arg::with_name("min-aligned-percent-pair")
-                     .long("min-aligned-percent-pair")
+                .arg(Arg::with_name("min-read-aligned-percent-pair")
+                     .long("min-read-aligned-percent-pair")
                      .takes_value(true)
                      .requires("proper-pairs-only"))
 

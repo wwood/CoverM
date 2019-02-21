@@ -29,7 +29,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "filter",
-                "--min-percent-identity-pair",
+                "--min-read-percent-identity-pair",
                 "0.99",
                 "-b",
                 "tests/data/2seqs.bad_read.1.bam",
@@ -49,7 +49,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
-                "--min-percent-identity-pair",
+                "--min-read-percent-identity-pair",
                 "0.95",
                 "--contig-end-exclusion",
                 "0",
@@ -79,7 +79,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
-                "--min-percent-identity-pair",
+                "--min-read-percent-identity-pair",
                 "0.95",
                 "--contig-end-exclusion",
                 "0",
@@ -109,7 +109,7 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
-                "--min-percent-identity",
+                "--min-read-percent-identity",
                 "0.95",
                 "--contig-end-exclusion",
                 "0",
@@ -173,7 +173,7 @@ mod tests {
                 "tests/data/2seqs.fasta",
                 "--interleaved",
                 "tests/data/bad_reads.all.interleaved.fa",
-                "--min-aligned-length-pair",
+                "--min-read-aligned-length-pair",
                 "300",
                 "--contig-end-exclusion",
                 "0",
