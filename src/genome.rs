@@ -261,6 +261,75 @@ struct UnobservedLengthAndFirstTid {
     first_tid: usize
 }
 
+fn print_last_genomes<T: CoverageTaker>(
+    num_mapped_reads_in_current_contig: u64,
+    last_genome: &[u8],
+    unobserved_contig_length_and_first_tid: &mut UnobservedLengthAndFirstTid,
+    ups_and_downs: &Vec<i32>,
+    total_edit_distance_in_current_contig: u32,
+    total_indels_in_current_contig: u32,
+    num_estimators: usize,
+    current_genome: &[u8],
+    coverage_estimators: &mut Vec<CoverageEstimator>,
+    coverage_taker: &mut T,
+    print_zero_coverage_genomes: bool,
+    single_genome: bool,
+    target_names: &std::vec::Vec<&[u8]>,
+    split_char: u8,
+    header: &rust_htslib::bam::HeaderView,
+    tid_to_print_zeros_to: u32) {
+
+    // Determine coverage of previous genome
+    for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
+        coverage_estimator.add_contig(
+            &ups_and_downs, num_mapped_reads_in_current_contig,
+            total_edit_distance_in_current_contig -
+                total_indels_in_current_contig);
+
+        debug!("unobserved_contig_length now {}",
+               unobserved_contig_length_and_first_tid.unobserved_contig_length);
+
+        let coverage = coverage_estimator.calculate_coverage(
+            unobserved_contig_length_and_first_tid.unobserved_contig_length);
+
+        // Print coverage of previous genome
+        if coverage > 0.0 {
+            if i == 0 {
+                coverage_taker.start_entry(
+                    unobserved_contig_length_and_first_tid.first_tid,
+                    &str::from_utf8(last_genome).unwrap());
+            }
+            coverage_estimator.print_coverage(
+                &coverage,
+                coverage_taker);
+            if i+1 == num_estimators {
+                coverage_taker.finish_entry();
+            }
+        } else if print_zero_coverage_genomes {
+            if i == 0 {
+                coverage_taker.start_entry(
+                    unobserved_contig_length_and_first_tid.first_tid,
+                    &str::from_utf8(last_genome).unwrap());
+            }
+            coverage_estimator.print_zero_coverage(
+                coverage_taker,
+                // Length coverage is always >0, so this 0 is never used
+                9);
+            if i+1 == num_estimators {
+                coverage_taker.finish_entry();
+            }
+        }
+        coverage_estimator.setup();
+
+    }
+    if print_zero_coverage_genomes && !single_genome {
+        print_previous_zero_coverage_genomes2(
+            last_genome, current_genome, tid_to_print_zeros_to, &coverage_estimators,
+            &target_names, split_char, coverage_taker, &header);
+    }
+}
+
+
 
 pub fn mosdepth_genome_coverage<R: NamedBamReader,
                                 G: NamedBamReaderGenerator<R>,
@@ -323,7 +392,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
             return extra
         };
-
 
         let mut last_tid: u32 = 0;
         let mut doing_first = true;
@@ -402,57 +470,31 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                     } else {
                         debug!("Found {} reads mapped to tid {}",
                                num_mapped_reads_in_current_contig, last_tid);
-                        for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
-                            coverage_estimator.add_contig(
-                                &ups_and_downs, num_mapped_reads_in_current_contig,
-                                total_edit_distance_in_current_contig);
-                            // Collect the length of refs from the end of the last genome that had no hits
-                            debug!("Filling unobserved from {} to {} for {}",
-                                   last_tid, tid, &str::from_utf8(last_genome).unwrap());
-                            unobserved_contig_length_and_first_tid.unobserved_contig_length +=
-                                fill_genome_length_backwards_to_last(
-                                    tid, last_tid as u32, last_genome);
-                            debug!("unobserved_contig_length now {}",
-                                   unobserved_contig_length_and_first_tid.unobserved_contig_length);
-                            // Determine coverage of previous genome
-                            let coverage = coverage_estimator.calculate_coverage(
-                                unobserved_contig_length_and_first_tid.unobserved_contig_length);
+                        // Collect the length of refs from the end of the last genome that had no hits
+                        debug!("Filling unobserved from {} to {} for {}",
+                               last_tid, tid, &str::from_utf8(last_genome).unwrap());
+                        unobserved_contig_length_and_first_tid.unobserved_contig_length +=
+                            fill_genome_length_backwards_to_last(
+                                tid, last_tid as u32, last_genome);
 
-                            // Print coverage of previous genome
-                            if coverage > 0.0 {
-                                if i == 0 {
-                                    coverage_taker.start_entry(
-                                        unobserved_contig_length_and_first_tid.first_tid,
-                                        &str::from_utf8(last_genome).unwrap());
-                                }
-                                coverage_estimator.print_coverage(
-                                    &coverage,
-                                    coverage_taker);
-                                if i+1 == num_estimators {
-                                    coverage_taker.finish_entry();
-                                }
-                            } else if print_zero_coverage_genomes {
-                                if i == 0 {
-                                    coverage_taker.start_entry(
-                                        unobserved_contig_length_and_first_tid.first_tid,
-                                        &str::from_utf8(last_genome).unwrap());
-                                }
-                                coverage_estimator.print_zero_coverage(
-                                    coverage_taker,
-                                    // Length coverage is always >0, so this 0 is never used
-                                    9);
-                                if i+1 == num_estimators {
-                                    coverage_taker.finish_entry();
-                                }
-                            }
-                            coverage_estimator.setup();
-
-                        }
-                        if print_zero_coverage_genomes {
-                            print_previous_zero_coverage_genomes2(
-                                last_genome, current_genome, tid, &coverage_estimators,
-                                &target_names, split_char, coverage_taker, &header);
-                        }
+                        print_last_genomes(
+                            num_mapped_reads_in_current_contig,
+                            last_genome,
+                            &mut unobserved_contig_length_and_first_tid,
+                            &ups_and_downs,
+                            total_edit_distance_in_current_contig,
+                            total_indels_in_current_contig,
+                            num_estimators,
+                            current_genome,
+                            coverage_estimators,
+                            coverage_taker,
+                            print_zero_coverage_genomes,
+                            single_genome,
+                            &target_names,
+                            split_char,
+                            &header,
+                            tid,
+                        );
                         last_genome = current_genome;
 
                         unobserved_contig_length_and_first_tid = fill_genome_length_backwards(
@@ -536,51 +578,29 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             debug!("Found {} reads mapped to tid {}",
                    num_mapped_reads_in_current_contig, last_tid);
             // Collect the length of refs from the end of the last genome that had no hits
+            debug!("Filling unobserved from {} to end for {}",
+                   last_tid, &str::from_utf8(last_genome).unwrap());
             unobserved_contig_length_and_first_tid.unobserved_contig_length +=
                 fill_genome_length_forwards(last_tid, last_genome);
-            debug!("At end, unobserved_contig_length now {} and first {}",
-                   unobserved_contig_length_and_first_tid.unobserved_contig_length,
-                   unobserved_contig_length_and_first_tid.first_tid);
-            // Determine coverage of previous genome
-            for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-                coverage_estimator.add_contig(
-                    &ups_and_downs, num_mapped_reads_in_current_contig,
-                    total_edit_distance_in_current_contig -
-                        total_indels_in_current_contig);
-                let coverage = coverage_estimator.calculate_coverage(
-                    unobserved_contig_length_and_first_tid.unobserved_contig_length);
 
-                // Print coverage of previous genome
-                if coverage > 0.0 {
-                    if i == 0 {
-                        coverage_taker.start_entry(
-                            unobserved_contig_length_and_first_tid.first_tid,
-                            &str::from_utf8(last_genome).unwrap());
-                    }
-                    coverage_estimator.print_coverage(
-                        &coverage,
-                        coverage_taker);
-                    if i+1 == num_estimators {
-                        coverage_taker.finish_entry();
-                    }
-                } else if print_zero_coverage_genomes {
-                    if i == 0 {
-                        coverage_taker.start_entry(
-                            unobserved_contig_length_and_first_tid.first_tid,
-                            &str::from_utf8(last_genome).unwrap());
-                    }
-                    coverage_estimator.print_zero_coverage(coverage_taker, 9);
-                    if i+1 == num_estimators {
-                        coverage_taker.finish_entry();
-                    }
-                }
-
-            }
-            if print_zero_coverage_genomes && !single_genome {
-                print_previous_zero_coverage_genomes2(
-                    last_genome, b"", header.target_count() - 1, &coverage_estimators,
-                    &target_names, split_char, coverage_taker, &header);
-            }
+            print_last_genomes(
+                num_mapped_reads_in_current_contig,
+                last_genome,
+                &mut unobserved_contig_length_and_first_tid,
+                &ups_and_downs,
+                total_edit_distance_in_current_contig,
+                total_indels_in_current_contig,
+                num_estimators,
+                b"",
+                coverage_estimators,
+                coverage_taker,
+                print_zero_coverage_genomes,
+                single_genome,
+                &target_names,
+                split_char,
+                &header,
+                header.target_count() - 1,
+            );
         }
 
         let reads_mapped = ReadsMapped {
