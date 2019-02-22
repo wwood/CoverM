@@ -1,8 +1,8 @@
 library(data.table)
 
-contigs = fread('cargo run --release -- contig -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam',header=F)
-genomes = fread('cargo run --release -- genome -s . -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam --min-covered-fraction 0',header=F)
-genomes_coverage_hist = fread('cargo run --release -- genome -s . -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam --min-covered-fraction 0 -m coverage_histogram', header=F)
+contigs = fread('cargo run --release -- contig -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam',header=T)
+genomes = fread('cargo run --release -- genome -s . -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam --min-covered-fraction 0 -m mean',header=T)
+genomes_coverage_hist = fread('cargo run --release -- genome -s . -b v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam --min-covered-fraction 0 -m coverage_histogram', header=T)
 
 setnames(contigs, c('sample','contig','coverage'))
 setnames(genomes, c('sample','genome','mean_coverage'))

@@ -268,7 +268,6 @@ fn print_last_genomes<T: CoverageTaker>(
     ups_and_downs: &Vec<i32>,
     total_edit_distance_in_current_contig: u32,
     total_indels_in_current_contig: u32,
-    num_estimators: usize,
     current_genome: &[u8],
     coverage_estimators: &mut Vec<CoverageEstimator>,
     coverage_taker: &mut T,
@@ -279,48 +278,41 @@ fn print_last_genomes<T: CoverageTaker>(
     header: &rust_htslib::bam::HeaderView,
     tid_to_print_zeros_to: u32) {
 
-    // Determine coverage of previous genome
-    for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
+    for coverage_estimator in coverage_estimators.iter_mut() {
         coverage_estimator.add_contig(
             &ups_and_downs, num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig -
                 total_indels_in_current_contig);
+    }
 
-        debug!("unobserved_contig_length now {}",
-               unobserved_contig_length_and_first_tid.unobserved_contig_length);
+    // Determine coverage of previous genome
+    let coverages: Vec<f32> = coverage_estimators.iter_mut().map(
+        |coverage_estimator|
+        coverage_estimator.calculate_coverage(
+            unobserved_contig_length_and_first_tid.unobserved_contig_length)
+    ).collect();
 
-        let coverage = coverage_estimator.calculate_coverage(
-            unobserved_contig_length_and_first_tid.unobserved_contig_length);
+    if print_zero_coverage_genomes || coverages.iter().any(|c| *c > 0.0) {
+        coverage_taker.start_entry(
+            unobserved_contig_length_and_first_tid.first_tid,
+            &str::from_utf8(last_genome).unwrap());
+        for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate(){
+            let coverage = coverages[i];
 
-        // Print coverage of previous genome
-        if coverage > 0.0 {
-            if i == 0 {
-                coverage_taker.start_entry(
-                    unobserved_contig_length_and_first_tid.first_tid,
-                    &str::from_utf8(last_genome).unwrap());
+            // Print coverage of previous genome
+            if coverage > 0.0 {
+                coverage_estimator.print_coverage(
+                    &coverage,
+                    coverage_taker);
+            } else {
+                coverage_estimator.print_zero_coverage(
+                    coverage_taker,
+                    // Length coverage is always >0, so this 0 is never used
+                    9);
             }
-            coverage_estimator.print_coverage(
-                &coverage,
-                coverage_taker);
-            if i+1 == num_estimators {
-                coverage_taker.finish_entry();
-            }
-        } else if print_zero_coverage_genomes {
-            if i == 0 {
-                coverage_taker.start_entry(
-                    unobserved_contig_length_and_first_tid.first_tid,
-                    &str::from_utf8(last_genome).unwrap());
-            }
-            coverage_estimator.print_zero_coverage(
-                coverage_taker,
-                // Length coverage is always >0, so this 0 is never used
-                9);
-            if i+1 == num_estimators {
-                coverage_taker.finish_entry();
-            }
+            coverage_estimator.setup();
         }
-        coverage_estimator.setup();
-
+        coverage_taker.finish_entry();
     }
     if print_zero_coverage_genomes && !single_genome {
         print_previous_zero_coverage_genomes2(
@@ -402,7 +394,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         };
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let mut record: bam::record::Record = bam::record::Record::new();
-        let num_estimators = coverage_estimators.len();
         let mut num_mapped_reads: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
@@ -484,7 +475,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             &ups_and_downs,
                             total_edit_distance_in_current_contig,
                             total_indels_in_current_contig,
-                            num_estimators,
                             current_genome,
                             coverage_estimators,
                             coverage_taker,
@@ -590,7 +580,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 &ups_and_downs,
                 total_edit_distance_in_current_contig,
                 total_indels_in_current_contig,
-                num_estimators,
                 b"",
                 coverage_estimators,
                 coverage_taker,
