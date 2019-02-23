@@ -31,7 +31,7 @@ pub fn contig_coverage<R: NamedBamReader,
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
-        let mut num_mapped_reads: u64 = 0;
+        let mut num_mapped_reads_total: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
@@ -41,7 +41,8 @@ pub fn contig_coverage<R: NamedBamReader,
         ups_and_downs,
         num_mapped_reads_in_current_contig,
         total_edit_distance_in_current_contig,
-        total_indels_in_current_contig| {
+        total_indels_in_current_contig,
+        num_mapped_reads_total: &mut u64| {
             if last_tid != -2 {
                 debug!("Found {} reads mapped to tid {}, with total edit \
                         distance {} and {} indels",
@@ -57,19 +58,24 @@ pub fn contig_coverage<R: NamedBamReader,
                 }
                 let coverages: Vec<f32> = coverage_estimators.iter_mut()
                     .map(|estimator| estimator.calculate_coverage(0)).collect();
-                if print_zero_coverage_contigs ||
-                    coverages.iter().any(|&coverage| coverage > 0.0) {
-                        coverage_taker.start_entry(
-                            last_tid as usize,
-                            std::str::from_utf8(target_names[last_tid as usize]).unwrap());
-                        for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
-                            estimator.print_coverage(
-                                &coverage,
-                                coverage_taker);
-                            estimator.setup();
-                        }
-                        coverage_taker.finish_entry();
+                let has_nonzero_coverage = coverages.iter().any(
+                    |&coverage| coverage > 0.0);
+                debug!("Found nonzero coverage?: {}", has_nonzero_coverage);
+                if has_nonzero_coverage {
+                    *num_mapped_reads_total += num_mapped_reads_in_current_contig;
+                }
+                if print_zero_coverage_contigs || has_nonzero_coverage {
+                    coverage_taker.start_entry(
+                        last_tid as usize,
+                        std::str::from_utf8(target_names[last_tid as usize]).unwrap());
+                    for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
+                        estimator.print_coverage(
+                            &coverage,
+                            coverage_taker);
+                        estimator.setup();
                     }
+                    coverage_taker.finish_entry();
+                }
             }
             if print_zero_coverage_contigs {
                 print_previous_zero_coverage_contigs(
@@ -92,7 +98,6 @@ pub fn contig_coverage<R: NamedBamReader,
             // if reference has changed, print the last record
             let tid = record.tid();
             if !record.is_unmapped() { // if mapped
-                num_mapped_reads += 1;
                 // if reference has changed, print the last record
                 if tid != last_tid {
                     process_previous_contigs(
@@ -102,7 +107,8 @@ pub fn contig_coverage<R: NamedBamReader,
                         ups_and_downs,
                         num_mapped_reads_in_current_contig,
                         total_edit_distance_in_current_contig,
-                        total_indels_in_current_contig);
+                        total_indels_in_current_contig,
+                        &mut num_mapped_reads_total);
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
                     debug!("Working on new reference {}",
                            std::str::from_utf8(target_names[tid as usize]).unwrap());
@@ -170,10 +176,11 @@ pub fn contig_coverage<R: NamedBamReader,
             ups_and_downs,
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig,
-            total_indels_in_current_contig);
+            total_indels_in_current_contig,
+            &mut num_mapped_reads_total);
 
         let reads_mapped = ReadsMapped {
-            num_mapped_reads: num_mapped_reads,
+            num_mapped_reads: num_mapped_reads_total,
             num_reads: bam_generated.num_detected_primary_alignments()
         };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
@@ -442,17 +449,37 @@ mod tests {
     fn test_reads_not_counting_when_sufficient_min_covered(){
         // In the past this threw up a underflow error
         let reads_mapped = test_with_stream(
-            &("k141_2005182	k141_2005182	5.107387\n".to_owned()),
+            &("2seqs.reads_for_seq1_and_seq2	seq1	1.3049262\n\
+               2seqs.reads_for_seq1_and_seq2	seq2	0.6862065\n".to_owned()),
             generate_named_bam_readers_from_bam_files(
-                vec!["tests/data/k141_2005182.bam"]),
+                vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             &mut vec!(
                 CoverageEstimator::new_estimator_variance(0.0,75),
             ),
             false,
             false);
         assert_eq!(vec!(ReadsMapped{
-            num_mapped_reads: 28,
-            num_reads: 28
+            num_mapped_reads: 24,
+            num_reads: 24
+        }), reads_mapped);
+    }
+
+
+    #[test]
+    fn test_reads_not_counting_when_insufficient_min_covered(){
+        // In the past this threw up a underflow error
+        let reads_mapped = test_with_stream(
+            &("".to_owned()),
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
+            &mut vec!(
+                CoverageEstimator::new_estimator_variance(0.99,75),
+            ),
+            false,
+            false);
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 0,
+            num_reads: 24
         }), reads_mapped);
     }
 }
