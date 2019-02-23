@@ -276,7 +276,7 @@ fn print_last_genomes<T: CoverageTaker>(
     target_names: &std::vec::Vec<&[u8]>,
     split_char: u8,
     header: &rust_htslib::bam::HeaderView,
-    tid_to_print_zeros_to: u32) {
+    tid_to_print_zeros_to: u32) -> bool {
 
     for coverage_estimator in coverage_estimators.iter_mut() {
         coverage_estimator.add_contig(
@@ -291,8 +291,9 @@ fn print_last_genomes<T: CoverageTaker>(
         coverage_estimator.calculate_coverage(
             unobserved_contig_length_and_first_tid.unobserved_contig_length)
     ).collect();
+    let positive_coverage = coverages.iter().any(|c| *c > 0.0);
 
-    if print_zero_coverage_genomes || coverages.iter().any(|c| *c > 0.0) {
+    if print_zero_coverage_genomes || positive_coverage {
         coverage_taker.start_entry(
             unobserved_contig_length_and_first_tid.first_tid,
             &str::from_utf8(last_genome).unwrap());
@@ -319,6 +320,7 @@ fn print_last_genomes<T: CoverageTaker>(
             last_genome, current_genome, tid_to_print_zeros_to, &coverage_estimators,
             &target_names, split_char, coverage_taker, &header);
     }
+    return positive_coverage;
 }
 
 
@@ -394,8 +396,9 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         };
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let mut record: bam::record::Record = bam::record::Record::new();
-        let mut num_mapped_reads: u64 = 0;
+        let mut num_mapped_reads_total: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
+        let mut num_mapped_reads_in_current_genome: u64 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
         while bam_generated.read(&mut record).is_ok() {
@@ -407,7 +410,6 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             }
             let original_tid = record.tid();
             if !record.is_unmapped() {
-                num_mapped_reads += 1;
                 // if reference has changed, finish a genome or not
                 let tid = original_tid as u32;
                 let current_genome: &[u8] = match single_genome {
@@ -468,7 +470,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             fill_genome_length_backwards_to_last(
                                 tid, last_tid as u32, last_genome);
 
-                        print_last_genomes(
+                        let positive_coverage = print_last_genomes(
                             num_mapped_reads_in_current_contig,
                             last_genome,
                             &mut unobserved_contig_length_and_first_tid,
@@ -485,6 +487,14 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             &header,
                             tid,
                         );
+                        debug!(
+                            "Any coverage in genome '{}'? {}",
+                            &str::from_utf8(last_genome).unwrap(),
+                            positive_coverage);
+                        if positive_coverage {
+                            num_mapped_reads_total += num_mapped_reads_in_current_genome;
+                        }
+                        num_mapped_reads_in_current_genome = 0;
                         last_genome = current_genome;
 
                         unobserved_contig_length_and_first_tid = fill_genome_length_backwards(
@@ -510,6 +520,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 // for each chunk of the cigar string
                 debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
                 num_mapped_reads_in_current_contig += 1;
+                num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
                     //debug!("Found cigar {:} from {}", cig, cursor);
@@ -573,7 +584,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             unobserved_contig_length_and_first_tid.unobserved_contig_length +=
                 fill_genome_length_forwards(last_tid, last_genome);
 
-            print_last_genomes(
+            let positive_coverage = print_last_genomes(
                 num_mapped_reads_in_current_contig,
                 last_genome,
                 &mut unobserved_contig_length_and_first_tid,
@@ -590,10 +601,17 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 &header,
                 header.target_count() - 1,
             );
+            debug!(
+                "Any coverage in genome '{}'? {}",
+                &str::from_utf8(last_genome).unwrap(),
+                positive_coverage);
+            if positive_coverage {
+                num_mapped_reads_total += num_mapped_reads_in_current_genome;
+            }
         }
 
         let reads_mapped = ReadsMapped {
-            num_mapped_reads: num_mapped_reads,
+            num_mapped_reads: num_mapped_reads_total,
             num_reads: bam_generated.num_detected_primary_alignments()
         };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
@@ -1413,7 +1431,7 @@ mod tests {
 
     #[test]
     fn test_read_count_calculator(){
-        test_streaming_with_stream(
+        let res = test_streaming_with_stream(
             "7seqs.reads_for_seq1\tgenome1\t0\n\
              7seqs.reads_for_seq1\tgenome2\t12\n\
              7seqs.reads_for_seq1\tgenome3\t0\n\
@@ -1439,6 +1457,99 @@ mod tests {
             ),
             false,
             false);
+        assert_eq!(
+            vec!(
+                ReadsMapped {
+                    num_mapped_reads: 12,
+                    num_reads: 12
+                },
+                ReadsMapped {
+                    num_mapped_reads: 24,
+                    num_reads: 24
+                }),
+            res);
     }
 
+    #[test]
+    fn test_read_count_calculator_below_min_covered(){
+        // First test with all genomes passing the covered fraction threshold
+        let res = test_streaming_with_stream(
+            "7seqs.reads_for_seq1\tgenome1\t0\t0\n\
+             7seqs.reads_for_seq1\tgenome2\t12\t0.8011765\n\
+             7seqs.reads_for_seq1\tgenome3\t0\t0\n\
+             7seqs.reads_for_seq1\tgenome4\t0\t0\n\
+             7seqs.reads_for_seq1\tgenome5\t0\t0\n\
+             7seqs.reads_for_seq1\tgenome6\t0\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome1\t0\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome2\t12\t0.78705883\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome3\t0\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome4\t0\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t12\t0.84\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome6\t0\t0\n",
+            generate_named_bam_readers_from_bam_files(
+                vec![
+                    "tests/data/7seqs.reads_for_seq1.bam",
+                    "tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            '~' as u8,
+            true,
+            &mut vec!(
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_read_count(),
+                CoverageEstimator::new_estimator_covered_fraction(0.1, 75),
+            ),
+            false,
+            false);
+        assert_eq!(
+            vec!(
+                ReadsMapped {
+                    num_mapped_reads: 12,
+                    num_reads: 12
+                },
+                ReadsMapped {
+                    num_mapped_reads: 24,
+                    num_reads: 24
+                }),
+            res);
+
+        // Next test when the covered fraction fails
+        let res = test_streaming_with_stream(
+            "7seqs.reads_for_seq1\tgenome1\t0\n\
+             7seqs.reads_for_seq1\tgenome2\t0\n\
+             7seqs.reads_for_seq1\tgenome3\t0\n\
+             7seqs.reads_for_seq1\tgenome4\t0\n\
+             7seqs.reads_for_seq1\tgenome5\t0\n\
+             7seqs.reads_for_seq1\tgenome6\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome2\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t0\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
+            generate_named_bam_readers_from_bam_files(
+                vec![
+                    "tests/data/7seqs.reads_for_seq1.bam",
+                    "tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            '~' as u8,
+            true,
+            &mut vec!(
+                // covered fraction is 0.727, so go lower so trimmed mean is 0,
+                // mean > 0.
+                CoverageEstimator::new_estimator_covered_fraction(0.99, 75),
+            ),
+            false,
+            false);
+        assert_eq!(
+            vec!(
+                ReadsMapped {
+                    num_mapped_reads: 0,
+                    num_reads: 12
+                },
+                ReadsMapped {
+                    num_mapped_reads: 0,
+                    num_reads: 24
+                }),
+            res);
+
+    }
 }
