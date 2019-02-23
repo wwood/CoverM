@@ -7,7 +7,7 @@ use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
 use coverage_takers::*;
 use FlagFilter;
-
+use ReadsMapped;
 
 pub fn contig_coverage<R: NamedBamReader,
                        G: NamedBamReaderGenerator<R>,
@@ -16,8 +16,10 @@ pub fn contig_coverage<R: NamedBamReader,
     coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
-    flag_filters: FlagFilter) {
+    flag_filters: FlagFilter)
+    -> Vec<ReadsMapped> {
 
+    let mut reads_mapped_vector = vec!();
     for mut bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
@@ -170,10 +172,15 @@ pub fn contig_coverage<R: NamedBamReader,
             total_edit_distance_in_current_contig,
             total_indels_in_current_contig);
 
+        let reads_mapped = ReadsMapped {
+            num_mapped_reads: num_mapped_reads,
+            num_reads: bam_generated.num_detected_primary_alignments()
+        };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
-              stoit_name, num_mapped_reads,
-              bam_generated.num_detected_primary_alignments(), 2,
-              (num_mapped_reads * 100) as f64 / bam_generated.num_detected_primary_alignments() as f64);
+              stoit_name, reads_mapped.num_mapped_reads,
+              reads_mapped.num_reads, 2,
+              (reads_mapped.num_mapped_reads * 100) as f64 / reads_mapped.num_reads as f64);
+        reads_mapped_vector.push(reads_mapped);
 
         if bam_generated.num_detected_primary_alignments() == 0 {
             warn!("No primary alignments were observed for sample {} \
@@ -183,6 +190,7 @@ pub fn contig_coverage<R: NamedBamReader,
 
         bam_generated.finish();
     }
+    return reads_mapped_vector;
 }
 
 
@@ -223,24 +231,26 @@ mod tests {
         bam_readers: Vec<G>,
         coverage_estimators: &mut Vec<CoverageEstimator>,
         print_zero_coverage_contigs: bool,
-        proper_pairs_only: bool) {
+        proper_pairs_only: bool) -> Vec<ReadsMapped> {
         let mut stream = Cursor::new(Vec::new());
         let flag_filters = FlagFilter {
             include_improper_pairs: !proper_pairs_only,
             include_secondary: false,
             include_supplementary: false,
         };
+        let reads_mapped_vec;
         {
             let mut coverage_taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                 &mut stream);
-            contig_coverage(
+            reads_mapped_vec = contig_coverage(
                 bam_readers,
                 &mut coverage_taker,
                 coverage_estimators,
                 print_zero_coverage_contigs,
                 flag_filters);
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap())
+        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        return reads_mapped_vec;
     }
 
     #[test]
@@ -426,5 +436,23 @@ mod tests {
             ),
             false,
             false);
+    }
+
+    #[test]
+    fn test_reads_not_counting_when_sufficient_min_covered(){
+        // In the past this threw up a underflow error
+        let reads_mapped = test_with_stream(
+            &("k141_2005182	k141_2005182	5.107387\n".to_owned()),
+            generate_named_bam_readers_from_bam_files(
+                vec!["tests/data/k141_2005182.bam"]),
+            &mut vec!(
+                CoverageEstimator::new_estimator_variance(0.0,75),
+            ),
+            false,
+            false);
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 28,
+            num_reads: 28
+        }), reads_mapped);
     }
 }
