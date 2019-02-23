@@ -40,6 +40,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         // Collect reference numbers for each genome
         let mut genome_index_to_references: Vec<Vec<u32>> =
             vec![vec!(); contigs_and_genomes.genomes.len()];
+        // Reads mapped are only counted when the genome has non-zero coverage.
+        let mut reads_mapped_in_each_genome: Vec<u64> = vec!(
+            0; contigs_and_genomes.genomes.len());
         for (tid, name) in target_names.iter().enumerate() {
             let genome_index = contigs_and_genomes.genome_index_of_contig(
                 &String::from(std::str::from_utf8(name)
@@ -77,7 +80,6 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut ups_and_downs: Vec<i32> = Vec::new();
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut seen_ref_ids = BTreeSet::new();
-        let mut num_mapped_reads: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
@@ -123,55 +125,59 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 // TODO: move below into a function for code-reuse purposes.
                 // Add coverage info for the current record
                 // for each chunk of the cigar string
-                if reference_number_to_genome_index[tid as usize].is_some() {
-                    num_mapped_reads += 1;
-                    num_mapped_reads_in_current_contig += 1;
-                    debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
-                    let mut cursor: usize = record.pos() as usize;
-                    for cig in record.cigar().iter() {
-                        debug!("Found cigar {:} from {}", cig, cursor);
-                        match cig {
-                            Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
-                                // if M, X, or =, increment start and decrement end index
-                                debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
-                                ups_and_downs[cursor] += 1;
-                                let final_pos = cursor + cig.len() as usize;
-                                if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
-                                    ups_and_downs[final_pos] -= 1;
-                                }
-                                cursor += cig.len() as usize;
-                            },
-                            Cigar::Del(_) => {
-                                cursor += cig.len() as usize;
-                                total_indels_in_current_contig += cig.len() as u32;
-                            },
-                            Cigar::RefSkip(_) => {
-                                cursor += cig.len() as usize;
-                            },
-                            Cigar::Ins(_) => {
-                                total_indels_in_current_contig += cig.len() as u32;
-                            },
-                            Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
-                        }
-                    }
-
-                    // Determine the number of mismatching bases in this read by
-                    // looking at the NM tag.
-                    total_edit_distance_in_current_contig += match
-                        record.aux("NM".as_bytes()) {
-                            Some(aux) => {
-                                aux.integer() as u32
-                            },
-                            None => {
-                                panic!("Mapping record encountered that does not have an 'NM' \
-                                        auxiliary tag in the SAM/BAM format. This is required \
-                                        to work out some coverage statistics");
+                match reference_number_to_genome_index[tid as usize] {
+                    None => {},
+                    Some(genome_index) => {
+                        reads_mapped_in_each_genome[genome_index] += 1;
+                        num_mapped_reads_in_current_contig += 1;
+                        debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                        let mut cursor: usize = record.pos() as usize;
+                        for cig in record.cigar().iter() {
+                            debug!("Found cigar {:} from {}", cig, cursor);
+                            match cig {
+                                Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
+                                    // if M, X, or =, increment start and decrement end index
+                                    debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
+                                    ups_and_downs[cursor] += 1;
+                                    let final_pos = cursor + cig.len() as usize;
+                                    if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
+                                        ups_and_downs[final_pos] -= 1;
+                                    }
+                                    cursor += cig.len() as usize;
+                                },
+                                Cigar::Del(_) => {
+                                    cursor += cig.len() as usize;
+                                    total_indels_in_current_contig += cig.len() as u32;
+                                },
+                                Cigar::RefSkip(_) => {
+                                    cursor += cig.len() as usize;
+                                },
+                                Cigar::Ins(_) => {
+                                    total_indels_in_current_contig += cig.len() as u32;
+                                },
+                                Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                             }
-                        };
+                        }
+
+                        // Determine the number of mismatching bases in this read by
+                        // looking at the NM tag.
+                        total_edit_distance_in_current_contig += match
+                            record.aux("NM".as_bytes()) {
+                                Some(aux) => {
+                                    aux.integer() as u32
+                                },
+                                None => {
+                                    panic!("Mapping record encountered that does not have an 'NM' \
+                                            auxiliary tag in the SAM/BAM format. This is required \
+                                            to work out some coverage statistics");
+                                }
+                            };
+                    }
                 }
             }
         }
 
+        let mut num_mapped_reads_total: u64 = 0;
         if doing_first && bam_generated.num_detected_primary_alignments() == 0 {
             warn!("No primary alignments were observed for sample {} \
                    - perhaps something went wrong in the mapping?",
@@ -215,7 +221,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 let coverages: Vec<f32> = per_genome_coverage_estimators[i].iter_mut().map( |coverage_estimator|
                     coverage_estimator.calculate_coverage(unobserved_lengths[i])
                 ).collect();
-                if print_zero_coverage_genomes || coverages.iter().any(|c| *c > 0.0) {
+                let any_nonzero_coverage = coverages.iter().any(|c| *c > 0.0);
+                if any_nonzero_coverage {
+                    num_mapped_reads_total += reads_mapped_in_each_genome[i];
+                }
+                if print_zero_coverage_genomes || any_nonzero_coverage {
                     coverage_taker.start_entry(i, &genome);
                     for (j, ref mut coverage_estimator) in per_genome_coverage_estimators[i].iter_mut().enumerate() {
                         let coverage = coverages[j];
@@ -240,7 +250,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         }
 
         let reads_mapped = ReadsMapped {
-            num_mapped_reads: num_mapped_reads,
+            num_mapped_reads: num_mapped_reads_total,
             num_reads: bam_generated.num_detected_primary_alignments()
         };
         info!("In sample '{}', found {} reads mapped out of {} total ({:.*}%)",
@@ -1471,7 +1481,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_count_calculator_below_min_covered(){
+    fn test_read_count_below_min_covered(){
         // First test with all genomes passing the covered fraction threshold
         let res = test_streaming_with_stream(
             "7seqs.reads_for_seq1\tgenome1\t0\t0\n\
@@ -1533,8 +1543,7 @@ mod tests {
             '~' as u8,
             true,
             &mut vec!(
-                // covered fraction is 0.727, so go lower so trimmed mean is 0,
-                // mean > 0.
+                // All genomes do not pass the min covered fraction threshold.
                 CoverageEstimator::new_estimator_covered_fraction(0.99, 75),
             ),
             false,
@@ -1550,6 +1559,55 @@ mod tests {
                     num_reads: 24
                 }),
             res);
-
     }
+
+    #[test]
+    fn test_read_count_below_min_covered_genomes_and_contigs(){
+        let mut geco = GenomesAndContigs::new();
+        let genome1 = geco.establish_genome("genome1".to_string());
+        let genome2 = geco.establish_genome("genome2".to_string());
+        let genome3 = geco.establish_genome("genome3".to_string());
+        let genome4 = geco.establish_genome("genome4".to_string());
+        let genome5 = geco.establish_genome("genome5".to_string());
+        let genome6 = geco.establish_genome("genome6".to_string());
+        geco.insert("genome1~random_sequence_length_11000".to_string(),genome1);
+        geco.insert("genome1~random_sequence_length_11010".to_string(),genome1);
+        geco.insert("genome2~seq1".to_string(),genome2);
+        geco.insert("genome3~random_sequence_length_11001".to_string(),genome3);
+        geco.insert("genome4~random_sequence_length_11002".to_string(),genome4);
+        geco.insert("genome5~seq2".to_string(),genome5);
+        geco.insert("genome6~random_sequence_length_11003".to_string(),genome6);
+
+        // First test with all genomes passing the covered fraction threshold
+        let mut reads_mapped = test_contig_names_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\t1.3633634\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\t0.6166166\n",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &geco,
+            false,
+            false,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.1,0,false),
+                CoverageEstimator::new_estimator_variance(0.1,0)));
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 24,
+            num_reads: 24
+        }), reads_mapped);
+
+        // Then test when the reads do not make the threshold
+        reads_mapped = test_contig_names_with_stream(
+            "",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &geco,
+            false,
+            false,
+            &mut vec!(
+                CoverageEstimator::new_estimator_mean(0.99,0,false),
+                CoverageEstimator::new_estimator_variance(0.99,0)));
+        assert_eq!(vec!(ReadsMapped{
+            num_mapped_reads: 0,
+            num_reads: 24
+        }), reads_mapped);
+    }
+
 }
