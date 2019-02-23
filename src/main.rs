@@ -841,7 +841,7 @@ Define the contigs in each genome (exactly one of the following is required):
 
 Define mapping(s) (required):
   Either define BAM:
-    -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
@@ -920,7 +920,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 
 Define mapping(s) (required):
   Either define BAM:
-    -b, --bam-files <PATH> ..            Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
