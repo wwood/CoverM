@@ -355,6 +355,9 @@ impl<'a> EstimatorsAndTaker<'a> {
                     &"count" => {
                         estimators.push(CoverageEstimator::new_estimator_read_count());
                     },
+                    &"reads_per_base" => {
+                        estimators.push(CoverageEstimator::new_estimator_reads_per_base());
+                    }
                     _ => panic!("programming error")
                 };
             }
@@ -401,6 +404,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                 match e {
                     CoverageEstimator::ReadCountCalculator{..} => { die("counts") },
                     CoverageEstimator::ReferenceLengthCalculator{..} => { die("length") },
+                    CoverageEstimator::ReadsPerBaseCalculator{..} => { die("reads_per_base") }
                     _ => {}
                 }
             }
@@ -904,6 +908,7 @@ Other arguments (optional):
                                               variance
                                               length
                                               count
+                                              reads_per_base
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: sparse]
@@ -986,6 +991,7 @@ Other arguments (optional):
                                            length
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
+                                           reads_per_base
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: sparse]
@@ -1259,7 +1265,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "covered_fraction",
                          "variance",
                          "length",
-                         "count"])
+                         "count",
+                         "reads_per_base"])
                      .default_value("relative_abundance"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
@@ -1397,7 +1404,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "variance",
                          "length",
                          "count",
-                         "metabat"])
+                         "metabat",
+                         "reads_per_base"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")

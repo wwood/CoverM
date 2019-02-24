@@ -482,4 +482,29 @@ mod tests {
             num_reads: 24
         }), reads_mapped);
     }
+
+    #[test]
+    fn test_reads_per_base_estimator(){
+        test_with_stream(
+            "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t0.012\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t0.012\n\
+             7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0\n",
+            vec![
+                generate_named_bam_readers_from_reads(
+                    "tests/data/7seqs.fna",
+                    "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                    Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
+                    ReadFormat::Coupled,
+                    4,
+                    None,
+                    false,
+                    None)],
+            &mut vec!(CoverageEstimator::new_estimator_reads_per_base()),
+            true,
+            false);
+    }
 }
