@@ -387,6 +387,25 @@ impl<'a> EstimatorsAndTaker<'a> {
 
         }
 
+        // Check that min-covered-fraction is being used as expected
+        if min_fraction_covered != 0.0 {
+            let die = |estimator_name| {
+                error!("The '{}' coverage estimator cannot be used when \
+                        --min-covered-fraction is > 0 as it does not calculated \
+                        the covered fraction. You may wish to use the \
+                        'covered_fraction' estimator in addition and set \
+                        --min-covered-fraction to 0.", estimator_name);
+                process::exit(1)
+            };
+            for e in &estimators {
+                match e {
+                    CoverageEstimator::ReadCountCalculator{..} => { die("counts") },
+                    CoverageEstimator::ReferenceLengthCalculator{..} => { die("length") },
+                    _ => {}
+                }
+            }
+        }
+
         return EstimatorsAndTaker {
             estimators: estimators,
             taker: taker,
