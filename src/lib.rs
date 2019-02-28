@@ -25,11 +25,15 @@ use genomes_and_contigs::GenomesAndContigs;
 
 
 
-pub fn read_genome_fasta_files(fasta_file_paths: &[&str]) -> GenomesAndContigs {
+pub &'static str concatenated_fasta_file_separator  = "~";
+
+
+pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)
+    -> GenomesAndContigs {
     let mut contig_to_genome = GenomesAndContigs::new();
 
     for file in fasta_file_paths {
-        let path = Path::new(*file);
+        let path = Path::new(file);
         let reader = bio::io::fasta::Reader::from_file(path)
             .expect(&format!("Unable to read fasta file {}", file));
 

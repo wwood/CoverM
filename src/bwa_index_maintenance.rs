@@ -1,7 +1,12 @@
 use std;
 use std::io::Read;
+use std::collections::HashSet;
+use std::process;
+
+use concatenated_fasta_file_separator;
 
 use tempdir::TempDir;
+use tempfile::NamedTempFile;
 
 
 pub trait BwaIndexStruct {
@@ -93,4 +98,54 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
         info!("BWA index appears to be complete, so going ahead and using it.");
         return Box::new(VanillaBwaIndexStuct::new(reference_path));
     }
+}
+
+pub fn generate_concatenated_fasta_file(
+    fasta_file_paths: &Vec<String>)
+    -> NamedTempFile {
+
+    let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+    let mut something_written_at_all = false;
+    { // scope so writer, which borrows tmpfile, goes out of scope.
+        let mut writer = bio::io::fasta::Writer::new(&tmpfile);
+        let mut genome_names: HashSet<String> = HashSet::new();
+
+        for file in fasta_file_paths {
+            let mut something_written = false;
+            let path = std::path::Path::new(file);
+            let reader = bio::io::fasta::Reader::from_file(path)
+                .expect(&format!("Unable to read fasta file {}", file));
+
+            let genome_name = String::from(
+                path.file_stem()
+                    .expect("Problem while determining file stem")
+                    .to_str()
+                    .expect("File name string conversion problem"));
+            if genome_names.contains(&genome_name) {
+                panic!("The genome name {} was derived from >1 file", genome_name);
+            }
+            genome_names.insert(genome_name);
+            for record in reader.records() {
+                something_written = true;
+                something_written_at_all = true;
+                let r = record.unwrap();
+                writer.write(
+                    &format!("{}{}{}", genome_name, concatenated_fasta_file_separator, r.id()),
+                    r.desc(),
+                    r.seq()
+                ).unwrap()
+            }
+            if !something_written {
+                error!(
+                    "FASTA file {} appears to be empty as no sequences were contained in it",
+                    file);
+                process::exit(1);
+            }
+        }
+    }
+    if !something_written_at_all {
+        error!("Concatenated FASTA file to use as a reference is empty");
+        process::exit(1);
+    }
+    return tmpfile;
 }

@@ -26,6 +26,7 @@ use log::LevelFilter;
 use env_logger::Builder;
 
 extern crate tempfile;
+use tempfile::NamedTempFile;
 #[macro_use]
 extern crate lazy_static;
 
@@ -218,6 +219,7 @@ fn main(){
             estimators_and_taker = estimators_and_taker.print_headers(
                 &"Genome", &mut std::io::stdout());
             let filter_params = FilterParameters::generate_from_clap(m);
+            let separator = parse_separator(m);
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -233,20 +235,33 @@ fn main(){
                             filter_params.min_percent_identity_pair,
                             filter_params.min_aligned_percent_pair),
                         m,
-                        &mut estimators_and_taker);
+                        &mut estimators_and_taker,
+                        separator);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
-                        &mut estimators_and_taker);
+                        &mut estimators_and_taker,
+                        separator);
                 }
             } else {
                 external_command_checker::check_for_bwa();
                 external_command_checker::check_for_samtools();
+
+                // Generate a temporary file of concatenated genomes if needed.
+                let mut concatenated_genomes: Option<NamedTempFile> = None;
+                if !m.is_present("reference") && !m.is_present("bam-files") {
+                    info!("Generating reference FASTA file of concatenated genomes ..");
+                    let list_of_genome_fasta_files = parse_list_of_genome_fasta_files(m);
+                    concatenated_genomes = Some(
+                        coverm::bwa_index_maintenance::generate_concatenated_fasta_file(
+                            &list_of_genome_fasta_files));
+                }
+
                 if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(m);
+                    let generator_sets = get_streamed_filtered_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -258,9 +273,10 @@ fn main(){
                     run_genome(
                         all_generators,
                         m,
-                        &mut estimators_and_taker);
+                        &mut estimators_and_taker,
+                        separator);
                 } else {
-                    let generator_sets = get_streamed_bam_readers(m);
+                    let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -272,7 +288,8 @@ fn main(){
                     run_genome(
                         all_generators,
                         m,
-                        &mut estimators_and_taker);
+                        &mut estimators_and_taker,
+                        separator);
                 };
             }
         },
@@ -322,7 +339,7 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filter_params.doing_filtering() {
                     debug!("Filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(m);
+                    let generator_sets = get_streamed_filtered_bam_readers(m, &None);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -339,7 +356,7 @@ fn main(){
                         filter_params.flag_filters);
                 } else {
                     debug!("Not filtering..");
-                    let generator_sets = get_streamed_bam_readers(m);
+                    let generator_sets = get_streamed_bam_readers(m, &None);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -404,7 +421,7 @@ fn main(){
 
             let output_directory = m.value_of("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
-            let params = MappingParameters::generate_from_clap(&m);
+            let params = MappingParameters::generate_from_clap(&m, &None);
             let mut generator_sets = vec!();
             let discard_unmapped_reads = m.is_present("discard-unmapped");
 
@@ -614,49 +631,39 @@ impl<'a> EstimatorsAndTaker<'a> {
     }
 }
 
-
-fn run_genome<'a,
-              R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
-    bam_generators: Vec<T>,
-    m: &clap::ArgMatches,
-    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>) {
-
-    let print_zeros = !m.is_present("no-zeros");
-    let proper_pairs_only = m.is_present("proper-pairs-only");
+fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
     let single_genome = m.is_present("single-genome");
-    let reads_mapped = match m.is_present("separator") || single_genome {
-        true => {
-            let separator: u8 = match single_genome {
-                true => "0".as_bytes()[0],
-                false => {
-                    let separator_str = m.value_of("separator").unwrap().as_bytes();
-                    if separator_str.len() != 1 {
-                        eprintln!(
-                            "error: Separator can only be a single character, found {} ({}).",
-                            separator_str.len(),
-                            str::from_utf8(separator_str).unwrap());
-                        process::exit(1);
-                    }
-                    separator_str[0]
-                }
-            };
-            coverm::genome::mosdepth_genome_coverage(
-                bam_generators,
-                separator,
-	              &mut estimators_and_taker.taker,
-                print_zeros,
-                &mut estimators_and_taker.estimators,
-                proper_pairs_only,
-                single_genome)
-        },
+    if single_genome {
+        Some("0".as_bytes()[0])
+    } else if m.is_present("separator") {
+        let separator_str = m.value_of("separator").unwrap().as_bytes();
+        if separator_str.len() != 1 {
+            eprintln!(
+                "error: Separator can only be a single character, found {} ({}).",
+                separator_str.len(),
+                str::from_utf8(separator_str).unwrap());
+            process::exit(1);
+        }
+        Some(separator_str[0])
+    } else if m.is_present("bam-files") || m.is_present("reference") {
+        // Argument parsing enforces that genomes have been specified as FASTA
+        // files.
+        None
+    } else {
+        // Separator is set by CoverM and written into the generated reference
+        // fasta file.
+        Some(concatenated_fasta_file_separator.as_bytes()[0])
+    }
+}
 
+
+fn parse_list_of_genome_fasta_files(m: &clap::ArgMatches) -> Vec<String> {
+    match m.is_present("genome-fasta-files") {
+        true => {
+            m.values_of("genome-fasta-files").unwrap().map(|s| s.to_string()).collect()
+        },
         false => {
-            let genomes_and_contigs;
-            if m.is_present("genome-fasta-files"){
-                let genome_fasta_files: Vec<&str> = m.values_of("genome-fasta-files").unwrap().collect();
-                genomes_and_contigs = coverm::read_genome_fasta_files(&genome_fasta_files);
-            } else if m.is_present("genome-fasta-directory") {
+            if m.is_present("genome-fasta-directory") {
                 let dir = m.value_of("genome-fasta-directory").unwrap();
                 let paths = std::fs::read_dir(dir).unwrap();
                 let mut genome_fasta_files: Vec<String> = vec!();
@@ -682,18 +689,48 @@ fn run_genome<'a,
                         }
                     }
                 }
-                let mut strs: Vec<&str> = vec!();
-                for f in &genome_fasta_files {
-                    strs.push(f);
+                if genome_fasta_files.len() == 0 {
+                    panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.");
                 }
-                if strs.len() == 0 {
-                    panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.")
-                }
-                info!("Calculating coverage for {} genomes ..", strs.len());
-                genomes_and_contigs = coverm::read_genome_fasta_files(&strs);
+                genome_fasta_files // return
             } else {
-                panic!("Either a separator (-s) or path(s) to genome FASTA files (with -d or -f) must be given");
+                panic!("Either a separator (-s) or path(s) to genome FASTA files \
+                        (with -d or -f) must be given");
             }
+        }
+    }
+}
+
+
+fn run_genome<'a,
+              R: coverm::bam_generator::NamedBamReader,
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+    bam_generators: Vec<T>,
+    m: &clap::ArgMatches,
+    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
+    separator: Option<u8>) {
+
+    let print_zeros = !m.is_present("no-zeros");
+    let proper_pairs_only = m.is_present("proper-pairs-only");
+    let single_genome = m.is_present("single-genome");
+    let reads_mapped = match separator.is_some() || single_genome {
+        true => {
+            coverm::genome::mosdepth_genome_coverage(
+                bam_generators,
+                separator.unwrap(),
+	              &mut estimators_and_taker.taker,
+                print_zeros,
+                &mut estimators_and_taker.estimators,
+                proper_pairs_only,
+                single_genome)
+        },
+
+        false => {
+            let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+            info!("Calculating coverage for {} genomes ..", genome_fasta_files.len());
+            let genomes_and_contigs = coverm::read_genome_fasta_files(
+                &genome_fasta_files.iter().map(|s| s.as_str()).collect());
+
             coverm::genome::mosdepth_genome_coverage_with_contig_names(
                 bam_generators,
                 &genomes_and_contigs,
@@ -797,7 +834,9 @@ impl FilterParameters {
 
 
 fn get_streamed_bam_readers<'a>(
-    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
+    m: &'a clap::ArgMatches,
+    reference_tempfile: &'a Option<NamedTempFile>)
+    -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
 
     // Check the output BAM directory actually exists and is writeable
     if m.is_present("bam-file-cache-directory") {
@@ -805,7 +844,7 @@ fn get_streamed_bam_readers<'a>(
     }
     let discard_unmapped = m.is_present("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m);
+    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
     let mut generator_set = vec!();
     for reference_wise_params in params {
         let mut bam_readers = vec![];
@@ -912,7 +951,9 @@ fn setup_bam_cache_directory(cache_directory: &str) {
 }
 
 fn get_streamed_filtered_bam_readers(
-    m: &clap::ArgMatches) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
+    m: &clap::ArgMatches,
+    reference_tempfile: &Option<NamedTempFile>)
+    -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
 
     // Check the output BAM directory actually exists and is writeable
     if m.is_present("bam-file-cache-directory") {
@@ -920,7 +961,7 @@ fn get_streamed_filtered_bam_readers(
     }
     let discard_unmapped = m.is_present("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m);
+    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
     let mut generator_set = vec!();
     for reference_wise_params in params {
         let mut bam_readers = vec![];

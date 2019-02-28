@@ -1,4 +1,6 @@
 
+use tempfile::NamedTempFile;
+
 #[derive(Clone)]
 pub enum ReadFormat {
     Coupled,
@@ -19,7 +21,11 @@ pub struct MappingParameters<'a> {
 }
 
 impl<'a> MappingParameters<'a> {
-    pub fn generate_from_clap(m: &'a clap::ArgMatches) -> MappingParameters<'a> {
+    pub fn generate_from_clap(
+        m: &'a clap::ArgMatches,
+        reference_tempfile: &'a Option<NamedTempFile>)
+        -> MappingParameters<'a> {
+
         let mut read1: Vec<&str> = vec!();
         let mut read2: Vec<&str> = vec!();
         let mut interleaved: Vec<&str> = vec!();
@@ -67,7 +73,10 @@ impl<'a> MappingParameters<'a> {
         debug!("Setting BWA options as '{:?}'", bwa_options);
 
         return MappingParameters {
-            references: m.values_of("reference").unwrap().collect(),
+            references: match reference_tempfile {
+                Some(r) => vec!(r.path().to_str().unwrap()),
+                None => m.values_of("reference").unwrap().collect()
+            },
             threads: m.value_of("threads").unwrap().parse::<u16>()
                 .expect("Failed to convert threads argument into integer"),
             read1: read1,
