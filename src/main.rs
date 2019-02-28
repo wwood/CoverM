@@ -26,7 +26,88 @@ use log::LevelFilter;
 use env_logger::Builder;
 
 extern crate tempfile;
+#[macro_use]
+extern crate lazy_static;
 
+
+fn contig_full_help() -> &'static str {
+    "coverm contig: Calculate read coverage per-contig
+
+Define mapping(s) (required):
+  Either define BAM:
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+
+  Or do mapping:
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+                                         e.g. concatenated genomes or assembly
+   -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
+   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
+
+Alignment filtering (optional):
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases.
+                                         Implies --proper-pairs-only.[default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+
+Other arguments (optional):
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One or more (space separated) of:
+                                           mean (default)
+                                           trimmed_mean
+                                           coverage_histogram
+                                           covered_fraction
+                                           variance
+                                           length
+                                           count
+                                           metabat (\"MetaBAT adjusted coverage\")
+                                           reads_per_base
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: sparse]
+   --min-covered-fraction FRACTION       Contigs with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>"
+}
 
 fn main(){
     let mut app = build_cli();
@@ -105,6 +186,10 @@ fn main(){
         },
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
+            if m.is_present("full-help") {
+                println!("{}", contig_full_help());
+                process::exit(1);
+            }
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
@@ -847,6 +932,34 @@ fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
 }
 
 fn build_cli() -> App<'static, 'static> {
+    // specify static lazily because need to define it at runtime.
+    lazy_static! {
+        static ref CONTIG_HELP: String = format!(
+            "
+                            {}
+              {}
+
+{}
+
+  coverm contig --coupled read1.fastq.gz read2.fastq.gz --reference assembly.fna
+
+{}
+
+  coverm contig --method metabat --bam-files my.bam
+
+See coverm contig --full-help for further options and further detail.
+",
+            ansi_term::Colour::Green.paint(
+                "coverm contig"),
+            ansi_term::Colour::Green.paint(
+                "Calculate coverage of individual contigs"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Calculate mean coverage from reads and assembly:"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Calculate MetaBAT adjusted coverage from a sorted BAM file:")
+        ).to_string();
+    }
+
     let genome_help: &'static str =
         "coverm genome: Calculate read coverage per-genome
 
@@ -938,88 +1051,6 @@ Example usage:
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ";
-
-    let contig_help: &'static str =
-        "coverm contig: Calculate read coverage per-contig
-
-Define mapping(s) (required):
-  Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
-
-  Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. concatenated genomes or assembly
-   -t, --threads <INT>                   Number of threads to use for mapping
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
-                                         FASTA/Q files for mapping in order
-                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
-                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
-   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
-   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
-
-Alignment filtering (optional):
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases.
-                                         Implies --proper-pairs-only.[default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-
-Other arguments (optional):
-   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One or more (space separated) of:
-                                           mean (default)
-                                           trimmed_mean
-                                           coverage_histogram
-                                           covered_fraction
-                                           variance
-                                           length
-                                           count
-                                           metabat (\"MetaBAT adjusted coverage\")
-                                           reads_per_base
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: sparse]
-   --min-covered-fraction FRACTION       Contigs with less coverage than this
-                                         reported as having zero coverage.
-                                         [default: 0]
-   --contig-end-exclusion                Exclude bases at the ends of reference
-                                         sequences from calculation [default: 75]
-   --trim-min FRACTION                   Remove this smallest fraction of positions
-                                         when calculating trimmed_mean
-                                         [default: 0.05]
-   --trim-max FRACTION                   Maximum fraction for trimmed_mean
-                                         calculations [default: 0.95]
-   --no-zeros                            Omit printing of genomes that have zero
-                                         coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-   --bam-file-cache-directory            Output BAM files generated during
-                                         alignment to this directory
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
-   -v, --verbose                         Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Example usage:
-
-  coverm contig -b mapping.bam
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     let filter_help: &'static str =
         "coverm filter: Remove alignments with insufficient identity.
@@ -1115,6 +1146,7 @@ Other options:
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ")
+        .global_setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
@@ -1130,7 +1162,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read2")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved","single"])
+                         &["bam-files","coupled","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
@@ -1138,7 +1170,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read1")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved","single"])
+                         &["bam-files","coupled","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
@@ -1146,27 +1178,27 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","interleaved","single"])
+                         &["bam-files","read1","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("interleaved")
                      .long("interleaved")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled","single"])
+                         &["bam-files","read1","coupled","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("single")
                      .long("single")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled","interleaved"])
+                         &["bam-files","read1","coupled","interleaved","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .required_unless_one(&["bam-files","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
                      .long("bam-file-cache-directory")
@@ -1194,7 +1226,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["genome-fasta-files","genome-fasta-directory","single-genome"])
+                         &["genome-fasta-files","genome-fasta-directory","single-genome","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-files")
                      .short("f")
@@ -1204,7 +1236,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["separator","genome-fasta-directory","single-genome"])
+                         &["separator","genome-fasta-directory","single-genome","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-directory")
                      .short("d")
@@ -1213,7 +1245,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["genome-fasta-files","separator","single-genome"])
+                         &["genome-fasta-files","separator","single-genome","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-extension")
                      .short("x")
@@ -1298,7 +1330,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("contig")
                 .about("Calculate coverage of contigs")
-                .help(contig_help)
+                .help(CONTIG_HELP.as_str())
+
+                .arg(Arg::with_name("full-help")
+                     .long("full-help"))
 
                 .arg(Arg::with_name("bam-files")
                      .short("b")
@@ -1311,7 +1346,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read2")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved","single"])
+                         &["bam-files","coupled","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("read2")
                      .short("-2")
@@ -1319,7 +1354,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .requires("read1")
                      .required_unless_one(
-                         &["bam-files","coupled","interleaved","single"])
+                         &["bam-files","coupled","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("coupled")
                      .short("-c")
@@ -1327,27 +1362,27 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","interleaved","single"])
+                         &["bam-files","read1","interleaved","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("interleaved")
                      .long("interleaved")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled","single"])
+                         &["bam-files","read1","coupled","single","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("single")
                      .long("single")
                      .multiple(true)
                      .takes_value(true)
                      .required_unless_one(
-                         &["bam-files","read1","coupled","interleaved"])
+                         &["bam-files","read1","coupled","interleaved","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .required_unless("bam-files")
+                     .required_unless_one(&["bam-files","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
                      .long("bam-file-cache-directory")
@@ -1546,5 +1581,5 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true)
                      .allow_hyphen_values(true)
                      .requires("reference"))
-        )
+        );
 }
