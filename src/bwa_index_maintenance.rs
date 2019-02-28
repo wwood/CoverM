@@ -3,7 +3,7 @@ use std::io::Read;
 use std::collections::HashSet;
 use std::process;
 
-use concatenated_fasta_file_separator;
+use CONCATENATED_FASTA_FILE_SEPARATOR;
 
 use tempdir::TempDir;
 use tempfile::NamedTempFile;
@@ -124,17 +124,17 @@ pub fn generate_concatenated_fasta_file(
             if genome_names.contains(&genome_name) {
                 panic!("The genome name {} was derived from >1 file", genome_name);
             }
-            genome_names.insert(genome_name);
             for record in reader.records() {
                 something_written = true;
                 something_written_at_all = true;
                 let r = record.unwrap();
                 writer.write(
-                    &format!("{}{}{}", genome_name, concatenated_fasta_file_separator, r.id()),
+                    &format!("{}{}{}", genome_name, CONCATENATED_FASTA_FILE_SEPARATOR, r.id()),
                     r.desc(),
                     r.seq()
                 ).unwrap()
             }
+            genome_names.insert(genome_name);
             if !something_written {
                 error!(
                     "FASTA file {} appears to be empty as no sequences were contained in it",

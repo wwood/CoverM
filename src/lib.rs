@@ -25,7 +25,7 @@ use genomes_and_contigs::GenomesAndContigs;
 
 
 
-pub &'static str concatenated_fasta_file_separator  = "~";
+pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
 
 pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)

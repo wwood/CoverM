@@ -7,6 +7,7 @@ use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
 use coverm::coverage_printer::*;
 use coverm::FlagFilter;
+use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -652,7 +653,7 @@ fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
     } else {
         // Separator is set by CoverM and written into the generated reference
         // fasta file.
-        Some(concatenated_fasta_file_separator.as_bytes()[0])
+        Some(CONCATENATED_FASTA_FILE_SEPARATOR.as_bytes()[0])
     }
 }
 
@@ -1271,7 +1272,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
-                     .required_unless_one(&["bam-files","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
                      .long("bam-file-cache-directory")
@@ -1287,7 +1287,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bwa-parameters")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference"))
+                     .requires("reference")) // TODO: Relax this for autoconcatenation
                 .arg(Arg::with_name("discard-unmapped")
                      .long("discard-unmapped")
                      .requires("bam-file-cache-directory"))
