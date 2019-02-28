@@ -109,6 +109,94 @@ Other arguments (optional):
 Ben J. Woodcroft <benjwoodcroft near gmail.com>"
 }
 
+fn genome_full_help() -> &'static str {
+    "coverm genome: Calculate read coverage per-genome
+
+Define the contigs in each genome (exactly one of the following is required):
+   -s, --separator <CHARACTER>           This character separates genome names
+                                         from contig names
+   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome e.g.
+                                         'pathA/genome1.fna pathB/genome2.fa'
+   -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
+                                         genome
+   -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
+                                         specified with -d/--genome-fasta-directory
+                                         [default \"fna\"]
+   --single-genome                       All contigs are from the same genome
+
+Define mapping(s) (required):
+  Either define BAM:
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+
+  Or do mapping:
+   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+                                         e.g. assembly output
+   -t, --threads <INT>                   Number of threads to use for mapping
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
+   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
+
+Alignment filtering (optional):
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
+
+Other arguments (optional):
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One or more (space separated) of:
+                                              relative_abundance (default)
+                                              mean
+                                              trimmed_mean
+                                              coverage_histogram
+                                              covered_fraction
+                                              variance
+                                              length
+                                              count
+                                              reads_per_base
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: sparse]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0.10]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+"}
+
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -119,6 +207,10 @@ fn main(){
 
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
+            if m.is_present("full-help") {
+                println!("{}", genome_full_help());
+                process::exit(1);
+            }
             set_log_level(m, true);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
@@ -958,99 +1050,35 @@ See coverm contig --full-help for further options and further detail.
             ansi_term::Colour::Purple.paint(
                 "Example: Calculate MetaBAT adjusted coverage from a sorted BAM file:")
         ).to_string();
+
+        static ref GENOME_HELP: String = format!(
+            "
+                            {}
+               {}
+
+{}
+
+  coverm genome --coupled read1.fastq.gz read2.fastq.gz \
+    --reference assembly.fna --separator '~'
+
+{}
+
+  coverm genome --bam-files my.bam --genome-fasta-directory my_genomes_directory/
+
+See coverm genome --full-help for further options and further detail.
+",
+            ansi_term::Colour::Green.paint(
+                "coverm genome"),
+            ansi_term::Colour::Green.paint(
+                "Calculate coverage of individual genomes"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Map paired reads to a reference where the FASTA header separates the\n\
+                 genome name from the contig name with '~' e.g. >genome10~contig15"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Calculate coverage of genomes defined as .fna files in\n\
+                 my_genomes_directory/ from a sorted BAM file:"),
+        ).to_string();
     }
-
-    let genome_help: &'static str =
-        "coverm genome: Calculate read coverage per-genome
-
-Define the contigs in each genome (exactly one of the following is required):
-   -s, --separator <CHARACTER>           This character separates genome names
-                                         from contig names
-   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome e.g.
-                                         'pathA/genome1.fna pathB/genome2.fa'
-   -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
-                                         genome
-   -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
-                                         specified with -d/--genome-fasta-directory
-                                         [default \"fna\"]
-   --single-genome                       All contigs are from the same genome
-
-Define mapping(s) (required):
-  Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
-
-  Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. assembly output
-   -t, --threads <INT>                   Number of threads to use for mapping
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
-                                         FASTA/Q files for mapping in order
-                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
-                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
-   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
-   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
-
-Alignment filtering (optional):
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
-
-Other arguments (optional):
-   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One or more (space separated) of:
-                                              relative_abundance (default)
-                                              mean
-                                              trimmed_mean
-                                              coverage_histogram
-                                              covered_fraction
-                                              variance
-                                              length
-                                              count
-                                              reads_per_base
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: sparse]
-   --min-covered-fraction FRACTION       Genomes with less coverage than this
-                                         reported as having zero coverage.
-                                         [default: 0.10]
-   --contig-end-exclusion                Exclude bases at the ends of reference
-                                         sequences from calculation [default: 75]
-   --trim-min FRACTION                   Remove this smallest fraction of positions
-                                         when calculating trimmed_mean
-                                         [default: 0.05]
-   --trim-max FRACTION                   Maximum fraction for trimmed_mean
-                                         calculations [default: 0.95]
-   --no-zeros                            Omit printing of genomes that have zero
-                                         coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-   --bam-file-cache-directory            Output BAM files generated during
-                                         alignment to this directory
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
-   -v, --verbose                         Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Example usage:
-
-  coverm genome -f bins/*fa -c read1.fq.gz read2.fq.gz -r concatenated_genomes.fna
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>
-";
 
     let filter_help: &'static str =
         "coverm filter: Remove alignments with insufficient identity.
@@ -1150,7 +1178,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("genome")
                 .about("Calculate coverage of genomes")
-                .help(genome_help)
+                .help(GENOME_HELP.as_str())
+
+                .arg(Arg::with_name("full-help")
+                     .long("full-help"))
+
                 .arg(Arg::with_name("bam-files")
                      .short("b")
                      .long("bam-files")
