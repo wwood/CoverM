@@ -877,7 +877,8 @@ fn get_streamed_bam_readers<'a>(
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
                     discard_unmapped,
-                    p.bwa_options));
+                    p.bwa_options,
+                    reference_tempfile.is_none()));
         }
 
         debug!("Finished BAM setup");
@@ -1002,7 +1003,8 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,
                     p.bwa_options,
-                    discard_unmapped));
+                    discard_unmapped,
+                    reference_tempfile.is_none()));
         }
 
         debug!("Finished BAM setup");

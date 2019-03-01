@@ -206,7 +206,8 @@ pub fn generate_named_bam_readers_from_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     discard_unmapped: bool,
-    bwa_options: Option<&str>) -> StreamingNamedBamReaderGenerator {
+    bwa_options: Option<&str>,
+    include_reference_in_stoit_name: bool) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -276,13 +277,17 @@ pub fn generate_named_bam_readers_from_reads(
         log_files.push(samtools_view_cache_log);
     }
 
-    return StreamingNamedBamReaderGenerator {
-        stoit_name: std::path::Path::new(reference).file_name()
+    let stoit_name = match include_reference_in_stoit_name {
+        true => std::path::Path::new(reference).file_name()
             .expect("Unable to convert reference to file name").to_str()
-            .expect("Unable to covert file name into str").to_string()+"/"+
-            &std::path::Path::new(read1_path).file_name()
-            .expect("Unable to convert read1 name to file name").to_str()
-            .expect("Unable to covert file name into str").to_string(),
+            .expect("Unable to covert file name into str").to_string()+"/",
+        false => "".to_string()
+    } + &std::path::Path::new(read1_path).file_name()
+        .expect("Unable to convert read1 name to file name").to_str()
+        .expect("Unable to covert file name into str").to_string();
+
+    return StreamingNamedBamReaderGenerator {
+        stoit_name: stoit_name,
         tempdir: tmp_dir,
         fifo_path: fifo_path,
         pre_processes: vec![cmd],
@@ -474,11 +479,14 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
     bwa_options: Option<&str>,
-    discard_unmapped: bool) -> StreamingFilteredNamedBamReaderGenerator {
+    discard_unmapped: bool,
+    include_reference_in_stoit_name: bool)
+    -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
         reference, read1_path, read2_path, read_format, threads,
-        cached_bam_file, discard_unmapped, bwa_options);
+        cached_bam_file, discard_unmapped, bwa_options,
+        include_reference_in_stoit_name);
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,

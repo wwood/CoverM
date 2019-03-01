@@ -319,7 +319,8 @@ mod tests {
                     4,
                     None,
                     false,
-                    None)],
+                    None,
+                    true)],
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             false,
             false);
@@ -502,7 +503,8 @@ mod tests {
                     4,
                     None,
                     false,
-                    None)],
+                    None,
+                    true)],
             &mut vec!(CoverageEstimator::new_estimator_reads_per_base()),
             true,
             false);

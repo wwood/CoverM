@@ -626,8 +626,8 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                 "--trim-min",
                 "0.009"
             ]).succeeds().stdout().contains(
-                "reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.78705883"
-                //reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.84" //TODO: remove tmpfilename
+                "reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.78705883\n\
+                 reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.84\n"
             ).unwrap();
     }
 }
