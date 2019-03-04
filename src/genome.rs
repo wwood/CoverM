@@ -657,8 +657,6 @@ fn fill_genome_length_backwards(
     debug!("At start of fill_genome_length_backwards, found current_tid {}, target_genome {}",
           current_tid, str::from_utf8(target_genome).unwrap());
     if current_tid == 0 {
-        info!("Returning (first) UnobservedLengthAndFirstTid length {}, first_tid {}",
-              0, current_tid);
         return UnobservedLengthAndFirstTid {
             unobserved_contig_length: 0,
             first_tid: current_tid as usize
