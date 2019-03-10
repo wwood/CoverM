@@ -52,6 +52,7 @@ impl TemporaryBwaIndexStruct {
             .arg("-p")
             .arg(&index_path)
             .arg(&reference_path)
+            .stdout(std::process::Stdio::piped()) // Some versions output log info to stdout. Ignore this.
             .stderr(std::process::Stdio::piped());
         let mut process = cmd.spawn().expect("Failed to start BWA index process");
         let es = process.wait().expect("Failed to glean exitstatus from failing BWA index process");
