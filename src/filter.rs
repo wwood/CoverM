@@ -23,6 +23,7 @@ pub struct ReferenceSortedBamFilter {
     min_aligned_percent_pair: f32,
     pub num_detected_primary_alignments: u64,
     flag_filters: FlagFilter,
+    filter_out: bool, // true if we are filtering out reads
 }
 
 impl ReferenceSortedBamFilter {
@@ -34,7 +35,8 @@ impl ReferenceSortedBamFilter {
         min_aligned_percent_single: f32,
         min_aligned_length_pair: u32,
         min_percent_identity_pair: f32,
-        min_aligned_percent_pair: f32) -> ReferenceSortedBamFilter {
+        min_aligned_percent_pair: f32,
+        filter_out: bool) -> ReferenceSortedBamFilter {
 
         let filtering_single =
             min_aligned_length_single > 0 ||
@@ -60,6 +62,7 @@ impl ReferenceSortedBamFilter {
             min_aligned_percent_pair: min_aligned_percent_pair,
             num_detected_primary_alignments: 0,
             flag_filters: flag_filters,
+            filter_out: filter_out,
         }
     }
 }
@@ -70,19 +73,21 @@ impl ReferenceSortedBamFilter {
         if self.filter_single_reads && !self.filter_pairs {
             loop {
                 self.reader.read(&mut record)?;
-                if !record.is_unmapped() &&
+                let passes_filter = !record.is_unmapped() &&
                     (self.flag_filters.include_supplementary || !record.is_supplementary()) &&
-                    (self.flag_filters.include_secondary || !record.is_secondary()) {
-                        self.num_detected_primary_alignments += 1;
-                        if single_read_passes_filter(
-                            &record,
-                            self.min_aligned_length_single,
-                            self.min_percent_identity_single,
-                            self.min_aligned_percent_single) {
-                            return Ok(())
-                        }
-                        // else this read shall not pass, try another
+                    (self.flag_filters.include_secondary || !record.is_secondary());
+                if (passes_filter && self.filter_out) ||
+                    (!passes_filter && !self.filter_out) {
+                    self.num_detected_primary_alignments += 1;
+                    if single_read_passes_filter(
+                        &record,
+                        self.min_aligned_length_single,
+                        self.min_percent_identity_single,
+                        self.min_aligned_percent_single) {
+                        return Ok(())
                     }
+                    // else this read shall not pass, try another
+                }
             }
         }
 
@@ -108,6 +113,12 @@ impl ReferenceSortedBamFilter {
 
                     // if a new reference ID is encountered, instantiate a new first read set
                     if record.tid() != self.current_reference {
+                        if self.first_set.len() > 0 {
+                            warn!("After processing reference tid '{}', there were pairs \
+                                   of reads marked as proper, but appear to be improperly \
+                                   mapped since only one read was found mapping to this \
+                                   reference", self.current_reference);
+                        }
                         self.current_reference = record.tid();
                         self.first_set = BTreeMap::new();
                     }
@@ -124,6 +135,12 @@ impl ReferenceSortedBamFilter {
                             // continue the loop without returning as we need to see the second record
                         }
                         // pairs from different contigs are ignored.
+                        else {
+                            warn!(
+                                "Found a mapping record marked as being a proper pair, \
+                                 but mtid != tid, indicating it was an improper pair. Record was {:?}",
+                                record);
+                        }
                     }
                     else { // Second read in insert
                         let qname = String::from(str::from_utf8(record.qname())
@@ -135,7 +152,7 @@ impl ReferenceSortedBamFilter {
                                 // if filtering single and paired reads then
                                 // both must pass QC, as well as the pair
                                 // together.
-                                if (!self.filter_single_reads ||
+                                let passes_filter = (!self.filter_single_reads ||
                                     (single_read_passes_filter(
                                         &record1,
                                         self.min_aligned_length_single,
@@ -151,8 +168,9 @@ impl ReferenceSortedBamFilter {
                                         &record1,
                                         self.min_aligned_length_pair,
                                         self.min_percent_identity_pair,
-                                        self.min_aligned_percent_pair) {
-
+                                        self.min_aligned_percent_pair);
+                                if (passes_filter && self.filter_out) ||
+                                    (!passes_filter && !self.filter_out) {
                                         debug!("Read pair passed QC");
                                         self.known_next_read = Some(record.clone());
                                         record.clone_from(
@@ -164,7 +182,9 @@ impl ReferenceSortedBamFilter {
                                 }
                             },
                             // if pair is not in first read set, ignore it
-                            None => {}
+                            None => {
+                                error!("Programming error. Confused.");
+                            }
                         }
                     }
                 }
@@ -241,6 +261,7 @@ fn read_pair_passes_filter(
             Cigar::Ins(i) |
             Cigar::Diff(i) |
             Cigar::Equal(i) => {
+
                 aligned_length1 = aligned_length1 + i;
             },
             _ => {}
