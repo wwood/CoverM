@@ -341,6 +341,8 @@ pub fn print_dense_cached_coverage_taker<'a>(
                 }
                 stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
             }
+            debug!("stoit_by_entry_by_coverage: {:?}", stoit_by_entry_by_coverage);
+            debug!("Coverage multipliers: {:?}", coverage_multipliers);
 
             // Print out coverages iterating over entry IDs.
             for my_entry_i in 0..(stoit_by_entry_by_coverage[0].len()) {
@@ -348,7 +350,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
                        entry_names[stoit_by_entry_by_coverage[0][my_entry_i].entry_index]
                        .as_ref().unwrap())
                     .unwrap();
-                for stoit_entries in stoit_by_entry_by_coverage.iter() {
+                for (stoit_i, stoit_entries) in stoit_by_entry_by_coverage.iter().enumerate() {
                     let ecs = &stoit_entries[my_entry_i as usize];
                     let coverages = &ecs.coverages;
                     for (i, cov) in coverages.iter().enumerate() {
@@ -357,7 +359,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
                                 print_stream, "\t{}",
                                 coverages[i]
                                     *100.0
-                                    *coverage_multipliers[i]
+                                    *coverage_multipliers[stoit_i]
                                     /coverage_totals[ecs.stoit_index as usize][i].unwrap()).unwrap();
                         } else {
                             write!(print_stream, "\t{}", cov).unwrap();

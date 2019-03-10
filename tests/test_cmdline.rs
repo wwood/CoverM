@@ -630,6 +630,26 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                  reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.84\n"
             ).unwrap();
     }
+
+    #[test]
+    fn test_single_genome_bug_dense() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--single-genome",
+                "-r",
+                "tests/data/dense_interleaved_single_genome_bug/ref.fna",
+                "--interleaved",
+                "tests/data/dense_interleaved_single_genome_bug/reads_interleaved.fna",
+                "tests/data/dense_interleaved_single_genome_bug/reads_interleaved2.fna",
+                "--output-format",
+                "dense"
+            ]).succeeds().stdout().is(
+                "Genome\tref.fna/reads_interleaved.fna Relative Abundance (%)\t\
+                 ref.fna/reads_interleaved2.fna Relative Abundance (%)\n\
+                 unmapped\t25\t33.333332\n\
+                 genome1\t75\t66.66667\n").unwrap();
+    }
 }
 
 
