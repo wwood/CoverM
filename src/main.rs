@@ -405,7 +405,8 @@ fn main(){
                     filter_params.min_aligned_percent_single,
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
-                    filter_params.min_aligned_percent_pair);
+                    filter_params.min_aligned_percent_pair,
+                    !m.is_present("inverse"));
 
                 let mut record = bam::record::Record::new();
                 while filtered.read(&mut record).is_ok() {
@@ -1155,7 +1156,9 @@ Thresholds:
 Other:
    -t, --threads <INT>                   Number of threads for output compression
                                          [default 1]
-   -v, --verbose                         Print extra debugging information
+   --inverse                             Only keep reads which are unmapped or
+                                         align below thresholds. [default false]
+   --verbose                             Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
 
@@ -1560,6 +1563,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true)
                      .required(true))
+                .arg(Arg::with_name("inverse")
+                     .long("inverse"))
 
                 .arg(Arg::with_name("min-read-aligned-length")
                      .long("min-read-aligned-length")
@@ -1591,7 +1596,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .default_value("1"))
 
                 .arg(Arg::with_name("verbose")
-                     .short("v")
+                     // .short("v") // Do not use since could be confused with
+                     // inverse (a la grep -v)
                      .long("verbose"))
                 .arg(Arg::with_name("quiet")
                      .short("q")

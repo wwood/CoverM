@@ -23,6 +23,7 @@ pub struct ReferenceSortedBamFilter {
     min_aligned_percent_pair: f32,
     pub num_detected_primary_alignments: u64,
     flag_filters: FlagFilter,
+    filter_out: bool, // true if we are filtering out reads
 }
 
 impl ReferenceSortedBamFilter {
@@ -34,7 +35,8 @@ impl ReferenceSortedBamFilter {
         min_aligned_percent_single: f32,
         min_aligned_length_pair: u32,
         min_percent_identity_pair: f32,
-        min_aligned_percent_pair: f32) -> ReferenceSortedBamFilter {
+        min_aligned_percent_pair: f32,
+        filter_out: bool) -> ReferenceSortedBamFilter {
 
         let filtering_single =
             min_aligned_length_single > 0 ||
@@ -60,6 +62,7 @@ impl ReferenceSortedBamFilter {
             min_aligned_percent_pair: min_aligned_percent_pair,
             num_detected_primary_alignments: 0,
             flag_filters: flag_filters,
+            filter_out: filter_out,
         }
     }
 }
@@ -70,19 +73,25 @@ impl ReferenceSortedBamFilter {
         if self.filter_single_reads && !self.filter_pairs {
             loop {
                 self.reader.read(&mut record)?;
-                if !record.is_unmapped() &&
+                if record.is_unmapped() && !self.filter_out {
+                    return Ok(())
+                }
+                let passes_filter1 = !record.is_unmapped() &&
                     (self.flag_filters.include_supplementary || !record.is_supplementary()) &&
-                    (self.flag_filters.include_secondary || !record.is_secondary()) {
-                        self.num_detected_primary_alignments += 1;
-                        if single_read_passes_filter(
-                            &record,
-                            self.min_aligned_length_single,
-                            self.min_percent_identity_single,
-                            self.min_aligned_percent_single) {
+                    (self.flag_filters.include_secondary || !record.is_secondary());
+                if passes_filter1 {
+                    self.num_detected_primary_alignments += 1;
+                    let passes_filter2 = single_read_passes_filter(
+                        &record,
+                        self.min_aligned_length_single,
+                        self.min_percent_identity_single,
+                        self.min_aligned_percent_single);
+                    if (passes_filter2 && self.filter_out) ||
+                        (!passes_filter2 && !self.filter_out) {
                             return Ok(())
                         }
-                        // else this read shall not pass, try another
                     }
+                // else this read shall not pass, try another
             }
         }
 
@@ -96,6 +105,11 @@ impl ReferenceSortedBamFilter {
                            record.is_secondary(),
                            record.is_supplementary(),
                            !record.is_proper_pair());
+
+                    if record.is_unmapped() && !self.filter_out {
+                        return Ok(())
+                    }
+
                     // TODO: make usage ensure flag_filtering when mapping
                     if record.is_secondary() ||
                         record.is_supplementary() {
@@ -108,11 +122,17 @@ impl ReferenceSortedBamFilter {
 
                     // if a new reference ID is encountered, instantiate a new first read set
                     if record.tid() != self.current_reference {
+                        if self.first_set.len() > 0 {
+                            warn!("After processing reference tid '{}', there were pairs \
+                                   of reads marked as proper, but appear to be improperly \
+                                   mapped since only one read was found mapping to this \
+                                   reference", self.current_reference);
+                        }
                         self.current_reference = record.tid();
                         self.first_set = BTreeMap::new();
                     }
-                    // if this is a first read
-                    if record.insert_size() > 0 {
+
+                    if record.insert_size() > 0 { // if this is a first read
                         if record.mtid() == self.current_reference {
                             // if tlen is +ve and < threshold
                             // add to first read set
@@ -124,6 +144,12 @@ impl ReferenceSortedBamFilter {
                             // continue the loop without returning as we need to see the second record
                         }
                         // pairs from different contigs are ignored.
+                        else {
+                            warn!(
+                                "Found a mapping record marked as being a proper pair, \
+                                 but mtid != tid, indicating it was an improper pair. Record was {:?}",
+                                record);
+                        }
                     }
                     else { // Second read in insert
                         let qname = String::from(str::from_utf8(record.qname())
@@ -135,7 +161,7 @@ impl ReferenceSortedBamFilter {
                                 // if filtering single and paired reads then
                                 // both must pass QC, as well as the pair
                                 // together.
-                                if (!self.filter_single_reads ||
+                                let passes_filter = (!self.filter_single_reads ||
                                     (single_read_passes_filter(
                                         &record1,
                                         self.min_aligned_length_single,
@@ -151,8 +177,9 @@ impl ReferenceSortedBamFilter {
                                         &record1,
                                         self.min_aligned_length_pair,
                                         self.min_percent_identity_pair,
-                                        self.min_aligned_percent_pair) {
-
+                                        self.min_aligned_percent_pair);
+                                if (passes_filter && self.filter_out) ||
+                                    (!passes_filter && !self.filter_out) {
                                         debug!("Read pair passed QC");
                                         self.known_next_read = Some(record.clone());
                                         record.clone_from(
@@ -164,7 +191,9 @@ impl ReferenceSortedBamFilter {
                                 }
                             },
                             // if pair is not in first read set, ignore it
-                            None => {}
+                            None => {
+                                error!("Programming error. Confused.");
+                            }
                         }
                     }
                 }
@@ -241,6 +270,7 @@ fn read_pair_passes_filter(
             Cigar::Ins(i) |
             Cigar::Diff(i) |
             Cigar::Equal(i) => {
+
                 aligned_length1 = aligned_length1 + i;
             },
             _ => {}
@@ -287,7 +317,7 @@ mod tests {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0,0.0,0.0, 90, 0.99, 0.0);
+            0,0.0,0.0, 90, 0.99, 0.0, true);
         let queries = vec![
             "9",
             "9",
@@ -323,17 +353,39 @@ mod tests {
     }
 
     #[test]
-    fn test_one_bad_read(){
+    fn test_hello_world_inverse() {
         let reader = bam::Reader::from_path(
-            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+            &"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 
+            reader,
             FlagFilter {
                 include_improper_pairs: false,
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0,0.0,0.0, 250, 0.99, 0.0); // perc too high
+            0,0.0,0.0, 90, 0.99, 0.0, false);
+        let queries: Vec<&str> = vec![];
+        let mut record = bam::record::Record::new();
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+        assert!(sorted.read(&mut record).is_err())
+    }
+
+    #[test]
+    fn test_one_bad_read(){
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 250, 0.99, 0.0, true); // perc too high
         let queries = vec![
             "2",
             "2",
@@ -349,13 +401,13 @@ mod tests {
         let reader = bam::Reader::from_path(
             &"tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
-            reader, 
+            reader,
             FlagFilter {
                 include_improper_pairs: false,
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0,0.0,0.0, 300, 0.98, 0.0); // aligned length too high
+            0,0.0,0.0, 300, 0.98, 0.0, true); // aligned length too high
         let queries = vec![
             "2",
             "2",
@@ -376,7 +428,7 @@ mod tests {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0,0.0,0.0, 0, 0.98, 0.94); // aligned percent too high
+            0,0.0,0.0, 0, 0.98, 0.94, true); // aligned percent too high
         let queries = vec![
             "2",
             "2",
@@ -397,12 +449,90 @@ mod tests {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0,0.0,0.0, 299, 0.98, 0.0);
+            0,0.0,0.0, 299, 0.98, 0.0, true);
         let queries = vec![
             "1",
             "1",
             "2",
             "2"];
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_one_bad_read_inverse(){
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 250, 0.99, 0.0, false); // perc too high
+        let queries = vec![
+            "1",
+            "1"];
+        let mut record = bam::record::Record::new();
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 300, 0.98, 0.0, false); // aligned length too high
+        let queries = vec![
+            "1",
+            "1"];
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 0, 0.98, 0.94, false); // aligned percent too high
+        let queries = vec![
+            "1",
+            "1"];
+        for i in queries {
+            println!("query: {}", i);
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0,0.0,0.0, 299, 0.98, 0.0, false);
+        let queries: Vec<&str> = vec![];
         for i in queries {
             println!("query: {}", i);
             sorted.read(&mut record).expect("");
@@ -421,13 +551,36 @@ mod tests {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0, 0.99, 0.0, 0,0.0,0.0); // perc too high
+            0, 0.99, 0.0, 0,0.0,0.0, true); // perc too high
         assert_eq!(true, sorted.filter_single_reads);
         assert_eq!(false, sorted.filter_pairs);
         let queries = vec!["2",
                            "3",
                            "4",
                            "1",];
+        let mut record = bam::record::Record::new();
+        println!("query: {:?}", queries);
+        for i in queries {
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_filter_single_reads_inverse(){
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0, 0.99, 0.0, 0,0.0,0.0, false); // perc too high
+        assert_eq!(true, sorted.filter_single_reads);
+        assert_eq!(false, sorted.filter_pairs);
+        let queries = vec!["1"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {
@@ -447,7 +600,7 @@ mod tests {
                 include_secondary: false,
                 include_supplementary: false,
             },
-            0, 0.95, 0.0, 300,0.0,0.0); // perc OK, but pair fails on length
+            0, 0.95, 0.0, 300,0.0,0.0, true); // perc OK, but pair fails on length
         assert_eq!(true, sorted.filter_single_reads);
         assert_eq!(true, sorted.filter_pairs);
         let queries = vec!["2",
@@ -456,6 +609,30 @@ mod tests {
                            "3",
                            "4",
                            "4"];
+        let mut record = bam::record::Record::new();
+        println!("query: {:?}", queries);
+        for i in queries {
+            sorted.read(&mut record).expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_filter_single_and_paired_reads_inverse(){
+        let reader = bam::Reader::from_path(
+            &"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            0, 0.95, 0.0, 300,0.0,0.0, false); // perc OK, but pair fails on length
+        assert_eq!(true, sorted.filter_single_reads);
+        assert_eq!(true, sorted.filter_pairs);
+        let queries = vec!["1",
+                           "1"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {

@@ -357,7 +357,8 @@ pub fn generate_filtered_bam_readers_from_bam_files(
                 min_aligned_percent_single,
                 min_aligned_length_pair,
                 min_percent_identity_pair,
-                min_aligned_percent_pair),
+                min_aligned_percent_pair,
+                true),
         };
 
         generators.push(
@@ -427,7 +428,8 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             self.min_aligned_percent_single,
             self.min_aligned_length_pair,
             self.min_percent_identity_pair,
-            self.min_aligned_percent_pair);
+            self.min_aligned_percent_pair,
+            true);
         return StreamingFilteredNamedBamReader {
             stoit_name: self.stoit_name,
             filtered_stream: filtered_stream,
