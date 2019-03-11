@@ -358,9 +358,12 @@ pub fn print_dense_cached_coverage_taker<'a>(
                             write!(
                                 print_stream, "\t{}",
                                 coverages[i]
+                                    // Divide first because then there is less
+                                    // rounding errors, particularly when
+                                    // coverage == coverage_total
+                                    /coverage_totals[ecs.stoit_index as usize][i].unwrap()
                                     *100.0
-                                    *coverage_multipliers[stoit_i]
-                                    /coverage_totals[ecs.stoit_index as usize][i].unwrap()).unwrap();
+                                    *coverage_multipliers[stoit_i]).unwrap();
                         } else {
                             write!(print_stream, "\t{}", cov).unwrap();
                         }

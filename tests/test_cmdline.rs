@@ -404,7 +404,7 @@ genome6~random_sequence_length_11003	0").unwrap();
                 "Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)
 unmapped	0
 genome1	0
-genome2	53.16792
+genome2	53.167923
 genome3	0
 genome4	0
 genome5	46.832077
