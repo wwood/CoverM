@@ -80,6 +80,7 @@ Other arguments (optional):
                                            trimmed_mean
                                            coverage_histogram
                                            covered_fraction
+                                           covered_bases
                                            variance
                                            length
                                            count
@@ -169,6 +170,7 @@ Other arguments (optional):
                                               trimmed_mean
                                               coverage_histogram
                                               covered_fraction
+                                              covered_bases
                                               variance
                                               length
                                               count
@@ -533,6 +535,10 @@ impl<'a> EstimatorsAndTaker<'a> {
                     },
                     &"covered_fraction" => {
                         estimators.push(CoverageEstimator::new_estimator_covered_fraction(
+                            min_fraction_covered, contig_end_exclusion));
+                    },
+                    &"covered_bases" => {
+                        estimators.push(CoverageEstimator::new_estimator_covered_bases(
                             min_fraction_covered, contig_end_exclusion));
                     },
                     &"variance" =>{
@@ -1373,6 +1379,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "trimmed_mean",
                          "coverage_histogram",
                          "covered_fraction",
+                         "covered_bases",
                          "variance",
                          "length",
                          "count",
@@ -1514,6 +1521,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "trimmed_mean",
                          "coverage_histogram",
                          "covered_fraction",
+                         "covered_bases",
                          "variance",
                          "length",
                          "count",

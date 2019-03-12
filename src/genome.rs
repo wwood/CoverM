@@ -1129,6 +1129,38 @@ mod tests {
     }
 
     #[test]
+    fn test_covered_bases_estimator(){
+        // $ samtools depth 7seqs.reads_for_seq1_and_seq2.bam  |cut -f1 |us
+        // 849 genome5~seq2
+        // 669 genome2~seq1
+        test_streaming_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t669\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t849\n",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            '~' as u8,
+            false,
+            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0,0)),
+            false,
+            false);
+    }
+
+    #[test]
+    fn test_covered_bases_estimator_contig_end_exclusion(){
+        // $ samtools depth 7seqs.reads_for_seq1_and_seq2.bam |awk '$2 > 75 && $2 < 926' |cut -f1 |us
+        // 714 genome5~seq2
+        // 669 genome2~seq1
+        test_streaming_with_stream(
+            "7seqs.reads_for_seq1_and_seq2\tgenome2\t669\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t714\n",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            '~' as u8,
+            false,
+            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0,75)),
+            false,
+            false);
+    }
+
+    #[test]
     fn test_zero_coverage_genomes_contig_names(){
         let mut geco = GenomesAndContigs::new();
         // >genome1~random_sequence_length_11000
