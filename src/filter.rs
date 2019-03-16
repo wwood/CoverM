@@ -132,68 +132,59 @@ impl ReferenceSortedBamFilter {
                         self.first_set = BTreeMap::new();
                     }
 
-                    if record.insert_size() > 0 { // if this is a first read
-                        if record.mtid() == self.current_reference {
-                            // if tlen is +ve and < threshold
-                            // add to first read set
-                            let qname = String::from(str::from_utf8(record.qname())
-                                                     .expect("UTF8 error in conversion of read name"));
+                    let qname = String::from(str::from_utf8(record.qname())
+                                             .expect("UTF8 error in conversion of read name"));
 
-                            debug!("Testing qname1 {}", qname);
-                            self.first_set.insert(Rc::new(qname), Rc::new(record.clone()));
-                            // continue the loop without returning as we need to see the second record
-                        }
-                        // pairs from different contigs are ignored.
-                        else {
-                            warn!(
-                                "Found a mapping record marked as being a proper pair, \
-                                 but mtid != tid, indicating it was an improper pair. Record was {:?}",
-                                record);
-                        }
-                    }
-                    else { // Second read in insert
-                        let qname = String::from(str::from_utf8(record.qname())
-                                                 .expect("UTF8 error in conversion of read name"));
-
-                        debug!("Testing qname2 {}", qname);
-                        match self.first_set.remove(&qname) {
-                            Some(record1) => {
-                                // if filtering single and paired reads then
-                                // both must pass QC, as well as the pair
-                                // together.
-                                let passes_filter = (!self.filter_single_reads ||
-                                    (single_read_passes_filter(
-                                        &record1,
-                                        self.min_aligned_length_single,
-                                        self.min_percent_identity_single,
-                                        self.min_aligned_percent_single) &&
-                                     single_read_passes_filter(
-                                         &record,
-                                         self.min_aligned_length_single,
-                                         self.min_percent_identity_single,
-                                         self.min_aligned_percent_single))) &&
-                                    read_pair_passes_filter(
-                                        &record,
-                                        &record1,
-                                        self.min_aligned_length_pair,
-                                        self.min_percent_identity_pair,
-                                        self.min_aligned_percent_pair);
-                                if (passes_filter && self.filter_out) ||
-                                    (!passes_filter && !self.filter_out) {
-                                        debug!("Read pair passed QC");
-                                        self.known_next_read = Some(record.clone());
-                                        record.clone_from(
-                                            &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"));
-                                        debug!("Returning..");
-                                        return Ok(())
-                                    } else {
-                                        debug!("Read pair did not pass QC");
-                                }
-                            },
-                            // if pair is not in first read set, ignore it
-                            None => {
-                                error!("Programming error. Confused.");
+                    match self.first_set.remove(&qname) {
+                        None => {
+                            debug!("Processing qname1 {}", qname);
+                            if record.mtid() == self.current_reference {
+                                // if tlen is +ve and < threshold
+                                // add to first read set
+                                self.first_set.insert(Rc::new(qname), Rc::new(record.clone()));
+                                // continue the loop without returning as we need to see the second record
                             }
+                            // pairs from different contigs are ignored.
+                            else {
+                                warn!(
+                                    "Found a mapping record marked as being a proper pair, \
+                                     but mtid != tid, indicating it was an improper pair. Record was {:?}",
+                                    record);
+                            }
+                        },
+                        Some(record1) => {
+                            debug!("Testing qname2 {}", qname);
+                            // if filtering single and paired reads then
+                            // both must pass QC, as well as the pair
+                            // together.
+                            let passes_filter = (!self.filter_single_reads ||
+                                                 (single_read_passes_filter(
+                                                     &record1,
+                                                     self.min_aligned_length_single,
+                                                     self.min_percent_identity_single,
+                                                     self.min_aligned_percent_single) &&
+                                                  single_read_passes_filter(
+                                                      &record,
+                                                      self.min_aligned_length_single,
+                                                      self.min_percent_identity_single,
+                                                      self.min_aligned_percent_single))) &&
+                                read_pair_passes_filter(
+                                    &record,
+                                    &record1,
+                                    self.min_aligned_length_pair,
+                                    self.min_percent_identity_pair,
+                                    self.min_aligned_percent_pair);
+                            if (passes_filter && self.filter_out) ||
+                                (!passes_filter && !self.filter_out) {
+                                    debug!("Read pair passed QC");
+                                    self.known_next_read = Some(record.clone());
+                                    record.clone_from(
+                                        &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"));
+                                    debug!("Returning..");
+                                    return Ok(())
+                                } else {
+                                    debug!("Read pair did not pass QC");
+                                }
                         }
                     }
                 }
@@ -639,5 +630,29 @@ mod tests {
             sorted.read(&mut record).expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
+    }
+
+    #[test]
+    fn test_first_encountered_read_having_negative_insert_length(){
+        // Rare, I think.
+        let reader = bam::Reader::from_path(
+            &"tests/data/eg2.bam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: false,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            // 1 base required from reads mapped in proper pair, all pass.
+            0, 0.0, 0.0, 1,0.0,0.0, true);
+        assert_eq!(false, sorted.filter_single_reads);
+        assert_eq!(true, sorted.filter_pairs);
+        let mut num_passing: u64 = 0;
+        let mut record = bam::record::Record::new();
+        while sorted.read(&mut record).is_ok() {
+            num_passing += 1;
+        }
+        assert_eq!(11192, num_passing);
     }
 }
