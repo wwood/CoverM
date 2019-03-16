@@ -703,6 +703,25 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
             .stdout().contains("random_sequence_length_100\t141")
             .unwrap();
     }
+
+    #[test]
+    fn test_caches_when_reference_not_specified() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir/",
+                "--bam-file-cache-directory",
+                td.path().to_str().unwrap()
+            ]).succeeds().unwrap();
+        assert!(td.path()
+                .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
+                .is_file());
+    }
 }
 
 

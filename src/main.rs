@@ -31,6 +31,7 @@ use tempfile::NamedTempFile;
 #[macro_use]
 extern crate lazy_static;
 
+const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
 fn contig_full_help() -> &'static str {
     "coverm contig: Calculate read coverage per-contig
@@ -867,7 +868,11 @@ fn get_streamed_bam_readers<'a>(
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
                         m.value_of("bam-file-cache-directory").unwrap(),
-                        reference, naming_readset);
+                        match reference_tempfile {
+                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
+                            None => reference
+                        },
+                        naming_readset);
                     info!("Caching BAM file to {}", bam_file_cache_path);
                     Some(bam_file_cache_path)
                 }
@@ -899,6 +904,8 @@ fn get_streamed_bam_readers<'a>(
 }
 
 fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &str) -> String {
+    debug!("Constructing BAM file cache name in directory {}, reference {}, read1_path {}",
+           directory, reference, read1_path);
     std::path::Path::new(directory).to_str()
         .expect("Unable to covert bam-file-cache-directory name into str").to_string()+"/"+
         &std::path::Path::new(reference).file_name()
@@ -986,7 +993,11 @@ fn get_streamed_filtered_bam_readers(
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
                         m.value_of("bam-file-cache-directory").unwrap(),
-                        reference, naming_readset);
+                        match reference_tempfile {
+                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
+                            None => reference
+                        },
+                        naming_readset);
                     info!("Caching BAM file to {}", bam_file_cache_path);
                     Some(bam_file_cache_path)
                 }
