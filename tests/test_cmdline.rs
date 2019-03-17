@@ -49,6 +49,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "--min-read-percent-identity-pair",
                 "0.95",
                 "--contig-end-exclusion",
@@ -79,6 +81,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "--min-read-percent-identity-pair",
                 "0.95",
                 "--contig-end-exclusion",
@@ -154,6 +158,8 @@ mod tests {
                 "0",
                 "-r",
                 "tests/data/2seqs.fasta",
+                "--output-format",
+                "sparse",
                 "--interleaved",
                 "tests/data/bad_reads.interleaved.fq",
             ])
@@ -178,6 +184,8 @@ mod tests {
                 "--contig-end-exclusion",
                 "0",
                 "--proper-pairs-only",
+                "--output-format",
+                "sparse",
             ])
             .succeeds()
             .stdout().contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
@@ -189,6 +197,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--single",
@@ -209,6 +219,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--output-format",
+                "sparse",
                 "--coupled",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
@@ -238,6 +250,8 @@ mod tests {
                 "--coupled",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--output-format",
+                "sparse",
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
@@ -333,6 +347,8 @@ mod tests {
                 "--coupled",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--output-format",
+                "sparse",
                 "--reference",
                 "tests/data/7seqs.fna",
                 "-s","~"]).succeeds().stdout().contains(
@@ -357,6 +373,8 @@ mod tests {
                 "mean",
                 "-b",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "--output-format",
+                "sparse",
                 "-s",
                 "~"]).succeeds().stdout().contains(
                 "Sample	Genome	Relative Abundance (%)	Mean
@@ -422,6 +440,8 @@ genome6	0").unwrap();
                 "variance",
                 "-r",
                 "tests/data/7seqs.fna",
+                "--output-format",
+                "sparse",
                 "-c",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
@@ -452,6 +472,8 @@ genome6	0").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "-m",
                 "mean",
                 "variance",
@@ -485,6 +507,8 @@ genome6	0").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--single",
@@ -496,6 +520,8 @@ genome6	0").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--output-format",
+                "sparse",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--bwa-parameters",
@@ -556,6 +582,8 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--output-format",
+                "sparse",
                 "-m",
                 "trimmed_mean",
                 "mean",
@@ -584,6 +612,8 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--output-format",
+                "sparse",
                 "-m",
                 "trimmed_mean",
                 "mean",
@@ -621,6 +651,8 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                 "--genome-fasta-files",
                 "tests/data/genomes_dir/seq1.fna",
                 "tests/data/genomes_dir/seq2.fna",
+                "--output-format",
+                "sparse",
                 "--trim-max",
                 "0.01",
                 "--trim-min",

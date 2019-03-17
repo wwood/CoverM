@@ -89,7 +89,7 @@ Other arguments (optional):
                                            reads_per_base
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
-                                         [default: sparse]
+                                         [default: dense]
    --min-covered-fraction FRACTION       Contigs with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
@@ -178,7 +178,7 @@ Other arguments (optional):
                                               reads_per_base
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
-                                         [default: sparse]
+                                         [default: dense]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.10]
@@ -1416,7 +1416,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
-                     .default_value("sparse"))
+                     .default_value("dense"))
 
                 .arg(Arg::with_name("verbose")
                      .short("v")
@@ -1559,7 +1559,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
-                     .default_value("sparse"))
+                     .default_value("dense"))
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))
