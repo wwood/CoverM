@@ -248,15 +248,21 @@ pub fn generate_named_bam_readers_from_reads(
         ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
         ReadFormat::Single => format!("'{}'", read1_path),
     };
+    let bwa_sort_prefix = tempfile::Builder::new()
+        .prefix("coverm-make-samtools-sort")
+        .tempfile_in(tmp_dir.path())
+        .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
          bwa mem {} -t {} '{}' {} 2>{} \
-         | samtools sort -l0 -@ {} 2>{} \
+         | samtools sort -T '{}' -l0 -@ {} 2>{} \
          {}",
         // BWA
         bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
+        bwa_sort_prefix.path().to_str()
+            .expect("Failed to convert bwa_sort_prefix tempfile to str"),
         threads-1,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // Caching (or not)
@@ -557,15 +563,21 @@ pub fn generate_bam_maker_generator_from_reads(
         ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
         ReadFormat::Single => format!("'{}'", read1_path),
     };
+    let bwa_sort_prefix = tempfile::Builder::new()
+        .prefix("coverm-make-samtools-sort")
+        .tempfile()
+        .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
          bwa mem {} -t {} '{}' {} 2>{} \
-         | samtools sort -l0 -@ {} 2>{} \
+         | samtools sort -T '{}' -l0 -@ {} 2>{} \
          | samtools view {} -b -t {} -o '{}' 2>{}",
         // BWA
         bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
         bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
+        bwa_sort_prefix.path().to_str()
+            .expect("Failed to convert bwa_sort_prefix tempfile to str"),
         threads-1,
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools view
