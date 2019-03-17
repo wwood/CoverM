@@ -117,7 +117,11 @@ impl ReferenceSortedBamFilter {
                         }
                     self.num_detected_primary_alignments += 1;
                     if !record.is_proper_pair() {
-                        continue
+                        if self.filter_out {
+                            continue
+                        } else {
+                            return Ok(())
+                        }
                     }
 
                     // if a new reference ID is encountered, instantiate a new first read set

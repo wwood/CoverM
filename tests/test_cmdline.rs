@@ -680,6 +680,25 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
     fn test_filter_unmapped_inverse(){
         let tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t1 = tf1.path().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "filter",
+                "--inverse",
+                "-b",
+                "tests/data/dense_interleaved_single_genome_bug/ref.fna.r1.fna.bam",
+                "-o",
+                t1]).succeeds().unwrap();
+        Assert::command(&["samtools","view",t1])
+            .stdout().doesnt_contain("random_sequence_length_1000")
+            .stdout().contains("seq4\t77")
+            .stdout().contains("seq4\t141")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_filter_unmapped_inverse_improper_pairs(){
+        let tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t1 = tf1.path().to_str().unwrap();
         let tf2: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t2 = tf2.path().to_str().unwrap();
         Assert::main_binary()
@@ -687,22 +706,23 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                 "filter",
                 "--inverse",
                 "-b",
+                // all mappings are improper pairs since too few reads were aligned
                 "tests/data/dense_interleaved_single_genome_bug/ref.fna.reads_interleaved.fna.bam",
                 "tests/data/dense_interleaved_single_genome_bug/ref.fna.reads_interleaved2.fna.bam",
                 "-o",
                 t1,
                 t2]).succeeds().unwrap();
         Assert::command(&["samtools","view",t1])
-            .stdout().doesnt_contain("random_sequence_length_1000")
+            .stdout().contains("random_sequence_length_1000")
             .stdout().contains("random_sequence_length_100\t77")
             .stdout().contains("random_sequence_length_100\t141")
             .unwrap();
         Assert::command(&["samtools","view",t2])
-            .stdout().doesnt_contain("random_sequence_length_1000")
+            .stdout().contains("random_sequence_length_1000")
             .stdout().contains("random_sequence_length_100\t77")
             .stdout().contains("random_sequence_length_100\t141")
             .unwrap();
-    }
+     }
 
     #[test]
     fn test_caches_when_reference_not_specified() {
