@@ -1,6 +1,6 @@
 [package]
 name = "coverm"
-version = "0.2.0-alpha5"
+version = "0.2.0-alpha5-dirty"
 authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
 license = "GPL-3.0"
 description = "Read coverage calculator for metagenomics"
@@ -10,12 +10,12 @@ documentation = "https://github.com/wwood/CoverM"
 readme = "README.md"
 
 [dependencies]
-bio = "0.20.*"
+bio = "0.25.*"
 rust-htslib = "0.22.*"
 clap = "2.*"
 log = "0.4.*"
-env_logger = "0.5.*"
-nix = "0.11.*"
+env_logger = "0.6.*"
+nix = "0.13.*"
 tempdir = "0.3.*"
 tempfile = "3.0.*"
 ansi_term = "0.11"
