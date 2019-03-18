@@ -16,6 +16,7 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
+use std::fs::File;
 
 extern crate clap;
 use clap::*;
@@ -87,6 +88,7 @@ Other arguments (optional):
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
                                            reads_per_base
+   -o, --output <FILE>                   Output to this file, or '-' for STDOUT.
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
@@ -176,6 +178,7 @@ Other arguments (optional):
                                               length
                                               count
                                               reads_per_base
+   -o, --output <FILE>                   Output to this file, or '-' for STDOUT.
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
@@ -205,7 +208,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 fn main(){
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
 
     match matches.subcommand_name() {
@@ -217,11 +219,10 @@ fn main(){
                 process::exit(1);
             }
             set_log_level(m, true);
+            let mut print_stream = setup_output_stream(&m);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, print_stream);
-            estimators_and_taker = estimators_and_taker.print_headers(
-                &"Genome", &mut std::io::stdout());
+                m, &mut print_stream, &"Genome");
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -304,13 +305,12 @@ fn main(){
                 process::exit(1);
             }
             set_log_level(m, true);
+            let mut print_stream = setup_output_stream(&m);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut print_stream);
-            estimators_and_taker = estimators_and_taker.print_headers(
-                &"Contig", &mut std::io::stdout());
+                m, &mut print_stream, &"Contig");
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -473,6 +473,20 @@ fn main(){
     }
 }
 
+fn setup_output_stream(
+    m: &clap::ArgMatches) -> Box<dyn std::io::Write> {
+
+    let output_filename = m.value_of("output").unwrap();
+    match output_filename {
+        "-" => Box::new(std::io::stdout()),
+        _ => {
+            debug!("Creating output file '{}'", output_filename);
+            Box::new(File::create(output_filename).expect(
+                &format!("Unable to create output file '{}'", output_filename)))
+        }
+    }
+}
+
 struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
@@ -482,7 +496,7 @@ struct EstimatorsAndTaker<'a> {
 
 impl<'a> EstimatorsAndTaker<'a> {
     pub fn generate_from_clap(
-        m: &clap::ArgMatches, stream: &'a mut std::io::Stdout)
+        m: &clap::ArgMatches, stream: &'a mut std::io::Write, entry_type: &str)
         -> EstimatorsAndTaker<'a> {
         let mut estimators = vec!();
         let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
@@ -498,7 +512,7 @@ impl<'a> EstimatorsAndTaker<'a> {
 
         let taker;
         let output_format = m.value_of("output-format").unwrap();
-        let printer;
+        let mut printer;
 
         if doing_metabat(&m) {
             estimators.push(CoverageEstimator::new_estimator_length());
@@ -570,14 +584,26 @@ impl<'a> EstimatorsAndTaker<'a> {
                     panic!("Cannot specify the coverage_histogram method with any other coverage methods")
                 } else {
                     debug!("Coverage histogram type coverage taker being used");
-                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                     printer = CoveragePrinter::StreamedCoveragePrinter;
+                    EstimatorsAndTaker::print_headers(
+                        entry_type,
+                        stream,
+                        &estimators,
+                        &columns_to_normalise,
+                        &mut printer);
+                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                 }
             } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
                 debug!("Streaming regular coverage output");
+                printer = CoveragePrinter::StreamedCoveragePrinter;
+                EstimatorsAndTaker::print_headers(
+                    entry_type,
+                    stream,
+                    &estimators,
+                    &columns_to_normalise,
+                    &mut printer);
                 taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                     stream);
-                printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!("Cached regular coverage taker with columns to normlise: {:?}",
                        columns_to_normalise);
@@ -588,7 +614,13 @@ impl<'a> EstimatorsAndTaker<'a> {
                     "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
                         entry_type: None, estimator_headers: None},
                     _ => panic!("Unexpected output format seen. Programming error")
-                }
+                };
+                EstimatorsAndTaker::print_headers(
+                    entry_type,
+                    stream,
+                    &estimators,
+                    &columns_to_normalise,
+                    &mut printer);
             }
 
         }
@@ -621,22 +653,23 @@ impl<'a> EstimatorsAndTaker<'a> {
         }
     }
 
-    pub fn print_headers(
-        mut self,
+    fn print_headers(
         entry_type: &str,
-        print_stream: &mut std::io::Write) -> Self {
+        print_stream: &mut std::io::Write,
+        estimators: &Vec<CoverageEstimator>,
+        columns_to_normalise: &Vec<usize>,
+        printer: &mut CoveragePrinter) {
 
         let mut headers: Vec<String> = vec!();
-        for e in self.estimators.iter() {
+        for e in estimators.iter() {
             for h in e.column_headers() {
                 headers.push(h.to_string())
             }
         }
-        for i in self.columns_to_normalise.iter() {
+        for i in columns_to_normalise.iter() {
             headers[*i] = "Relative Abundance (%)".to_string();
         }
-        self.printer.print_headers(&entry_type, headers, print_stream);
-        return self;
+        printer.print_headers(&entry_type, headers, print_stream);
     }
 }
 
@@ -1413,6 +1446,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only")
                      .long("proper-pairs-only"))
+                .arg(Arg::with_name("output")
+                     .long("output")
+                     .short("o")
+                     .takes_value(true)
+                     .default_value("-"))
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
@@ -1556,6 +1594,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only")
                      .long("proper-pairs-only"))
+                .arg(Arg::with_name("output")
+                     .long("output")
+                     .short("o")
+                     .takes_value(true)
+                     .default_value("-"))
                 .arg(Arg::with_name("output-format")
                      .long("output-format")
                      .possible_values(&["sparse","dense"])
