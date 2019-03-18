@@ -1077,7 +1077,7 @@ fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
         let mut builder = Builder::new();
         builder.filter_level(log_level);
         if env::var("RUST_LOG").is_ok() {
-            builder.parse(&env::var("RUST_LOG").unwrap());
+            builder.parse_filters(&env::var("RUST_LOG").unwrap());
         }
         if builder.try_init().is_err() {
             panic!("Failed to set log level - has it been specified multiple times?")
