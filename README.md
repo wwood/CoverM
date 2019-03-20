@@ -15,8 +15,9 @@ CoverM can also be installed from source, using the cargo build system after ins
 ### Dependencies
 For the full suite of options, these additional programs must be installed:
 
-* [samtools](https://github.com/samtools/samtools)
+* [samtools](https://github.com/samtools/samtools) >1.0 (tested with v1.9)
 * [bwa](https://github.com/lh3/bwa)
+* [tee](https://www.gnu.org/software/coreutils/), which is installed by default on most Linux operating systems.
 
 ## Usage
 ```

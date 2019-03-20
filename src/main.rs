@@ -1175,7 +1175,6 @@ Other:
                                          [default 1]
    --inverse                             Only keep reads which are unmapped or
                                          align below thresholds. [default false]
-                                         (in development, do not use yet)
    --verbose                             Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
