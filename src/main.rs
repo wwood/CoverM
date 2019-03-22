@@ -1170,12 +1170,12 @@ the unfiltered BAM files in the saved_bam_files folder:")
 
 {}
 
-  coverm genome --coupled read1.fastq.gz read2.fastq.gz \
+  coverm genome --coupled read1.fastq.gz read2.fastq.gz
     --reference assembly.fna --separator '~'
 
 {}
 
-  coverm genome --bam-files my.bam --genome-fasta-directory my_genomes_directory/
+  coverm genome --bam-files my.bam --genome-fasta-directory genomes_directory/
 
 See coverm genome --full-help for further options and further detail.
 ",
@@ -1184,11 +1184,11 @@ See coverm genome --full-help for further options and further detail.
             ansi_term::Colour::Green.paint(
                 "Calculate coverage of individual genomes"),
             ansi_term::Colour::Purple.paint(
-                "Example: Map paired reads to a reference where the FASTA header separates the\n\
-                 genome name from the contig name with '~' e.g. >genome10~contig15"),
+                "Example: Map paired reads to a reference where the FASTA header separates
+the genome name from the contig name with '~' e.g. >genome10~contig15"),
             ansi_term::Colour::Purple.paint(
-                "Example: Calculate coverage of genomes defined as .fna files in\n\
-                 my_genomes_directory/ from a sorted BAM file:"),
+                "Example: Calculate coverage of genomes defined as .fna files in
+genomes_directory/ from a sorted BAM file:"),
         ).to_string();
 
         static ref FILTER_HELP: String = format!(
