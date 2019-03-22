@@ -1148,6 +1148,7 @@ fn build_cli() -> App<'static, 'static> {
 {}
 
   coverm contig --method metabat --bam-files my.bam
+    --bam-file-cache-directory saved_bam_files
 
 See coverm contig --full-help for further options and further detail.
 ",
@@ -1158,7 +1159,8 @@ See coverm contig --full-help for further options and further detail.
             ansi_term::Colour::Purple.paint(
                 "Example: Calculate mean coverage from reads and assembly:"),
             ansi_term::Colour::Purple.paint(
-                "Example: Calculate MetaBAT adjusted coverage from a sorted BAM file:")
+                "Example: Calculate MetaBAT adjusted coverage from a sorted BAM file, saving
+the unfiltered BAM files in the saved_bam_files folder:")
         ).to_string();
 
         static ref GENOME_HELP: String = format!(
