@@ -33,6 +33,50 @@ extern crate lazy_static;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
+fn filter_full_help() -> &'static str {
+    "coverm filter: Remove alignments with insufficient identity.
+
+Only primary, non-supplementary alignments are considered, and output files
+are grouped by reference, but not sorted by position.
+
+Files (both required):
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
+
+Thresholds:
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         identity e.g. 0.95 for 95% [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases.
+                                         Implies --proper-pairs-only.[default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+
+Other:
+   -t, --threads <INT>                   Number of threads for output compression
+                                         [default 1]
+   --inverse                             Only keep reads which are unmapped or
+                                         align below thresholds. [default false]
+   --verbose                             Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Example usage:
+
+  coverm filter -b in.bam -o out.bam --min-read-aligned-length 75
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>"
+}
+
 fn contig_full_help() -> &'static str {
     "coverm contig: Calculate read coverage per-contig
 
@@ -379,6 +423,10 @@ fn main(){
         },
         Some("filter") => {
             let m = matches.subcommand_matches("filter").unwrap();
+            if m.is_present("full-help") {
+                println!("{}", filter_full_help());
+                process::exit(1);
+            }
             set_log_level(m, true);
 
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -1140,50 +1188,35 @@ See coverm genome --full-help for further options and further detail.
                 "Example: Calculate coverage of genomes defined as .fna files in\n\
                  my_genomes_directory/ from a sorted BAM file:"),
         ).to_string();
+
+        static ref FILTER_HELP: String = format!(
+            "
+                            {}
+                     {}
+
+{}
+
+  coverm filter --bam-files input.bam --output-bam filtered.bam
+    --min-read-aligned-length 50
+
+{}
+
+  coverm filter -b input.bam -o inverse_filtered.bam --inverse
+    --min-read-percent-identity 0.95 --threads 16
+
+See coverm filter --full-help for further options and further detail.
+",
+            ansi_term::Colour::Green.paint(
+                "coverm filter"),
+            ansi_term::Colour::Green.paint(
+                "Filter BAM file alignments"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Filter a BAM file by removing alignments shorter than 50bp:"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Filter inverse: Keep alignments that have <95% alignment identity\n\
+                 and those which do map at all. Use 16 threads for output compression:"),
+        ).to_string();
     }
-
-    let filter_help: &'static str =
-        "coverm filter: Remove alignments with insufficient identity.
-
-Only primary, non-supplementary alignments are considered, and output files
-are grouped by reference, but not sorted by position.
-
-Files (both required):
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
-   -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
-
-Thresholds:
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases.
-                                         Implies --proper-pairs-only.[default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-
-Other:
-   -t, --threads <INT>                   Number of threads for output compression
-                                         [default 1]
-   --inverse                             Only keep reads which are unmapped or
-                                         align below thresholds. [default false]
-   --verbose                             Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Example usage:
-
-  coverm filter -b in.bam -o out.bam --min-read-aligned-length 75
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>";
 
     let make_help: &'static str =
         "coverm make: Generate BAM files through mapping.
@@ -1568,20 +1601,23 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("filter")
                 .about("Remove alignments with insufficient identity")
-                .help(filter_help)
+                .help(FILTER_HELP.as_str())
+
+                .arg(Arg::with_name("full-help")
+                     .long("full-help"))
 
                 .arg(Arg::with_name("bam-files")
                      .short("b")
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true)
-                     .required(true))
+                     .required_unless_one(&["full-help"]))
                 .arg(Arg::with_name("output-bam-files")
                      .short("o")
                      .long("output-bam-files")
                      .multiple(true)
                      .takes_value(true)
-                     .required(true))
+                     .required_unless_one(&["full-help"]))
                 .arg(Arg::with_name("inverse")
                      .long("inverse"))
 
