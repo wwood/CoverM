@@ -8,6 +8,9 @@ homepage = "https://github.com/wwood/CoverM"
 repository = "https://github.com/wwood/CoverM"
 documentation = "https://github.com/wwood/CoverM"
 readme = "README.md"
+exclude = [ # Max upload is 10MB, as of writing test data was 15MB
+  "tests/*",
+]
 
 [dependencies]
 bio = "0.25.*"
