@@ -47,12 +47,12 @@ Thresholds:
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
-                                         Implies --proper-pairs-only.[default: 0]
+                                         Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
@@ -65,7 +65,10 @@ Other:
    -t, --threads <INT>                   Number of threads for output compression
                                          [default 1]
    --inverse                             Only keep reads which are unmapped or
-                                         align below thresholds. [default false]
+                                         align below thresholds. Note that output
+                                         records may still be marked as mapped
+                                         if they do not meet the thresholds.
+                                         [default false]
    --verbose                             Print extra debugging information
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
@@ -1216,7 +1219,9 @@ See coverm filter --full-help for further options and further detail.
                 "Example: Filter a BAM file by removing alignments shorter than 50bp:"),
             ansi_term::Colour::Purple.paint(
                 "Example: Filter inverse: Keep alignments that have <95% alignment identity\n\
-                 and those which do map at all. Use 16 threads for output compression:"),
+                 and those which do map at all. Note that the output BAM file will likely\n\
+                 records that are still mapped, but align with < 95% identity. Use 16\n\
+                 threads for output compression:"),
         ).to_string();
     }
 
