@@ -111,7 +111,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                     Some(stoit) => {
                         write!(
                             print_stream, "{}\t{}", stoit, entry_name).unwrap()},
-                    None => {panic!("programming error")}
+                    None => unreachable!()
                 }
             },
             CoverageTakerType::PileupCoverageCoveragePrinter{
@@ -167,7 +167,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 }
             },
             CoverageTakerType::PileupCoverageCoveragePrinter{..} => {
-                panic!("programming error");
+                unreachable!();
             },
             CoverageTakerType::CachedSingleFloatCoverageTaker {
                 stoit_names: _,
@@ -191,7 +191,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
         match self {
             CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter{..} |
             CoverageTakerType::CachedSingleFloatCoverageTaker{..} => {
-                panic!("Programming error")
+                unreachable!()
             },
             CoverageTakerType::PileupCoverageCoveragePrinter{
                 ref mut print_stream,
@@ -200,11 +200,11 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
             } => {
                 let stoit = match current_stoit {
                     Some(ref stoit) => stoit,
-                    None => panic!("programming error")
+                    None => unreachable!()
                 };
                 let entry = match current_entry {
                     Some(ref entry) => entry,
-                    None => panic!("programming error")
+                    None => unreachable!()
                 };
                 writeln!(
                     print_stream,
@@ -270,7 +270,7 @@ impl<'a> CoverageTakerType<'a> {
                     iter_last_entry_order_index: None, // index into entry_names
                 }
             },
-            _ => panic!("programming error")
+            _ => unreachable!()
         }
     }
 }
@@ -373,7 +373,7 @@ impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
                 }
                 return None
             },
-            _ => panic!("Not implemented, programming error")
+            _ => unreachable!()
         }
     }
 }

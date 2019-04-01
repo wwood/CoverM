@@ -84,7 +84,7 @@ impl CoveragePrinter {
                             writeln!(print_stream).unwrap();
                         }
                     },
-                    _ => panic!("programming error")
+                    _ => unreachable!()
                 }
             }
         }
@@ -241,7 +241,7 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                 &current_stoit_entry_indices,
                 current_stoit_index);
         },
-        _ => panic!("programming error")
+        _ => unreachable!()
     }
 }
 
@@ -372,7 +372,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
                 writeln!(print_stream).unwrap();
             }
         },
-        _ => panic!("programming error")
+        _ => unreachable!()
     }
 }
 

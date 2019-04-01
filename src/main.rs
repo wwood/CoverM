@@ -609,7 +609,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                     &"reads_per_base" => {
                         estimators.push(CoverageEstimator::new_estimator_reads_per_base());
                     }
-                    _ => panic!("programming error")
+                    _ => unreachable!()
                 };
             }
 
@@ -635,7 +635,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                     "sparse" => CoveragePrinter::SparseCachedCoveragePrinter,
                     "dense" => CoveragePrinter::DenseCachedCoveragePrinter {
                         entry_type: None, estimator_headers: None},
-                    _ => panic!("Unexpected output format seen. Programming error")
+                    _ => unreachable!()
                 }
             }
 
