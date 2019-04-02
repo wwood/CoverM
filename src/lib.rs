@@ -9,6 +9,7 @@ pub mod bwa_index_maintenance;
 pub mod coverage_takers;
 pub mod mapping_parameters;
 pub mod coverage_printer;
+pub mod shard_bam_reader;
 
 extern crate bio;
 #[macro_use]
@@ -19,6 +20,7 @@ extern crate env_logger;
 extern crate nix;
 extern crate tempdir;
 extern crate tempfile;
+extern crate rand;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
