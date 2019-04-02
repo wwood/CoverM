@@ -90,67 +90,70 @@ impl Iterator for ReadSortedShardedBamReader {
     type Item = bam::Record;
 
     fn next(&mut self) -> Option<bam::Record> {
-        match self.next_record_to_return {
-            Some(ref record) => {
-                record.set_tid(record.tid() + self.tid_offsets[self.winning_index.unwrap()]);
-                self.next_record_to_return = None;
-                return Some(record);
-            },
-            None => {
-                if self.previous_read_records.is_none() {
-                    self.previous_read_records = self.read_a_record_set();
-                    if self.previous_read_records.is_none() {
-                        // All finished all the input files.
-                        return None;
-                    }
-                }
-                // Read the second set
-                let second_read_alignments_opt = self.read_a_record_set();
-
-                // If we get None, then croak
-                if second_read_alignments_opt.is_none() {
-                    panic!("Unexpectedly was able to read a first read set, but not a second. Hmm.")
-                }
-                let second_read_alignments = second_read_alignments_opt.unwrap();
-
-                // Decide which pair is the winner
-                // Cannot use max_by_key() here since we want a random winner
-                let mut max_score: Option<i64> = None;
-                let mut winning_indices: Vec<usize> = vec![];
-                for (i, aln1) in self.previous_read_records.unwrap().iter().enumerate() {
-                    let mut score: i64 = 0;
-                    score += aln1.aux(b"AS")
-                        .expect(&format!(
-                            "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
-                             ranking pairs of alignments", aln1.qname())).integer();
-                    score += second_read_alignments[i].aux(b"AS")
-                        .expect(&format!(
-                            "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
-                             ranking pairs of alignments", aln1.qname())).integer();
-                    if max_score.is_none() || score > max_score.unwrap() {
-                        max_score = Some(score);
-                        winning_indices = vec![i]
-                    } else if score == max_score.unwrap() {
-                        winning_indices.push(i)
-                    }
-                    // Else a loser
-                }
-                let winning_index: usize = *winning_indices
-                    .choose(&mut thread_rng()).unwrap();
-
-                // Set the next read to return
-                self.winning_index = Some(winning_index);
-                self.next_record_to_return = Some(second_read_alignments[winning_index]);
-
-                let mut to_return = self.previous_read_records.unwrap()[winning_index];
-                to_return.set_tid(to_return.tid() + self.tid_offsets[winning_index]);
-
-                // Unset the current crop of first reads
-                self.previous_read_records = None;
-
-                // Return the first of the pair
-                return Some(to_return);
+        if self.next_record_to_return.is_some() {
+            let mut to_return = bam::Record::new();
+            {
+                let record = self.next_record_to_return.as_ref().unwrap();
+                ReadSortedShardedBamReader::clone_record_into(record, &mut to_return);
             }
+            self.next_record_to_return = None;
+            let tid_now = to_return.tid();
+            to_return.set_tid(tid_now + self.tid_offsets[self.winning_index.unwrap()]);
+            return Some(to_return);
+        } else {
+            if self.previous_read_records.is_none() {
+                self.previous_read_records = self.read_a_record_set();
+                if self.previous_read_records.is_none() {
+                    // All finished all the input files.
+                    return None;
+                }
+            }
+            // Read the second set
+            let second_read_alignments_opt = self.read_a_record_set();
+
+            // If we get None, then croak
+            if second_read_alignments_opt.is_none() {
+                panic!("Unexpectedly was able to read a first read set, but not a second. Hmm.")
+            }
+            let second_read_alignments = second_read_alignments_opt.unwrap();
+
+            // Decide which pair is the winner
+            // Cannot use max_by_key() here since we want a random winner
+            let mut max_score: Option<i64> = None;
+            let mut winning_indices: Vec<usize> = vec![];
+            for (i, aln1) in self.previous_read_records.unwrap().iter().enumerate() {
+                let mut score: i64 = 0;
+                score += aln1.aux(b"AS")
+                    .expect(&format!(
+                        "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
+                         ranking pairs of alignments", aln1.qname())).integer();
+                score += second_read_alignments[i].aux(b"AS")
+                    .expect(&format!(
+                        "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
+                         ranking pairs of alignments", aln1.qname())).integer();
+                if max_score.is_none() || score > max_score.unwrap() {
+                    max_score = Some(score);
+                    winning_indices = vec![i]
+                } else if score == max_score.unwrap() {
+                    winning_indices.push(i)
+                }
+                // Else a loser
+            }
+            let winning_index: usize = *winning_indices
+                .choose(&mut thread_rng()).unwrap();
+
+            // Set the next read to return
+            self.winning_index = Some(winning_index);
+            self.next_record_to_return = Some(second_read_alignments[winning_index]);
+
+            let mut to_return = self.previous_read_records.unwrap()[winning_index];
+            to_return.set_tid(to_return.tid() + self.tid_offsets[winning_index]);
+
+            // Unset the current crop of first reads
+            self.previous_read_records = None;
+
+            // Return the first of the pair
+            return Some(to_return);
         }
     }
 }
