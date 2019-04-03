@@ -1,3 +1,5 @@
+use std::str;
+
 use rand::prelude::*;
 
 use rust_htslib::bam;
@@ -20,45 +22,49 @@ pub struct ReadSortedShardedBamReader {
 impl ReadSortedShardedBamReader {
     // Return a Vec of read in BAM records, or None if there are no more.
     fn read_a_record_set(&mut self) -> Option<Vec<Record>> {
-        let mut current_qname: Option<&[u8]> = None;
         let mut current_alignments: Vec<Record> = Vec::with_capacity(
             self.shard_bam_readers.len());
+        let mut _current_qname: Option<&[u8]> = None;
         let mut some_unfinished = false;
         let mut some_finished = false;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
             loop {
-                match reader.read(&mut current_alignments[i]) {
-                    Ok(_) => {
-                        let record = &current_alignments[i];
-                        if !record.is_paired() {
-                            panic!("This code can only handle paired-end \
-                                    input (at the moment), sorry.")
-                        }
-                        if !record.is_secondary() && !record.is_supplementary() {
-                            some_unfinished = true;
-                            match current_qname {
-                                None => {current_qname = Some(record.qname())},
-                                Some(prev) => {
-                                    if prev != record.qname() {
-                                        panic!(
-                                            "BAM files do not appear to be \
-                                             properly sorted by read name. \
-                                             Expected read name {:?} from a \
-                                             previous reader but found {:?} \
-                                             in the current.", prev, record.qname());
-                                    }
-                                }
-                            }
-                            break;
-                        }
-                        // else we have a non-primary alignment, so loop again.
-                    },
-                    Err(_) => {
+                {
+                    current_alignments.push(bam::Record::new());
+                    let res = reader.read(&mut current_alignments[i]);
+                    if res.is_err() {
                         debug!("BAM reader #{} appears to be finished", i);
                         some_finished = true;
                         break;
                     }
+                }
+
+                {
+                    let record = &current_alignments[i];
+                    if !record.is_paired() {
+                        panic!("This code can only handle paired-end \
+                                input (at the moment), sorry.")
+                    }
+                    if !record.is_secondary() && !record.is_supplementary() {
+                        some_unfinished = true;
+                        // TODO: uncomment below and fix borrow checker issues
+                        // match current_qname {
+                        //     None => {current_qname = Some(record.qname().clone())},
+                        //     Some(prev) => {
+                        //         if prev != record.qname() {
+                        //             panic!(
+                        //                 "BAM files do not appear to be \
+                        //                  properly sorted by read name. \
+                        //                  Expected read name {:?} from a \
+                        //                  previous reader but found {:?} \
+                        //                  in the current.", prev, record.qname());
+                        //         }
+                        //     }
+                        // }
+                        break;
+                    }
+                    // else we have a non-primary alignment, so loop again.
                 }
             }
         }
@@ -72,8 +78,8 @@ impl ReadSortedShardedBamReader {
         }
     }
 
-    /// There is no way to copy a Record into a waiting one, as far as I know,
-    /// so implement here. Details here copied from impl PartialEq for Record.
+    // There is no way to copy a Record into a waiting one, as far as I know,
+    // so implement here. Details here copied from impl PartialEq for Record.
     fn clone_record_into(from: &Record, to: &mut Record) {
         to.set_pos(from.pos());
         to.set_bin(from.bin());
@@ -89,6 +95,8 @@ impl ReadSortedShardedBamReader {
 impl Iterator for ReadSortedShardedBamReader {
     type Item = bam::Record;
 
+    // TODO: Maybe avoid allocating all the time? Unfortunately we cannot
+    // iterate over references.
     fn next(&mut self) -> Option<bam::Record> {
         if self.next_record_to_return.is_some() {
             let mut to_return = bam::Record::new();
@@ -121,33 +129,44 @@ impl Iterator for ReadSortedShardedBamReader {
             // Cannot use max_by_key() here since we want a random winner
             let mut max_score: Option<i64> = None;
             let mut winning_indices: Vec<usize> = vec![];
-            for (i, aln1) in self.previous_read_records.unwrap().iter().enumerate() {
-                let mut score: i64 = 0;
-                score += aln1.aux(b"AS")
-                    .expect(&format!(
-                        "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
-                         ranking pairs of alignments", aln1.qname())).integer();
-                score += second_read_alignments[i].aux(b"AS")
-                    .expect(&format!(
-                        "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
-                         ranking pairs of alignments", aln1.qname())).integer();
-                if max_score.is_none() || score > max_score.unwrap() {
-                    max_score = Some(score);
-                    winning_indices = vec![i]
-                } else if score == max_score.unwrap() {
-                    winning_indices.push(i)
+            match self.previous_read_records {
+                None => unreachable!(),
+                Some(ref previous_records) => {
+                    for (i, ref aln1) in previous_records.iter().enumerate() {
+                        let mut score: i64 = 0;
+                        score += aln1.aux(b"AS")
+                            .expect(&format!(
+                                "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
+                                 ranking pairs of alignments", aln1.qname())).integer();
+                        score += second_read_alignments[i].aux(b"AS")
+                            .expect(&format!(
+                                "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
+                                 ranking pairs of alignments", aln1.qname())).integer();
+                        if max_score.is_none() || score > max_score.unwrap() {
+                            max_score = Some(score);
+                            winning_indices = vec![i]
+                        } else if score == max_score.unwrap() {
+                            winning_indices.push(i)
+                        }
+                        // Else a loser
+                    }
                 }
-                // Else a loser
-            }
+            };
+
             let winning_index: usize = *winning_indices
                 .choose(&mut thread_rng()).unwrap();
 
             // Set the next read to return
             self.winning_index = Some(winning_index);
-            self.next_record_to_return = Some(second_read_alignments[winning_index]);
+            self.next_record_to_return = Some(
+                second_read_alignments[winning_index].clone());
 
-            let mut to_return = self.previous_read_records.unwrap()[winning_index];
-            to_return.set_tid(to_return.tid() + self.tid_offsets[winning_index]);
+            let mut to_return = match self.previous_read_records {
+                None => unreachable!(),
+                Some(ref prev) => prev[winning_index].clone()
+            };
+            let tid_now = to_return.tid();
+            to_return.set_tid(tid_now + self.tid_offsets[winning_index]);
 
             // Unset the current crop of first reads
             self.previous_read_records = None;
@@ -171,7 +190,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // Read header info for each BAM file, and write to new BAM header,
         // adding tid offsets.
         let mut current_tid_offset: i32 = 0;
-        for ref reader in self.read_sorted_bam_readers {
+        for ref reader in &self.read_sorted_bam_readers {
             let header = reader.header();
             let mut current_tid: u32 = 1; // tids start with 1.
             for name in header.target_names() {
@@ -190,6 +209,16 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
             current_tid_offset += header.target_count() as i32;
         }
 
+        let tmp_dir = TempDir::new("coverm_fifo")
+            .expect("Unable to create samtools sort temporary directory");
+        let sort_input_fifo_path = tmp_dir.path().join("sort_input.pipe");
+        let sort_output_fifo_path = tmp_dir.path().join("sort_output.pipe");
+        let sort_log_file = tempfile::NamedTempFile::new()
+            .expect("Failed to create samtools sort log tempfile");
+
+        let mut writer = bam::Writer::from_path(&sort_input_fifo_path, &new_header)
+            .expect("Failed to open BAM to write to samtools sort process");
+
         // Instantiate and start Demux struct
         let demux = ReadSortedShardedBamReader {
             shard_bam_readers: self.read_sorted_bam_readers,
@@ -199,20 +228,13 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
             winning_index: None,
         };
 
-        // Add samtools sort process
-        let tmp_dir = TempDir::new("coverm_fifo")
-            .expect("Unable to create samtools sort temporary directory");
-        let sort_input_fifo_path = tmp_dir.path().join("sort_input.pipe");
-        let sort_output_fifo_path = tmp_dir.path().join("sort_input.pipe");
-        let sort_log_file = tempfile::NamedTempFile::new()
-            .expect("Failed to create samtools sort log tempfile");
 
         // TODO: make threads available in function
         // TODO: Allow cache
         // TODO: sort in tempdir
         let sort_command_string = format!(
             "set -e -o pipefail; \
-             samtools sort -l0 {} > {} 2> {}",
+             samtools sort -l0 {} -o {} 2> {}",
             sort_input_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile input path to str"),
             sort_output_fifo_path.to_str()
@@ -232,19 +254,31 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // here because we have to wait later anyway. This could be put out into
         // a new thread but that is just overcomplicating things, for now.
         // TODO: Buffer the output here?
-        let mut writer = bam::Writer::from_path(sort_input_fifo_path, &new_header)
-            .expect("Failed to open BAM to write to samtools sort process");
         debug!("Writing records to samtools sort input FIFO..");
         for record in demux {
+            println!("Writing tid {} for qname {}", record.tid(), str::from_utf8(record.qname()).unwrap());
             writer.write(&record)
                 .expect("Failed to write BAM record to samtools sort input fifo");
         }
         debug!("Finished writing records to samtools sort input FIFO.");
 
+        // block until the sort process starts writing to its output file,
+        // otherwise the reader will immediately fail.
+        debug!("Blocking until samtools sort output file exists..");
+        loop {
+            if std::path::Path::new(&sort_output_fifo_path).exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        debug!("Finished blocking, file now exists.");
+
+        let reader = bam::Reader::from_path("/tmp/oute.bam") // &sort_output_fifo_path
+            .expect("Unable to open reader from samtools sort output FIFO");
+
         return ShardedBamReader {
             stoit_name: self.stoit_name,
-            bam_reader: bam::Reader::from_path(sort_output_fifo_path)
-                .expect("Unable to open reader from samtools sort output FIFO"),
+            bam_reader: reader,
             tempdir: tmp_dir,
             sort_process: sort_child,
             sort_command_string: sort_command_string,
@@ -288,10 +322,17 @@ mod tests {
         let gen = ShardedBamReaderGenerator {
             stoit_name: "stoita".to_string(),
             read_sorted_bam_readers: vec![
-                bam::Reader::from_path("test/data/2seqs.fastaVbad_read.bam").unwrap(),
-                bam::Reader::from_path("test/data/7seqs.fnaVbad_read.bam").unwrap()
+                bam::Reader::from_path("tests/data/2seqs.fastaVbad_read.bam").unwrap(),
+                bam::Reader::from_path("tests/data/7seqs.fnaVbad_read.bam").unwrap()
             ]
         };
-        let _reader = gen.start();
+        let mut reader = gen.start();
+        assert_eq!("stoita".to_string(), reader.stoit_name);
+        let mut r = bam::Record::new();
+        reader.bam_reader.read(&mut r);
+        println!("{}",str::from_utf8(r.qname()).unwrap());
+        println!("{}",r.tid());
+
+        assert_eq!(1,2);
     }
 }
