@@ -536,9 +536,10 @@ fn main(){
             let mut reader = gen.start();
             debug!("stoit name {}",reader.stoit_name);
             let mut r = bam::Record::new();
-            reader.bam_reader.read(&mut r).unwrap();
-            println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
-            println!("main: tid {}",r.tid());
+            while reader.bam_reader.read(&mut r).is_ok() {
+                println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
+                println!("main: tid {}",r.tid());
+            }
         },
         _ => {
             app.print_help().unwrap();

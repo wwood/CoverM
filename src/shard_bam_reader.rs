@@ -92,7 +92,7 @@ impl ReadSortedShardedBamReader {
         to.set_mpos(from.mpos());
         to.set_insert_size(from.insert_size());
         to.set_qname(from.qname());
-        //to.set_data(from.data()); // TODO: Needed?
+        to.set_tid(from.tid());
     }
 }
 
@@ -116,13 +116,9 @@ impl ReadSortedShardedBamReader {
                 }
             }
             // Read the second set
-            let second_read_alignments_opt = self.read_a_record_set();
-
             // If we get None, then croak
-            if second_read_alignments_opt.is_none() {
-                panic!("Unexpectedly was able to read a first read set, but not a second. Hmm.")
-            }
-            let second_read_alignments = second_read_alignments_opt.unwrap();
+            let second_read_alignments = self.read_a_record_set()
+                .expect("Unexpectedly was able to read a first read set, but not a second. Hmm.");
 
             // Decide which pair is the winner
             // Cannot use max_by_key() here since we want a random winner
@@ -154,16 +150,19 @@ impl ReadSortedShardedBamReader {
 
             let winning_index: usize = *winning_indices
                 .choose(&mut thread_rng()).unwrap();
+            debug!("Choosing winning index {} from winner pool {:?}",
+                   winning_index, winning_indices);
 
             // Set the next read to return
             self.winning_index = Some(winning_index);
             self.next_record_to_return = Some(
                 second_read_alignments[winning_index].clone());
 
-            ;
+
             match self.previous_read_records {
                 None => unreachable!(),
                 Some(ref prev) => {
+                    debug!("previous tid {}", &prev[winning_index].tid());
                     ReadSortedShardedBamReader::clone_record_into(
                         &prev[winning_index], to_return)
                 }
@@ -171,13 +170,15 @@ impl ReadSortedShardedBamReader {
 
             let tid_now = to_return.tid();
             to_return.set_tid(tid_now + self.tid_offsets[winning_index]);
+            debug!("Reindexed TID is {}, tid_offsets are {:?} and tid_now is {}",
+                   to_return.tid(), self.tid_offsets, tid_now);
 
             // Unset the current crop of first reads
             self.previous_read_records = None;
 
             // TODO: Remove this debug code
-            let mut reader2 = bam::Reader::from_path(&"2seqs.fastaVbad_read.bam").unwrap();
-            reader2.read(to_return);
+            // let mut reader2 = bam::Reader::from_path(&"2seqs.fastaVbad_read.bam").unwrap();
+            // reader2.read(to_return);
 
             // Return the first of the pair
             return Ok(());
@@ -217,14 +218,14 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
             current_tid_offset += header.target_count() as i32;
         }
 
-        // let tmp_dir = TempDir::new("coverm_fifo")
-        //     .expect("Unable to create samtools sort temporary directory");
-        let tmp_dir = std::path::Path::new("/tmp/miner");
-        std::fs::create_dir(tmp_dir).expect("Fiailed to make dummy dir");
-        // let sort_input_fifo_path = tmp_dir.path().join("sort_input.pipe");
-        // let sort_output_fifo_path = tmp_dir.path().join("sort_output.pipe");
-        let sort_input_fifo_path = tmp_dir.join("sort_input.pipe");
-        let sort_output_fifo_path = tmp_dir.join("sort_output.pipe");
+        let tmp_dir = TempDir::new("coverm_fifo")
+            .expect("Unable to create samtools sort temporary directory");
+        // let tmp_dir = std::path::Path::new("/tmp/miner");
+        // std::fs::create_dir(tmp_dir).expect("Failed to make dummy dir");
+        let sort_input_fifo_path = tmp_dir.path().join("sort_input.pipe");
+        let sort_output_fifo_path = tmp_dir.path().join("sort_output.pipe");
+        // let sort_input_fifo_path = tmp_dir.join("sort_input.pipe");
+        // let sort_output_fifo_path = tmp_dir.join("sort_output.pipe");
         let sort_log_file = tempfile::NamedTempFile::new()
             .expect("Failed to create samtools sort log tempfile");
 
@@ -232,8 +233,8 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // This is required because we cannot open a Rust stream as a BAM file
         // with rust-htslib.
         debug!("Creating FIFOs ..");
-        // unistd::mkfifo(&sort_input_fifo_path, stat::Mode::S_IRWXU)
-        //     .expect(&format!("Error creating named pipe {:?}", sort_input_fifo_path));
+        unistd::mkfifo(&sort_input_fifo_path, stat::Mode::S_IRWXU)
+            .expect(&format!("Error creating named pipe {:?}", sort_input_fifo_path));
         unistd::mkfifo(&sort_output_fifo_path, stat::Mode::S_IRWXU)
             .expect(&format!("Error creating named pipe {:?}", sort_output_fifo_path));
 
@@ -249,25 +250,21 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         };
 
 
-        // Write all BAM records to the samtools sort input fifo. May as well
-        // here because we have to wait later anyway. This could be put out into
-        // a new thread but that is just overcomplicating things, for now.
-        // TODO: Buffer the output here?
-{
-        debug!("Opening BAM writer to {}", &sort_input_fifo_path.to_str().unwrap());
-        let mut writer = bam::Writer::from_path(&sort_input_fifo_path, &new_header)
-            .expect("Failed to open BAM to write to samtools sort process");
-        debug!("Writing records to samtools sort input FIFO..");
-        let mut record = bam::Record::new();
-        while demux.read(&mut record).is_ok() {
-            debug!("Writing tid {} for qname {}", record.tid(), str::from_utf8(record.qname()).unwrap());
-            writer.write(&record)
-                .expect("Failed to write BAM record to samtools sort input fifo");
-            break;
-        }
-        debug!("Finished writing records to samtools sort input FIFO.");
-}
 
+
+        // Start reader in a different thread because it needs to be running
+        // when the sort starts spitting out results, but won't return from
+        // instantiation until it has read the header (I think).
+        let sort_output_fifo_path2 = sort_output_fifo_path.clone();
+        let sorted_reader_join_handle: std::thread::JoinHandle<bam::Reader> = std::thread::spawn(
+            move || {
+                debug!("Starting to open sorted read BAM ..");
+                let reader = bam::Reader::from_path(&sort_output_fifo_path2)
+                    .expect("Unable to open reader from samtools sort output FIFO");
+                debug!("Finished opening reader to samtools sort output FIFO..");
+                reader
+            }
+        );
 
         // TODO: make threads available in function
         // TODO: Allow cache
@@ -289,41 +286,29 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
             .arg(&sort_command_string);
             //.stderr(std::process::Stdio::piped())
         let sort_child = cmd.spawn().expect("Unable to execute bash");
-        // block until the sort process starts writing to its output file,
-        // otherwise the reader will immediately fail. TODO: Now this is a pipe, so this stanza is useless?
-        // debug!("Blocking until samtools sort output file exists..");
-        // loop {
-        //     std::thread::sleep(std::time::Duration::from_millis(100));
-        //     if std::path::Path::new(&sort_output_fifo_path).exists() {
-        //         break;
-        //     }
-        // }
-        // debug!("Finished blocking");
 
 
-
-        // Start reader in a different thread because it needs to be running
-        // when the sort starts spitting out results, but won't return from
-        // instantiation until it has read the header (I think).
-        let sort_output_fifo_path2 = sort_output_fifo_path.clone();
-        let sorted_reader_join_handle: std::thread::JoinHandle<bam::Reader> = std::thread::spawn(
-            move || {
-                debug!("Starting to open sorted read BAM ..");
-                let reader = bam::Reader::from_path(&sort_output_fifo_path2)
-                    .expect("Unable to open reader from samtools sort output FIFO");
-                debug!("Finished opening reader to samtools sort output FIFO..");
-                reader
+        // Write all BAM records to the samtools sort input fifo. May as well
+        // here because we have to wait later anyway. This could be put out into
+        // a new thread but that is just overcomplicating things, for now.
+        // TODO: Buffer the output here?
+        {
+            // Write in a scope so writer drops before we start reading from the sort.
+            debug!("Opening BAM writer to {}", &sort_input_fifo_path.to_str().unwrap());
+            let mut writer = bam::Writer::from_path(&sort_input_fifo_path, &new_header)
+                .expect("Failed to open BAM to write to samtools sort process");
+            debug!("Writing records to samtools sort input FIFO..");
+            let mut record = bam::Record::new();
+            while demux.read(&mut record).is_ok() {
+                debug!("Writing tid {} for qname {}", record.tid(), str::from_utf8(record.qname()).unwrap());
+                writer.write(&record)
+                    .expect("Failed to write BAM record to samtools sort input fifo");
             }
-        );
-
+            debug!("Finished writing records to samtools sort input FIFO.");
+        }
 
         let reader = sorted_reader_join_handle.join()
             .expect("sorted reader thread failed");
-
-        // debug!("Finished blocking, file now exists.");
-        // sort_child.wait().expect("no good");
-        // debug!("samtools sort is done");
-
 
         return ShardedBamReader {
             stoit_name: self.stoit_name,
