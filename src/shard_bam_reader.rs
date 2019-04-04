@@ -274,7 +274,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // TODO: sort in tempdir
         let sort_command_string = format!(
             "set -e -o pipefail; \
-             cat {} |tee >(samtools view) |samtools sort -l0 - -o {}",
+             samtools sort -l0 {} -o {}",
             sort_input_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile input path to str"),
             sort_output_fifo_path.to_str()
