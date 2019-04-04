@@ -120,7 +120,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     }
 }
 
-fn complete_processes(
+pub fn complete_processes(
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,

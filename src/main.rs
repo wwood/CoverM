@@ -534,9 +534,9 @@ fn main(){
                 read_sorted_bam_readers: bam_readers,
             };
             let mut reader = gen.start();
-            debug!("stoit name {}",reader.stoit_name);
+            debug!("stoit name {}",reader.name());
             let mut r = bam::Record::new();
-            while reader.bam_reader.read(&mut r).is_ok() {
+            while reader.read(&mut r).is_ok() {
                 println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
                 println!("main: tid {}",r.tid());
             }

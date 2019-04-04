@@ -13,6 +13,7 @@ use nix::sys::stat;
 
 
 use bam_generator::*;
+use bam_generator::complete_processes;
 
 pub struct ReadSortedShardedBamReader {
     shard_bam_readers: Vec<bam::Reader>,
@@ -313,23 +314,52 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         return ShardedBamReader {
             stoit_name: self.stoit_name,
             bam_reader: reader,
-            //tempdir: tmp_dir,  // FIXME: remove after debug
+            tempdir: tmp_dir,
             sort_process: sort_child,
             sort_command_string: sort_command_string,
             sort_log_file_description: "samtools sort".to_string(),
             sort_log_file: sort_log_file,
+            num_detected_primary_alignments: 0,
         }
     }
 }
 
 pub struct ShardedBamReader {
-    pub stoit_name: String,
-    pub bam_reader: bam::Reader,
-    //tempdir: TempDir,
+    stoit_name: String,
+    bam_reader: bam::Reader,
+    tempdir: TempDir,
     sort_process: std::process::Child,
     sort_command_string: String,
     sort_log_file_description: String,
     sort_log_file: tempfile::NamedTempFile,
+    num_detected_primary_alignments: u64,
+}
+
+impl NamedBamReader for ShardedBamReader {
+    fn name(&self) -> &str {
+        &(self.stoit_name)
+    }
+    fn read(&mut self, record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
+        let res = self.bam_reader.read(record);
+        if res.is_ok() && !record.is_secondary() && !record.is_supplementary() {
+            self.num_detected_primary_alignments += 1;
+        }
+        return res;
+    }
+    fn header(&self) -> &bam::HeaderView {
+        &self.bam_reader.header()
+    }
+    fn finish(self) {
+        complete_processes(
+            vec![self.sort_process],
+            vec![self.sort_command_string],
+            vec![self.sort_log_file_description],
+            vec![self.sort_log_file],
+            Some(self.tempdir));
+    }
+    fn num_detected_primary_alignments(&self) -> u64 {
+        return self.num_detected_primary_alignments
+    }
 }
 
 // Given a list of paths to different BAM files which are all mappings of the
