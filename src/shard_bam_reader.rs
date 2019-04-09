@@ -28,15 +28,17 @@ impl ReadSortedShardedBamReader {
     fn read_a_record_set(&mut self) -> Option<Vec<Record>> {
         let mut current_alignments: Vec<Record> = Vec::with_capacity(
             self.shard_bam_readers.len());
-        let mut _current_qname: Option<&[u8]> = None;
+        let mut current_qname: Option<String> = None;
         let mut some_unfinished = false;
         let mut some_finished = false;
+        let mut record = bam::Record::new();
+        let mut res;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
             loop {
                 {
                     current_alignments.push(bam::Record::new());
-                    let res = reader.read(&mut current_alignments[i]);
+                    res = reader.read(&mut current_alignments[i]);
                     if res.is_err() {
                         debug!("BAM reader #{} appears to be finished", i);
                         some_finished = true;
@@ -45,27 +47,27 @@ impl ReadSortedShardedBamReader {
                 }
 
                 {
-                    let record = &current_alignments[i];
+                    record = current_alignments[i].clone();
                     if !record.is_paired() {
                         panic!("This code can only handle paired-end \
                                 input (at the moment), sorry.")
                     }
                     if !record.is_secondary() && !record.is_supplementary() {
                         some_unfinished = true;
-                        // TODO: uncomment below and fix borrow checker issues
-                        // match current_qname {
-                        //     None => {current_qname = Some(record.qname().clone())},
-                        //     Some(prev) => {
-                        //         if prev != record.qname() {
-                        //             panic!(
-                        //                 "BAM files do not appear to be \
-                        //                  properly sorted by read name. \
-                        //                  Expected read name {:?} from a \
-                        //                  previous reader but found {:?} \
-                        //                  in the current.", prev, record.qname());
-                        //         }
-                        //     }
-                        // }
+                        // TODO: Check if below is compatible with rest of code
+                         match current_qname.clone() {
+                             None => {current_qname = Some(str::from_utf8(record.qname()).unwrap().to_string())},
+                             Some(prev) => {
+                                 if prev != str::from_utf8(record.qname()).unwrap().to_string() {
+                                     panic!(
+                                         "BAM files do not appear to be \
+                                          properly sorted by read name. \
+                                          Expected read name {:?} from a \
+                                          previous reader but found {:?} \
+                                          in the current.", prev, record.qname());
+                                 }
+                             }
+                         }
                         break;
                     }
                     // else we have a non-primary alignment, so loop again.
