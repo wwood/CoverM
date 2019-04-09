@@ -1134,6 +1134,9 @@ fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
             panic!("Failed to set log level - has it been specified multiple times?")
         }
     }
+    if is_last {
+        info!("CoverM version {}", crate_version!());
+    }
 }
 
 fn build_cli() -> App<'static, 'static> {
