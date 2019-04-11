@@ -1268,13 +1268,13 @@ Mapping coverage analysis for metagenomics
 
 Usage: coverm <subcommand> ...
 
-Main modes:
+Main subcommands:
 \tcontig\tCalculate coverage of contigs
 \tgenome\tCalculate coverage of genomes
 
-Utilities:
+Less used utility subcommands:
 \tmake\tGenerate BAM files through alignment
-\tfilter\tRemove alignments with insufficient identity
+\tfilter\tRemove (or only keep) alignments with insufficient identity
 
 Other options:
 \t-V, --version\tPrint version information
