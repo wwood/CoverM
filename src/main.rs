@@ -376,6 +376,15 @@ fn main(){
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                        bam_files, sort_threads);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        bam_readers,
+                        print_zeros,
+                        filter_params.flag_filters);
                 } else {
                     let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
@@ -532,6 +541,7 @@ fn main(){
             let gen = coverm::shard_bam_reader::ShardedBamReaderGenerator {
                 stoit_name: "stoita".to_string(),
                 read_sorted_bam_readers: bam_readers,
+                sort_threads: 1,
             };
             let mut reader = gen.start();
             debug!("stoit name {}",reader.name());
@@ -1500,6 +1510,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
+                .arg(Arg::with_name("read-sorted-shard-bam-files")
+                    .long("read-sorted-shard-bam-files"))
+                .arg(Arg::with_name("sort-threads")
+                    .long("sort-threads")
+                    .requires("read-sorted-shard-bam-files")
+                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)

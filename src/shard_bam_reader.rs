@@ -4,6 +4,7 @@ use rand::prelude::*;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Record;
+use rust_htslib::bam::record::{Cigar, CigarString};
 use rust_htslib::bam::Read as BamRead;
 
 use tempdir::TempDir;
@@ -54,7 +55,6 @@ impl ReadSortedShardedBamReader {
                     }
                     if !record.is_secondary() && !record.is_supplementary() {
                         some_unfinished = true;
-                        // TODO: Check if below is compatible with rest of code
                          match current_qname.clone() {
                              None => {current_qname = Some(str::from_utf8(record.qname()).unwrap().to_string())},
                              Some(prev) => {
@@ -64,7 +64,7 @@ impl ReadSortedShardedBamReader {
                                           properly sorted by read name. \
                                           Expected read name {:?} from a \
                                           previous reader but found {:?} \
-                                          in the current.", prev, record.qname());
+                                          in the current.", prev, str::from_utf8(record.qname()).unwrap().to_string());
                                  }
                              }
                          }
@@ -87,6 +87,11 @@ impl ReadSortedShardedBamReader {
     // There is no way to copy a Record into a waiting one, as far as I know,
     // so implement here. Details here copied from impl PartialEq for Record.
     fn clone_record_into(from: &Record, to: &mut Record) {
+        //Clone record using set() also add cigar and push aux tags NM
+        to.set(from.qname(),
+               &CigarString::from_str(from.cigar().to_string().as_str()).unwrap(),
+               from.seq().as_bytes().as_slice(),
+               from.qual());
         to.set_pos(from.pos());
         to.set_bin(from.bin());
         to.set_mapq(from.mapq());
@@ -94,8 +99,9 @@ impl ReadSortedShardedBamReader {
         to.set_mtid(from.mtid());
         to.set_mpos(from.mpos());
         to.set_insert_size(from.insert_size());
-        to.set_qname(from.qname());
+//        to.set_qname(from.qname());
         to.set_tid(from.tid());
+        to.push_aux("NM".as_bytes(), &from.aux("NM".as_bytes()).unwrap());
     }
 }
 
@@ -151,8 +157,13 @@ impl ReadSortedShardedBamReader {
                 }
             };
 
-            let winning_index: usize = *winning_indices
-                .choose(&mut thread_rng()).unwrap();
+            let winning_index: usize;
+            if winning_indices.len() > 1 {
+                winning_index = *winning_indices
+                    .choose(&mut thread_rng()).unwrap();
+            } else {
+                winning_index = winning_indices[0];
+            }
             debug!("Choosing winning index {} from winner pool {:?}",
                    winning_index, winning_indices);
 
@@ -192,6 +203,7 @@ impl ReadSortedShardedBamReader {
 pub struct ShardedBamReaderGenerator {
     pub stoit_name: String,
     pub read_sorted_bam_readers: Vec<bam::Reader>,
+    pub sort_threads: i32,
 }
 
 impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
@@ -204,7 +216,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         let mut current_tid_offset: i32 = 0;
         for ref reader in &self.read_sorted_bam_readers {
             let header = reader.header();
-            let mut current_tid: u32 = 1; // tids start with 1.
+            let mut current_tid: u32 = 0; // I think TID counting should start at 0, 1 returns wrong lengths.
             for name in header.target_names() {
                 let length = header.target_len(current_tid)
                     .expect(&format!("Failed to get target length for TID {}", current_tid));
@@ -215,6 +227,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
                     &std::str::from_utf8(name).unwrap());
                 current_record.push_tag(b"LN", &length);
                 new_header.push_record(&current_record);
+                current_tid += 1; // increment current tid
             }
 
             tid_offsets.push(current_tid_offset);
@@ -268,17 +281,17 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
                 reader
             }
         );
-
-        // TODO: make threads available in function
+        //Threads now available in function
         // TODO: Allow cache
         // TODO: sort in tempdir
         let sort_command_string = format!(
             "set -e -o pipefail; \
-             samtools sort -l0 {} -o {}",
+             samtools sort -l0 {} -o {} -@ {}",
             sort_input_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile input path to str"),
             sort_output_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile output path to str"),
+            &self.sort_threads,
             //sort_log_file.path().to_str()
              //   .expect("Failed to convert tempfile log path to str")
         );
@@ -295,6 +308,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // here because we have to wait later anyway. This could be put out into
         // a new thread but that is just overcomplicating things, for now.
         // TODO: Buffer the output here?
+        // let mut output_buffer = bam::buffer::RecordBuffer::new(reader); Like this?
         {
             // Write in a scope so writer drops before we start reading from the sort.
             debug!("Opening BAM writer to {}", &sort_input_fifo_path.to_str().unwrap());
@@ -367,16 +381,30 @@ impl NamedBamReader for ShardedBamReader {
 // Given a list of paths to different BAM files which are all mappings of the
 // same read set to different references (all sorted by read name), generate a
 // BAM reader that chooses the best place for each read to map to.
-// pub fn generate_sharded_bam_reader_from_bam_files(
-//     bam_paths: Vec<&str>) -> Vec<ShardedBamReaderGenerator> {
-//     // open an output BAM file that gets put to samtools sort without -n
-//     // For each BAM path,
-//     // open the path
-//     // record the number of references in the header
+ pub fn generate_sharded_bam_reader_from_bam_files(
+     bam_paths: Vec<&str>, sort_threads: i32) -> Vec<ShardedBamReaderGenerator> {
+     // open an output BAM file that gets put to samtools sort without -n
+     // For each BAM path,
+     // open the path
+     // record the number of references in the header
+    // write each header entry read in to a new reference entry in the output
+    // BAM, after adding the tid offset.
+    let bam_readers = bam_paths.iter().map(
+        |f| {
+            debug!("Opening BAM {} ..", f);
+            bam::Reader::from_path(&f)
+                .expect(&format!("Unable to open bam file {}", f))
+        }
+    ).collect();
+    debug!("Opened all input BAM files");
+    let gen = ShardedBamReaderGenerator {
+        stoit_name: "stoita".to_string(),
+        read_sorted_bam_readers: bam_readers,
+        sort_threads: sort_threads,
+    };
+    return vec!(gen);
 
-//     // write each header entry read in to a new reference entry in the output
-//     // BAM, after adding the tid offset.
-// }
+ }
 
 
 #[cfg(test)]
@@ -390,7 +418,8 @@ mod tests {
             read_sorted_bam_readers: vec![
                 bam::Reader::from_path("tests/data/2seqs.fastaVbad_read.bam").unwrap(),
                 bam::Reader::from_path("tests/data/7seqs.fnaVbad_read.bam").unwrap()
-            ]
+            ],
+            sort_threads: 1
         };
         let mut reader = gen.start();
         assert_eq!("stoita".to_string(), reader.stoit_name);
