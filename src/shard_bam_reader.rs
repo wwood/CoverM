@@ -1,4 +1,6 @@
 use std::str;
+use std;
+use std::io::Read;
 
 use rand::prelude::*;
 
@@ -7,11 +9,15 @@ use rust_htslib::bam::Record;
 use rust_htslib::bam::record::{Cigar, CigarString};
 use rust_htslib::bam::Read as BamRead;
 
+use filter::*;
+use bwa_index_maintenance::BwaIndexStruct;
+use mapping_parameters::ReadFormat;
+use FlagFilter;
+
 use tempdir::TempDir;
 use tempfile;
 use nix::unistd;
 use nix::sys::stat;
-
 
 use bam_generator::*;
 use bam_generator::complete_processes;
@@ -101,7 +107,15 @@ impl ReadSortedShardedBamReader {
         to.set_insert_size(from.insert_size());
 //        to.set_qname(from.qname());
         to.set_tid(from.tid());
-        to.push_aux("NM".as_bytes(), &from.aux("NM".as_bytes()).unwrap());
+        match &from.aux("NM".as_bytes()){
+            Some(aux) => {
+                to.push_aux("NM".as_bytes(), aux);
+            },
+            None => {
+                debug!("read {:?} had no NM tag", from.qname())
+            },
+        }
+        debug!("from cigar {:?}, to cigar {:?}", from.cigar().to_string(), to.cigar().to_string())
     }
 }
 
@@ -240,6 +254,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // std::fs::create_dir(tmp_dir).expect("Failed to make dummy dir");
         let sort_input_fifo_path = tmp_dir.path().join("sort_input.pipe");
         let sort_output_fifo_path = tmp_dir.path().join("sort_output.pipe");
+        let sort_temp_fifo_path = tmp_dir.path().join("sort_temp.pipe");
         // let sort_input_fifo_path = tmp_dir.join("sort_input.pipe");
         // let sort_output_fifo_path = tmp_dir.join("sort_output.pipe");
         let sort_log_file = tempfile::NamedTempFile::new()
@@ -266,8 +281,6 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         };
 
 
-
-
         // Start reader in a different thread because it needs to be running
         // when the sort starts spitting out results, but won't return from
         // instantiation until it has read the header (I think).
@@ -281,16 +294,18 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
                 reader
             }
         );
-        //Threads now available in function
+        // Threads now available in function
         // TODO: Allow cache
-        // TODO: sort in tempdir
+        // Temp files now sorted and stored in tempdir
         let sort_command_string = format!(
             "set -e -o pipefail; \
-             samtools sort -l0 {} -o {} -@ {}",
+             samtools sort -l0 {} -o {} -T {} -@ {}",
             sort_input_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile input path to str"),
             sort_output_fifo_path.to_str()
                 .expect("Failed to convert sort tempfile output path to str"),
+            sort_temp_fifo_path.to_str()
+                .expect("Failed to convert sort tempfile tempfile path to str"),
             &self.sort_threads,
             //sort_log_file.path().to_str()
              //   .expect("Failed to convert tempfile log path to str")
@@ -405,6 +420,120 @@ impl NamedBamReader for ShardedBamReader {
     return vec!(gen);
 
  }
+
+pub fn generate_named_sharded_bam_readers_from_reads(
+    reference: &str,
+    read1_path: &str,
+    read2_path: Option<&str>,
+    read_format: ReadFormat,
+    threads: u16,
+    cached_bam_file: Option<&str>,
+    discard_unmapped: bool,
+    bwa_options: Option<&str>,
+    include_reference_in_stoit_name: bool) -> bam::Reader {
+
+    let tmp_dir = TempDir::new("coverm_fifo")
+        .expect("Unable to create temporary directory");
+
+    let fifo_path = tmp_dir.path().join("foo.pipe");
+
+    // create new fifo and give read, write and execute rights to the owner.
+    // This is required because we cannot open a Rust stream as a BAM file with
+    // rust-htslib.
+    unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
+        .expect(&format!("Error creating named pipe {:?}", fifo_path));
+
+    let bwa_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create BWA log tempfile");
+    let samtools2_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create second samtools log tempfile");
+    // tempfile does not need to be created but easier to create than get around
+    // borrow checker.
+    let samtools_view_cache_log = tempfile::NamedTempFile::new()
+        .expect("Failed to create cache samtools view log tempfile");
+
+    let cached_bam_file_args = match cached_bam_file {
+        Some(path) => {
+            format!(
+                "|tee {:?} |samtools view {} -t {} -b -o '{}' 2>{}",
+                // tee
+                fifo_path,
+                // samtools view
+                // cannot discard unmapped for sharded bam files
+                match discard_unmapped {
+                    _ => "",
+                },
+                threads,
+                path,
+                samtools_view_cache_log.path().to_str()
+                    .expect("Failed to convert tempfile path to str"))
+        },
+        None => format!("> {:?}", fifo_path)
+    };
+    let bwa_read_params = match read_format {
+        ReadFormat::Interleaved => format!("-p '{}'", read1_path),
+        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+        ReadFormat::Single => format!("'{}'", read1_path),
+    };
+    let bwa_sort_prefix = tempfile::Builder::new()
+        .prefix("coverm-make-samtools-sort")
+        .tempfile_in(tmp_dir.path())
+        .expect("Failed to create tempfile as samtools sort prefix");
+    let cmd_string = format!(
+            "set -e -o pipefail; \
+             bwa mem {} -t {} '{}' {} 2>{} \
+             | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
+             {}",
+            // BWA
+            bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
+            bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+            // samtools
+            bwa_sort_prefix.path().to_str()
+                .expect("Failed to convert bwa_sort_prefix tempfile to str"),
+            threads - 1,
+            samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+            // Caching (or not)
+            cached_bam_file_args);
+    debug!("Queuing cmd_string: {}", cmd_string);
+    let mut cmd = std::process::Command::new("bash");
+    cmd
+        .arg("-c")
+        .arg(&cmd_string)
+        .stderr(std::process::Stdio::piped());
+
+    let mut log_descriptions = vec![
+        "BWA".to_string(),
+        "samtools sort".to_string()];
+    let mut log_files = vec![bwa_log, samtools2_log];
+    if cached_bam_file.is_some() {
+        log_descriptions.push("samtools view for cache".to_string());
+        log_files.push(samtools_view_cache_log);
+    }
+
+    let stoit_name = match include_reference_in_stoit_name {
+        true => std::path::Path::new(reference).file_name()
+            .expect("Unable to convert reference to file name").to_str()
+            .expect("Unable to covert file name into str").to_string() + "/",
+        false => "".to_string()
+    } + &std::path::Path::new(read1_path).file_name()
+        .expect("Unable to convert read1 name to file name").to_str()
+        .expect("Unable to covert file name into str").to_string();
+
+    debug!("Starting mapping processes");
+    let mut pre_processes = vec![cmd];
+    let mut command_strings = vec![format!("bash -c {}", cmd_string)];
+    let mut processes = vec![];
+    let mut i = 0;
+    for mut preprocess in pre_processes {
+        debug!("Running mapping command: {}", command_strings[i]);
+        i += 1;
+        processes.push(preprocess
+            .spawn()
+            .expect("Unable to execute bash"));
+    }
+    return bam::Reader::from_path(&fifo_path)
+        .expect(&format!("Unable to open bam file {:?}", &fifo_path))
+}
 
 
 #[cfg(test)]

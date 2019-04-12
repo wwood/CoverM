@@ -6,6 +6,7 @@ use coverm::external_command_checker;
 use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
 use coverm::coverage_printer::*;
+use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 
@@ -288,6 +289,15 @@ fn main(){
                         m,
                         &mut estimators_and_taker,
                         separator);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                        bam_files, sort_threads);
+                    run_genome(
+                        bam_readers,
+                        m,
+                        &mut estimators_and_taker,
+                        separator);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
@@ -323,6 +333,16 @@ fn main(){
                     }
                     run_genome(
                         all_generators,
+                        m,
+                        &mut estimators_and_taker,
+                        separator);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
+//                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+//                        bam_files, sort_threads);
+                    run_genome(
+                        generator_sets,
                         m,
                         &mut estimators_and_taker,
                         separator);
@@ -925,7 +945,72 @@ impl FilterParameters {
     }
 }
 
+fn get_sharded_bam_readers<'a>(
+    m: &'a clap::ArgMatches,
+    reference_tempfile: &'a Option<NamedTempFile>)
+    -> Vec<ShardedBamReaderGenerator> {
 
+    // Check the output BAM directory actually exists and is writeable
+    if m.is_present("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    }
+    let discard_unmapped = m.is_present("discard-unmapped");
+    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
+//    let mut generator_set = vec!();
+    let mut bam_readers = vec![];
+
+    for reference_wise_params in params {
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(
+            reference_wise_params.reference);
+
+        let reference = reference_wise_params.reference;
+        let bam_file_cache = |naming_readset| -> Option<String> {
+            let bam_file_cache_path;
+            match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(),
+                        match reference_tempfile {
+                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
+                            None => reference
+                        },
+                        naming_readset);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path)
+                }
+            }
+        };
+
+        for p in reference_wise_params {
+            bam_readers.push(
+                coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
+                        index.index_path(),
+                        p.read1,
+                        p.read2,
+                        p.read_format.clone(),
+                        p.threads,
+                        bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                        discard_unmapped,
+                        p.bwa_options,
+                        reference_tempfile.is_none()));
+        }
+
+        debug!("Finished BAM setup");
+//        let to_return = BamGeneratorSet {
+//            generators: bam_readers,
+//            index: index
+//        };
+//        generator_set.push(to_return);
+    };
+    let gen = ShardedBamReaderGenerator {
+        stoit_name: "stoita".to_string(),
+        read_sorted_bam_readers: bam_readers,
+        sort_threads: sort_threads,
+    };
+    return vec!(gen);
+}
 
 fn get_streamed_bam_readers<'a>(
     m: &'a clap::ArgMatches,
@@ -1326,6 +1411,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
+                .arg(Arg::with_name("read-sorted-shard-bam-files")
+                    .long("read-sorted-shard-bam-files")
+                    .required(false))
+                .arg(Arg::with_name("sort-threads")
+                    .long("sort-threads")
+                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1368,6 +1459,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
                      .long("bam-file-cache-directory")
@@ -1511,10 +1603,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true))
                 .arg(Arg::with_name("read-sorted-shard-bam-files")
-                    .long("read-sorted-shard-bam-files"))
+                    .long("read-sorted-shard-bam-files")
+                    .required(false))
                 .arg(Arg::with_name("sort-threads")
                     .long("sort-threads")
-                    .requires("read-sorted-shard-bam-files")
                     .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")

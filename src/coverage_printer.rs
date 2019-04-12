@@ -306,10 +306,14 @@ pub fn print_dense_cached_coverage_taker<'a>(
                                100.0*(1.0-(coverage_multipliers[stoit_i])))
                             .unwrap();
                     }
-                    for _ in (columns_to_normalise[columns_to_normalise.len()-1]+1)
-                        ..*num_coverages {
+                    if columns_to_normalise.len() >= 1 {
+                        // Added this check otherwise rust throws
+                        // error when there are no columns
+                        for _ in (columns_to_normalise[columns_to_normalise.len()-1] + 1)
+                            ..*num_coverages {
                             write!(print_stream, "\tNA").unwrap();
                         }
+                    }
                 }
                 writeln!(print_stream).unwrap();
             }

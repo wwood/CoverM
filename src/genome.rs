@@ -288,6 +288,7 @@ fn print_last_genomes<T: CoverageTaker>(
     header: &rust_htslib::bam::HeaderView,
     tid_to_print_zeros_to: u32) -> bool {
 
+//    debug!("ups_and_downs {:?}", &ups_and_downs);
     for coverage_estimator in coverage_estimators.iter_mut() {
         coverage_estimator.add_contig(
             &ups_and_downs, num_mapped_reads_in_current_contig,
@@ -533,7 +534,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
-                    //debug!("Found cigar {:} from {}", cig, cursor);
+                    debug!("Found cigar {:} from {}", cig, cursor);
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
