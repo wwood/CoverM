@@ -337,10 +337,7 @@ fn main(){
                         &mut estimators_and_taker,
                         separator);
                 } else if m.is_present("read-sorted-shard-bam-files") {
-                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
                     let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
-//                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-//                        bam_files, sort_threads);
                     run_genome(
                         generator_sets,
                         m,
@@ -362,6 +359,51 @@ fn main(){
                         &mut estimators_and_taker,
                         separator);
                 };
+            }
+        },
+        Some("filter") => {
+            let m = matches.subcommand_matches("filter").unwrap();
+            if m.is_present("full-help") {
+                println!("{}", filter_full_help());
+                process::exit(1);
+            }
+            set_log_level(m, true);
+
+            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
+            if bam_files.len() != output_bam_files.len() {
+                panic!("The number of input BAM files must be the same as the number output")
+            }
+
+            let filter_params = FilterParameters::generate_from_clap(m);
+
+            let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
+
+            for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
+                let mut reader = bam::Reader::from_path(bam).expect(
+                    &format!("Unable to find BAM file {}", bam));
+                let header = bam::header::Header::from_template(reader.header());
+                let mut writer = bam::Writer::from_path(
+                    output,
+                    &header
+                ).expect(&format!("Failed to write BAM file {}", output));
+                writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
+                let mut filtered = filter::ReferenceSortedBamFilter::new(
+                    reader,
+                    filter_params.flag_filters.clone(),
+                    filter_params.min_aligned_length_single,
+                    filter_params.min_percent_identity_single,
+                    filter_params.min_aligned_percent_single,
+                    filter_params.min_aligned_length_pair,
+                    filter_params.min_percent_identity_pair,
+                    filter_params.min_aligned_percent_pair,
+                    !m.is_present("inverse"));
+
+                let mut record = bam::record::Record::new();
+                while filtered.read(&mut record).is_ok() {
+                    debug!("Writing.. {:?}", record.qname());
+                    writer.write(&record).expect("Failed to write BAM record");
+                }
             }
         },
         Some("contig") => {
@@ -434,6 +476,13 @@ fn main(){
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let generator_sets = get_sharded_bam_readers(m, &None);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        generator_sets,
+                        print_zeros,
+                        filter_params.flag_filters);
                 } else {
                     debug!("Not filtering..");
                     let generator_sets = get_streamed_bam_readers(m, &None);
@@ -450,51 +499,6 @@ fn main(){
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters.clone());
-                }
-            }
-        },
-        Some("filter") => {
-            let m = matches.subcommand_matches("filter").unwrap();
-            if m.is_present("full-help") {
-                println!("{}", filter_full_help());
-                process::exit(1);
-            }
-            set_log_level(m, true);
-
-            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-            let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
-            if bam_files.len() != output_bam_files.len() {
-                panic!("The number of input BAM files must be the same as the number output")
-            }
-
-            let filter_params = FilterParameters::generate_from_clap(m);
-
-            let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
-
-            for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
-                let mut reader = bam::Reader::from_path(bam).expect(
-                    &format!("Unable to find BAM file {}", bam));
-                let header = bam::header::Header::from_template(reader.header());
-                let mut writer = bam::Writer::from_path(
-                    output,
-                    &header
-                ).expect(&format!("Failed to write BAM file {}", output));
-                writer.set_threads(num_threads as usize).expect("Failed to set num threads in writer");
-                let mut filtered = filter::ReferenceSortedBamFilter::new(
-                    reader,
-                    filter_params.flag_filters.clone(),
-                    filter_params.min_aligned_length_single,
-                    filter_params.min_percent_identity_single,
-                    filter_params.min_aligned_percent_single,
-                    filter_params.min_aligned_length_pair,
-                    filter_params.min_percent_identity_pair,
-                    filter_params.min_aligned_percent_pair,
-                    !m.is_present("inverse"));
-
-                let mut record = bam::record::Record::new();
-                while filtered.read(&mut record).is_ok() {
-                    debug!("Writing.. {:?}", record.qname());
-                    writer.write(&record).expect("Failed to write BAM record");
                 }
             }
         },
@@ -1650,6 +1654,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless_one(&["bam-files","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")

@@ -95,16 +95,6 @@ pub struct StreamingNamedBamReaderGenerator {
 
 impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
     fn start(self) -> StreamingNamedBamReader {
-        debug!("Starting mapping processes");
-        let mut processes = vec![];
-        let mut i = 0;
-        for mut preprocess in self.pre_processes {
-            debug!("Running mapping command: {}", self.command_strings[i]);
-            i += 1;
-            processes.push(preprocess
-                           .spawn()
-                           .expect("Unable to execute bash"));
-        }
         let bam_reader = bam::Reader::from_path(&self.fifo_path)
             .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
         return StreamingNamedBamReader {
