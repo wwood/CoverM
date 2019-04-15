@@ -23,6 +23,21 @@ impl GenomesAndContigs {
     }
 
     pub fn insert(&mut self, contig_name: String, genome_index: usize) {
+        match self.contig_to_genome.get(&contig_name) {
+            Some(previous_index) => {
+                let genome_prev = &self.genomes[*previous_index];
+                let genome_current = &self.genomes[genome_index];
+                panic!("The contig '{}' has been assigned to multiple genomes, \
+                        at least '{}' and '{}'. You may try not using \
+                        --reference and let coverm generate a reference of \
+                        concatenated contigs, or rename the contigs in your \
+                        genome file(s).",
+                       contig_name,
+                       genome_prev,
+                       genome_current);
+            },
+            None => {}
+        }
         self.contig_to_genome.insert(contig_name, genome_index);
     }
 
