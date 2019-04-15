@@ -8,6 +8,7 @@ use coverm::mapping_parameters::*;
 use coverm::coverage_printer::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
+use coverm::genomes_and_contigs::GenomesAndContigs;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -272,6 +273,17 @@ fn main(){
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
+            let single_genome = m.is_present("single-genome");
+            let genomes_and_contigs_option = match separator.is_some() || single_genome {
+                true => None,
+                false => {
+                    let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+                    info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
+                    Some(coverm::read_genome_fasta_files(
+                        &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
+                }
+            };
+
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filter_params.doing_filtering() {
@@ -287,14 +299,16 @@ fn main(){
                             filter_params.min_aligned_percent_pair),
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        genomes_and_contigs_option);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        genomes_and_contigs_option);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -325,7 +339,8 @@ fn main(){
                         all_generators,
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        genomes_and_contigs_option);
                 } else {
                     let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
@@ -340,7 +355,8 @@ fn main(){
                         all_generators,
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        genomes_and_contigs_option);
                 };
             }
         },
@@ -768,7 +784,8 @@ fn run_genome<'a,
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
-    separator: Option<u8>) {
+    separator: Option<u8>,
+    genomes_and_contigs_option: Option<GenomesAndContigs>) {
 
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
@@ -786,14 +803,9 @@ fn run_genome<'a,
         },
 
         false => {
-            let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
-            info!("Calculating coverage for {} genomes ..", genome_fasta_files.len());
-            let genomes_and_contigs = coverm::read_genome_fasta_files(
-                &genome_fasta_files.iter().map(|s| s.as_str()).collect());
-
             coverm::genome::mosdepth_genome_coverage_with_contig_names(
                 bam_generators,
-                &genomes_and_contigs,
+                &genomes_and_contigs_option.unwrap(),
                 &mut estimators_and_taker.taker,
                 print_zeros,
                 proper_pairs_only,
