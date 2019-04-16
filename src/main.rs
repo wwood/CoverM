@@ -50,15 +50,17 @@ Thresholds:
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
                                          identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95%. [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
                                          Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
 
@@ -109,18 +111,21 @@ Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
-                                         Implies --proper-pairs-only.[default: 0]
+                                         Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -150,7 +155,6 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    --discard-unmapped                    Exclude unmapped reads from cached BAM files.
@@ -201,15 +205,21 @@ Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: 0]
+                                         aligned bases.
+                                         Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -239,7 +249,6 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    --discard-unmapped                    Exclude unmapped reads from cached BAM files.
