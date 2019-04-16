@@ -6,6 +6,7 @@ use rust_htslib::bam::record::Cigar;
 use std::str;
 use std::collections::BTreeSet;
 
+use shard_bam_reader::*;
 use mosdepth_genome_coverage_estimators::*;
 use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
@@ -892,6 +893,7 @@ mod tests {
         return res;
     }
 
+
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
         test_streaming_with_stream(
@@ -1104,6 +1106,19 @@ mod tests {
             false,
             false);
     }
+
+    #[test]
+    fn test_sharded_bams_with_zero_coverage(){
+        test_streaming_with_stream(
+            "stoita\tgenome3\t0.10908099\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
+            generate_sharded_bam_reader_from_bam_files(vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4),
+            '~' as u8,
+            true,
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            false,
+            false);
+    }
+
 
     #[test]
     fn test_zero_coverage_genomes_after_min_fraction(){
