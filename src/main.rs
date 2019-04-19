@@ -90,10 +90,20 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. concatenated genomes or assembly
+                                         e.g. concatenated genomes or assembly.
+                                         If multiple references FASTA files are
+                                         provided and --read-sorted-shard-bam-files
+                                         is specified, then reads will be mapped
+                                         to references separately as sharded BAMs
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   --read-sorted-shard-bam-files         Specify whether provided bam files are
+                                         sharded or whether to map to sharded
+                                         reference files. Sharded bam files must
+                                         be read sorted.
+   --sort-threads                        The number of threads used when sorting
+                                         desharded bam files by reference.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -182,10 +192,20 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. assembly output
+                                         e.g. concatenated genomes or assembly.
+                                         If multiple references FASTA files are
+                                         provided and --read-sorted-shard-bam-files
+                                         is specified, then reads will be mapped
+                                         to references separately as sharded BAMs
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   --read-sorted-shard-bam-files         Specify whether provided bam files are
+                                         sharded or whether to map to sharded
+                                         reference files. Sharded bam files must
+                                         be read sorted.
+   --sort-threads                        The number of threads used when sorting
+                                         desharded bam files by reference.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -1355,7 +1375,10 @@ Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
 
 Mapping parameters:
-   -r, --reference <PATH>                FASTA file of contig(s) or BWA index stem
+   -r, --reference <PATH>                FASTA file(s) of contig(s) or BWA index stem.
+                                         If multiple reference FASTA files are provided,
+                                         reads will be mapped to each reference separately
+                                         and create sharded BAM files.
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -1846,6 +1869,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
+                     .multiple(true)
                      .takes_value(true)
                      .required(true))
                 .arg(Arg::with_name("threads")
