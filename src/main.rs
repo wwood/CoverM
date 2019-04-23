@@ -673,10 +673,10 @@ impl<'a> EstimatorsAndTaker<'a> {
         if min_fraction_covered != 0.0 {
             let die = |estimator_name| {
                 error!("The '{}' coverage estimator cannot be used when \
-                        --min-covered-fraction is > 0 as it does not calculated \
-                        the covered fraction. You may wish to use the \
-                        'covered_fraction' estimator in addition and set \
-                        --min-covered-fraction to 0.", estimator_name);
+                        --min-covered-fraction is > 0 as it does not calculate \
+                        the covered fraction. You may wish to set the \
+                        --min-covered-fraction to 0 and/or run this estimator \
+                        separately.", estimator_name);
                 process::exit(1)
             };
             for e in &estimators {
