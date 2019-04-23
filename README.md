@@ -1,5 +1,7 @@
 # CoverM
 
+[![Travis](https://img.shields.io/travis/wwood/CoverM.svg?style=flat-square)](https://travis-ci.org/wwood/CoverM)
+
 CoverM aims to be a configurable, easy to use and fast read coverage calculator focused on metagenomics applications. 
 
 Calculating coverage by read mapping, its input can either be BAM files sorted by reference, or raw reads and reference FASTA sequences.
