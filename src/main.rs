@@ -89,7 +89,12 @@ fn contig_full_help() -> &'static str {
 
 Define mapping(s) (required):
   Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --read-sorted-shard-bam-files is
+                                         specified, in which case they must be
+                                         read name sorted (e.g. with
+                                         samtools sort -n).
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
@@ -193,7 +198,12 @@ Define the contigs in each genome (exactly one of the following is required):
 
 Define mapping(s) (required):
   Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --read-sorted-shard-bam-files is
+                                         specified, in which case they must be
+                                         read name sorted (e.g. with
+                                         samtools sort -n).
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
