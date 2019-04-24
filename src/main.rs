@@ -598,31 +598,6 @@ fn main(){
                 }
             }
         },
-        Some("deshard") => {
-            let m = matches.subcommand_matches("deshard").unwrap();
-            set_log_level(m, true);
-            let bam_files: Vec<&str> = m.values_of("input-bam-files").unwrap().collect();
-            let bam_readers = bam_files.iter().map(
-                |f| {
-                    debug!("Opening BAM {} ..", f);
-                    bam::Reader::from_path(&f)
-                        .expect(&format!("Unable to open bam file {}", f))
-                }
-            ).collect();
-            debug!("Opened all input BAM files");
-            let gen = coverm::shard_bam_reader::ShardedBamReaderGenerator {
-                stoit_name: "stoita".to_string(),
-                read_sorted_bam_readers: bam_readers,
-                sort_threads: 1,
-            };
-            let mut reader = gen.start();
-            debug!("stoit name {}",reader.name());
-            let mut r = bam::Record::new();
-            while reader.read(&mut r).is_ok() {
-                println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
-                println!("main: tid {}",r.tid());
-            }
-        },
         _ => {
             app.print_help().unwrap();
             println!();
@@ -1911,18 +1886,5 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bwa-parameters")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference")))
-        .subcommand(
-            SubCommand::with_name("deshard")
-                .arg(Arg::with_name("input-bam-files")
-                     .short("-b")
-                     .long("input-bam-files")
-                     .multiple(true)
-                     .takes_value(true))
-                .arg(Arg::with_name("verbose")
-                     .short("v")
-                     .long("verbose"))
-                .arg(Arg::with_name("quiet")
-                     .short("q")
-                     .long("quiet")));
+                     .requires("reference")));
 }
