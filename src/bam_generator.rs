@@ -102,8 +102,8 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             debug!("Running mapping command: {}", self.command_strings[i]);
             i += 1;
             processes.push(preprocess
-                           .spawn()
-                           .expect("Unable to execute bash"));
+                .spawn()
+                .expect("Unable to execute bash"));
         }
         let bam_reader = bam::Reader::from_path(&self.fifo_path)
             .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
@@ -120,7 +120,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     }
 }
 
-fn complete_processes(
+pub fn complete_processes(
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,

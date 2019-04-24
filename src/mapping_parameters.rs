@@ -8,7 +8,6 @@ pub enum ReadFormat {
     Single,
 }
 
-
 pub struct MappingParameters<'a> {
     references: Vec<&'a str>,
     threads: u16,

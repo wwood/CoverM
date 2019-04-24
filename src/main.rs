@@ -6,6 +6,7 @@ use coverm::external_command_checker;
 use coverm::coverage_takers::*;
 use coverm::mapping_parameters::*;
 use coverm::coverage_printer::*;
+use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 use coverm::genomes_and_contigs::GenomesAndContigs;
@@ -92,10 +93,20 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. concatenated genomes or assembly
+                                         e.g. concatenated genomes or assembly.
+                                         If multiple references FASTA files are
+                                         provided and --read-sorted-shard-bam-files
+                                         is specified, then reads will be mapped
+                                         to references separately as sharded BAMs
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   --read-sorted-shard-bam-files         Specify whether provided bam files are
+                                         sharded or whether to map to sharded
+                                         reference files. Sharded bam files must
+                                         be read sorted.
+   --sort-threads                        The number of threads used when sorting
+                                         desharded bam files by reference.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -186,10 +197,20 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH>                FASTA file of contigs or BWA index stem
-                                         e.g. assembly output
+                                         e.g. concatenated genomes or assembly.
+                                         If multiple references FASTA files are
+                                         provided and --read-sorted-shard-bam-files
+                                         is specified, then reads will be mapped
+                                         to references separately as sharded BAMs
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   --read-sorted-shard-bam-files         Specify whether provided bam files are
+                                         sharded or whether to map to sharded
+                                         reference files. Sharded bam files must
+                                         be read sorted.
+   --sort-threads                        The number of threads used when sorting
+                                         desharded bam files by reference.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -310,6 +331,17 @@ fn main(){
                         &mut estimators_and_taker,
                         separator,
                         genomes_and_contigs_option);
+
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                        bam_files, sort_threads);
+                    run_genome(
+                        bam_readers,
+                        m,
+                        &mut estimators_and_taker,
+                        separator,
+                        genomes_and_contigs_option);
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
@@ -350,6 +382,14 @@ fn main(){
                         &mut estimators_and_taker,
                         separator,
                         genomes_and_contigs_option);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
+                    run_genome(
+                        generator_sets,
+                        m,
+                        &mut estimators_and_taker,
+                        separator,
+                        genomes_and_contigs_option);
                 } else {
                     let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
@@ -367,86 +407,6 @@ fn main(){
                         separator,
                         genomes_and_contigs_option);
                 };
-            }
-        },
-        Some("contig") => {
-            let m = matches.subcommand_matches("contig").unwrap();
-            if m.is_present("full-help") {
-                println!("{}", contig_full_help());
-                process::exit(1);
-            }
-            set_log_level(m, true);
-            let print_zeros = !m.is_present("no-zeros");
-            let filter_params = FilterParameters::generate_from_clap(m);
-
-            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut print_stream);
-            estimators_and_taker = estimators_and_taker.print_headers(
-                &"Contig", &mut std::io::stdout());
-
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filter_params.doing_filtering() {
-                    let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
-                        bam_files,
-                        filter_params.flag_filters.clone(),
-                        filter_params.min_aligned_length_single,
-                        filter_params.min_percent_identity_single,
-                        filter_params.min_aligned_percent_single,
-                        filter_params.min_aligned_length_pair,
-                        filter_params.min_percent_identity_pair,
-                        filter_params.min_aligned_percent_pair);
-                    run_contig(
-                        &mut estimators_and_taker,
-                        bam_readers,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else {
-                    let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                        bam_files);
-                    run_contig(
-                        &mut estimators_and_taker,
-                        bam_readers,
-                        print_zeros,
-                        filter_params.flag_filters);
-                }
-            } else {
-                external_command_checker::check_for_bwa();
-                external_command_checker::check_for_samtools();
-                if filter_params.doing_filtering() {
-                    debug!("Filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(m, &None);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
-                        }
-                    }
-                    debug!("Finished collecting generators.");
-                    run_contig(
-                        &mut estimators_and_taker,
-                        all_generators,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else {
-                    debug!("Not filtering..");
-                    let generator_sets = get_streamed_bam_readers(m, &None);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
-                        }
-                    }
-                    run_contig(
-                        &mut estimators_and_taker,
-                        all_generators,
-                        print_zeros,
-                        filter_params.flag_filters.clone());
-                }
             }
         },
         Some("filter") => {
@@ -491,6 +451,102 @@ fn main(){
                 while filtered.read(&mut record).is_ok() {
                     debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
+                }
+            }
+        },
+        Some("contig") => {
+            let m = matches.subcommand_matches("contig").unwrap();
+            if m.is_present("full-help") {
+                println!("{}", contig_full_help());
+                process::exit(1);
+            }
+            set_log_level(m, true);
+            let print_zeros = !m.is_present("no-zeros");
+            let filter_params = FilterParameters::generate_from_clap(m);
+
+            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
+                m, &mut print_stream);
+            estimators_and_taker = estimators_and_taker.print_headers(
+                &"Contig", &mut std::io::stdout());
+
+            if m.is_present("bam-files") {
+                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                if filter_params.doing_filtering() {
+                    let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                        bam_files,
+                        filter_params.flag_filters.clone(),
+                        filter_params.min_aligned_length_single,
+                        filter_params.min_percent_identity_single,
+                        filter_params.min_aligned_percent_single,
+                        filter_params.min_aligned_length_pair,
+                        filter_params.min_percent_identity_pair,
+                        filter_params.min_aligned_percent_pair);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        bam_readers,
+                        print_zeros,
+                        filter_params.flag_filters);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                        bam_files, sort_threads);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        bam_readers,
+                        print_zeros,
+                        filter_params.flag_filters);
+                } else {
+                    let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                        bam_files);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        bam_readers,
+                        print_zeros,
+                        filter_params.flag_filters);
+                }
+            } else {
+                external_command_checker::check_for_bwa();
+                external_command_checker::check_for_samtools();
+                if filter_params.doing_filtering() {
+                    debug!("Filtering..");
+                    let generator_sets = get_streamed_filtered_bam_readers(m, &None);
+                    let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
+                    for set in generator_sets {
+                        indices.push(set.index);
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
+                    }
+                    debug!("Finished collecting generators.");
+                    run_contig(
+                        &mut estimators_and_taker,
+                        all_generators,
+                        print_zeros,
+                        filter_params.flag_filters);
+                } else if m.is_present("read-sorted-shard-bam-files") {
+                    let generator_sets = get_sharded_bam_readers(m, &None);
+                    run_contig(
+                        &mut estimators_and_taker,
+                        generator_sets,
+                        print_zeros,
+                        filter_params.flag_filters);
+                } else {
+                    debug!("Not filtering..");
+                    let generator_sets = get_streamed_bam_readers(m, &None);
+                    let mut all_generators = vec!();
+                    let mut indices = vec!(); // Prevent indices from being dropped
+                    for set in generator_sets {
+                        indices.push(set.index);
+                        for g in set.generators {
+                            all_generators.push(g)
+                        }
+                    }
+                    run_contig(
+                        &mut estimators_and_taker,
+                        all_generators,
+                        print_zeros,
+                        filter_params.flag_filters.clone());
                 }
             }
         },
@@ -540,6 +596,31 @@ fn main(){
                     generator.start().finish();
                     i += 1;
                 }
+            }
+        },
+        Some("deshard") => {
+            let m = matches.subcommand_matches("deshard").unwrap();
+            set_log_level(m, true);
+            let bam_files: Vec<&str> = m.values_of("input-bam-files").unwrap().collect();
+            let bam_readers = bam_files.iter().map(
+                |f| {
+                    debug!("Opening BAM {} ..", f);
+                    bam::Reader::from_path(&f)
+                        .expect(&format!("Unable to open bam file {}", f))
+                }
+            ).collect();
+            debug!("Opened all input BAM files");
+            let gen = coverm::shard_bam_reader::ShardedBamReaderGenerator {
+                stoit_name: "stoita".to_string(),
+                read_sorted_bam_readers: bam_readers,
+                sort_threads: 1,
+            };
+            let mut reader = gen.start();
+            debug!("stoit name {}",reader.name());
+            let mut r = bam::Record::new();
+            while reader.read(&mut r).is_ok() {
+                println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
+                println!("main: tid {}",r.tid());
             }
         },
         _ => {
@@ -912,7 +993,72 @@ impl FilterParameters {
     }
 }
 
+fn get_sharded_bam_readers<'a>(
+    m: &'a clap::ArgMatches,
+    reference_tempfile: &'a Option<NamedTempFile>)
+    -> Vec<ShardedBamReaderGenerator> {
 
+    // Check the output BAM directory actually exists and is writeable
+    if m.is_present("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    }
+    let discard_unmapped = m.is_present("discard-unmapped");
+    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
+//    let mut generator_set = vec!();
+    let mut bam_readers = vec![];
+
+    for reference_wise_params in params {
+        let index = coverm::bwa_index_maintenance::generate_bwa_index(
+            reference_wise_params.reference);
+
+        let reference = reference_wise_params.reference;
+        let bam_file_cache = |naming_readset| -> Option<String> {
+            let bam_file_cache_path;
+            match m.is_present("bam-file-cache-directory") {
+                false => None,
+                true => {
+                    bam_file_cache_path = generate_cached_bam_file_name(
+                        m.value_of("bam-file-cache-directory").unwrap(),
+                        match reference_tempfile {
+                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
+                            None => reference
+                        },
+                        naming_readset);
+                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    Some(bam_file_cache_path)
+                }
+            }
+        };
+
+        for p in reference_wise_params {
+            bam_readers.push(
+                coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
+                        index.index_path(),
+                        p.read1,
+                        p.read2,
+                        p.read_format.clone(),
+                        p.threads,
+                        bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                        discard_unmapped,
+                        p.bwa_options,
+                        reference_tempfile.is_none()));
+        }
+
+        debug!("Finished BAM setup");
+//        let to_return = BamGeneratorSet {
+//            generators: bam_readers,
+//            index: index
+//        };
+//        generator_set.push(to_return);
+    };
+    let gen = ShardedBamReaderGenerator {
+        stoit_name: "stoita".to_string(),
+        read_sorted_bam_readers: bam_readers,
+        sort_threads: sort_threads,
+    };
+    return vec!(gen);
+}
 
 fn get_streamed_bam_readers<'a>(
     m: &'a clap::ArgMatches,
@@ -1256,7 +1402,10 @@ Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
 
 Mapping parameters:
-   -r, --reference <PATH>                FASTA file of contig(s) or BWA index stem
+   -r, --reference <PATH>                FASTA file(s) of contig(s) or BWA index stem.
+                                         If multiple reference FASTA files are provided,
+                                         reads will be mapped to each reference separately
+                                         and create sharded BAM files.
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -1316,6 +1465,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
+                .arg(Arg::with_name("read-sorted-shard-bam-files")
+                    .long("read-sorted-shard-bam-files")
+                    .required(false))
+                .arg(Arg::with_name("sort-threads")
+                    .long("sort-threads")
+                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1358,6 +1513,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
                      .long("bam-file-cache-directory")
@@ -1500,6 +1656,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
+                .arg(Arg::with_name("read-sorted-shard-bam-files")
+                    .long("read-sorted-shard-bam-files")
+                    .required(false))
+                .arg(Arg::with_name("sort-threads")
+                    .long("sort-threads")
+                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1542,6 +1704,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-r")
                      .long("reference")
                      .takes_value(true)
+                     .multiple(true)
                      .required_unless_one(&["bam-files","full-help"])
                      .conflicts_with("bam-files"))
                 .arg(Arg::with_name("bam-file-cache-directory")
@@ -1733,6 +1896,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
+                     .multiple(true)
                      .takes_value(true)
                      .required(true))
                 .arg(Arg::with_name("threads")
@@ -1747,6 +1911,18 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bwa-parameters")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference"))
-        );
+                     .requires("reference")))
+        .subcommand(
+            SubCommand::with_name("deshard")
+                .arg(Arg::with_name("input-bam-files")
+                     .short("-b")
+                     .long("input-bam-files")
+                     .multiple(true)
+                     .takes_value(true))
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")));
 }

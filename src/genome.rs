@@ -6,6 +6,7 @@ use rust_htslib::bam::record::Cigar;
 use std::str;
 use std::collections::BTreeSet;
 
+use shard_bam_reader::*;
 use mosdepth_genome_coverage_estimators::*;
 use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
@@ -288,6 +289,7 @@ fn print_last_genomes<T: CoverageTaker>(
     header: &rust_htslib::bam::HeaderView,
     tid_to_print_zeros_to: u32) -> bool {
 
+//    debug!("ups_and_downs {:?}", &ups_and_downs);
     for coverage_estimator in coverage_estimators.iter_mut() {
         coverage_estimator.add_contig(
             &ups_and_downs, num_mapped_reads_in_current_contig,
@@ -533,7 +535,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
-                    //debug!("Found cigar {:} from {}", cig, cursor);
+                    debug!("Found cigar {:} from {}", cig, cursor);
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
@@ -891,6 +893,7 @@ mod tests {
         return res;
     }
 
+
     #[test]
     fn test_one_genome_two_contigs_first_covered(){
         test_streaming_with_stream(
@@ -1103,6 +1106,19 @@ mod tests {
             false,
             false);
     }
+
+    #[test]
+    fn test_sharded_bams_with_zero_coverage(){
+        test_streaming_with_stream(
+            "stoita\tgenome3\t0.10908099\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
+            generate_sharded_bam_reader_from_bam_files(vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4),
+            '~' as u8,
+            true,
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            false,
+            false);
+    }
+
 
     #[test]
     fn test_zero_coverage_genomes_after_min_fraction(){

@@ -3,6 +3,7 @@ use std;
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 
+use shard_bam_reader::*;
 use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
 use coverage_takers::*;
@@ -277,6 +278,22 @@ mod tests {
             "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
+            true,
+            false);
+    }
+
+    #[test]
+    fn test_sharded_bams_some_not_covered(){
+        test_with_stream(
+            "stoita\tgenome3~random_sequence_length_11001\t0.10908099\
+            \nstoita\tgenome4~random_sequence_length_11002\t0.109071076\
+            \nstoita\tgenome5~seq2\t0\nstoita\tgenome6~random_sequence_length_11003\t0.10906117\
+            \nstoita\tgenome1~random_sequence_length_11000\t0.10909091\
+            \nstoita\tgenome1~random_sequence_length_11010\t0.108991824\
+            \nstoita\tgenome2~seq1\t0\n",
+            generate_sharded_bam_reader_from_bam_files(
+                vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4),
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             true,
             false);
