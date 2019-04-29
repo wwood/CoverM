@@ -59,8 +59,8 @@ To illustrate, imagine a set of 3 pairs of reads, where only 1 aligns to a
 single reference contig of length 1000bp:
 
 ```
-read1_forward    ==================>
-read1_reverse                         <==================
+read1_forward    ========>
+read1_reverse                                  <====+====
 contig    ...-----------------------------------------------------....
                  |        |         |         |         |
 position        200      210       220       230       240
