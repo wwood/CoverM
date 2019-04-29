@@ -156,6 +156,10 @@ Other arguments (optional):
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
                                            reads_per_base
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
@@ -265,6 +269,10 @@ Other arguments (optional):
                                               length
                                               count
                                               reads_per_base
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
