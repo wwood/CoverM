@@ -48,13 +48,14 @@ Other options:
 	-V, --version	Print version information
 ```
 
-For detailed usage see `coverm <command> -h`.
+For more detailed usage see `coverm <command> -h` or `coverm <command> --full-help`.
 
 ## Calculation methods
 
-The `-m/--methods` flag the specific kind of coverage that is to be calculated.
+The `-m/--methods` flag specified the specific kind(s) of coverage that is 
+to be calculated.
 
-To illustrate, imagine a set of 3 pairs of reads, where only one aligns to a
+To illustrate, imagine a set of 3 pairs of reads, where only 1 aligns to a
 single reference contig of length 1000bp:
 
 ```
@@ -80,8 +81,8 @@ The difference coverage measures would be:
 | metabat | contigLen 1000, totalAvgDepth 0.02235294, bam depth 0.02235294, variance 0.01961962 | | Reproduction of the [MetaBAT](https://bitbucket.org/berkeleylab/metabat) 'jgi_summarize_bam_contig_depths' tool output, producing [identical output](https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage). |
 | coverage_histogram | 20 bases with coverage 1, 980 bases with coverage 0 | | The number of positions with each different coverage are tallied. |
 
-Calculation of genome-wise coverage ('genome' mode) is similar to calculating
-contig-wise ('contig' mode) coverage, except that the unit of reporting is
+Calculation of genome-wise coverage (`genome` mode) is similar to calculating
+contig-wise (`contig` mode) coverage, except that the unit of reporting is
 per-genome rather than per-contig. For calculation methods which exclude base
 positions based on their coverage, all positions from all contigs are considered
 together. For instance, if a 2000bp contig with all positions having 1X coverage
