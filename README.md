@@ -2,7 +2,7 @@
 
 [![Travis](https://img.shields.io/travis/wwood/CoverM.svg?style=flat-square)](https://travis-ci.org/wwood/CoverM)
 
-CoverM aims to be a configurable, easy to use and fast read coverage and
+CoverM aims to be a configurable, easy to use and fast DNA read coverage and
 relative abundance calculator focused on metagenomics applications.
 
 CoverM calculates coverage of genomes/MAGs (`coverm genome`) or individual
@@ -12,12 +12,19 @@ sequences.
 
 ## Installation
 
+### Pre-compiled binary
+
 To install CoverM, the most straightforward way is to download the statically
 compiled binaries available on the [releases page](https://github.com/wwood/CoverM/releases).
 
+### Compiling from source
+
 CoverM can also be installed from source, using the cargo build system after
-installing [Rust](https://www.rust-lang.org/). CoverM is not currently on
-crates.io.
+installing [Rust](https://www.rust-lang.org/).
+
+```
+cargo install coverm
+```
 
 ### Dependencies
 For the full suite of options, these additional programs must be installed:
