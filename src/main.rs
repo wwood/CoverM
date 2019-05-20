@@ -95,6 +95,10 @@ Define mapping(s) (required):
                                          specified, in which case they must be
                                          read name sorted (e.g. with
                                          samtools sort -n).
+   --read-sorted-shard-bam-files         Input BAM files are read-sorted alignments
+                                         of a set of reads mapped to multiple
+                                         reference contig sets. Choose the best
+                                         hit for each read pair.
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
@@ -103,15 +107,11 @@ Define mapping(s) (required):
                                          provided and --read-sorted-shard-bam-files
                                          is specified, then reads will be mapped
                                          to references separately as sharded BAMs
-   -t, --threads <INT>                   Number of threads to use for mapping
+   -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   --read-sorted-shard-bam-files         Specify whether provided bam files are
-                                         sharded or whether to map to sharded
-                                         reference files. Sharded bam files must
-                                         be read sorted.
-   --sort-threads                        The number of threads used when sorting
-                                         desharded bam files by reference.
+   --read-sorted-shard-bam-files         Map reads to each reference, choosing the
+                                         best hit for each pair.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -208,6 +208,10 @@ Define mapping(s) (required):
                                          specified, in which case they must be
                                          read name sorted (e.g. with
                                          samtools sort -n).
+   --read-sorted-shard-bam-files         Input BAM files are read-sorted alignments
+                                         of a set of reads mapped to multiple
+                                         reference contig sets. Choose the best
+                                         hit for each read pair.
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
@@ -216,15 +220,11 @@ Define mapping(s) (required):
                                          provided and --read-sorted-shard-bam-files
                                          is specified, then reads will be mapped
                                          to references separately as sharded BAMs
-   -t, --threads <INT>                   Number of threads to use for mapping
+   -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   --read-sorted-shard-bam-files         Specify whether provided bam files are
-                                         sharded or whether to map to sharded
-                                         reference files. Sharded bam files must
-                                         be read sorted.
-   --sort-threads                        The number of threads used when sorting
-                                         desharded bam files by reference.
+   --read-sorted-shard-bam-files         Map reads to each reference, choosing the
+                                         best hit for each pair.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -352,7 +352,7 @@ fn main(){
 
                 } else if m.is_present("read-sorted-shard-bam-files") {
                     external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                         bam_files, sort_threads);
                     run_genome(
@@ -507,7 +507,7 @@ fn main(){
                         filter_params.flag_filters);
                 } else if m.is_present("read-sorted-shard-bam-files") {
                     external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                         bam_files, sort_threads);
                     run_contig(
@@ -998,7 +998,7 @@ fn get_sharded_bam_readers<'a>(
         setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
     }
     let discard_unmapped = m.is_present("discard-unmapped");
-    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
     let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
     let mut bam_readers = vec![];
 
@@ -1457,9 +1457,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("read-sorted-shard-bam-files")
                     .long("read-sorted-shard-bam-files")
                     .required(false))
-                .arg(Arg::with_name("sort-threads")
-                    .long("sort-threads")
-                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1648,9 +1645,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("read-sorted-shard-bam-files")
                     .long("read-sorted-shard-bam-files")
                     .required(false))
-                .arg(Arg::with_name("sort-threads")
-                    .long("sort-threads")
-                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
