@@ -10,6 +10,7 @@ pub mod coverage_takers;
 pub mod mapping_parameters;
 pub mod coverage_printer;
 pub mod shard_bam_reader;
+pub mod genome_exclusion;
 
 extern crate bio;
 #[macro_use]
