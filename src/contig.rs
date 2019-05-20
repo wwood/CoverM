@@ -3,7 +3,6 @@ use std;
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 
-use shard_bam_reader::*;
 use mosdepth_genome_coverage_estimators::*;
 use bam_generator::*;
 use coverage_takers::*;
@@ -232,6 +231,7 @@ mod tests {
     use std::io::Cursor;
     use std::str;
     use mapping_parameters::*;
+    use shard_bam_reader::*;
 
     fn test_with_stream<R: NamedBamReader,
                         G: NamedBamReaderGenerator<R>>(

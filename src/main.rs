@@ -97,7 +97,7 @@ Define mapping(s) (required):
                                          samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
                                          provided and --read-sorted-shard-bam-files
@@ -210,7 +210,7 @@ Define mapping(s) (required):
                                          samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
                                          provided and --read-sorted-shard-bam-files
@@ -351,6 +351,7 @@ fn main(){
                         genomes_and_contigs_option);
 
                 } else if m.is_present("read-sorted-shard-bam-files") {
+                    external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                         bam_files, sort_threads);
@@ -505,6 +506,7 @@ fn main(){
                         print_zeros,
                         filter_params.flag_filters);
                 } else if m.is_present("read-sorted-shard-bam-files") {
+                    external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                         bam_files, sort_threads);
@@ -998,7 +1000,6 @@ fn get_sharded_bam_readers<'a>(
     let discard_unmapped = m.is_present("discard-unmapped");
     let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
     let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
-//    let mut generator_set = vec!();
     let mut bam_readers = vec![];
 
     for reference_wise_params in params {
@@ -1039,11 +1040,6 @@ fn get_sharded_bam_readers<'a>(
         }
 
         debug!("Finished BAM setup");
-//        let to_return = BamGeneratorSet {
-//            generators: bam_readers,
-//            index: index
-//        };
-//        generator_set.push(to_return);
     };
     let gen = ShardedBamReaderGenerator {
         stoit_name: "stoita".to_string(),

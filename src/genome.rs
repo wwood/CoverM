@@ -6,7 +6,6 @@ use rust_htslib::bam::record::Cigar;
 use std::str;
 use std::collections::BTreeSet;
 
-use shard_bam_reader::*;
 use mosdepth_genome_coverage_estimators::*;
 use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
@@ -786,6 +785,7 @@ mod tests {
     use super::*;
     use std::io::Cursor;
     use rust_htslib::prelude::*;
+    use shard_bam_reader::*;
 
     fn test_streaming_with_stream<R: NamedBamReader,
                                   G: NamedBamReaderGenerator<R>>(

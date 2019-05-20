@@ -1,18 +1,14 @@
 use std::str;
 use std;
-use std::io::Read;
 
 use rand::prelude::*;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Record;
-use rust_htslib::bam::record::{Cigar, CigarString};
+use rust_htslib::bam::record::CigarString;
 use rust_htslib::bam::Read as BamRead;
 
-use filter::*;
-use bwa_index_maintenance::BwaIndexStruct;
 use mapping_parameters::ReadFormat;
-use FlagFilter;
 
 use tempdir::TempDir;
 use tempfile;
@@ -38,7 +34,7 @@ impl ReadSortedShardedBamReader {
         let mut current_qname: Option<String> = None;
         let mut some_unfinished = false;
         let mut some_finished = false;
-        let mut record = bam::Record::new();
+        let mut record;
         let mut res;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
@@ -105,14 +101,15 @@ impl ReadSortedShardedBamReader {
         to.set_mtid(from.mtid());
         to.set_mpos(from.mpos());
         to.set_insert_size(from.insert_size());
-//        to.set_qname(from.qname());
         to.set_tid(from.tid());
-        match &from.aux("NM".as_bytes()){
+        match &from.aux("NM".as_bytes()) {
             Some(aux) => {
-                to.push_aux("NM".as_bytes(), aux);
+                to.push_aux("NM".as_bytes(), aux)
+                    .expect(&format!(
+                        "Error writing AUX record from{:?} to {:?}", from, to));
             },
             None => {
-                debug!("read {:?} had no NM tag", from.qname())
+                panic!("record {:?} had no NM tag", from)
             },
         }
         debug!("from cigar {:?}, to cigar {:?}", from.cigar().to_string(), to.cigar().to_string())
@@ -396,12 +393,12 @@ impl NamedBamReader for ShardedBamReader {
 // Given a list of paths to different BAM files which are all mappings of the
 // same read set to different references (all sorted by read name), generate a
 // BAM reader that chooses the best place for each read to map to.
- pub fn generate_sharded_bam_reader_from_bam_files(
-     bam_paths: Vec<&str>, sort_threads: i32) -> Vec<ShardedBamReaderGenerator> {
-     // open an output BAM file that gets put to samtools sort without -n
-     // For each BAM path,
-     // open the path
-     // record the number of references in the header
+pub fn generate_sharded_bam_reader_from_bam_files(
+    bam_paths: Vec<&str>, sort_threads: i32) -> Vec<ShardedBamReaderGenerator> {
+    // open an output BAM file that gets put to samtools sort without -n
+    // For each BAM path,
+    // open the path
+    // record the number of references in the header
     // write each header entry read in to a new reference entry in the output
     // BAM, after adding the tid offset.
     let bam_readers = bam_paths.iter().map(
@@ -419,7 +416,7 @@ impl NamedBamReader for ShardedBamReader {
     };
     return vec!(gen);
 
- }
+}
 
 pub fn generate_named_sharded_bam_readers_from_reads(
     reference: &str,
@@ -520,8 +517,8 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .expect("Unable to covert file name into str").to_string();
 
     debug!("Starting mapping processes");
-    let mut pre_processes = vec![cmd];
-    let mut command_strings = vec![format!("bash -c {}", cmd_string)];
+    let pre_processes = vec![cmd];
+    let command_strings = vec![format!("bash -c {}", cmd_string)];
     let mut processes = vec![];
     let mut i = 0;
     for mut preprocess in pre_processes {
