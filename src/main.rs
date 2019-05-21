@@ -91,18 +91,17 @@ Define mapping(s) (required):
   Either define BAM:
    -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
                                          reference sorted (e.g. with samtools sort)
-                                         unless --read-sorted-shard-bam-files is
-                                         specified, in which case they must be
-                                         read name sorted (e.g. with
-                                         samtools sort -n).
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
-                                         provided and --read-sorted-shard-bam-files
-                                         is specified, then reads will be mapped
-                                         to references separately as sharded BAMs
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -118,7 +117,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --read-sorted-shard-bam-files         If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -209,18 +208,17 @@ Define mapping(s) (required):
   Either define BAM:
    -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
                                          reference sorted (e.g. with samtools sort)
-                                         unless --read-sorted-shard-bam-files is
-                                         specified, in which case they must be
-                                         read name sorted (e.g. with
-                                         samtools sort -n).
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
-                                         provided and --read-sorted-shard-bam-files
-                                         is specified, then reads will be mapped
-                                         to references separately as sharded BAMs
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -236,7 +234,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --read-sorted-shard-bam-files         If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -361,7 +359,7 @@ fn main(){
                         separator,
                         genomes_and_contigs_option);
 
-                } else if m.is_present("read-sorted-shard-bam-files") {
+                } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
@@ -412,7 +410,7 @@ fn main(){
                         &mut estimators_and_taker,
                         separator,
                         genomes_and_contigs_option);
-                } else if m.is_present("read-sorted-shard-bam-files") {
+                } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
                     run_genome(
                         generator_sets,
@@ -516,7 +514,7 @@ fn main(){
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters);
-                } else if m.is_present("read-sorted-shard-bam-files") {
+                } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
@@ -555,7 +553,7 @@ fn main(){
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters);
-                } else if m.is_present("read-sorted-shard-bam-files") {
+                } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(m, &None);
                     run_contig(
                         &mut estimators_and_taker,
@@ -1465,8 +1463,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
-                .arg(Arg::with_name("read-sorted-shard-bam-files")
-                    .long("read-sorted-shard-bam-files")
+                .arg(Arg::with_name("sharded")
+                    .long("sharded")
                     .required(false))
                 .arg(Arg::with_name("read1")
                      .short("-1")
@@ -1653,8 +1651,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
-                .arg(Arg::with_name("read-sorted-shard-bam-files")
-                    .long("read-sorted-shard-bam-files")
+                .arg(Arg::with_name("sharded")
+                    .long("sharded")
                     .required(false))
                 .arg(Arg::with_name("read1")
                      .short("-1")
