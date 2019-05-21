@@ -12,15 +12,6 @@ pub struct GenomesAndContigsExclusionFilter<'a> {
     genomes_and_contigs: &'a GenomesAndContigs
 }
 
-impl<'a> GenomesAndContigsExclusionFilter<'a> {
-    pub fn generate_from_genomes_and_contigs(genomes_and_contigs: &'a GenomesAndContigs)
-                                             -> GenomesAndContigsExclusionFilter<'a> {
-        GenomesAndContigsExclusionFilter {
-            genomes_and_contigs: genomes_and_contigs
-        }
-    }
-}
-
 impl<'a> GenomeExclusion for GenomesAndContigsExclusionFilter<'a> {
     fn is_excluded(&self, contig_name: &String) -> bool {
         self.genomes_and_contigs.genome_index_of_contig(contig_name).is_some()
@@ -56,7 +47,9 @@ mod tests {
         contig_to_genome.insert(String::from("contig1"), index);
         contig_to_genome.insert(String::from("contig2"), index);
 
-        let ex = GenomesAndContigsExclusionFilter::generate_from_genomes_and_contigs(&contig_to_genome);
+        let ex = GenomesAndContigsExclusionFilter {
+            genomes_and_contigs: &contig_to_genome
+        };
 
         assert_eq!(ex.is_excluded(&"contig1".to_string()), true);
         assert_eq!(ex.is_excluded(&"contig2".to_string()), true);
