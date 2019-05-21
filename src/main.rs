@@ -95,10 +95,6 @@ Define mapping(s) (required):
                                          specified, in which case they must be
                                          read name sorted (e.g. with
                                          samtools sort -n).
-   --read-sorted-shard-bam-files         Input BAM files are read-sorted alignments
-                                         of a set of reads mapped to multiple
-                                         reference contig sets. Choose the best
-                                         hit for each read pair.
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
@@ -110,8 +106,6 @@ Define mapping(s) (required):
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   --read-sorted-shard-bam-files         Map reads to each reference, choosing the
-                                         best hit for each pair.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -122,6 +116,17 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+
+Sharding i.e. multiple reference sets (optional):
+   --read-sorted-shard-bam-files         If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
 
 Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
@@ -208,10 +213,6 @@ Define mapping(s) (required):
                                          specified, in which case they must be
                                          read name sorted (e.g. with
                                          samtools sort -n).
-   --read-sorted-shard-bam-files         Input BAM files are read-sorted alignments
-                                         of a set of reads mapped to multiple
-                                         reference contig sets. Choose the best
-                                         hit for each read pair.
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
@@ -223,8 +224,6 @@ Define mapping(s) (required):
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   --read-sorted-shard-bam-files         Map reads to each reference, choosing the
-                                         best hit for each pair.
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
                                          FASTA/Q files for mapping in order
                                          <sample1_R1.fq.gz> <sample1_R2.fq.gz>
@@ -235,6 +234,18 @@ Define mapping(s) (required):
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+
+Sharding i.e. multiple reference sets (optional):
+   --read-sorted-shard-bam-files         If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
+
 
 Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
