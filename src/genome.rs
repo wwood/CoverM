@@ -1,5 +1,4 @@
 use std;
-use std::result::Result;
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 
@@ -11,6 +10,7 @@ use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
 use coverage_takers::*;
 use ReadsMapped;
+use find_first;
 
 pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>,
@@ -762,19 +762,6 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     return pileup_coverage_estimators;
 }
 
-/// Finds the first occurence of element in a slice
-fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
-    where T: std::cmp::PartialEq<T> {
-
-    let mut index: usize = 0;
-    for el in slice {
-        if *el == element {
-            return Ok(index)
-        }
-        index += 1;
-    }
-    return Err("Element not found in slice")
-}
 
 
 
