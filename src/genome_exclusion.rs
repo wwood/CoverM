@@ -1,6 +1,7 @@
 use std::collections::HashSet;
+use std::str;
 
-//use genomes_and_contigs::GenomesAndContigs;
+use genomes_and_contigs::GenomesAndContigs;
 use find_first;
 
 pub enum GenomeExcluders<'a> {
@@ -15,15 +16,28 @@ pub trait GenomeExclusion {
     fn is_excluded(&self, contig_name: &[u8]) -> bool;
 }
 
-// pub struct GenomesAndContigsExclusionFilter<'a> {
-//     genomes_and_contigs: &'a GenomesAndContigs
-// }
+pub struct GenomesAndContigsExclusionFilter<'a> {
+    pub genomes_and_contigs: &'a GenomesAndContigs,
+    pub excluded_genomes: HashSet<&'a [u8]>,
+}
 
-// impl<'a> GenomeExclusion for GenomesAndContigsExclusionFilter<'a> {
-//     fn is_excluded(&self, contig_name: &[u8]) -> bool {
-//         self.genomes_and_contigs.genome_index_of_contig(contig_name).is_some()
-//     }
-// }
+impl<'a> GenomeExclusion for GenomesAndContigsExclusionFilter<'a> {
+    fn is_excluded(&self, contig_name: &[u8]) -> bool {
+        let contig_str = str::from_utf8(contig_name).unwrap().to_string();
+        match self.genomes_and_contigs.genome_of_contig(&contig_str) {
+            Some(g) => {
+                if self.excluded_genomes.contains(&g.as_bytes()) {
+                    debug!("Excluding contig '{}' as it is part of excluded genome '{}'",
+                           str::from_utf8(contig_name).unwrap(), g);
+                    true
+                } else {
+                    false
+                }
+            }
+            None => false
+        }
+    }
+}
 
 pub struct SeparatorGenomeExclusionFilter<'a> {
     pub split_char: u8,
@@ -50,22 +64,26 @@ impl GenomeExclusion for NoExclusionGenomeFilter {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_genomes_and_contigs_exclusion_filter() {
-    //     let mut contig_to_genome = GenomesAndContigs::new();
-    //     let genome = String::from("genome0");
-    //     let index = contig_to_genome.establish_genome(genome);
-    //     contig_to_genome.insert(String::from("contig1"), index);
-    //     contig_to_genome.insert(String::from("contig2"), index);
+    #[test]
+    fn test_genomes_and_contigs_exclusion_filter() {
+        let mut contig_to_genome = GenomesAndContigs::new();
+        let genome = String::from("genome0");
+        let index = contig_to_genome.establish_genome(genome);
+        contig_to_genome.insert(String::from("contig1"), index);
+        contig_to_genome.insert(String::from("contig2"), index);
 
-    //     let ex = GenomesAndContigsExclusionFilter {
-    //         genomes_and_contigs: &contig_to_genome
-    //     };
+        let mut hashset: HashSet<&[u8]> = HashSet::new();
+        hashset.insert(b"genome0");
 
-    //     assert_eq!(ex.is_excluded(&"contig1".to_string()), true);
-    //     assert_eq!(ex.is_excluded(&"contig2".to_string()), true);
-    //     assert_eq!(ex.is_excluded(&"contig20".to_string()), false);
-    // }
+        let ex = GenomesAndContigsExclusionFilter {
+            genomes_and_contigs: &contig_to_genome,
+            excluded_genomes: hashset,
+        };
+
+        assert_eq!(ex.is_excluded(b"contig1"), true);
+        assert_eq!(ex.is_excluded(b"contig2"), true);
+        assert_eq!(ex.is_excluded(b"contig20"), false);
+    }
 
     #[test]
     fn test_separator_exclusion_filter() {

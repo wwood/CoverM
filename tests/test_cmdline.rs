@@ -850,6 +850,39 @@ genome2	0
             .succeeds().unwrap()
     }
 
+    #[test]
+    fn test_sharding_exclusion_genomes_fasta_files_definition() {
+        let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tf1, "genome3").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--sharded",
+                "-b",
+                "tests/data/shard1.bam",
+                "tests/data/shard2.bam",
+                "--genome-fasta-files",
+                "tests/data/genomes_dir_7seqs/genome1.fasta",
+                "tests/data/genomes_dir_7seqs/genome2.fasta",
+                "tests/data/genomes_dir_7seqs/genome3.fasta",
+                "tests/data/genomes_dir_7seqs/genome4.fasta",
+                "tests/data/genomes_dir_7seqs/genome5.fasta",
+                "tests/data/genomes_dir_7seqs/genome6.fasta",
+                "--exclude-genomes-from-deshard",
+                tf1.path().to_str().unwrap()
+            ])
+            .stdout().is("Genome	stoita Relative Abundance (%)
+unmapped	19.999998
+genome1	26.60325
+genome2	0
+genome3	0
+genome4	26.699606
+genome5	0
+genome6	26.697144
+")
+            .succeeds().unwrap()
+    }
+
 }
 
 

@@ -352,8 +352,9 @@ fn main(){
             // trait.
             let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
             let mut genome_exclusion_filter_non_type: Option<NoExclusionGenomeFilter> = None;
+            let mut genome_exclusion_genomes_and_contigs: Option<GenomesAndContigsExclusionFilter> = None;
             enum GenomeExclusionTypes {
-                SeparatorType, NoneType
+                SeparatorType, NoneType, GenomesAndContigsType
             }
             let genome_exclusion_type = {
                 if m.is_present("sharded") {
@@ -378,12 +379,26 @@ fn main(){
                                   genome_names_hash.len(),
                                   std::str::from_utf8(genome_names_hash.iter().next().unwrap())
                                   .unwrap());
-                            genome_exclusion_filter_separator_type = Some(SeparatorGenomeExclusionFilter {
-                                split_char: parse_separator(m)
-                                    .expect("No separator character for contig -> genome conversion"),
-                                excluded_genomes: genome_names_hash
-                            });
-                            GenomeExclusionTypes::SeparatorType
+                            if separator.is_some() {
+                                genome_exclusion_filter_separator_type = Some(
+                                    SeparatorGenomeExclusionFilter {
+                                        split_char: separator.unwrap(),
+                                        excluded_genomes: genome_names_hash
+                                    });
+                                GenomeExclusionTypes::SeparatorType
+                            } else {
+                                match genomes_and_contigs_option {
+                                    Some(ref gc) => {
+                                        genome_exclusion_genomes_and_contigs = Some(
+                                            GenomesAndContigsExclusionFilter {
+                                                genomes_and_contigs: gc,
+                                                excluded_genomes: genome_names_hash,
+                                            });
+                                        GenomeExclusionTypes::GenomesAndContigsType
+                                    },
+                                    None => unreachable!()
+                                }
+                            }
                         }
                     } else {
                         debug!("Not excluding any genomes during the deshard process");
@@ -412,7 +427,7 @@ fn main(){
                         m,
                         &mut estimators_and_taker,
                         separator,
-                        genomes_and_contigs_option);
+                        &genomes_and_contigs_option);
 
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
@@ -429,7 +444,7 @@ fn main(){
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                genomes_and_contigs_option);
+                                &genomes_and_contigs_option);
                         },
                         GenomeExclusionTypes::SeparatorType => {
                             run_genome(
@@ -440,7 +455,18 @@ fn main(){
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                genomes_and_contigs_option);
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::GenomesAndContigsType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_genomes_and_contigs.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
                         },
                     }
                 } else {
@@ -450,7 +476,7 @@ fn main(){
                         m,
                         &mut estimators_and_taker,
                         separator,
-                        genomes_and_contigs_option);
+                        &genomes_and_contigs_option);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -482,7 +508,7 @@ fn main(){
                         m,
                         &mut estimators_and_taker,
                         separator,
-                        genomes_and_contigs_option);
+                        &genomes_and_contigs_option);
                 } else if m.is_present("sharded") {
                     match genome_exclusion_type {
                         GenomeExclusionTypes::NoneType => {
@@ -494,7 +520,7 @@ fn main(){
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                genomes_and_contigs_option);
+                                &genomes_and_contigs_option);
                         },
                         GenomeExclusionTypes::SeparatorType => {
                             run_genome(
@@ -505,7 +531,18 @@ fn main(){
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                genomes_and_contigs_option);
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::GenomesAndContigsType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_genomes_and_contigs.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
                         },
                     }
                 } else {
@@ -523,7 +560,7 @@ fn main(){
                         m,
                         &mut estimators_and_taker,
                         separator,
-                        genomes_and_contigs_option);
+                        &genomes_and_contigs_option);
                 };
             }
         },
@@ -970,7 +1007,7 @@ fn run_genome<'a,
     m: &clap::ArgMatches,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
     separator: Option<u8>,
-    genomes_and_contigs_option: Option<GenomesAndContigs>) {
+    genomes_and_contigs_option: &Option<GenomesAndContigs>) {
 
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
@@ -988,13 +1025,17 @@ fn run_genome<'a,
         },
 
         false => {
-            coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs_option.unwrap(),
-                &mut estimators_and_taker.taker,
-                print_zeros,
-                proper_pairs_only,
-                &mut estimators_and_taker.estimators)
+            match genomes_and_contigs_option {
+                Some(gc) =>
+                    coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        bam_generators,
+                        gc,
+                        &mut estimators_and_taker.taker,
+                        print_zeros,
+                        proper_pairs_only,
+                        &mut estimators_and_taker.estimators),
+                None => unreachable!()
+            }
         }
     };
 
