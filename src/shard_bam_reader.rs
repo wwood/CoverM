@@ -582,7 +582,7 @@ mod tests {
         let mut reader = gen.start();
         assert_eq!("stoita".to_string(), reader.stoit_name);
         let mut r = bam::Record::new();
-        reader.bam_reader.read(&mut r);
+        reader.bam_reader.read(&mut r).unwrap();
         println!("{}",str::from_utf8(r.qname()).unwrap());
         println!("{}",r.tid());
 
