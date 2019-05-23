@@ -6,6 +6,7 @@ mod tests {
     use assert_cli::Assert;
     extern crate tempfile;
     use std;
+    use std::io::Write;
 
     #[test]
     fn test_filter_all_reads(){
@@ -774,6 +775,81 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                 .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
                 .is_file());
     }
+
+    #[test]
+    fn test_sharding_no_exclusion_genome_separator() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--sharded",
+                "-b",
+                "tests/data/shard1.bam",
+                "tests/data/shard2.bam",
+                "-s",
+                "~",
+            ])
+            .stdout().is("Genome	stoita Relative Abundance (%)
+unmapped	0
+genome3	25.024881
+genome4	25.022575
+genome5	0
+genome6	25.020271
+genome1	24.932274
+genome2	0
+")
+            .succeeds().unwrap()
+    }
+
+    #[test]
+    fn test_sharding_no_exclusion_contig() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--sharded",
+                "-b",
+                "tests/data/shard1.bam",
+                "tests/data/shard2.bam",
+            ])
+            .stdout().is("Contig	stoita Mean
+genome3~random_sequence_length_11001	0.110588886
+genome4~random_sequence_length_11002	0.11057869
+genome5~seq2	0
+genome6~random_sequence_length_11003	0.11056851
+genome1~random_sequence_length_11000	0.109861754
+genome1~random_sequence_length_11010	0.110497236
+genome2~seq1	0
+")
+            .succeeds().unwrap()
+    }
+
+    #[test]
+    fn test_sharding_exclusion_genome_separator() {
+        let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tf1, "genome3").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--sharded",
+                "-b",
+                "tests/data/shard1.bam",
+                "tests/data/shard2.bam",
+                "-s",
+                "~",
+                "--exclude-genomes-from-deshard",
+                tf1.path().to_str().unwrap()
+            ])
+            .stdout().is("Genome	stoita Relative Abundance (%)
+unmapped	19.999998
+genome3	0
+genome4	26.699606
+genome5	0
+genome6	26.697144
+genome1	26.60325
+genome2	0
+")
+            .succeeds().unwrap()
+    }
+
 }
 
 
