@@ -10,6 +10,7 @@ use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 use coverm::genomes_and_contigs::GenomesAndContigs;
+use coverm::genome_exclusion::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -18,6 +19,7 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
+use std::collections::HashSet;
 
 extern crate clap;
 use clap::*;
@@ -243,6 +245,8 @@ Sharding i.e. multiple reference sets (optional):
                                          Otherwise if mapping was carried out:
                                            Map reads to each reference, choosing the
                                            best hit for each pair.
+   --exclude-genomes-from-deshard <FILE> Ignore genomes whose name appears in this
+                                         newline-separated file when combining shards.
 
 
 Alignment filtering (optional):
@@ -323,6 +327,8 @@ fn main(){
             }
             set_log_level(m, true);
 
+            let mut genome_names_content: Vec<u8>;
+
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
                 m, print_stream);
             estimators_and_taker = estimators_and_taker.print_headers(
@@ -338,6 +344,55 @@ fn main(){
                     info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
                     Some(coverm::read_genome_fasta_files(
                         &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
+                }
+            };
+
+            // This would be better as a separate function to make this function
+            // smaller, but I find this hard because functions cannot return a
+            // trait.
+            let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
+            let mut genome_exclusion_filter_non_type: Option<NoExclusionGenomeFilter> = None;
+            enum GenomeExclusionTypes {
+                SeparatorType, NoneType
+            }
+            let genome_exclusion_type = {
+                if m.is_present("sharded") {
+                    if m.is_present("exclude-genomes-from-deshard") {
+                        let filename = m.value_of("exclude-genomes-from-deshard").unwrap();
+                        genome_names_content = std::fs::read(filename)
+                            .expect(&format!(
+                                "Failed to open file '{}' containing list of excluded genomes",
+                                filename));
+                        let mut genome_names_hash: HashSet<&[u8]> = HashSet::new();
+                        for n in genome_names_content.split(|s| *s == b"\n"[0]) {
+                            if n != b"" {
+                                genome_names_hash.insert(n);
+                            }
+                        }
+                        if genome_names_hash.is_empty() {
+                            warn!("No genomes read in that are to be excluded from desharding process");
+                            genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                            GenomeExclusionTypes::NoneType
+                        } else {
+                            info!("Read in {} distinct genomes to exclude from desharding process e.g. '{}'",
+                                  genome_names_hash.len(),
+                                  std::str::from_utf8(genome_names_hash.iter().next().unwrap())
+                                  .unwrap());
+                            genome_exclusion_filter_separator_type = Some(SeparatorGenomeExclusionFilter {
+                                split_char: parse_separator(m)
+                                    .expect("No separator character for contig -> genome conversion"),
+                                excluded_genomes: genome_names_hash
+                            });
+                            GenomeExclusionTypes::SeparatorType
+                        }
+                    } else {
+                        debug!("Not excluding any genomes during the deshard process");
+                        genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                        GenomeExclusionTypes::NoneType
+                    }
+                } else {
+                    genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                    GenomeExclusionTypes::NoneType
                 }
             };
 
@@ -362,14 +417,32 @@ fn main(){
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                        bam_files, sort_threads);
-                    run_genome(
-                        bam_readers,
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        genomes_and_contigs_option);
+                    // Seems crazy, but I cannot work out how to make this more
+                    // DRY, without making GenomeExclusion into an enum.
+                    match genome_exclusion_type {
+                        GenomeExclusionTypes::NoneType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_filter_non_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::SeparatorType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_filter_separator_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                genomes_and_contigs_option);
+                        },
+                    }
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
@@ -411,13 +484,30 @@ fn main(){
                         separator,
                         genomes_and_contigs_option);
                 } else if m.is_present("sharded") {
-                    let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
-                    run_genome(
-                        generator_sets,
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        genomes_and_contigs_option);
+                    match genome_exclusion_type {
+                        GenomeExclusionTypes::NoneType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_filter_non_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::SeparatorType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_filter_separator_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                genomes_and_contigs_option);
+                        },
+                    }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
@@ -518,7 +608,7 @@ fn main(){
                     external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                        bam_files, sort_threads);
+                        bam_files, sort_threads, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
                         bam_readers,
@@ -554,7 +644,8 @@ fn main(){
                         print_zeros,
                         filter_params.flag_filters);
                 } else if m.is_present("sharded") {
-                    let generator_sets = get_sharded_bam_readers(m, &None);
+                    let generator_sets = get_sharded_bam_readers(
+                        m, &None, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
                         generator_sets,
@@ -874,7 +965,7 @@ fn parse_list_of_genome_fasta_files(m: &clap::ArgMatches) -> Vec<String> {
 
 fn run_genome<'a,
               R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>> (
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
@@ -997,10 +1088,12 @@ impl FilterParameters {
     }
 }
 
-fn get_sharded_bam_readers<'a>(
+fn get_sharded_bam_readers<'a, 'b, T>(
     m: &'a clap::ArgMatches,
-    reference_tempfile: &'a Option<NamedTempFile>)
-    -> Vec<ShardedBamReaderGenerator> {
+    reference_tempfile: &'a Option<NamedTempFile>,
+    genome_exclusion: &'b T)
+    -> Vec<ShardedBamReaderGenerator<'b, T>>
+where T: GenomeExclusion {
 
     // Check the output BAM directory actually exists and is writeable
     if m.is_present("bam-file-cache-directory") {
@@ -1054,6 +1147,7 @@ fn get_sharded_bam_readers<'a>(
         stoit_name: "stoita".to_string(),
         read_sorted_bam_readers: bam_readers,
         sort_threads: sort_threads,
+        genome_exclusion: genome_exclusion,
     };
     return vec!(gen);
 }
@@ -1464,8 +1558,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .multiple(true)
                      .takes_value(true))
                 .arg(Arg::with_name("sharded")
-                    .long("sharded")
-                    .required(false))
+                     .long("sharded")
+                     .required(false))
+                .arg(Arg::with_name("exclude-genomes-from-deshard")
+                     .long("exclude-genomes-from-deshard")
+                     .requires("sharded")
+                     .takes_value(true))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)

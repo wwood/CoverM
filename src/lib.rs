@@ -87,20 +87,6 @@ where T: std::cmp::PartialEq<T> {
     }
     return Err("Element not found in slice")
 }
-/// Finds the first occurence of element in a iterable
-fn find_first_iter<T, U>(iterable: U, element: T) -> Result<usize, &'static str>
-where T: std::cmp::PartialEq<T>,
-      U: std::iter::Iterator<Item = T> {
-
-    let mut index: usize = 0;
-    for el in iterable {
-        if el == element {
-            return Ok(index)
-        }
-        index += 1;
-    }
-    return Err("Element not found in slice")
-}
 
 
 #[cfg(test)]

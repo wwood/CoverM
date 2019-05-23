@@ -773,6 +773,8 @@ mod tests {
     use std::io::Cursor;
     use rust_htslib::prelude::*;
     use shard_bam_reader::*;
+    use genome_exclusion::*;
+    use std::collections::HashSet;
 
     fn test_streaming_with_stream<R: NamedBamReader,
                                   G: NamedBamReaderGenerator<R>>(
@@ -1098,7 +1100,31 @@ mod tests {
     fn test_sharded_bams_with_zero_coverage(){
         test_streaming_with_stream(
             "stoita\tgenome3\t0.10908099\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
-            generate_sharded_bam_reader_from_bam_files(vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4),
+            generate_sharded_bam_reader_from_bam_files(
+                vec!["tests/data/shard1.bam", "tests/data/shard2.bam"],
+                4,
+                &NoExclusionGenomeFilter{}),
+            '~' as u8,
+            true,
+            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            false,
+            false);
+    }
+
+    #[test]
+    fn test_sharded_bams_with_genome_exclusion(){
+        let mut hashset: HashSet<&[u8]> = HashSet::new();
+        hashset.insert(b"genome3");
+        let ex = SeparatorGenomeExclusionFilter {
+            split_char: '~' as u8,
+            excluded_genomes: hashset
+        };
+        test_streaming_with_stream(
+            "stoita\tgenome3\t0\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
+            generate_sharded_bam_reader_from_bam_files(
+                vec!["tests/data/shard1.bam", "tests/data/shard2.bam"],
+                4,
+                &ex),
             '~' as u8,
             true,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),

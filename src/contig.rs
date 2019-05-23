@@ -232,6 +232,7 @@ mod tests {
     use std::str;
     use mapping_parameters::*;
     use shard_bam_reader::*;
+    use genome_exclusion::*;
 
     fn test_with_stream<R: NamedBamReader,
                         G: NamedBamReaderGenerator<R>>(
@@ -293,7 +294,8 @@ mod tests {
             \nstoita\tgenome1~random_sequence_length_11010\t0.108991824\
             \nstoita\tgenome2~seq1\t0\n",
             generate_sharded_bam_reader_from_bam_files(
-                vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4),
+                vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4,
+                &NoExclusionGenomeFilter{}),
             &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
             true,
             false);
