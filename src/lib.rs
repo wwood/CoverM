@@ -10,6 +10,7 @@ pub mod coverage_takers;
 pub mod mapping_parameters;
 pub mod coverage_printer;
 pub mod shard_bam_reader;
+pub mod genome_exclusion;
 
 extern crate bio;
 #[macro_use]
@@ -72,6 +73,22 @@ pub struct FlagFilter {
     pub include_secondary: bool,
 }
 
+
+/// Finds the first occurence of element in a slice
+fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
+where T: std::cmp::PartialEq<T> {
+
+    let mut index: usize = 0;
+    for el in slice {
+        if *el == element {
+            return Ok(index)
+        }
+        index += 1;
+    }
+    return Err("Element not found in slice")
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,3 +111,6 @@ mod tests {
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq2")).unwrap());
     }
 }
+
+
+

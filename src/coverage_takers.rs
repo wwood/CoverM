@@ -148,8 +148,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                             prev, entry_name)
                         }
                     },
-                    None => {} // should never happen. There's probably a more
-                    // idiomatic way to structure this.
+                    None => unreachable!()
                 }
                 *current_entry_index = Some(entry_order_id);
             }

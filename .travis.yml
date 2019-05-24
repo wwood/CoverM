@@ -1,0 +1,31 @@
+---
+sudo: false
+language: rust
+rust:
+  - nightly
+  - beta
+  - stable
+
+cache: cargo
+
+os:
+  - linux
+  - osx
+
+env:
+  - ARCH=x86_64
+
+build: false
+
+test_script:
+- cargo test
+
+addons:
+  apt:
+    packages:
+      - bwa
+      - samtools
+  homebrew:
+    packages:
+      - bwa
+      - samtools

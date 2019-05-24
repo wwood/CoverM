@@ -1,18 +1,13 @@
 use std::str;
 use std;
-use std::io::Read;
 
 use rand::prelude::*;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Record;
-use rust_htslib::bam::record::{Cigar, CigarString};
+use rust_htslib::bam::record::CigarString;
 use rust_htslib::bam::Read as BamRead;
-
-use filter::*;
-use bwa_index_maintenance::BwaIndexStruct;
 use mapping_parameters::ReadFormat;
-use FlagFilter;
 
 use tempdir::TempDir;
 use tempfile;
@@ -21,16 +16,33 @@ use nix::sys::stat;
 
 use bam_generator::*;
 use bam_generator::complete_processes;
+use genome_exclusion::*;
 
-pub struct ReadSortedShardedBamReader {
+use std::slice;
+use std::ffi;
+
+// Like Header#names() except just return one name
+fn bam_header_target_name(header: &bam::HeaderView, tid: usize) -> &[u8] {
+    let names = unsafe {
+        slice::from_raw_parts(header.inner().target_name, header.target_count() as usize)
+    };
+    return unsafe {
+        ffi::CStr::from_ptr(names[tid]).to_bytes()
+    }
+}
+
+pub struct ReadSortedShardedBamReader<'a, T>
+where T: GenomeExclusion {
     shard_bam_readers: Vec<bam::Reader>,
     previous_read_records: Option<Vec<bam::Record>>,
     next_record_to_return: Option<bam::Record>,
     winning_index: Option<usize>,
     tid_offsets: Vec<i32>,
+    genome_exclusion: &'a T,
 }
 
-impl ReadSortedShardedBamReader {
+impl<'a, T> ReadSortedShardedBamReader<'a, T>
+where T: GenomeExclusion {
     // Return a Vec of read in BAM records, or None if there are no more.
     fn read_a_record_set(&mut self) -> Option<Vec<Record>> {
         let mut current_alignments: Vec<Record> = Vec::with_capacity(
@@ -38,7 +50,7 @@ impl ReadSortedShardedBamReader {
         let mut current_qname: Option<String> = None;
         let mut some_unfinished = false;
         let mut some_finished = false;
-        let mut record = bam::Record::new();
+        let mut record;
         let mut res;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
@@ -105,26 +117,31 @@ impl ReadSortedShardedBamReader {
         to.set_mtid(from.mtid());
         to.set_mpos(from.mpos());
         to.set_insert_size(from.insert_size());
-//        to.set_qname(from.qname());
         to.set_tid(from.tid());
-        match &from.aux("NM".as_bytes()){
+        match &from.aux("NM".as_bytes()) {
             Some(aux) => {
-                to.push_aux("NM".as_bytes(), aux);
+                to.push_aux("NM".as_bytes(), aux)
+                    .expect(&format!(
+                        "Error writing AUX record from{:?} to {:?}", from, to));
             },
             None => {
-                debug!("read {:?} had no NM tag", from.qname())
+                if from.tid() >= 0 {
+                    panic!("record {:?} had no NM tag", from)
+                }
             },
         }
         debug!("from cigar {:?}, to cigar {:?}", from.cigar().to_string(), to.cigar().to_string())
     }
 }
 
-impl ReadSortedShardedBamReader {
+
+impl<'a, T> ReadSortedShardedBamReader<'a, T>
+where T: GenomeExclusion {
     fn read(&mut self, to_return: &mut bam::Record) -> Result<(), bam::ReadError> {
         if self.next_record_to_return.is_some() {
             {
                 let record = self.next_record_to_return.as_ref().unwrap();
-                ReadSortedShardedBamReader::clone_record_into(record, to_return);
+                ReadSortedShardedBamReader::<T>::clone_record_into(record, to_return);
             }
             self.next_record_to_return = None;
             let tid_now = to_return.tid();
@@ -151,22 +168,26 @@ impl ReadSortedShardedBamReader {
                 None => unreachable!(),
                 Some(ref previous_records) => {
                     for (i, ref aln1) in previous_records.iter().enumerate() {
-                        let mut score: i64 = 0;
-                        score += aln1.aux(b"AS")
-                            .expect(&format!(
-                                "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
-                                 ranking pairs of alignments", aln1.qname())).integer();
-                        score += second_read_alignments[i].aux(b"AS")
-                            .expect(&format!(
-                                "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
-                                 ranking pairs of alignments", aln1.qname())).integer();
-                        if max_score.is_none() || score > max_score.unwrap() {
-                            max_score = Some(score);
-                            winning_indices = vec![i]
-                        } else if score == max_score.unwrap() {
-                            winning_indices.push(i)
+                        let tid = aln1.tid();
+                        if tid < 0 || !self.genome_exclusion.is_excluded(
+                            bam_header_target_name(&self.shard_bam_readers[i].header(), tid as usize)) {
+                            let mut score: i64 = 0;
+                            score += aln1.aux(b"AS")
+                                .expect(&format!(
+                                    "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
+                                     ranking pairs of alignments", aln1.qname())).integer();
+                            score += second_read_alignments[i].aux(b"AS")
+                                .expect(&format!(
+                                    "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
+                                     ranking pairs of alignments", aln1.qname())).integer();
+                            if max_score.is_none() || score > max_score.unwrap() {
+                                max_score = Some(score);
+                                winning_indices = vec![i]
+                            } else if score == max_score.unwrap() {
+                                winning_indices.push(i)
+                            }
+                            // Else a loser when there was a previous winner
                         }
-                        // Else a loser
                     }
                 }
             };
@@ -175,8 +196,10 @@ impl ReadSortedShardedBamReader {
             if winning_indices.len() > 1 {
                 winning_index = *winning_indices
                     .choose(&mut thread_rng()).unwrap();
-            } else {
+            } else if winning_indices.len() == 1 {
                 winning_index = winning_indices[0];
+            } else {
+                panic!("CoverM cannot currently deal with reads that only map to excluded genomes")
             }
             debug!("Choosing winning index {} from winner pool {:?}",
                    winning_index, winning_indices);
@@ -191,7 +214,7 @@ impl ReadSortedShardedBamReader {
                 None => unreachable!(),
                 Some(ref prev) => {
                     debug!("previous tid {}", &prev[winning_index].tid());
-                    ReadSortedShardedBamReader::clone_record_into(
+                    ReadSortedShardedBamReader::<T>::clone_record_into(
                         &prev[winning_index], to_return)
                 }
             };
@@ -204,23 +227,22 @@ impl ReadSortedShardedBamReader {
             // Unset the current crop of first reads
             self.previous_read_records = None;
 
-            // TODO: Remove this debug code
-            // let mut reader2 = bam::Reader::from_path(&"2seqs.fastaVbad_read.bam").unwrap();
-            // reader2.read(to_return);
-
             // Return the first of the pair
             return Ok(());
         }
     }
 }
 
-pub struct ShardedBamReaderGenerator {
+pub struct ShardedBamReaderGenerator<'a, T>
+where T: GenomeExclusion {
     pub stoit_name: String,
     pub read_sorted_bam_readers: Vec<bam::Reader>,
     pub sort_threads: i32,
+    pub genome_exclusion: &'a T,
 }
 
-impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
+impl<'a, T> NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator<'a, T>
+where T: GenomeExclusion {
     fn start(self) -> ShardedBamReader {
         let mut new_header = bam::header::Header::new();
         let mut tid_offsets: Vec<i32> = vec!();
@@ -228,10 +250,11 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
         // Read header info for each BAM file, and write to new BAM header,
         // adding tid offsets.
         let mut current_tid_offset: i32 = 0;
-        for ref reader in &self.read_sorted_bam_readers {
+        for reader in self.read_sorted_bam_readers.iter() {
             let header = reader.header();
             let mut current_tid: u32 = 0; // I think TID counting should start at 0, 1 returns wrong lengths.
-            for name in header.target_names() {
+            let names = header.target_names();
+            for name in names.iter() {
                 let length = header.target_len(current_tid)
                     .expect(&format!("Failed to get target length for TID {}", current_tid));
                 // e.g. @SQ	SN:a62_bin.100.fna=k141_20475	LN:15123
@@ -278,6 +301,7 @@ impl NamedBamReaderGenerator<ShardedBamReader> for ShardedBamReaderGenerator {
             previous_read_records: None,
             next_record_to_return: None,
             winning_index: None,
+            genome_exclusion: self.genome_exclusion,
         };
 
 
@@ -396,12 +420,14 @@ impl NamedBamReader for ShardedBamReader {
 // Given a list of paths to different BAM files which are all mappings of the
 // same read set to different references (all sorted by read name), generate a
 // BAM reader that chooses the best place for each read to map to.
- pub fn generate_sharded_bam_reader_from_bam_files(
-     bam_paths: Vec<&str>, sort_threads: i32) -> Vec<ShardedBamReaderGenerator> {
-     // open an output BAM file that gets put to samtools sort without -n
-     // For each BAM path,
-     // open the path
-     // record the number of references in the header
+pub fn generate_sharded_bam_reader_from_bam_files<'a, T>(
+    bam_paths: Vec<&str>, sort_threads: i32, genome_exclusion: &'a T)
+    -> Vec<ShardedBamReaderGenerator<'a, T>>
+where T: GenomeExclusion {
+    // open an output BAM file that gets put to samtools sort without -n
+    // For each BAM path,
+    // open the path
+    // record the number of references in the header
     // write each header entry read in to a new reference entry in the output
     // BAM, after adding the tid offset.
     let bam_readers = bam_paths.iter().map(
@@ -416,10 +442,11 @@ impl NamedBamReader for ShardedBamReader {
         stoit_name: "stoita".to_string(),
         read_sorted_bam_readers: bam_readers,
         sort_threads: sort_threads,
+        genome_exclusion: genome_exclusion,
     };
     return vec!(gen);
 
- }
+}
 
 pub fn generate_named_sharded_bam_readers_from_reads(
     reference: &str,
@@ -520,8 +547,8 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .expect("Unable to covert file name into str").to_string();
 
     debug!("Starting mapping processes");
-    let mut pre_processes = vec![cmd];
-    let mut command_strings = vec![format!("bash -c {}", cmd_string)];
+    let pre_processes = vec![cmd];
+    let command_strings = vec![format!("bash -c {}", cmd_string)];
     let mut processes = vec![];
     let mut i = 0;
     for mut preprocess in pre_processes {
@@ -549,12 +576,14 @@ mod tests {
                 bam::Reader::from_path("tests/data/2seqs.fastaVbad_read.bam").unwrap(),
                 bam::Reader::from_path("tests/data/7seqs.fnaVbad_read.bam").unwrap()
             ],
-            sort_threads: 1
+
+            sort_threads: 1,
+            genome_exclusion: &NoExclusionGenomeFilter{},
         };
         let mut reader = gen.start();
         assert_eq!("stoita".to_string(), reader.stoit_name);
         let mut r = bam::Record::new();
-        reader.bam_reader.read(&mut r);
+        reader.bam_reader.read(&mut r).unwrap();
         println!("{}",str::from_utf8(r.qname()).unwrap());
         println!("{}",r.tid());
 

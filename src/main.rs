@@ -9,6 +9,8 @@ use coverm::coverage_printer::*;
 use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
+use coverm::genomes_and_contigs::GenomesAndContigs;
+use coverm::genome_exclusion::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -17,6 +19,7 @@ use rust_htslib::bam::Read;
 use std::env;
 use std::str;
 use std::process;
+use std::collections::HashSet;
 
 extern crate clap;
 use clap::*;
@@ -50,15 +53,17 @@ Thresholds:
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
                                          identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95%. [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
                                          Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
 
@@ -86,16 +91,20 @@ fn contig_full_help() -> &'static str {
 
 Define mapping(s) (required):
   Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
-                                         provided and --read-sorted-shard-bam-files
-                                         is specified, then reads will be mapped
-                                         to references separately as sharded BAMs
-   -t, --threads <INT>                   Number of threads to use for mapping
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs
+   -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    --read-sorted-shard-bam-files         Specify whether provided bam files are
@@ -115,22 +124,36 @@ Define mapping(s) (required):
                                          implications if untrusted input is specified.
                                          [default \"\"]
 
+Sharding i.e. multiple reference sets (optional):
+   --sharded                             If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
+
 Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
                                          aligned bases.
-                                         Implies --proper-pairs-only.[default: 0]
+                                         Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
                                          identity e.g. 0.95 for 95%.
                                          Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95%.
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -145,6 +168,10 @@ Other arguments (optional):
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
                                            reads_per_base
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
@@ -160,7 +187,6 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    --discard-unmapped                    Exclude unmapped reads from cached BAM files.
@@ -188,16 +214,20 @@ Define the contigs in each genome (exactly one of the following is required):
 
 Define mapping(s) (required):
   Either define BAM:
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH>                FASTA file of contigs or BWA index stem
+   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
-                                         provided and --read-sorted-shard-bam-files
-                                         is specified, then reads will be mapped
-                                         to references separately as sharded BAMs
-   -t, --threads <INT>                   Number of threads to use for mapping
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs
+   -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    --read-sorted-shard-bam-files         Specify whether provided bam files are
@@ -217,19 +247,39 @@ Define mapping(s) (required):
                                          implications if untrusted input is specified.
                                          [default \"\"]
 
+Sharding i.e. multiple reference sets (optional):
+   --sharded                             If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
+   --exclude-genomes-from-deshard <FILE> Ignore genomes whose name appears in this
+                                         newline-separated file when combining shards.
+
+
 Alignment filtering (optional):
    --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
                                          aligned bases [default: 0]
    --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%. [default 0.0]
    --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
    --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases [default: 0]
+                                         aligned bases.
+                                         Implies --proper-pairs-only. [default: 0]
    --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95% [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude pairs by percent aligned
-                                         identity e.g. 0.95 for 95% [default 0.0]
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -244,6 +294,10 @@ Other arguments (optional):
                                               length
                                               count
                                               reads_per_base
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
    --output-format FORMAT                Shape of output: 'sparse' for long format,
                                          'dense' for species-by-site.
                                          [default: dense]
@@ -259,7 +313,6 @@ Other arguments (optional):
                                          calculations [default: 0.95]
    --no-zeros                            Omit printing of genomes that have zero
                                          coverage
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
    --bam-file-cache-directory            Output BAM files generated during
                                          alignment to this directory
    --discard-unmapped                    Exclude unmapped reads from cached BAM files.
@@ -286,12 +339,89 @@ fn main(){
             }
             set_log_level(m, true);
 
+            let mut genome_names_content: Vec<u8>;
+
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
                 m, print_stream);
             estimators_and_taker = estimators_and_taker.print_headers(
                 &"Genome", &mut std::io::stdout());
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
+
+            let single_genome = m.is_present("single-genome");
+            let genomes_and_contigs_option = match separator.is_some() || single_genome {
+                true => None,
+                false => {
+                    let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+                    info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
+                    Some(coverm::read_genome_fasta_files(
+                        &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
+                }
+            };
+
+            // This would be better as a separate function to make this function
+            // smaller, but I find this hard because functions cannot return a
+            // trait.
+            let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
+            let mut genome_exclusion_filter_non_type: Option<NoExclusionGenomeFilter> = None;
+            let mut genome_exclusion_genomes_and_contigs: Option<GenomesAndContigsExclusionFilter> = None;
+            enum GenomeExclusionTypes {
+                SeparatorType, NoneType, GenomesAndContigsType
+            }
+            let genome_exclusion_type = {
+                if m.is_present("sharded") {
+                    if m.is_present("exclude-genomes-from-deshard") {
+                        let filename = m.value_of("exclude-genomes-from-deshard").unwrap();
+                        genome_names_content = std::fs::read(filename)
+                            .expect(&format!(
+                                "Failed to open file '{}' containing list of excluded genomes",
+                                filename));
+                        let mut genome_names_hash: HashSet<&[u8]> = HashSet::new();
+                        for n in genome_names_content.split(|s| *s == b"\n"[0]) {
+                            if n != b"" {
+                                genome_names_hash.insert(n);
+                            }
+                        }
+                        if genome_names_hash.is_empty() {
+                            warn!("No genomes read in that are to be excluded from desharding process");
+                            genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                            GenomeExclusionTypes::NoneType
+                        } else {
+                            info!("Read in {} distinct genomes to exclude from desharding process e.g. '{}'",
+                                  genome_names_hash.len(),
+                                  std::str::from_utf8(genome_names_hash.iter().next().unwrap())
+                                  .unwrap());
+                            if separator.is_some() {
+                                genome_exclusion_filter_separator_type = Some(
+                                    SeparatorGenomeExclusionFilter {
+                                        split_char: separator.unwrap(),
+                                        excluded_genomes: genome_names_hash
+                                    });
+                                GenomeExclusionTypes::SeparatorType
+                            } else {
+                                match genomes_and_contigs_option {
+                                    Some(ref gc) => {
+                                        genome_exclusion_genomes_and_contigs = Some(
+                                            GenomesAndContigsExclusionFilter {
+                                                genomes_and_contigs: gc,
+                                                excluded_genomes: genome_names_hash,
+                                            });
+                                        GenomeExclusionTypes::GenomesAndContigsType
+                                    },
+                                    None => unreachable!()
+                                }
+                            }
+                        }
+                    } else {
+                        debug!("Not excluding any genomes during the deshard process");
+                        genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                        GenomeExclusionTypes::NoneType
+                    }
+                } else {
+                    genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                    GenomeExclusionTypes::NoneType
+                }
+            };
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -308,23 +438,57 @@ fn main(){
                             filter_params.min_aligned_percent_pair),
                         m,
                         &mut estimators_and_taker,
-                        separator);
-                } else if m.is_present("read-sorted-shard-bam-files") {
-                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
-                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                        bam_files, sort_threads);
-                    run_genome(
-                        bam_readers,
-                        m,
-                        &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        &genomes_and_contigs_option);
+
+                } else if m.is_present("sharded") {
+                    external_command_checker::check_for_samtools();
+                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
+                    // Seems crazy, but I cannot work out how to make this more
+                    // DRY, without making GenomeExclusion into an enum.
+                    match genome_exclusion_type {
+                        GenomeExclusionTypes::NoneType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_filter_non_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::SeparatorType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_filter_separator_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::GenomesAndContigsType => {
+                            run_genome(
+                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                    bam_files,
+                                    sort_threads,
+                                    &genome_exclusion_genomes_and_contigs.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                    }
                 } else {
                     run_genome(
                         coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files),
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        &genomes_and_contigs_option);
                 }
             } else {
                 external_command_checker::check_for_bwa();
@@ -355,14 +519,44 @@ fn main(){
                         all_generators,
                         m,
                         &mut estimators_and_taker,
-                        separator);
-                } else if m.is_present("read-sorted-shard-bam-files") {
-                    let generator_sets = get_sharded_bam_readers(m, &concatenated_genomes);
-                    run_genome(
-                        generator_sets,
-                        m,
-                        &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        &genomes_and_contigs_option);
+                } else if m.is_present("sharded") {
+                    match genome_exclusion_type {
+                        GenomeExclusionTypes::NoneType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_filter_non_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::SeparatorType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_filter_separator_type.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                        GenomeExclusionTypes::GenomesAndContigsType => {
+                            run_genome(
+                                get_sharded_bam_readers(
+                                    m,
+                                    &concatenated_genomes,
+                                    &genome_exclusion_genomes_and_contigs.unwrap()),
+                                m,
+                                &mut estimators_and_taker,
+                                separator,
+                                &genomes_and_contigs_option);
+                        },
+                    }
                 } else {
                     let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
                     let mut all_generators = vec!();
@@ -377,7 +571,8 @@ fn main(){
                         all_generators,
                         m,
                         &mut estimators_and_taker,
-                        separator);
+                        separator,
+                        &genomes_and_contigs_option);
                 };
             }
         },
@@ -458,10 +653,11 @@ fn main(){
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters);
-                } else if m.is_present("read-sorted-shard-bam-files") {
-                    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+                } else if m.is_present("sharded") {
+                    external_command_checker::check_for_samtools();
+                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                        bam_files, sort_threads);
+                        bam_files, sort_threads, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
                         bam_readers,
@@ -496,8 +692,9 @@ fn main(){
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters);
-                } else if m.is_present("read-sorted-shard-bam-files") {
-                    let generator_sets = get_sharded_bam_readers(m, &None);
+                } else if m.is_present("sharded") {
+                    let generator_sets = get_sharded_bam_readers(
+                        m, &None, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
                         generator_sets,
@@ -570,31 +767,31 @@ fn main(){
                 }
             }
         },
-        Some("deshard") => {
-            let m = matches.subcommand_matches("deshard").unwrap();
-            set_log_level(m, true);
-            let bam_files: Vec<&str> = m.values_of("input-bam-files").unwrap().collect();
-            let bam_readers = bam_files.iter().map(
-                |f| {
-                    debug!("Opening BAM {} ..", f);
-                    bam::Reader::from_path(&f)
-                        .expect(&format!("Unable to open bam file {}", f))
-                }
-            ).collect();
-            debug!("Opened all input BAM files");
-            let gen = coverm::shard_bam_reader::ShardedBamReaderGenerator {
-                stoit_name: "stoita".to_string(),
-                read_sorted_bam_readers: bam_readers,
-                sort_threads: 1,
-            };
-            let mut reader = gen.start();
-            debug!("stoit name {}",reader.name());
-            let mut r = bam::Record::new();
-            while reader.read(&mut r).is_ok() {
-                println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
-                println!("main: tid {}",r.tid());
-            }
-        },
+//        Some("deshard") => {
+//            let m = matches.subcommand_matches("deshard").unwrap();
+//            set_log_level(m, true);
+//            let bam_files: Vec<&str> = m.values_of("input-bam-files").unwrap().collect();
+//            let bam_readers = bam_files.iter().map(
+//                |f| {
+//                    debug!("Opening BAM {} ..", f);
+//                    bam::Reader::from_path(&f)
+//                        .expect(&format!("Unable to open bam file {}", f))
+//                }
+//            ).collect();
+//            debug!("Opened all input BAM files");
+//            let gen = coverm::shard_bam_reader::ShardedBamReaderGenerator {
+//                stoit_name: "stoita".to_string(),
+//                read_sorted_bam_readers: bam_readers,
+//                sort_threads: 1,
+//            };
+//            let mut reader = gen.start();
+//            debug!("stoit name {}",reader.name());
+//            let mut r = bam::Record::new();
+//            while reader.read(&mut r).is_ok() {
+//                println!("main: qname {}",str::from_utf8(r.qname()).unwrap());
+//                println!("main: tid {}",r.tid());
+//            }
+//        },
         _ => {
             app.print_help().unwrap();
             println!();
@@ -726,10 +923,10 @@ impl<'a> EstimatorsAndTaker<'a> {
         if min_fraction_covered != 0.0 {
             let die = |estimator_name| {
                 error!("The '{}' coverage estimator cannot be used when \
-                        --min-covered-fraction is > 0 as it does not calculated \
-                        the covered fraction. You may wish to use the \
-                        'covered_fraction' estimator in addition and set \
-                        --min-covered-fraction to 0.", estimator_name);
+                        --min-covered-fraction is > 0 as it does not calculate \
+                        the covered fraction. You may wish to set the \
+                        --min-covered-fraction to 0 and/or run this estimator \
+                        separately.", estimator_name);
                 process::exit(1)
             };
             for e in &estimators {
@@ -842,11 +1039,12 @@ fn parse_list_of_genome_fasta_files(m: &clap::ArgMatches) -> Vec<String> {
 
 fn run_genome<'a,
               R: coverm::bam_generator::NamedBamReader,
-              T: coverm::bam_generator::NamedBamReaderGenerator<R>>(
+              T: coverm::bam_generator::NamedBamReaderGenerator<R>> (
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
     estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
-    separator: Option<u8>) {
+    separator: Option<u8>,
+    genomes_and_contigs_option: &Option<GenomesAndContigs>) {
 
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
@@ -864,18 +1062,17 @@ fn run_genome<'a,
         },
 
         false => {
-            let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
-            info!("Calculating coverage for {} genomes ..", genome_fasta_files.len());
-            let genomes_and_contigs = coverm::read_genome_fasta_files(
-                &genome_fasta_files.iter().map(|s| s.as_str()).collect());
-
-            coverm::genome::mosdepth_genome_coverage_with_contig_names(
-                bam_generators,
-                &genomes_and_contigs,
-                &mut estimators_and_taker.taker,
-                print_zeros,
-                proper_pairs_only,
-                &mut estimators_and_taker.estimators)
+            match genomes_and_contigs_option {
+                Some(gc) =>
+                    coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                        bam_generators,
+                        gc,
+                        &mut estimators_and_taker.taker,
+                        print_zeros,
+                        proper_pairs_only,
+                        &mut estimators_and_taker.estimators),
+                None => unreachable!()
+            }
         }
     };
 
@@ -969,19 +1166,20 @@ impl FilterParameters {
     }
 }
 
-fn get_sharded_bam_readers<'a>(
-    m: &'a clap::ArgMatches,
-    reference_tempfile: &'a Option<NamedTempFile>)
-    -> Vec<ShardedBamReaderGenerator> {
 
+fn get_sharded_bam_readers<'a, 'b, T>(
+    m: &'a clap::ArgMatches,
+    reference_tempfile: &'a Option<NamedTempFile>,
+    genome_exclusion: &'b T)
+    -> Vec<ShardedBamReaderGenerator<'b, T>>
+where T: GenomeExclusion {
     // Check the output BAM directory actually exists and is writeable
     if m.is_present("bam-file-cache-directory") {
         setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
     }
     let discard_unmapped = m.is_present("discard-unmapped");
-    let sort_threads = m.value_of("sort-threads").unwrap().parse::<i32>().unwrap();
+    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
     let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
-//    let mut generator_set = vec!();
     let mut bam_readers = vec![];
 
     for reference_wise_params in params {
@@ -1022,16 +1220,12 @@ fn get_sharded_bam_readers<'a>(
         }
 
         debug!("Finished BAM setup");
-//        let to_return = BamGeneratorSet {
-//            generators: bam_readers,
-//            index: index
-//        };
-//        generator_set.push(to_return);
     };
     let gen = ShardedBamReaderGenerator {
         stoit_name: "stoita".to_string(),
         read_sorted_bam_readers: bam_readers,
         sort_threads: sort_threads,
+        genome_exclusion: genome_exclusion,
     };
     return vec!(gen);
 }
@@ -1277,6 +1471,9 @@ fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
             panic!("Failed to set log level - has it been specified multiple times?")
         }
     }
+    if is_last {
+        info!("CoverM version {}", crate_version!());
+    }
 }
 
 fn build_cli() -> App<'static, 'static> {
@@ -1411,13 +1608,13 @@ Mapping coverage analysis for metagenomics
 
 Usage: coverm <subcommand> ...
 
-Main modes:
+Main subcommands:
 \tcontig\tCalculate coverage of contigs
 \tgenome\tCalculate coverage of genomes
 
-Utilities:
+Less used utility subcommands:
 \tmake\tGenerate BAM files through alignment
-\tfilter\tRemove alignments with insufficient identity
+\tfilter\tRemove (or only keep) alignments with insufficient identity
 
 Other options:
 \t-V, --version\tPrint version information
@@ -1438,12 +1635,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
-                .arg(Arg::with_name("read-sorted-shard-bam-files")
-                    .long("read-sorted-shard-bam-files")
-                    .required(false))
-                .arg(Arg::with_name("sort-threads")
-                    .long("sort-threads")
-                    .default_value("1"))
+                .arg(Arg::with_name("sharded")
+                     .long("sharded")
+                     .required(false))
+                .arg(Arg::with_name("exclude-genomes-from-deshard")
+                     .long("exclude-genomes-from-deshard")
+                     .requires("sharded")
+                     .takes_value(true))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1629,12 +1827,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bam-files")
                      .multiple(true)
                      .takes_value(true))
-                .arg(Arg::with_name("read-sorted-shard-bam-files")
-                    .long("read-sorted-shard-bam-files")
+                .arg(Arg::with_name("sharded")
+                    .long("sharded")
                     .required(false))
-                .arg(Arg::with_name("sort-threads")
-                    .long("sort-threads")
-                    .default_value("1"))
                 .arg(Arg::with_name("read1")
                      .short("-1")
                      .multiple(true)
@@ -1884,18 +2079,5 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bwa-parameters")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference")))
-        .subcommand(
-            SubCommand::with_name("deshard")
-                .arg(Arg::with_name("input-bam-files")
-                     .short("-b")
-                     .long("input-bam-files")
-                     .multiple(true)
-                     .takes_value(true))
-                .arg(Arg::with_name("verbose")
-                     .short("v")
-                     .long("verbose"))
-                .arg(Arg::with_name("quiet")
-                     .short("q")
-                     .long("quiet")));
+                     .requires("reference")));
 }
