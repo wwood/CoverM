@@ -883,6 +883,46 @@ genome6	26.697144
             .succeeds().unwrap()
     }
 
+    #[test]
+    fn test_correct_number_of_reads_total_with_filtering_paired() {
+        let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tf1, "genome3").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-c",
+                "tests/data/7seqs.reads_for_7_plus5random.1.fa",
+                "tests/data/7seqs.reads_for_7_plus5random.2.fa",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--proper-pairs-only",
+                "--min-read-aligned-length-pair",
+                "50"])
+            .stderr().contains(
+                "coverm::contig] In sample '7seqs.fna/7seqs.reads_for_7_plus5random.1.fa', \
+                 found 40 reads mapped out of 50 total (80.00%)")
+            .succeeds().unwrap()
+    }
+
+    #[test]
+    fn test_correct_number_of_reads_total_with_filtering_single() {
+        let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tf1, "genome3").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-c",
+                "tests/data/7seqs.reads_for_7_plus5random.1.fa",
+                "tests/data/7seqs.reads_for_7_plus5random.2.fa",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--min-read-aligned-length",
+                "50"])
+            .stderr().contains(
+                "coverm::contig] In sample '7seqs.fna/7seqs.reads_for_7_plus5random.1.fa', \
+                 found 40 reads mapped out of 50 total (80.00%)")
+            .succeeds().unwrap()
+    }
 }
 
 

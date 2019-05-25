@@ -73,6 +73,9 @@ impl ReferenceSortedBamFilter {
         if self.filter_single_reads && !self.filter_pairs {
             loop {
                 self.reader.read(&mut record)?;
+                if !record.is_supplementary() && !record.is_secondary() {
+                    self.num_detected_primary_alignments += 1;
+                }
                 if record.is_unmapped() && !self.filter_out {
                     return Ok(())
                 }
@@ -80,7 +83,6 @@ impl ReferenceSortedBamFilter {
                     (self.flag_filters.include_supplementary || !record.is_supplementary()) &&
                     (self.flag_filters.include_secondary || !record.is_secondary());
                 if passes_filter1 {
-                    self.num_detected_primary_alignments += 1;
                     let passes_filter2 = single_read_passes_filter(
                         &record,
                         self.min_aligned_length_single,
@@ -106,6 +108,10 @@ impl ReferenceSortedBamFilter {
                            record.is_supplementary(),
                            !record.is_proper_pair());
 
+                    if !record.is_supplementary() && !record.is_secondary() {
+                        self.num_detected_primary_alignments += 1;
+                    }
+
                     if record.is_unmapped() && !self.filter_out {
                         return Ok(())
                     }
@@ -115,7 +121,6 @@ impl ReferenceSortedBamFilter {
                         record.is_supplementary() {
                             continue
                         }
-                    self.num_detected_primary_alignments += 1;
                     if !record.is_proper_pair() {
                         if self.filter_out {
                             continue
