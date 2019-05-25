@@ -119,7 +119,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded                             If -b/--bam-files was used:
+   --sharded (experimental)              If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -236,7 +236,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded                             If -b/--bam-files was used:
+   --sharded (experimental)              If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
