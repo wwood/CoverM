@@ -9,7 +9,6 @@ rust:
 cache: cargo
 
 os:
-  - linux
   - osx
 
 env:
