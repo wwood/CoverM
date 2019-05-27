@@ -497,8 +497,12 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         },
         None => format!("> {:?}", fifo_path)
     };
-    let bwa_read_params = match read_format {
-        ReadFormat::Interleaved => format!("-p '{}'", read1_path),
+    let bwa_read_params1 = match read_format {
+        ReadFormat::Interleaved => "-p",
+        ReadFormat::Coupled | ReadFormat::Single => ""
+    };
+    let bwa_read_params2 = match read_format {
+        ReadFormat::Interleaved => format!("'{}'", read1_path),
         ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
         ReadFormat::Single => format!("'{}'", read1_path),
     };
@@ -507,20 +511,24 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .tempfile_in(tmp_dir.path())
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
-            "set -e -o pipefail; \
-             bwa mem {} -t {} '{}' {} 2>{} \
-             | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
-             {}",
-            // BWA
-            bwa_options.unwrap_or(""), threads, reference, bwa_read_params,
-            bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
-            // samtools
-            bwa_sort_prefix.path().to_str()
-                .expect("Failed to convert bwa_sort_prefix tempfile to str"),
-            threads - 1,
-            samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
-            // Caching (or not)
-            cached_bam_file_args);
+        "set -e -o pipefail; \
+         bwa mem {} -t {} {} '{}' {} 2>{} \
+         | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
+         {}",
+        // BWA
+        bwa_options.unwrap_or(""),
+        threads,
+        bwa_read_params1,
+        reference,
+        bwa_read_params2,
+        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // samtools
+        bwa_sort_prefix.path().to_str()
+            .expect("Failed to convert bwa_sort_prefix tempfile to str"),
+        threads - 1,
+        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // Caching (or not)
+        cached_bam_file_args);
     debug!("Queuing cmd_string: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
     cmd
