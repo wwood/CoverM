@@ -287,12 +287,13 @@ mod tests {
     #[test]
     fn test_sharded_bams_some_not_covered(){
         test_with_stream(
-            "stoita\tgenome3~random_sequence_length_11001\t0.10908099\
-            \nstoita\tgenome4~random_sequence_length_11002\t0.109071076\
-            \nstoita\tgenome5~seq2\t0\nstoita\tgenome6~random_sequence_length_11003\t0.10906117\
-            \nstoita\tgenome1~random_sequence_length_11000\t0.10909091\
-            \nstoita\tgenome1~random_sequence_length_11010\t0.108991824\
-            \nstoita\tgenome2~seq1\t0\n",
+            "shard1|shard2\tgenome3~random_sequence_length_11001\t0.10908099\
+            \nshard1|shard2\tgenome4~random_sequence_length_11002\t0.109071076\
+            \nshard1|shard2\tgenome5~seq2\t0\
+            \nshard1|shard2\tgenome6~random_sequence_length_11003\t0.10906117\
+            \nshard1|shard2\tgenome1~random_sequence_length_11000\t0.10909091\
+            \nshard1|shard2\tgenome1~random_sequence_length_11010\t0.108991824\
+            \nshard1|shard2\tgenome2~seq1\t0\n",
             generate_sharded_bam_reader_from_bam_files(
                 vec!["tests/data/shard1.bam", "tests/data/shard2.bam"], 4,
                 &NoExclusionGenomeFilter{}),

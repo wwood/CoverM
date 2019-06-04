@@ -437,9 +437,19 @@ where T: GenomeExclusion {
                 .expect(&format!("Unable to open bam file {}", f))
         }
     ).collect();
+    let stoit_name = bam_paths.iter().map(
+        |f| std::path::Path::new(f).file_stem().unwrap().to_str().expect(
+            "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string())
+        .fold(
+            None,
+            { |acc, s| match acc {
+                None => Some(s),
+                Some(prev) => Some(format!("{}|{}",prev,s))
+            }}
+    ).unwrap();
     debug!("Opened all input BAM files");
     let gen = ShardedBamReaderGenerator {
-        stoit_name: "stoita".to_string(),
+        stoit_name: stoit_name,
         read_sorted_bam_readers: bam_readers,
         sort_threads: sort_threads,
         genome_exclusion: genome_exclusion,
@@ -456,8 +466,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     discard_unmapped: bool,
-    bwa_options: Option<&str>,
-    include_reference_in_stoit_name: bool) -> bam::Reader {
+    bwa_options: Option<&str>) -> bam::Reader {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -545,15 +554,6 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         log_files.push(samtools_view_cache_log);
     }
 
-    let stoit_name = match include_reference_in_stoit_name {
-        true => std::path::Path::new(reference).file_name()
-            .expect("Unable to convert reference to file name").to_str()
-            .expect("Unable to covert file name into str").to_string() + "/",
-        false => "".to_string()
-    } + &std::path::Path::new(read1_path).file_name()
-        .expect("Unable to convert read1 name to file name").to_str()
-        .expect("Unable to covert file name into str").to_string();
-
     debug!("Starting mapping processes");
     let pre_processes = vec![cmd];
     let command_strings = vec![format!("bash -c {}", cmd_string)];
@@ -579,7 +579,7 @@ mod tests {
     fn test_shard_hello_world() {
         //This test needs to be revisited. It seems busted.
         let gen = ShardedBamReaderGenerator {
-            stoit_name: "stoita".to_string(),
+            stoit_name: "stoiter".to_string(),
             read_sorted_bam_readers: vec![
                 bam::Reader::from_path("tests/data/2seqs.fastaVbad_read.bam").unwrap(),
                 bam::Reader::from_path("tests/data/7seqs.fnaVbad_read.bam").unwrap()
@@ -588,7 +588,7 @@ mod tests {
             genome_exclusion: &NoExclusionGenomeFilter{},
         };
         let mut reader = gen.start();
-        assert_eq!("stoita".to_string(), reader.stoit_name);
+        assert_eq!("stoiter".to_string(), reader.stoit_name);
         let mut r = bam::Record::new();
         reader.bam_reader.read(&mut r).unwrap();
         println!("{}",str::from_utf8(r.qname()).unwrap());

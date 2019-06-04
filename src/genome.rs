@@ -1099,7 +1099,7 @@ mod tests {
     #[test]
     fn test_sharded_bams_with_zero_coverage(){
         test_streaming_with_stream(
-            "stoita\tgenome3\t0.10908099\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
+            "shard1|shard2\tgenome3\t0.10908099\nshard1|shard2\tgenome4\t0.109071076\nshard1|shard2\tgenome5\t0\nshard1|shard2\tgenome6\t0.10906117\nshard1|shard2\tgenome1\t0.10904135\nshard1|shard2\tgenome2\t0\n",
             generate_sharded_bam_reader_from_bam_files(
                 vec!["tests/data/shard1.bam", "tests/data/shard2.bam"],
                 4,
@@ -1120,7 +1120,12 @@ mod tests {
             excluded_genomes: hashset
         };
         test_streaming_with_stream(
-            "stoita\tgenome3\t0\nstoita\tgenome4\t0.109071076\nstoita\tgenome5\t0\nstoita\tgenome6\t0.10906117\nstoita\tgenome1\t0.10904135\nstoita\tgenome2\t0\n",
+            "shard1|shard2\tgenome3\t0\n\
+             shard1|shard2\tgenome4\t0.109071076\n\
+             shard1|shard2\tgenome5\t0\n\
+             shard1|shard2\tgenome6\t0.10906117\n\
+             shard1|shard2\tgenome1\t0.10904135\n\
+             shard1|shard2\tgenome2\t0\n",
             generate_sharded_bam_reader_from_bam_files(
                 vec!["tests/data/shard1.bam", "tests/data/shard2.bam"],
                 4,

@@ -1144,12 +1144,21 @@ where T: GenomeExclusion {
     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
     let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
     let mut bam_readers = vec![];
+    let mut concatenated_reference_name: Option<String> = None;
+    let mut concatenated_read_names: Option<String> = None;
 
     for reference_wise_params in params {
         let index = coverm::bwa_index_maintenance::generate_bwa_index(
             reference_wise_params.reference);
 
         let reference = reference_wise_params.reference;
+        let reference_name = std::path::Path::new(reference).file_name()
+            .expect("Unable to convert reference to file name").to_str()
+            .expect("Unable to covert file name into str").to_string();
+        concatenated_reference_name = match concatenated_reference_name {
+            Some(prev) => Some(format!("{}|{}",prev,reference_name)),
+            None => Some(reference_name)
+        };
         let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
             match m.is_present("bam-file-cache-directory") {
@@ -1171,21 +1180,30 @@ where T: GenomeExclusion {
         for p in reference_wise_params {
             bam_readers.push(
                 coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
-                        index.index_path(),
-                        p.read1,
-                        p.read2,
-                        p.read_format.clone(),
-                        p.threads,
-                        bam_file_cache(p.read1).as_ref().map(String::as_ref),
-                        discard_unmapped,
-                        p.bwa_options,
-                        reference_tempfile.is_none()));
+                    index.index_path(),
+                    p.read1,
+                    p.read2,
+                    p.read_format.clone(),
+                    p.threads,
+                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    discard_unmapped,
+                    p.bwa_options));
+            let name = &std::path::Path::new(p.read1).file_name()
+                .expect("Unable to convert read1 name to file name").to_str()
+                .expect("Unable to covert file name into str").to_string();
+            concatenated_read_names = match concatenated_read_names {
+                Some(prev) => Some(format!("{}|{}", prev, name)),
+                None => Some(name.to_string())
+            };
         }
 
         debug!("Finished BAM setup");
     };
     let gen = ShardedBamReaderGenerator {
-        stoit_name: "stoita".to_string(),
+        stoit_name: format!(
+            "{}/{}",
+            concatenated_reference_name.unwrap(),
+            concatenated_read_names.unwrap()),
         read_sorted_bam_readers: bam_readers,
         sort_threads: sort_threads,
         genome_exclusion: genome_exclusion,

@@ -788,7 +788,7 @@ k141_109815	362	0.6273585	0.6273585	0.23488776").unwrap();
                 "-s",
                 "~",
             ])
-            .stdout().is("Genome	stoita Relative Abundance (%)
+            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	0
 genome3	25.024881
 genome4	25.022575
@@ -810,7 +810,7 @@ genome2	0
                 "tests/data/shard1.bam",
                 "tests/data/shard2.bam",
             ])
-            .stdout().is("Contig	stoita Mean
+            .stdout().is("Contig	shard1|shard2 Mean
 genome3~random_sequence_length_11001	0.110588886
 genome4~random_sequence_length_11002	0.11057869
 genome5~seq2	0
@@ -838,7 +838,7 @@ genome2~seq1	0
                 "--exclude-genomes-from-deshard",
                 tf1.path().to_str().unwrap()
             ])
-            .stdout().is("Genome	stoita Relative Abundance (%)
+            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	19.999998
 genome3	0
 genome4	26.699606
@@ -871,7 +871,7 @@ genome2	0
                 "--exclude-genomes-from-deshard",
                 tf1.path().to_str().unwrap()
             ])
-            .stdout().is("Genome	stoita Relative Abundance (%)
+            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	19.999998
 genome1	26.60325
 genome2	0
@@ -921,6 +921,31 @@ genome6	26.697144
             .stderr().contains(
                 "coverm::contig] In sample '7seqs.fna/7seqs.reads_for_7_plus5random.1.fa', \
                  found 40 reads mapped out of 50 total (80.00%)")
+            .succeeds().unwrap()
+    }
+
+    #[test]
+    fn test_sharded_contig_input_reads() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-c",
+                "tests/data/7seqs.reads_for_7.1.fq",
+                "tests/data/7seqs.reads_for_7.2.fq",
+                "-r",
+                "tests/data/shard1.fna",
+                "tests/data/shard2.fna",
+                "--sharded",
+            ])
+            .stdout().is(
+                "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
+                 genome3~random_sequence_length_11001	0.110588886\n\
+                 genome4~random_sequence_length_11002	0.11057869\n\
+                 genome5~seq2	0\n\
+                 genome6~random_sequence_length_11003	0.11056851\n\
+                 genome1~random_sequence_length_11000	0.109861754\n\
+                 genome1~random_sequence_length_11010	0.110497236\n\
+                 genome2~seq1	0\n")
             .succeeds().unwrap()
     }
 }
