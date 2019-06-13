@@ -101,7 +101,8 @@ pub fn read_genome_definition_file(definition_file_path: &str)
         }
     }
 
-    info!("Found {} contigs assigned to {} different genomes",
+    info!("Found {} contigs assigned to {} different genomes from \
+           the genome definition file",
           contig_to_genome.len(), genome_to_contig.len());
 
     let mut gc = GenomesAndContigs::new();
