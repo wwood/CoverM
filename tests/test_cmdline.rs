@@ -948,6 +948,23 @@ genome6	26.697144
                  genome2~seq1	0\n")
             .succeeds().unwrap()
     }
+
+    #[test]
+    fn test_genome_definition() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-definition",
+                "tests/data/7seqs.definition",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam"])
+            .succeeds()
+            .stdout().contains(
+                "Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n")
+            .stdout().contains("genome2	53.167923\n")
+            .stdout().contains("genome5	46.832077\n")
+            .unwrap();
+    }
 }
 
 

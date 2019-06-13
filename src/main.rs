@@ -204,6 +204,9 @@ Define the contigs in each genome (exactly one of the following is required):
    -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
                                          specified with -d/--genome-fasta-directory
                                          [default \"fna\"]
+   --genome-definition <FILE>            File containing list of
+                                         genome_name<tab>contig
+                                         lines to define the genome of each contig
    --single-genome                       All contigs are from the same genome
 
 Define mapping(s) (required):
@@ -340,10 +343,18 @@ fn main(){
             let genomes_and_contigs_option = match separator.is_some() || single_genome {
                 true => None,
                 false => {
-                    let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
-                    info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
-                    Some(coverm::read_genome_fasta_files(
-                        &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
+                    match m.is_present("genome-definition") {
+                        true => {
+                            Some(coverm::read_genome_definition_file(
+                                m.value_of("genome-definition").unwrap()))
+                        },
+                        false => {
+                            let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+                            info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
+                            Some(coverm::read_genome_fasta_files(
+                                &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
+                        }
+                    }
                 }
             };
 
@@ -1693,7 +1704,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["genome-fasta-files","genome-fasta-directory","single-genome","full-help"])
+                         &["genome-fasta-files","genome-fasta-directory","single-genome",
+                           "genome-definition","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-files")
                      .short("f")
@@ -1703,7 +1715,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["separator","genome-fasta-directory","single-genome","full-help"])
+                         &["separator","genome-fasta-directory","single-genome",
+                           "genome-definition","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-directory")
                      .short("d")
@@ -1712,7 +1725,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("single-genome")
                      .required_unless_one(
-                         &["genome-fasta-files","separator","single-genome","full-help"])
+                         &["genome-fasta-files","separator","single-genome",
+                           "genome-definition","full-help"])
                      .takes_value(true))
                 .arg(Arg::with_name("genome-fasta-extension")
                      .short("x")
@@ -1722,11 +1736,22 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      //.requires("genome-fasta-directory")
                      .default_value("fna")
                      .takes_value(true))
+                .arg(Arg::with_name("genome-definition")
+                     .long("genome-definition")
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .conflicts_with("genome-fasta-directory")
+                     .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["genome-fasta-files","separator","single-genome",
+                           "genome-fasta-directory","full-help"])
+                     .takes_value(true))
                 .arg(Arg::with_name("single-genome")
                      .long("single-genome")
                      .conflicts_with("separator")
                      .conflicts_with("genome-fasta-files")
-                     .conflicts_with("genome-fasta-directory"))
+                     .conflicts_with("genome-fasta-directory")
+                     .conflicts_with("genome-definition"))
 
                 .arg(Arg::with_name("min-read-aligned-length")
                      .long("min-read-aligned-length")
