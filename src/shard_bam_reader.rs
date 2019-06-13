@@ -53,12 +53,13 @@ where T: GenomeExclusion {
         let mut some_finished = false;
         let mut record;
         let mut res;
+        let mut current_alignment;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
             loop {
                 {
-                    current_alignments.push(bam::Record::new());
-                    res = reader.read(&mut current_alignments[i]);
+                    current_alignment = bam::Record::new();
+                    res = reader.read(&mut current_alignment);
                     if res.is_err() {
                         debug!("BAM reader #{} appears to be finished", i);
                         some_finished = true;
@@ -67,7 +68,7 @@ where T: GenomeExclusion {
                 }
 
                 {
-                    record = current_alignments[i].clone();
+                    record = current_alignment.clone();
                     if !record.is_paired() {
                         panic!("This code can only handle paired-end \
                                 input (at the moment), sorry.")
@@ -75,18 +76,27 @@ where T: GenomeExclusion {
                     if !record.is_secondary() && !record.is_supplementary() {
                         some_unfinished = true;
                          match current_qname.clone() {
-                             None => {current_qname = Some(str::from_utf8(record.qname()).unwrap().to_string())},
+                             None => {
+                                 current_qname = Some(
+                                     str::from_utf8(record.qname())
+                                         .unwrap()
+                                         .to_string())},
                              Some(prev) => {
-                                 if prev != str::from_utf8(record.qname()).unwrap().to_string() {
+                                 if prev != str::from_utf8(record.qname())
+                                     .unwrap()
+                                     .to_string() {
+
                                      panic!(
                                          "BAM files do not appear to be \
                                           properly sorted by read name. \
                                           Expected read name {:?} from a \
                                           previous reader but found {:?} \
-                                          in the current.", prev, str::from_utf8(record.qname()).unwrap().to_string());
+                                          in the current.", prev, str::from_utf8(
+                                              record.qname()).unwrap().to_string());
                                  }
                              }
                          }
+                        current_alignments.push(current_alignment);
                         break;
                     }
                     // else we have a non-primary alignment, so loop again.
@@ -97,6 +107,7 @@ where T: GenomeExclusion {
         if some_unfinished && some_finished {
             panic!("Unexpectedly one BAM file input finished while another had further reads")
         }
+        debug!("Read records {:?}", current_alignments);
         return match some_unfinished {
             true => Some(current_alignments),
             false => None
@@ -126,8 +137,9 @@ where T: GenomeExclusion {
                         "Error writing AUX record from{:?} to {:?}", from, to));
             },
             None => {
-                if from.tid() >= 0 {
-                    panic!("record {:?} had no NM tag", from)
+                if from.tid() >= 0 && from.cigar_len() != 0 {
+                    panic!("record {:?} with name {} had no NM tag",
+                           from, str::from_utf8(from.qname()).unwrap())
                 }
             },
         }
@@ -159,6 +171,9 @@ where T: GenomeExclusion {
             // If we get None, then croak
             let second_read_alignments = self.read_a_record_set()
                 .expect("Unexpectedly was able to read a first read set, but not a second. Hmm.");
+
+            debug!("Previous records {:?}", self.previous_read_records);
+            debug!("Second read records {:?}", second_read_alignments);
 
             // Decide which pair is the winner
             // Cannot use max_by_key() here since we want a random winner
