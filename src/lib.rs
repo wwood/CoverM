@@ -25,8 +25,8 @@ extern crate rand;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
-
-
+use std::collections::HashMap;
+use std::io::BufRead;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
@@ -58,6 +58,60 @@ pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)
         }
     }
     return contig_to_genome;
+}
+
+pub fn read_genome_definition_file(definition_file_path: &str)
+                                   -> GenomesAndContigs {
+    let f = std::fs::File::open(definition_file_path)
+        .expect(&format!("Unable to find/read genome definition file {}",
+                         definition_file_path));
+    let file = std::io::BufReader::new(&f);
+    let mut contig_to_genome: HashMap<String, String> = HashMap::new();
+    let mut genome_to_contig: HashMap<String, Vec<String>> = HashMap::new();
+    for line_res in file.lines() {
+        let line = line_res.expect("Read error on genome definition file");
+        let v: Vec<&str> = line
+            .split("\t")
+            .collect();
+        if v.len() == 2 {
+            let genome = v[0].trim();
+            let contig = v[1].trim();
+            if contig_to_genome.contains_key(contig) {
+                if contig_to_genome[contig] != genome {
+                    panic!(
+                        "The contig name '{}' was assigned to multiple genomes",
+                        contig)
+                }
+            } else {
+                contig_to_genome.insert(contig.to_string(), genome.to_string());
+            }
+
+            if genome_to_contig.contains_key(genome) {
+                genome_to_contig.get_mut(genome).unwrap().push(contig.to_string());
+            } else {
+                genome_to_contig.insert(
+                    genome.to_string(), vec!(contig.to_string()));
+            }
+        } else if v.len() == 0 {
+            continue;
+        } else {
+            panic!("The line \"{}\" in the genome definition file is not a \
+                    genome name and contig name separated by a tab",
+                   line);
+        }
+    }
+
+    info!("Found {} contigs assigned to {} different genomes",
+          contig_to_genome.len(), genome_to_contig.len());
+
+    let mut gc = GenomesAndContigs::new();
+    for (genome, contigs) in genome_to_contig.iter() {
+        let genome_index = gc.establish_genome(genome.to_string());
+        for contig in contigs {
+            gc.insert(contig.to_string(), genome_index);
+        }
+    }
+    return gc;
 }
 
 #[derive(PartialEq, Debug)]
@@ -109,6 +163,16 @@ mod tests {
         let contig_to_genome = read_genome_fasta_files(&vec!["tests/data/genome1.fna"]);
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq1")).unwrap());
         assert_eq!(String::from("genome1"), *contig_to_genome.genome_of_contig(&String::from("seq2")).unwrap());
+    }
+
+    #[test]
+    fn test_read_genome_definition_file(){
+        let contig_to_genome = read_genome_definition_file("tests/data/7seqs.definition");
+        assert_eq!(
+            Some(&String::from("genome4")),
+            contig_to_genome.genome_of_contig(
+                &String::from("genome4~random_sequence_length_11002")));
+        assert_eq!(6, contig_to_genome.genomes.len());
     }
 }
 
