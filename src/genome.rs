@@ -65,8 +65,16 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
               num_refs_in_genomes, num_refs_not_in_genomes);
         debug!("Reference number to genomes: {:?}", reference_number_to_genome_index);
         if num_refs_in_genomes == 0 {
-            eprintln!("Error: There are no found reference sequences that are a part of a genome");
-            std::process::exit(2);
+            panic!("Error: There are no found reference sequences that are a part of a genome");
+        }
+        {
+            let num_unreferenced = contigs_and_genomes.contig_to_genome.len() as u32 -
+                num_refs_in_genomes;
+            if num_unreferenced > 0 {
+                warn!("Found {} contig(s) that were defined as being part of a genome, \
+                       but were not reference sequences in BAM files.",
+                      num_unreferenced)
+            }
         }
         let mut per_genome_coverage_estimators = vec!();
         for _ in contigs_and_genomes.genomes.iter() {
