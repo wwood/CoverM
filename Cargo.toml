@@ -13,8 +13,8 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 ]
 
 [dependencies]
-bio = "0.26.*"
-rust-htslib = "0.23.*"
+bio = "0.27.*"
+rust-htslib = "0.24.*"
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.6.*"
