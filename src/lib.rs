@@ -11,6 +11,7 @@ pub mod mapping_parameters;
 pub mod coverage_printer;
 pub mod shard_bam_reader;
 pub mod genome_exclusion;
+pub mod kmer_coverage;
 
 extern crate bio;
 #[macro_use]

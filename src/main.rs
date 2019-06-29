@@ -11,6 +11,7 @@ use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 use coverm::genomes_and_contigs::GenomesAndContigs;
 use coverm::genome_exclusion::*;
+use coverm::kmer_coverage::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -632,6 +633,13 @@ fn main(){
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
+
+            if m.values_of("method").unwrap == vec!("kmer") {
+                kmer_coverage::calculate_kmer_coverage(
+                    m.value_of("reference").unwrap(),
+                    m.values_of("1").unwrap()[0]
+                )
+            }
 
             let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
                 m, &mut print_stream);
@@ -1953,7 +1961,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "length",
                          "count",
                          "metabat",
-                         "reads_per_base"])
+                         "reads_per_base",
+                         "kmer"])
                      .default_value("mean"))
                 .arg(Arg::with_name("min-covered-fraction")
                      .long("min-covered-fraction")
