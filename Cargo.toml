@@ -24,6 +24,19 @@ tempfile = "3.0.*"
 ansi_term = "0.11"
 lazy_static = "1.3.0"
 rand = "0.6.*"
+rayon = "1.0"
+failure = "0.1"
+crossbeam = "0.4"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
+
+[dependencies.debruijn]
+git = "https://github.com/10XGenomics/rust-debruijn"
+version = ">=0.2.1"
+branch = "master"
+
+[dependencies.boomphf]
+git = "https://github.com/10XGenomics/rust-boomphf"
+branch = "master"
+features = ["serde"]

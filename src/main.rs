@@ -11,7 +11,6 @@ use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 use coverm::genomes_and_contigs::GenomesAndContigs;
 use coverm::genome_exclusion::*;
-use coverm::kmer_coverage::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -634,99 +633,101 @@ fn main(){
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
 
-            if m.values_of("method").unwrap == vec!("kmer") {
-                kmer_coverage::calculate_kmer_coverage(
+            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+            if methods.contains(&"kmer") {
+                coverm::kmer_coverage::calculate_kmer_coverage(
                     m.value_of("reference").unwrap(),
-                    m.values_of("1").unwrap()[0]
-                )
+                    m.values_of("read1").unwrap().collect::<Vec<_>>()[0]
+                );
             }
 
-            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, &mut print_stream);
-            estimators_and_taker = estimators_and_taker.print_headers(
-                &"Contig", &mut std::io::stdout());
+            else {
+                let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
+                    m, &mut print_stream);
+                estimators_and_taker = estimators_and_taker.print_headers(
+                    &"Contig", &mut std::io::stdout());
 
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filter_params.doing_filtering() {
-                    let bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
-                        bam_files,
-                        filter_params.flag_filters.clone(),
-                        filter_params.min_aligned_length_single,
-                        filter_params.min_percent_identity_single,
-                        filter_params.min_aligned_percent_single,
-                        filter_params.min_aligned_length_pair,
-                        filter_params.min_percent_identity_pair,
-                        filter_params.min_aligned_percent_pair);
-                    run_contig(
-                        &mut estimators_and_taker,
-                        bam_readers,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else if m.is_present("sharded") {
+                if m.is_present("bam-files") {
+                    let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                    if filter_params.doing_filtering() {
+                        let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                            bam_files,
+                            filter_params.flag_filters.clone(),
+                            filter_params.min_aligned_length_single,
+                            filter_params.min_percent_identity_single,
+                            filter_params.min_aligned_percent_single,
+                            filter_params.min_aligned_length_pair,
+                            filter_params.min_percent_identity_pair,
+                            filter_params.min_aligned_percent_pair);
+                        run_contig(
+                            &mut estimators_and_taker,
+                            bam_readers,
+                            print_zeros,
+                            filter_params.flag_filters);
+                    } else if m.is_present("sharded") {
+                        external_command_checker::check_for_samtools();
+                        let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
+                        let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                            bam_files, sort_threads, &NoExclusionGenomeFilter{});
+                        run_contig(
+                            &mut estimators_and_taker,
+                            bam_readers,
+                            print_zeros,
+                            filter_params.flag_filters);
+                    } else {
+                        let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                            bam_files);
+                        run_contig(
+                            &mut estimators_and_taker,
+                            bam_readers,
+                            print_zeros,
+                            filter_params.flag_filters);
+                    }
+                } else {
+                    external_command_checker::check_for_bwa();
                     external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-                    let bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                        bam_files, sort_threads, &NoExclusionGenomeFilter{});
-                    run_contig(
-                        &mut estimators_and_taker,
-                        bam_readers,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else {
-                    let bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                        bam_files);
-                    run_contig(
-                        &mut estimators_and_taker,
-                        bam_readers,
-                        print_zeros,
-                        filter_params.flag_filters);
-                }
-            } else {
-                external_command_checker::check_for_bwa();
-                external_command_checker::check_for_samtools();
-                if filter_params.doing_filtering() {
-                    debug!("Filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(
-                        m, &None, &filter_params);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
+                    if filter_params.doing_filtering() {
+                        debug!("Filtering..");
+                        let generator_sets = get_streamed_filtered_bam_readers(m, &None);
+                        let mut all_generators = vec!();
+                        let mut indices = vec!(); // Prevent indices from being dropped
+                        for set in generator_sets {
+                            indices.push(set.index);
+                            for g in set.generators {
+                                all_generators.push(g)
+                            }
                         }
-                    }
-                    debug!("Finished collecting generators.");
-                    run_contig(
-                        &mut estimators_and_taker,
-                        all_generators,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else if m.is_present("sharded") {
-                    let generator_sets = get_sharded_bam_readers(
-                        m, &None, &NoExclusionGenomeFilter{});
-                    run_contig(
-                        &mut estimators_and_taker,
-                        generator_sets,
-                        print_zeros,
-                        filter_params.flag_filters);
-                } else {
-                    debug!("Not filtering..");
-                    let generator_sets = get_streamed_bam_readers(m, &None);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
+                        debug!("Finished collecting generators.");
+                        run_contig(
+                            &mut estimators_and_taker,
+                            all_generators,
+                            print_zeros,
+                            filter_params.flag_filters);
+                    } else if m.is_present("sharded") {
+                        let generator_sets = get_sharded_bam_readers(
+                            m, &None, &NoExclusionGenomeFilter{});
+                        run_contig(
+                            &mut estimators_and_taker,
+                            generator_sets,
+                            print_zeros,
+                            filter_params.flag_filters);
+                    } else {
+                        debug!("Not filtering..");
+                        let generator_sets = get_streamed_bam_readers(m, &None);
+                        let mut all_generators = vec!();
+                        let mut indices = vec!(); // Prevent indices from being dropped
+                        for set in generator_sets {
+                            indices.push(set.index);
+                            for g in set.generators {
+                                all_generators.push(g)
+                            }
                         }
+                        run_contig(
+                            &mut estimators_and_taker,
+                            all_generators,
+                            print_zeros,
+                            filter_params.flag_filters.clone());
                     }
-                    run_contig(
-                        &mut estimators_and_taker,
-                        all_generators,
-                        print_zeros,
-                        filter_params.flag_filters.clone());
                 }
             }
         },

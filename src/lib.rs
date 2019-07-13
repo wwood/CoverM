@@ -12,6 +12,7 @@ pub mod coverage_printer;
 pub mod shard_bam_reader;
 pub mod genome_exclusion;
 pub mod kmer_coverage;
+pub mod pseudoaligner;
 
 extern crate bio;
 #[macro_use]
@@ -23,6 +24,13 @@ extern crate nix;
 extern crate tempdir;
 extern crate tempfile;
 extern crate rand;
+extern crate debruijn;
+extern crate boomphf;
+#[macro_use]
+extern crate lazy_static;
+extern crate rayon;
+extern crate failure;
+
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
