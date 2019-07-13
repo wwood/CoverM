@@ -30,7 +30,11 @@ extern crate boomphf;
 extern crate lazy_static;
 extern crate rayon;
 extern crate failure;
-
+extern crate crossbeam;
+extern crate flate2;
+extern crate bincode;
+#[macro_use]
+extern crate serde;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
