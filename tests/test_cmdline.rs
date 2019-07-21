@@ -965,6 +965,34 @@ genome6	26.697144
             .stdout().contains("genome5	46.832077\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_some_samples_zero_coverage_genome() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-s",
+                "~",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/7seqs.reads_for_7.1.fq",
+                "tests/data/random.fq",
+                "-2",
+                "tests/data/7seqs.reads_for_7.2.fq",
+                "tests/data/random.fq"])
+            .succeeds()
+            .stdout().is("Genome	7seqs.fna/7seqs.reads_for_7.1.fq Relative Abundance (%)\t\
+                          7seqs.fna/random.fq Relative Abundance (%)\n\
+                          unmapped	0	100\n\
+                          genome1	24.932272	NaN\n\
+                          genome2	0	NaN\n\
+                          genome3	25.02488	NaN\n\
+                          genome4	25.022572	NaN\n\
+                          genome5	0	NaN\n\
+                          genome6	25.02027	NaN\n")
+            .unwrap();
+    }
 }
 
 
