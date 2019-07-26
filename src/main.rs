@@ -783,17 +783,30 @@ struct EstimatorsAndTaker<'a> {
     printer: CoveragePrinter,
 }
 
+fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
+    match m.is_present(parameter) {
+        true => {
+            let mut percentage = value_t!(
+                m.value_of(parameter), f32).unwrap();
+            if percentage >= 1.0 && percentage <= 100.0 {
+                percentage = percentage / 100.0;
+            } else if percentage < 0.0 || percentage > 100.0 {
+                error!("Invalid alignment percentage: '{}'", percentage);
+                process::exit(1);
+            }
+            info!("Using {} {}%", parameter, percentage*100.0);
+            percentage
+        },
+        false => 0.0
+    }
+}
+
 impl<'a> EstimatorsAndTaker<'a> {
     pub fn generate_from_clap(
         m: &clap::ArgMatches, stream: &'a mut std::io::Stdout)
         -> EstimatorsAndTaker<'a> {
         let mut estimators = vec!();
-        let min_fraction_covered = value_t!(m.value_of("min-covered-fraction"), f32).unwrap();
-
-        if min_fraction_covered > 1.0 || min_fraction_covered < 0.0 {
-            eprintln!("Minimum fraction covered parameter cannot be < 0 or > 1, found {}", min_fraction_covered);
-            process::exit(1)
-        }
+        let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
         let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
 
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
@@ -1092,24 +1105,6 @@ struct FilterParameters {
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
-        let parse_percentage = |m: &clap::ArgMatches, parameter: &str| {
-            match m.is_present(parameter) {
-                true => {
-                    let mut percentage = value_t!(
-                        m.value_of(parameter), f32).unwrap();
-                    if percentage >= 1.0 && percentage <= 100.0 {
-                        percentage = percentage / 100.0;
-                    } else if percentage < 0.0 || percentage > 100.0 {
-                        error!("Invalid alignment percentage: '{}'", percentage);
-                        process::exit(1);
-                    }
-                    info!("Using {} {}%", parameter, percentage*100.0);
-                    percentage
-                },
-                false => 0.0
-            }
-        };
-
         let mut f = FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
