@@ -588,7 +588,8 @@ fn main(){
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
             let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
             if bam_files.len() != output_bam_files.len() {
-                panic!("The number of input BAM files must be the same as the number output")
+                error!("The number of input BAM files must be the same as the number output");
+                process::exit(1);
             }
 
             let filter_params = FilterParameters::generate_from_clap(m);
@@ -844,8 +845,9 @@ impl<'a> EstimatorsAndTaker<'a> {
                         let min = value_t!(m.value_of("trim-min"), f32).unwrap();
                         let max = value_t!(m.value_of("trim-max"), f32).unwrap();
                         if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                            panic!("error: Trim bounds must be between 0 and 1, and \
+                            error!("error: Trim bounds must be between 0 and 1, and \
                                     min must be less than max, found {} and {}", min, max);
+                            process::exit(1);
                         }
                         estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
                             min, max, min_fraction_covered, contig_end_exclusion));
@@ -883,7 +885,8 @@ impl<'a> EstimatorsAndTaker<'a> {
 
             if methods.contains(&"coverage_histogram") {
                 if methods.len() > 1 {
-                    panic!("Cannot specify the coverage_histogram method with any other coverage methods")
+                    error!("Cannot specify the coverage_histogram method with any other coverage methods");
+                    process::exit(1);
                 } else {
                     debug!("Coverage histogram type coverage taker being used");
                     taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
@@ -1015,12 +1018,14 @@ fn parse_list_of_genome_fasta_files(m: &clap::ArgMatches) -> Vec<String> {
                     }
                 }
                 if genome_fasta_files.len() == 0 {
-                    panic!("Found 0 genomes from the genome-fasta-directory, cannot continue.");
+                    error!("Found 0 genomes from the genome-fasta-directory, cannot continue.");
+                    process::exit(1);
                 }
                 genome_fasta_files // return
             } else {
-                panic!("Either a separator (-s) or path(s) to genome FASTA files \
+                error!("Either a separator (-s) or path(s) to genome FASTA files \
                         (with -d or -f) must be given");
+                process::exit(1);
             }
         }
     }
@@ -1079,7 +1084,8 @@ fn doing_metabat(m: &clap::ArgMatches) -> bool {
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"metabat") {
                 if methods.len() > 1 {
-                    panic!("Cannot specify the metabat method with any other coverage methods")
+                    error!("Cannot specify the metabat method with any other coverage methods");
+                    process::exit(1);
                 } else {
                     return true
                 }
@@ -1305,8 +1311,9 @@ fn setup_bam_cache_directory(cache_directory: &str) {
     if path.is_dir() {
         if path.metadata().expect("Unable to read metadata for cache directory")
             .permissions().readonly() {
-                panic!("Cache directory {} does not appear to be writeable, not continuing",
+                error!("Cache directory {} does not appear to be writeable, not continuing",
                        cache_directory);
+                process::exit(1);
             } else {
                 info!("Writing BAM files to already existing directory {}", cache_directory)
             }
@@ -1323,22 +1330,25 @@ fn setup_bam_cache_directory(cache_directory: &str) {
                         &format!("Unable to get metadata for parent of cache directory {}",
                                  cache_directory))
                         .permissions().readonly() {
-                            panic!(
+                            error!(
                                 "The parent directory of the (currently non-existent) \
                                  cache directory {} is not writeable, not continuing",
                                 cache_directory);
+                            process::exit(1);
                         } else {
                             info!("Creating cache directory {}", cache_directory);
                             std::fs::create_dir(path).expect("Unable to create cache directory");
                         }
                 } else {
-                    panic!("The parent directory of the cache directory {} does not \
+                    error!("The parent directory of the cache directory {} does not \
                             yet exist, so not creating that cache directory, and not continuing.",
-                           cache_directory)
+                           cache_directory);
+                    process::exit(1);
                 }
             },
             None => {
-                panic!("Cannot create root directory {}", cache_directory)
+                error!("Cannot create root directory {}", cache_directory);
+                process::exit(1);
             }
         }
     }
@@ -1346,7 +1356,8 @@ fn setup_bam_cache_directory(cache_directory: &str) {
     // writeable.
     let tf_result = tempfile::tempfile_in(path);
     if tf_result.is_err() {
-        panic!("Failed to create test file in bam cache directory: {}", tf_result.err().unwrap())
+        error!("Failed to create test file in bam cache directory: {}", tf_result.err().unwrap());
+        process::exit(1);
     }
 }
 
