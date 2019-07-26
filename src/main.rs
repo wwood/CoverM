@@ -496,8 +496,9 @@ fn main(){
                 // Generate a temporary file of concatenated genomes if needed.
                 let mut concatenated_genomes: Option<NamedTempFile> = None;
                 if !m.is_present("reference") && !m.is_present("bam-files") {
-                    info!("Generating reference FASTA file of concatenated genomes ..");
                     let list_of_genome_fasta_files = parse_list_of_genome_fasta_files(m);
+                    info!("Generating concatenated reference FASTA file of {} genomes ..",
+                          list_of_genome_fasta_files.len());
                     concatenated_genomes = Some(
                         coverm::bwa_index_maintenance::generate_concatenated_fasta_file(
                             &list_of_genome_fasta_files));
