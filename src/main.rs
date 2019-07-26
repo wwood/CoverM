@@ -1101,7 +1101,17 @@ impl FilterParameters {
                 false => 0
             },
             min_percent_identity_single: match m.is_present("min-read-percent-identity") {
-                true => value_t!(m.value_of("min-read-percent-identity"), f32).unwrap(),
+                true => {
+                    let mut percentage = value_t!(
+                        m.value_of("min-read-percent-identity"), f32).unwrap();
+                    if percentage >= 1.0 || percentage <= 100.0 {
+                        percentage = percentage / 100.0;
+                    } else if percentage < 0.0 || percentage > 100.0 {
+                        panic!("Invalid alignment percentage: '{}'", percentage);
+                    }
+                    info!("Using min-read-percent-identity {}%", percentage*100);
+                    percentage
+                },
                 false => 0.0
             },
             min_aligned_percent_single: match m.is_present("min-read-aligned-percent") {
