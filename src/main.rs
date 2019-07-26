@@ -506,7 +506,8 @@ fn main(){
 
                 if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(m, &concatenated_genomes);
+                    let generator_sets = get_streamed_filtered_bam_readers(
+                        m, &concatenated_genomes, &filter_params);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -677,7 +678,8 @@ fn main(){
                 external_command_checker::check_for_samtools();
                 if filter_params.doing_filtering() {
                     debug!("Filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(m, &None);
+                    let generator_sets = get_streamed_filtered_bam_readers(
+                        m, &None, &filter_params);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -1090,6 +1092,24 @@ struct FilterParameters {
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
+        let parse_percentage = |m: &clap::ArgMatches, parameter: &str| {
+            match m.is_present(parameter) {
+                true => {
+                    let mut percentage = value_t!(
+                        m.value_of(parameter), f32).unwrap();
+                    if percentage >= 1.0 && percentage <= 100.0 {
+                        percentage = percentage / 100.0;
+                    } else if percentage < 0.0 || percentage > 100.0 {
+                        error!("Invalid alignment percentage: '{}'", percentage);
+                        process::exit(1);
+                    }
+                    info!("Using {} {}%", parameter, percentage*100.0);
+                    percentage
+                },
+                false => 0.0
+            }
+        };
+
         let mut f = FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
@@ -1100,36 +1120,14 @@ impl FilterParameters {
                 true => value_t!(m.value_of("min-read-aligned-length"), u32).unwrap(),
                 false => 0
             },
-            min_percent_identity_single: match m.is_present("min-read-percent-identity") {
-                true => {
-                    let mut percentage = value_t!(
-                        m.value_of("min-read-percent-identity"), f32).unwrap();
-                    if percentage >= 1.0 || percentage <= 100.0 {
-                        percentage = percentage / 100.0;
-                    } else if percentage < 0.0 || percentage > 100.0 {
-                        panic!("Invalid alignment percentage: '{}'", percentage);
-                    }
-                    info!("Using min-read-percent-identity {}%", percentage*100);
-                    percentage
-                },
-                false => 0.0
-            },
-            min_aligned_percent_single: match m.is_present("min-read-aligned-percent") {
-                true => value_t!(m.value_of("min-read-aligned-percent"), f32).unwrap(),
-                false => 0.0
-            },
+            min_percent_identity_single: parse_percentage(&m, "min-read-percent-identity"),
+            min_aligned_percent_single: parse_percentage(&m, "min-read-aligned-percent"),
             min_aligned_length_pair: match m.is_present("min-read-aligned-length-pair") {
                 true => value_t!(m.value_of("min-read-aligned-length-pair"), u32).unwrap(),
                 false => 0
             },
-            min_percent_identity_pair: match m.is_present("min-read-percent-identity-pair") {
-                true => value_t!(m.value_of("min-read-percent-identity-pair"), f32).unwrap(),
-                false => 0.0
-            },
-            min_aligned_percent_pair: match m.is_present("min-read-aligned-percent-pair") {
-                true => value_t!(m.value_of("min-read-aligned-percent-pair"), f32).unwrap(),
-                false => 0.0
-            }
+            min_percent_identity_pair: parse_percentage(&m, "min-read-percent-identity-pair"),
+            min_aligned_percent_pair: parse_percentage(&m, "min-read-aligned-percent-pair"),
         };
         if doing_metabat(&m) {
             debug!("Setting single read percent identity threshold at 0.97 for \
@@ -1359,7 +1357,8 @@ fn setup_bam_cache_directory(cache_directory: &str) {
 
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches,
-    reference_tempfile: &Option<NamedTempFile>)
+    reference_tempfile: &Option<NamedTempFile>,
+    filter_params: &FilterParameters)
     -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
 
     // Check the output BAM directory actually exists and is writeable
@@ -1372,7 +1371,6 @@ fn get_streamed_filtered_bam_readers(
     let mut generator_set = vec!();
     for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let filter_params = FilterParameters::generate_from_clap(m);
         let index = coverm::bwa_index_maintenance::generate_bwa_index(
             reference_wise_params.reference);
 
