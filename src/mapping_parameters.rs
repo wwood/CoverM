@@ -1,3 +1,4 @@
+use std::process;
 
 use tempfile::NamedTempFile;
 
@@ -34,7 +35,10 @@ impl<'a> MappingParameters<'a> {
             read1 = m.values_of("read1").unwrap().collect();
             read2 = m.values_of("read2").unwrap().collect();
             if read1.len() != read2.len() {
-                panic!("When specifying paired reads with the -1 and -2 flags, there must be equal numbers specified. Instead found {} and {} respectively", read1.len(), read2.len())
+                error!("When specifying paired reads with the -1 and -2 flags, \
+                        there must be equal numbers specified. Instead found \
+                        {} and {} respectively", read1.len(), read2.len());
+                process::exit(1);
             }
         }
 
@@ -42,10 +46,12 @@ impl<'a> MappingParameters<'a> {
         if m.is_present("coupled") {
             let coupled: Vec<&str> = m.values_of("coupled").unwrap().collect();
             if coupled.len() % 2 != 0 {
-                panic!(
-                    "The --coupled flag must be set with pairs of read sets, but an odd number ({}) was specified",
+                error!(
+                    "The --coupled flag must be set with pairs of read \
+                     sets, but an odd number ({}) was specified",
                     coupled.len()
-                )
+                );
+                process::exit(1);
             }
             let mut i = 0;
             while i < coupled.len() {

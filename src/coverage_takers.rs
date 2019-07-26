@@ -1,5 +1,6 @@
 use std;
 use std::fmt;
+use std::process;
 
 pub enum CoverageTakerType<'a> {
     SingleFloatCoverageStreamingCoveragePrinter {
@@ -141,11 +142,12 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
                 match &entry_names[entry_order_id] {
                     Some(prev) => {
                         if prev != entry_name {
-                            panic!("Found a difference amongst the reference sets used for \
+                            error!("Found a difference amongst the reference sets used for \
                                     mapping. For this (non-streaming) usage of CoverM, all \
                                     BAM files must have the same set of reference sequences. \
                                     Previous entry was {}, new is {}",
-                            prev, entry_name)
+                                   prev, entry_name);
+                            process::exit(1);
                         }
                     },
                     None => unreachable!()

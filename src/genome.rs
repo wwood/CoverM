@@ -1,4 +1,5 @@
 use std;
+use std::process;
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 
@@ -65,7 +66,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
               num_refs_in_genomes, num_refs_not_in_genomes);
         debug!("Reference number to genomes: {:?}", reference_number_to_genome_index);
         if num_refs_in_genomes == 0 {
-            panic!("Error: There are no found reference sequences that are a part of a genome");
+            error!("Error: There are no found reference sequences that are a part of a genome");
+            process::exit(1);
         }
         {
             let num_unreferenced = contigs_and_genomes.contig_to_genome.len() as u32 -
@@ -175,9 +177,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                     aux.integer() as u32
                                 },
                                 None => {
-                                    panic!("Mapping record encountered that does not have an 'NM' \
+                                    error!("Mapping record encountered that does not have an 'NM' \
                                             auxiliary tag in the SAM/BAM format. This is required \
                                             to work out some coverage statistics");
+                                    process::exit(1);
                                 }
                             };
                     }
@@ -575,9 +578,10 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             aux.integer() as u32
                         },
                         None => {
-                            panic!("Mapping record encountered that does not have an 'NM' \
+                            error!("Mapping record encountered that does not have an 'NM' \
                                     auxiliary tag in the SAM/BAM format. This is required \
                                     to work out some coverage statistics");
+                            process::exit(1);
                         }
                     };
             }

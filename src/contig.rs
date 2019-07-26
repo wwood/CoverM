@@ -1,4 +1,5 @@
 use std;
+use std::process;
 
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
@@ -159,9 +160,10 @@ pub fn contig_coverage<R: NamedBamReader,
                             aux.integer() as u32
                         },
                         None => {
-                            panic!("Mapping record encountered that does not have an 'NM' \
+                            error!("Mapping record encountered that does not have an 'NM' \
                                     auxiliary tag in the SAM/BAM format. This is required \
                                     to work out some coverage statistics");
+                            process::exit(1);
                         }
                     };
 

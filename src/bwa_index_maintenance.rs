@@ -62,7 +62,8 @@ impl TemporaryBwaIndexStruct {
             process.stderr.expect("Failed to grab stderr from failed BWA index process")
                 .read_to_string(&mut err).expect("Failed to read stderr into string");
             error!("The STDERR was: {:?}", err);
-            panic!("Cannot continue after BWA index failed.");
+            error!("Cannot continue after BWA index failed.");
+            process::exit(1);
         }
         info!("Finished generating BWA index.");
         return TemporaryBwaIndexStruct {
@@ -94,7 +95,8 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
     if num_existing == 0 {
         return Box::new(TemporaryBwaIndexStruct::new(reference_path));
     } else if num_existing as usize != num_extensions {
-        panic!("BWA index appears to be incomplete, cannot continue.");
+        error!("BWA index appears to be incomplete, cannot continue.");
+        process::exit(1);
     } else {
         info!("BWA index appears to be complete, so going ahead and using it.");
         return Box::new(VanillaBwaIndexStuct::new(reference_path));
@@ -123,7 +125,8 @@ pub fn generate_concatenated_fasta_file(
                     .to_str()
                     .expect("File name string conversion problem"));
             if genome_names.contains(&genome_name) {
-                panic!("The genome name {} was derived from >1 file", genome_name);
+                error!("The genome name {} was derived from >1 file", genome_name);
+                process::exit(1);
             }
             for record in reader.records() {
                 something_written = true;

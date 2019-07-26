@@ -27,6 +27,7 @@ use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
 use std::collections::HashMap;
 use std::io::BufRead;
+use std::process;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
@@ -46,7 +47,8 @@ pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)
             .to_str()
                 .expect("File name string conversion problem"));
         if contig_to_genome.genome_index(&genome_name).is_some() {
-            panic!("The genome name {} was derived from >1 file", genome_name);
+            error!("The genome name {} was derived from >1 file", genome_name);
+            process::exit(1);
         }
         let genome_index = contig_to_genome.establish_genome(genome_name);
         for record in reader.records() {
@@ -78,9 +80,10 @@ pub fn read_genome_definition_file(definition_file_path: &str)
             let contig = v[1].trim();
             if contig_to_genome.contains_key(contig) {
                 if contig_to_genome[contig] != genome {
-                    panic!(
+                    error!(
                         "The contig name '{}' was assigned to multiple genomes",
-                        contig)
+                        contig);
+                    process::exit(1);
                 }
             } else {
                 contig_to_genome.insert(contig.to_string(), genome.to_string());
@@ -95,9 +98,10 @@ pub fn read_genome_definition_file(definition_file_path: &str)
         } else if v.len() == 0 {
             continue;
         } else {
-            panic!("The line \"{}\" in the genome definition file is not a \
+            error!("The line \"{}\" in the genome definition file is not a \
                     genome name and contig name separated by a tab",
                    line);
+            process::exit(1);
         }
     }
 

@@ -1,5 +1,6 @@
 use std::str;
 use std;
+use std::process;
 
 use rand::prelude::*;
 
@@ -70,8 +71,9 @@ where T: GenomeExclusion {
                 {
                     record = current_alignment.clone();
                     if !record.is_paired() {
-                        panic!("This code can only handle paired-end \
-                                input (at the moment), sorry.")
+                        error!("This code can only handle paired-end \
+                                input (at the moment), sorry.");
+                        process::exit(1);
                     }
                     if !record.is_secondary() && !record.is_supplementary() {
                         some_unfinished = true;
@@ -85,14 +87,16 @@ where T: GenomeExclusion {
                                  if prev != str::from_utf8(record.qname())
                                      .unwrap()
                                      .to_string() {
-
-                                     panic!(
-                                         "BAM files do not appear to be \
-                                          properly sorted by read name. \
-                                          Expected read name {:?} from a \
-                                          previous reader but found {:?} \
-                                          in the current.", prev, str::from_utf8(
-                                              record.qname()).unwrap().to_string());
+                                         error!(
+                                             "BAM files do not appear to be \
+                                              properly sorted by read name. \
+                                              Expected read name {:?} from a \
+                                              previous reader but found {:?} \
+                                              in the current.",
+                                             prev,
+                                             str::from_utf8(
+                                                 record.qname()).unwrap().to_string());
+                                         process::exit(1);
                                  }
                              }
                          }
@@ -105,7 +109,8 @@ where T: GenomeExclusion {
         }
         // check we are properly finished.
         if some_unfinished && some_finished {
-            panic!("Unexpectedly one BAM file input finished while another had further reads")
+            error!("Unexpectedly one BAM file input finished while another had further reads");
+            process::exit(1);
         }
         debug!("Read records {:?}", current_alignments);
         return match some_unfinished {
@@ -138,8 +143,9 @@ where T: GenomeExclusion {
             },
             None => {
                 if from.tid() >= 0 && from.cigar_len() != 0 {
-                    panic!("record {:?} with name {} had no NM tag",
-                           from, str::from_utf8(from.qname()).unwrap())
+                    error!("record {:?} with name {} had no NM tag",
+                           from, str::from_utf8(from.qname()).unwrap());
+                    process::exit(1);
                 }
             },
         }
@@ -214,7 +220,8 @@ where T: GenomeExclusion {
             } else if winning_indices.len() == 1 {
                 winning_index = winning_indices[0];
             } else {
-                panic!("CoverM cannot currently deal with reads that only map to excluded genomes")
+                error!("CoverM cannot currently deal with reads that only map to excluded genomes");
+                process::exit(1);
             }
             debug!("Choosing winning index {} from winner pool {:?}",
                    winning_index, winning_indices);

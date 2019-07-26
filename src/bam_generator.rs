@@ -1,5 +1,6 @@
 use std;
 use std::io::Read;
+use std::process;
 
 use filter::*;
 use bwa_index_maintenance::BwaIndexStruct;
@@ -143,7 +144,8 @@ pub fn complete_processes(
                 error!("The STDERR for the {:} part was: {}",
                        description, contents);
             }
-            panic!("Cannot continue since mapping failed.");
+            error!("Cannot continue since mapping failed.");
+            process::exit(1);
         }
     }
     // Close tempdir explicitly. Maybe not needed.

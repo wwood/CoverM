@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::str;
 use std::collections::BTreeMap;
+use std::process;
 
 use FlagFilter;
 
@@ -220,7 +221,10 @@ fn single_read_passes_filter(
 
     let edit_distance1 = match record.aux(b"NM") {
         Some(i) => i.integer(),
-        None => {panic!("Alignment of read {:?} did not have an NM aux tag", record.qname())}
+        None => {
+            error!("Alignment of read {:?} did not have an NM aux tag", record.qname());
+            process::exit(1);
+        }
     };
 
     let mut aligned: u32 = 0;
@@ -256,11 +260,17 @@ fn read_pair_passes_filter(
 
     let edit_distance1 = match record1.aux(b"NM") {
         Some(i) => i.integer(),
-        None => {panic!("Alignment of read {:?} did not have an NM aux tag", record1.qname())}
+        None => {
+            error!("Alignment of read {:?} did not have an NM aux tag", record1.qname());
+            process::exit(1);
+        }
     };
     let edit_distance2 = match record2.aux(b"NM") {
         Some(i) => i.integer(),
-        None => {panic!("Alignment of read {:?} did not have an NM aux tag", record2.qname())}
+        None => {
+            error!("Alignment of read {:?} did not have an NM aux tag", record2.qname());
+            process::exit(1);
+        }
     };
 
     let mut aligned_length1: u32 = 0;

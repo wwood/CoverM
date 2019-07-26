@@ -1,5 +1,6 @@
 use std;
 use std::io::Read;
+use std::process;
 
 pub fn check_for_bwa() {
     self::check_for_external_command_presence("BWA", "which bwa");
@@ -29,7 +30,8 @@ fn check_for_external_command_presence(
         process.stderr.expect("Failed to grab stderr from failed executable finding process")
             .read_to_string(&mut err).expect("Failed to read stderr into string");
         error!("The STDERR was: {:?}", err);
-        panic!("Cannot continue without {}. Testing for presence with `{}` failed",
+        error!("Cannot continue without {}. Testing for presence with `{}` failed",
                executable_name, testing_cmd);
+        process::exit(1);
     }
 }

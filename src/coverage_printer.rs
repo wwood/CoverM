@@ -1,4 +1,5 @@
 use std;
+use std::process;
 
 use coverage_takers::*;
 use ReadsMapped;
@@ -204,7 +205,10 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                                  stoit,
                                  match &entry_names[*entry_i] {
                                      Some(s) => s,
-                                     None => panic!("Didn't find entry name string as expected")
+                                     None => {
+                                         error!("Didn't find entry name string as expected");
+                                         process::exit(1);
+                                     }
                                  }).unwrap();
 
                         for i in 0..*num_coverages {
