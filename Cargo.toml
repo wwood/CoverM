@@ -29,16 +29,13 @@ failure = "0.1"
 crossbeam = "0.4"
 serde = "1.0"
 flate2 = "1.0"
-debruijn = { git = "https://github.com/10XGenomics/rust-debruijn" }
-nalgebra = "0.18"
+debruijn = { git = "https://github.com/10XGenomics/rust-debruijn"}
 
 [dev-dependencies]
 assert_cli = "0.6.*"
 
 [dependencies.boomphf]
-git = "https://github.com/10XGenomics/rust-boomphf"
-branch = "master"
-features = ["serde"]
+version = "0.5"
 
 [dependencies.bincode]
 version = "1.0"

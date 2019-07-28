@@ -4,6 +4,7 @@ use std::{self, cmp::Ordering, fs::File, str};
 use std::collections::HashMap;
 use std::io::{self, Write};
 use std::sync::{mpsc, Arc, Mutex};
+use std::collections::BTreeMap;
 
 use bio::io::fastq;
 use boomphf::hashmap::NoKeyBoomHashMap;
@@ -85,7 +86,7 @@ impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
         if kmer_pos >= left_extend_threshold && node_id.is_some() {
             let mut last_pos = kmer_pos - 1;
             let mut prev_node_id = node_id.unwrap();
-            let mut prev_kmer_offset = kmer_offset.unwrap() - 1;
+            let mut prev_kmer_offset = if kmer_offset.unwrap() > 0 { kmer_offset.unwrap() - 1 } else { 0 };
 
             loop {
                 let node = self.dbg.get_node(prev_node_id);
@@ -127,7 +128,7 @@ impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
                 }
 
                 //break the loop if end of read reached or a premature mismatch
-                if last_pos - matched_bases + 1 == 0 || premature_break {
+                if last_pos + 1 - matched_bases == 0 || premature_break {
                     break;
                 }
 
@@ -314,13 +315,17 @@ fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
 pub fn process_reads<K: Kmer + Sync + Send>(
     reader: fastq::Reader<File>,
     index: &Pseudoaligner<K>,
-) -> Result<Vec<f64>, Error> {
+    // Result returned is equivalence class indices mapped to indexes, and
+    // counts for each observed index.
+) -> Result<(std::collections::BTreeMap<Vec<u32>, usize>, Vec<usize>), Error> {
     info!("Done Reading index");
     info!("Starting Multi-threaded Mapping");
 
     let (tx, rx) = mpsc::sync_channel(MAX_WORKER);
     let atomic_reader = Arc::new(Mutex::new(reader.records()));
-    let mut contig_coverages: Vec<f64> = vec![0.0; index.tx_names.len()];
+
+    let mut eq_class_indices: BTreeMap<Vec<u32>, usize> = BTreeMap::new();
+    let mut eq_class_coverages: Vec<usize> = vec![];
 
     info!("Spawning {} threads for Mapping.\n", MAX_WORKER);
     crossbeam::scope(|scope| {
@@ -447,13 +452,17 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                     if read_data.0 {
                         mapped_read_counter += 1;
 
-                        // TODO: Implement an EM algorithm or similar. For now, we
-                        // just evenly divide the read coverages.
                         let classes = read_data.2;
-                        let split_coverage = read_data.3 as f64 / classes.len() as f64;
-                        // println!("split cov {}, from {:?}", split_coverage, read_data.3);
-                        for c in classes {
-                            contig_coverages[c as usize] += split_coverage;
+                        let coverage = read_data.3;
+
+                        println!("split cov {}, from {:?}", coverage, classes);
+
+                        if eq_class_indices.contains_key(&classes) {
+                            eq_class_coverages[*eq_class_indices.get(&classes).unwrap()] += coverage;
+                        } else {
+                            let index = eq_class_indices.len();
+                            eq_class_indices.insert(classes, index);
+                            eq_class_coverages.push(coverage);
                         }
                     }
 
@@ -471,6 +480,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
         } // end-for
     }); //end crossbeam
 
+    println!("Result: {:?}, {:?}", eq_class_indices, eq_class_coverages);
+
     info!("Done Mapping Reads");
-    Ok(contig_coverages)
+    Ok((eq_class_indices, eq_class_coverages))
 }

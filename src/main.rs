@@ -635,7 +635,7 @@ fn main(){
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"kmer") {
-                coverm::kmer_coverage::calculate_kmer_coverage(
+                coverm::kmer_coverage::calculate_genome_kmer_coverage(
                     m.value_of("reference").unwrap(),
                     m.values_of("read1").unwrap().collect::<Vec<_>>()[0]
                 );

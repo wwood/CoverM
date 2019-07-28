@@ -20,13 +20,13 @@ pub fn calculate_genome_kmer_coverage(
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq).expect("Failure to read reference sequences");
-    let coverages = pseudoaligner::process_reads::<config::KmerType>(reads, &index)
+    let (eq_class_indices, eq_class_coverages) = pseudoaligner::process_reads::<config::KmerType>(reads, &index)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
 
     // Print out the coverages divided by their length
     println!("Contig\t{}", reference_path); //TODO: Use the same methods as elsewhere for printing.
-    for (i, coverage) in coverages.iter().enumerate() {
-        println!("{}\t{}", tx_names[i], coverage / seqs[i].len() as f64)
+    for (i, coverage) in eq_class_coverages.iter().enumerate() {
+        println!("{}\t{}", tx_names[i], *coverage as f64 / seqs[i].len() as f64)
     }
 }

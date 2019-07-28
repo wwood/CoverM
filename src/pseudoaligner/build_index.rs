@@ -29,7 +29,7 @@ pub fn build_index<K: Kmer + Sync + Send>(
     // Thread pool Configuration for calling BOOMphf
     rayon::ThreadPoolBuilder::new()
         .num_threads(MAX_WORKER)
-        .build_global()?;
+        .build()?;
 
     if seqs.len() >= U32_MAX {
         panic!("Too many ({}) sequences to handle.", seqs.len());
@@ -152,7 +152,7 @@ fn make_dbg_index<K: Kmer + Sync + Send>(
 
     println!("Total {:?} kmers to process in dbg", total_kmers);
     println!("Making mphf of kmers");
-    let mphf = boomphf::Mphf::new_parallel_with_keys(1.7, dbg, None, total_kmers, MAX_WORKER);
+    let mphf = boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, MAX_WORKER);
 
     println!("Assigning offsets to kmers");
     let mut node_and_offsets = Vec::with_capacity(total_kmers);
@@ -187,7 +187,7 @@ fn group_by_slices<T, K: PartialEq, F: Fn(&T) -> K>(
             slice_start = i;
         }
     }
-    if slice_start > 0 {
+    if slice_start > 0 || data.len() <= min_size {
         result.push(&data[slice_start..]);
     }
     result
