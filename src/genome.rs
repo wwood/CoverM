@@ -25,7 +25,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     -> Vec<ReadsMapped> {
 
     let mut reads_mapped_vector = vec!();
-    for mut bam_generator in bam_readers {
+    for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
@@ -361,7 +361,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     single_genome: bool)
     -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec!();
-    for mut bam_generator in bam_readers {
+    for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());

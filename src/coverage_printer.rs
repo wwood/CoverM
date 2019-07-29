@@ -283,7 +283,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
             writeln!(print_stream).unwrap();
 
             // There is a coverage multiplier for each stoit
-            let mut coverage_multipliers: Vec<f32> =
+            let coverage_multipliers: Vec<f32> =
                 match reads_mapped_per_sample {
                     Some(rm) => rm.iter().map(
                         |r| r.num_mapped_reads as f32 / r.num_reads as f32)

@@ -349,7 +349,7 @@ fn main(){
                                 m.value_of("genome-definition").unwrap()))
                         },
                         false => {
-                            let mut genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+                            let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
                             info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
                             Some(coverm::read_genome_fasta_files(
                                 &genome_fasta_files.iter().map(|s| s.as_str()).collect()))
@@ -597,7 +597,7 @@ fn main(){
             let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
-                let mut reader = bam::Reader::from_path(bam).expect(
+                let reader = bam::Reader::from_path(bam).expect(
                     &format!("Unable to find BAM file {}", bam));
                 let header = bam::header::Header::from_template(reader.header());
                 let mut writer = bam::Writer::from_path(
@@ -641,7 +641,7 @@ fn main(){
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                 if filter_params.doing_filtering() {
-                    let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                    let bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                         bam_files,
                         filter_params.flag_filters.clone(),
                         filter_params.min_aligned_length_single,
@@ -658,7 +658,7 @@ fn main(){
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
                     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-                    let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                    let bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                         bam_files, sort_threads, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
@@ -666,7 +666,7 @@ fn main(){
                         print_zeros,
                         filter_params.flag_filters);
                 } else {
-                    let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                    let bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                         bam_files);
                     run_contig(
                         &mut estimators_and_taker,

@@ -21,7 +21,7 @@ pub fn contig_coverage<R: NamedBamReader,
     -> Vec<ReadsMapped> {
 
     let mut reads_mapped_vector = vec!();
-    for mut bam_generator in bam_readers {
+    for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
         let stoit_name = &(bam_generated.name().to_string());
@@ -69,7 +69,7 @@ pub fn contig_coverage<R: NamedBamReader,
                     coverage_taker.start_entry(
                         last_tid as usize,
                         std::str::from_utf8(target_names[last_tid as usize]).unwrap());
-                    for (coverage, mut estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
+                    for (coverage, estimator) in coverages.iter().zip(coverage_estimators.iter_mut()) {
                         estimator.print_coverage(
                             &coverage,
                             coverage_taker);
