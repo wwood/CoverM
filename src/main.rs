@@ -650,7 +650,7 @@ fn main(){
                 if m.is_present("bam-files") {
                     let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
                     if filter_params.doing_filtering() {
-                        let mut bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                        let bam_readers = coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
                             bam_files,
                             filter_params.flag_filters.clone(),
                             filter_params.min_aligned_length_single,
@@ -667,7 +667,7 @@ fn main(){
                     } else if m.is_present("sharded") {
                         external_command_checker::check_for_samtools();
                         let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-                        let mut bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                        let bam_readers = coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                             bam_files, sort_threads, &NoExclusionGenomeFilter{});
                         run_contig(
                             &mut estimators_and_taker,
@@ -675,7 +675,7 @@ fn main(){
                             print_zeros,
                             filter_params.flag_filters);
                     } else {
-                        let mut bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                        let bam_readers = coverm::bam_generator::generate_named_bam_readers_from_bam_files(
                             bam_files);
                         run_contig(
                             &mut estimators_and_taker,
@@ -688,7 +688,8 @@ fn main(){
                     external_command_checker::check_for_samtools();
                     if filter_params.doing_filtering() {
                         debug!("Filtering..");
-                        let generator_sets = get_streamed_filtered_bam_readers(m, &None);
+                        let generator_sets = get_streamed_filtered_bam_readers(
+                            m, &None, &filter_params);
                         let mut all_generators = vec!();
                         let mut indices = vec!(); // Prevent indices from being dropped
                         for set in generator_sets {
