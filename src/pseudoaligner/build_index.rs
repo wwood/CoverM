@@ -35,7 +35,7 @@ pub fn build_index<K: Kmer + Sync + Send>(
         panic!("Too many ({}) sequences to handle.", seqs.len());
     }
 
-    println!("Sharding sequences...");
+    debug!("Sharding sequences...");
 
     let mut buckets: Vec<_> = seqs
         .into_par_iter()
@@ -44,14 +44,14 @@ pub fn build_index<K: Kmer + Sync + Send>(
         .collect();
 
     buckets.par_sort_unstable_by_key(|x| x.0);
-    println!("Got {} sequence chunks", buckets.len());
+    debug!("Got {} sequence chunks", buckets.len());
 
     let summarizer = Arc::new(debruijn::filter::CountFilterEqClass::new(MIN_KMERS));
     let sequence_shards = group_by_slices(&buckets, |x| x.0, MIN_SHARD_SEQUENCES);
 
     let mut shard_dbgs = Vec::with_capacity(sequence_shards.len());
 
-    println!("Assembling {} shards...", sequence_shards.len());
+    info!("Assembling {} shards...", sequence_shards.len());
 
     sequence_shards
         .into_par_iter()
@@ -59,18 +59,17 @@ pub fn build_index<K: Kmer + Sync + Send>(
             assemble_shard::<K>(strings, s)
         }).collect_into_vec(&mut shard_dbgs);
 
-    println!();
-    println!("Done separate de Bruijn graph construction");
-    println!("Starting merging disjoint graphs");
+    info!("Done separate de Bruijn graph construction");
+    info!("Starting merging disjoint graphs");
 
     //println!("{:?}", summarizer);
     let dbg = merge_shard_dbgs(shard_dbgs);
-    println!("Merger of graphs complete");
+    info!("Merger of graphs complete");
 
     // TODO update rust-debruijn version and fix this
     let eq_classes = summarizer.get_eq_classes();
 
-    println!("Indexing de Bruijn graph");
+    info!("Indexing de Bruijn graph");
     let dbg_index = make_dbg_index(&dbg);
     Ok(Pseudoaligner::new(
         dbg, eq_classes, dbg_index, tx_names.clone(), tx_gene_map.clone()
@@ -150,11 +149,11 @@ fn make_dbg_index<K: Kmer + Sync + Send>(
         total_kmers += node.len() - kmer_length + 1;
     }
 
-    println!("Total {:?} kmers to process in dbg", total_kmers);
-    println!("Making mphf of kmers");
+    info!("Total {:?} kmers to process in dbg", total_kmers);
+    info!("Making mphf of kmers");
     let mphf = boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, MAX_WORKER);
 
-    println!("Assigning offsets to kmers");
+    info!("Assigning offsets to kmers");
     let mut node_and_offsets = Vec::with_capacity(total_kmers);
     node_and_offsets.resize(total_kmers, (U32_MAX as u32, U32_MAX as u32));
 

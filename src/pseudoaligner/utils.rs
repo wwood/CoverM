@@ -67,7 +67,7 @@ pub fn read_transcripts(
 
     let mut fasta_format: Option<u8> = None;
 
-    info!("Starting reading the Fasta file\n");
+    info!("Starting reading the Fasta file");
     for result in reader.records() {
         // obtain record or fail with error
         let record = result?;
@@ -87,12 +87,11 @@ pub fn read_transcripts(
 
         transcript_counter += 1;
         if transcript_counter % 100 == 0 {
-            print!("\r Done reading {} sequences", transcript_counter);
+            debug!("\r Done reading {} sequences", transcript_counter);
             io::stdout().flush().expect("Could not flush stdout");
         }
     }
 
-    println!();
     info!(
         "Done reading the Fasta file; Found {} sequences",
         transcript_counter

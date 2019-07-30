@@ -327,7 +327,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
     let mut eq_class_indices: BTreeMap<Vec<u32>, usize> = BTreeMap::new();
     let mut eq_class_coverages: Vec<usize> = vec![];
 
-    info!("Spawning {} threads for Mapping.\n", MAX_WORKER);
+    info!("Spawning {} threads for Mapping.", MAX_WORKER);
     crossbeam::scope(|scope| {
         for _ in 0..MAX_WORKER {
             let tx = tx.clone();
@@ -441,7 +441,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         // Not worrying about counters; hunch is their
                         // should be less
                         for eq_class in rx.iter() {
-                            eq_class.map_or((), |eq_class| eprintln!("{:?}", eq_class));
+                            eq_class.map_or((), |eq_class| debug!("eq_class: {:?}", eq_class));
                         }
                         break;
                     }
@@ -455,7 +455,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         let classes = read_data.2;
                         let coverage = read_data.3;
 
-                        println!("split cov {}, from {:?}", coverage, classes);
+                        debug!("split cov {}, from {:?}", coverage, classes);
 
                         if eq_class_indices.contains_key(&classes) {
                             eq_class_coverages[*eq_class_indices.get(&classes).unwrap()] += coverage;
@@ -469,7 +469,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                     read_counter += 1;
                     if read_counter % 1_000_000 == 0 {
                         let frac_mapped = mapped_read_counter as f32 * 100.0 / read_counter as f32;
-                        eprint!(
+                        info!(
                             "\rDone Mapping {} reads w/ Rate: {}",
                             read_counter, frac_mapped
                         );
@@ -480,7 +480,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
         } // end-for
     }); //end crossbeam
 
-    println!("Result: {:?}, {:?}", eq_class_indices, eq_class_coverages);
+    debug!("Result: {:?}, {:?}", eq_class_indices, eq_class_coverages);
 
     info!("Done Mapping Reads");
     Ok((eq_class_indices, eq_class_coverages))
