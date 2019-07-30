@@ -5,7 +5,9 @@ use bio::io::{fasta, fastq};
 
 pub fn calculate_genome_kmer_coverage(
     reference_path: &str,
-    forward_fastq: &str) {
+    forward_fastq: &str,
+    print_zero_coverage_contigs: bool) {
+
     // Build index
     let reference_reader = fasta::Reader::from_file(reference_path).expect("reference reading failed.");
     // TODO: Remove duplication of gene and tax_id here - each contig is its own
@@ -62,7 +64,6 @@ pub fn calculate_genome_kmer_coverage(
         // M-step: Work out the relative abundance given the number of reads
         // predicted in the E-step. Relative abundance is just the ratio of the
         // coverages, weighted by the inverse of each contig's length.
-        //TODO: Take into account length
         //TODO: zip here instead?
         // First determine the total scaled abundance
         let mut total_scaling_abundance: f64 = 0.0;
@@ -100,6 +101,8 @@ pub fn calculate_genome_kmer_coverage(
     // Print results
     println!("contig\t{}", reference_path); //TODO: Use the same methods as elsewhere for printing.
     for (i, relabund) in contig_to_relative_abundance.iter().enumerate() {
-        println!("{}\t{}", tx_names[i], relabund*kmer_coverage_total);
+        if print_zero_coverage_contigs || *relabund > 0.0 {
+            println!("{}\t{}", tx_names[i], relabund*kmer_coverage_total);
+        }
     }
 }

@@ -637,7 +637,8 @@ fn main(){
             if methods.contains(&"kmer") {
                 coverm::kmer_coverage::calculate_genome_kmer_coverage(
                     m.value_of("reference").unwrap(),
-                    m.values_of("read1").unwrap().collect::<Vec<_>>()[0]
+                    m.values_of("read1").unwrap().collect::<Vec<_>>()[0],
+                    !m.is_present("no-zeros")
                 );
             }
 
