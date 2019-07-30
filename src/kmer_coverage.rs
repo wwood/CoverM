@@ -7,7 +7,7 @@ use debruijn::Kmer;
 
 use bio::io::{fasta, fastq};
 use bincode;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 #[derive(Serialize, Deserialize)]
 pub struct DebruijnIndex<K>
@@ -17,8 +17,8 @@ where K: debruijn::Kmer {
     pub tx_names: Vec<String>,
 }
 
-pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send + Serialize + Deserialize<'a>>(
-    reference_path: &'a str,
+pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send>(
+    reference_path: &str,
     num_threads: usize)
     -> DebruijnIndex<K> {
 
@@ -52,7 +52,7 @@ pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send + Serialize + Deseriali
 pub fn save_index<K>(
     index: DebruijnIndex<K>,
     output_file: &str)
-where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
+where K: Kmer + Serialize {
 
     let f = File::create(output_file).unwrap();
     let writer = BufWriter::new(f);
@@ -63,7 +63,7 @@ where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
     info!("Finished writing index");
 }
 
-pub fn restore_index<'a, K: Kmer + Sync + Send + Serialize + Deserialize<'a>>(
+pub fn restore_index<'a, K: Kmer + DeserializeOwned>(
     saved_index_path: &'a str)
     -> DebruijnIndex<K> {
 

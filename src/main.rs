@@ -20,6 +20,7 @@ use std::env;
 use std::str;
 use std::process;
 use std::collections::HashSet;
+use std::path::Path;
 
 extern crate clap;
 use clap::*;
@@ -635,25 +636,43 @@ fn main(){
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"kmer") {
-                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
-                let index = match m.is_present("debruijn-index") {
-                    true => {
-                        coverm::kmer_coverage::restore_index(
-                            m.value_of("debruijn_index").unwrap())
+                let read_files = m.values_of("single");
+                match read_files {
+                    Some(singles) => {
+                        if singles.len() > 1 {
+                            error!("Using >1 single read files to map is not yet supported");
+                            process::exit(1);
+                        }
+
+                        let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+                        let reference = m.value_of("reference").unwrap();
+                        let potential_index_file = format!("{}.covermdb", reference);
+                        let index = match Path::new(&potential_index_file).exists() {
+                            true => {
+                                info!("Using pre-existing index {}", potential_index_file);
+                                coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
+                                    &potential_index_file)
+                            },
+                            false => {
+                                info!("No pre-existing index file found, generating one ..");
+                                coverm::kmer_coverage::generate_debruijn_index(
+                                    reference,
+                                    num_threads)
+                            }
+                        };
+
+                        coverm::kmer_coverage::calculate_genome_kmer_coverage(
+                            singles.collect::<Vec<_>>()[0],
+                            num_threads,
+                            !m.is_present("no-zeros"),
+                            index,
+                        );
                     },
-                    false => {
-                        coverm::kmer_coverage::generate_debruijn_index(
-                            m.value_of("reference").unwrap(),
-                        num_threads)
+                    None => {
+                        error!("Using -m kmer you must (for now) use --single to input reads");
+                        process::exit(1);
                     }
-                };
-                //::<config::KmerType>
-                coverm::kmer_coverage::calculate_genome_kmer_coverage(
-                    m.values_of("read1").unwrap().collect::<Vec<_>>()[0],
-                    num_threads,
-                    !m.is_present("no-zeros"),
-                    index,
-                );
+                }
             }
 
             else {
@@ -800,7 +819,7 @@ fn main(){
             set_log_level(m, true);
 
             let reference = m.value_of("reference").unwrap();
-            let output = m.value_of("output").unwrap();
+            let output = format!("{}.covermdb", reference);
             let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
 
             info!("Generating index ..");
@@ -809,7 +828,7 @@ fn main(){
 
             info!("Saving index ..");
             coverm::kmer_coverage::save_index(
-                index, output);
+                index, &output);
             info!("Saving complete");
         }
         _ => {
@@ -2151,11 +2170,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("reference")
                      .short("-r")
                      .long("reference")
-                     .takes_value(true)
-                     .required(true))
-                .arg(Arg::with_name("output")
-                     .short("-o")
-                     .long("output-file")
                      .takes_value(true)
                      .required(true))
                 .arg(Arg::with_name("threads")

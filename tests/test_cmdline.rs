@@ -993,6 +993,30 @@ genome6	26.697144
                           genome6	25.02027	NaN\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_contig_kmer_hello_world() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "kmer",
+                "--single",
+                "tests/data/reads_for_seq1_and_seq2.1.fq",
+                "-r",
+                "tests/data/7seqs.fna"])
+            .succeeds()
+            .stdout().is(
+                "contig	kmer\n\
+                 genome1~random_sequence_length_11000	0\n\
+                 genome1~random_sequence_length_11010	0\n\
+                 genome2~seq1	0.6\n\
+                 genome3~random_sequence_length_11001	0\n\
+                 genome4~random_sequence_length_11002	0\n\
+                 genome5~seq2	0.6\n\
+                 genome6~random_sequence_length_11003	0\n")
+             .unwrap();
+    }
 }
 
 
