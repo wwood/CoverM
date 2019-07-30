@@ -102,7 +102,7 @@ pub fn calculate_genome_kmer_coverage(
     println!("contig\t{}", reference_path); //TODO: Use the same methods as elsewhere for printing.
     for (i, relabund) in contig_to_relative_abundance.iter().enumerate() {
         if print_zero_coverage_contigs || *relabund > 0.0 {
-            println!("{}\t{}", tx_names[i], relabund*kmer_coverage_total);
+            println!("{}\t{}", tx_names[i], relabund*kmer_coverage_total / (seqs[i].len() as f64));
         }
     }
 }
