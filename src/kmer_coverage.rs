@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use pseudoaligner::build_index::build_index;
 use pseudoaligner::*;
 use debruijn::Kmer;
-use debruijn::dna_string::DnaString;
 
 use bio::io::{fasta, fastq};
 
 pub struct DebruijnIndex<K>
 where K: debruijn::Kmer {
     pub index: pseudoaligner::Pseudoaligner<K>,
-    pub seqs: Vec<DnaString>,
+    pub seq_lengths: Vec<usize>,
     pub tx_names: Vec<String>,
     pub tx_gene_map: HashMap<String, String>,
 }
@@ -39,7 +38,7 @@ pub fn generate_debruijn_index<K: Kmer + Sync + Send>(
         Ok(true_index) => {
             return DebruijnIndex {
                 index: true_index,
-                seqs: seqs,
+                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
                 tx_gene_map: tx_gene_map,
             }
@@ -67,7 +66,7 @@ pub fn calculate_genome_kmer_coverage(
 
     // EM algorithm
     // Randomly assign random relative abundances to each of the genomes
-    let mut contig_to_relative_abundance = vec![1.0; index.seqs.len()]; // for dev, assign each the same abundance
+    let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()]; // for dev, assign each the same abundance
 
     loop { // loop until converged
         // E-step: Determine the number of reads we expect come from each genome
@@ -76,7 +75,7 @@ pub fn calculate_genome_kmer_coverage(
         // for each equivalence class / count pair, we expect for genome A the
         // abundance of A divided by the sum of abundances of genomes in the
         // equivalence class.
-        let mut contig_to_read_count = vec![0.0; index.seqs.len()];
+        let mut contig_to_read_count = vec![0.0; index.seq_lengths.len()];
         // Make a new vec containing the eq_class memberships
         let mut eq_classes = vec![None; eq_class_coverages.len()];
         for (eq_class, index) in &eq_class_indices {
@@ -104,7 +103,7 @@ pub fn calculate_genome_kmer_coverage(
         // First determine the total scaled abundance
         let mut total_scaling_abundance: f64 = 0.0;
         for (i, read_count) in contig_to_read_count.iter().enumerate() {
-            let to_add = read_count / (index.seqs[i].len() as f64);
+            let to_add = read_count / (index.seq_lengths[i] as f64);
             //debug!("Adding to_add {} for contig number {}", to_add, i);
             total_scaling_abundance += to_add;
         }
@@ -114,7 +113,7 @@ pub fn calculate_genome_kmer_coverage(
         // change abundance by < 1%.
         let mut converge = true;
         for (i, read_count) in contig_to_read_count.iter().enumerate() {
-            let to_add = read_count / (index.seqs[i].len() as f64);
+            let to_add = read_count / (index.seq_lengths[i] as f64);
             let new_relabund = to_add / total_scaling_abundance;
             if new_relabund * kmer_coverage_total > 0.01*100.0 { // Add 100 in there
                 // as a rough mapped kmers per aligning fragment.
@@ -138,7 +137,7 @@ pub fn calculate_genome_kmer_coverage(
     println!("contig\t{}", reference_path); //TODO: Use the same methods as elsewhere for printing.
     for (i, relabund) in contig_to_relative_abundance.iter().enumerate() {
         if print_zero_coverage_contigs || *relabund > 0.0 {
-            println!("{}\t{}", index.tx_names[i], relabund*kmer_coverage_total / (index.seqs[i].len() as f64));
+            println!("{}\t{}", index.tx_names[i], relabund*kmer_coverage_total / (index.seq_lengths[i] as f64));
         }
     }
 }
