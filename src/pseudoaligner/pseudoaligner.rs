@@ -15,7 +15,7 @@ use debruijn::graph::DebruijnGraph;
 use debruijn::{Dir, Kmer, Mer, Vmer};
 use failure::Error;
 
-use pseudoaligner::config::{MAX_WORKER, READ_COVERAGE_THRESHOLD, LEFT_EXTEND_FRACTION};
+use pseudoaligner::config::{READ_COVERAGE_THRESHOLD, LEFT_EXTEND_FRACTION};
 use pseudoaligner::utils;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -315,21 +315,22 @@ fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
 pub fn process_reads<K: Kmer + Sync + Send>(
     reader: fastq::Reader<File>,
     index: &Pseudoaligner<K>,
+    num_threads: usize,
     // Result returned is equivalence class indices mapped to indexes, and
     // counts for each observed index.
 ) -> Result<(std::collections::BTreeMap<Vec<u32>, usize>, Vec<usize>), Error> {
     info!("Done Reading index");
     info!("Starting Multi-threaded Mapping");
 
-    let (tx, rx) = mpsc::sync_channel(MAX_WORKER);
+    let (tx, rx) = mpsc::sync_channel(num_threads);
     let atomic_reader = Arc::new(Mutex::new(reader.records()));
 
     let mut eq_class_indices: BTreeMap<Vec<u32>, usize> = BTreeMap::new();
     let mut eq_class_coverages: Vec<usize> = vec![];
 
-    info!("Spawning {} threads for Mapping.", MAX_WORKER);
+    info!("Spawning {} threads for Mapping.", num_threads);
     crossbeam::scope(|scope| {
-        for _ in 0..MAX_WORKER {
+        for _ in 0..num_threads {
             let tx = tx.clone();
             let reader = Arc::clone(&atomic_reader);
 
@@ -433,7 +434,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
             match eq_class {
                 None => {
                     dead_thread_count += 1;
-                    if dead_thread_count == MAX_WORKER {
+                    if dead_thread_count == num_threads {
                         drop(tx);
                         // can't continue with a flag check
                         // weird Rusty way !
@@ -470,7 +471,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                     if read_counter % 1_000_000 == 0 {
                         let frac_mapped = mapped_read_counter as f32 * 100.0 / read_counter as f32;
                         info!(
-                            "\rDone Mapping {} reads w/ Rate: {}",
+                            "Done Mapping {} reads w/ Rate: {}",
                             read_counter, frac_mapped
                         );
                         io::stderr().flush().expect("Could not flush stdout");

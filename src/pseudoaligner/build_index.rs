@@ -14,7 +14,7 @@ use debruijn::*;
 
 use boomphf;
 use failure::Error;
-use pseudoaligner::config::{MAX_WORKER, MIN_KMERS, U32_MAX};
+use pseudoaligner::config::{MIN_KMERS, U32_MAX};
 use pseudoaligner::pseudoaligner::Pseudoaligner;
 use rayon;
 use rayon::prelude::*;
@@ -24,11 +24,12 @@ const MIN_SHARD_SEQUENCES: usize = 2000;
 pub fn build_index<K: Kmer + Sync + Send>(
     seqs: &[DnaString],
     tx_names: &Vec<String>,
-    tx_gene_map: &HashMap<String, String>
+    tx_gene_map: &HashMap<String, String>,
+    num_threads: usize,
 ) -> Result<Pseudoaligner<K>, Error> {
     // Thread pool Configuration for calling BOOMphf
     rayon::ThreadPoolBuilder::new()
-        .num_threads(MAX_WORKER)
+        .num_threads(num_threads)
         .build()?;
 
     if seqs.len() >= U32_MAX {
@@ -70,7 +71,7 @@ pub fn build_index<K: Kmer + Sync + Send>(
     let eq_classes = summarizer.get_eq_classes();
 
     info!("Indexing de Bruijn graph");
-    let dbg_index = make_dbg_index(&dbg);
+    let dbg_index = make_dbg_index(&dbg, num_threads);
     Ok(Pseudoaligner::new(
         dbg, eq_classes, dbg_index, tx_names.clone(), tx_gene_map.clone()
     ))
@@ -142,6 +143,7 @@ fn merge_shard_dbgs<K: Kmer + Sync + Send>(
 #[inline(never)]
 fn make_dbg_index<K: Kmer + Sync + Send>(
     dbg: &DebruijnGraph<K, EqClassIdType>,
+    num_threads: usize,
 ) -> NoKeyBoomHashMap<K, (u32, u32)> {
     let mut total_kmers = 0;
     let kmer_length = K::k();
@@ -151,7 +153,7 @@ fn make_dbg_index<K: Kmer + Sync + Send>(
 
     info!("Total {:?} kmers to process in dbg", total_kmers);
     info!("Making mphf of kmers");
-    let mphf = boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, MAX_WORKER);
+    let mphf = boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, num_threads);
 
     info!("Assigning offsets to kmers");
     let mut node_and_offsets = Vec::with_capacity(total_kmers);
