@@ -363,7 +363,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                             }).collect();
                             let rev_classes = index.map_read(&DnaString::from_dna_string(str::from_utf8(&dna_string_rev).unwrap()));
 
-                            info!("Found fwd eq_classees {:?} and reverse {:?}", fwd_classes, rev_classes);
+                            debug!("Found fwd eq_classees {:?} and reverse {:?}", fwd_classes, rev_classes);
 
                             let wrapped_read_data = match (fwd_classes, rev_classes) {
                                 (None, Some((eq_class, coverage))) | (Some((eq_class, coverage)), None) => {
