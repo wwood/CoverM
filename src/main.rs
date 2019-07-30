@@ -635,11 +635,24 @@ fn main(){
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"kmer") {
+                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+                let index = match m.is_present("debruijn-index") {
+                    true => {
+                        coverm::kmer_coverage::restore_index(
+                            m.value_of("debruijn_index").unwrap())
+                    },
+                    false => {
+                        coverm::kmer_coverage::generate_debruijn_index(
+                            m.value_of("reference").unwrap(),
+                        num_threads)
+                    }
+                };
+                //::<config::KmerType>
                 coverm::kmer_coverage::calculate_genome_kmer_coverage(
-                    m.value_of("reference").unwrap(),
                     m.values_of("read1").unwrap().collect::<Vec<_>>()[0],
-                    value_t!(m.value_of("threads"), usize).unwrap(),
-                    !m.is_present("no-zeros")
+                    num_threads,
+                    !m.is_present("no-zeros"),
+                    index,
                 );
             }
 
@@ -782,6 +795,23 @@ fn main(){
                 }
             }
         },
+        Some("debruijn_index") => {
+            let m = matches.subcommand_matches("debruijn_index").unwrap();
+            set_log_level(m, true);
+
+            let reference = m.value_of("reference").unwrap();
+            let output = m.value_of("output").unwrap();
+            let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+
+            info!("Generating index ..");
+            let index = coverm::kmer_coverage::generate_debruijn_index::<coverm::pseudoaligner::config::KmerType>(
+                reference, num_threads);
+
+            info!("Saving index ..");
+            coverm::kmer_coverage::save_index(
+                index, output);
+            info!("Saving complete");
+        }
         _ => {
             app.print_help().unwrap();
             println!();
@@ -2113,5 +2143,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("bwa-parameters")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference")));
+                     .requires("reference")))
+
+        .subcommand(
+            SubCommand::with_name("debruijn_index")
+                .about("Generate a DeBruijn index file")
+                .arg(Arg::with_name("reference")
+                     .short("-r")
+                     .long("reference")
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("output")
+                     .short("-o")
+                     .long("output-file")
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
+                     .takes_value(true)));
 }

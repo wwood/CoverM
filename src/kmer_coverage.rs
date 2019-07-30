@@ -1,21 +1,24 @@
-use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufWriter;
 
 use pseudoaligner::build_index::build_index;
 use pseudoaligner::*;
 use debruijn::Kmer;
 
 use bio::io::{fasta, fastq};
+use bincode;
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct DebruijnIndex<K>
 where K: debruijn::Kmer {
     pub index: pseudoaligner::Pseudoaligner<K>,
     pub seq_lengths: Vec<usize>,
     pub tx_names: Vec<String>,
-    pub tx_gene_map: HashMap<String, String>,
 }
 
-pub fn generate_debruijn_index<K: Kmer + Sync + Send>(
-    reference_path: &str,
+pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send + Serialize + Deserialize<'a>>(
+    reference_path: &'a str,
     num_threads: usize)
     -> DebruijnIndex<K> {
 
@@ -24,7 +27,7 @@ pub fn generate_debruijn_index<K: Kmer + Sync + Send>(
     // TODO: Remove duplication of gene and tax_id here - each contig is its own
     info!("Reading reference sequences in ..");
     let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-        .expect("Failure to read transcripts in");
+        .expect("Failure to read contigs file");
     info!("Building debruijn index ..");
     let index = build_index::<K>(
         &seqs, &tx_names, &tx_gene_map, num_threads
@@ -36,27 +39,51 @@ pub fn generate_debruijn_index<K: Kmer + Sync + Send>(
             std::process::exit(1);
         },
         Ok(true_index) => {
+            info!("Successfully built DeBruijn index");
             return DebruijnIndex {
                 index: true_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-                tx_gene_map: tx_gene_map,
             }
         }
     }
 }
 
-pub fn calculate_genome_kmer_coverage(
-    reference_path: &str,
+pub fn save_index<K>(
+    index: DebruijnIndex<K>,
+    output_file: &str)
+where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
+
+    let f = File::create(output_file).unwrap();
+    let writer = BufWriter::new(f);
+    let mut snapper = snap::Writer::new(writer);
+    info!("Writing index to {} ..", output_file);
+    bincode::serialize_into(&mut snapper, &index)
+        .expect("Failure to serialize or write index");
+    info!("Finished writing index");
+}
+
+pub fn restore_index<'a, K: Kmer + Sync + Send + Serialize + Deserialize<'a>>(
+    saved_index_path: &'a str)
+    -> DebruijnIndex<K> {
+
+    let f = File::open(saved_index_path).expect("file not found");
+    let mut unsnapper = snap::Reader::new(f);
+    debug!("Deserialising DB ..");
+    return bincode::deserialize_from(&mut unsnapper).unwrap();
+}
+
+
+pub fn calculate_genome_kmer_coverage<K>(
     forward_fastq: &str,
     num_threads: usize,
-    print_zero_coverage_contigs: bool) {
-
-    let index = generate_debruijn_index(reference_path, num_threads);
+    print_zero_coverage_contigs: bool,
+    index: DebruijnIndex<K>)
+where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq).expect("Failure to read reference sequences");
-    let (eq_class_indices, eq_class_coverages) = pseudoaligner::process_reads::<config::KmerType>(
+    let (eq_class_indices, eq_class_coverages) = pseudoaligner::process_reads(
         reads, &index.index, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
@@ -66,7 +93,8 @@ pub fn calculate_genome_kmer_coverage(
 
     // EM algorithm
     // Randomly assign random relative abundances to each of the genomes
-    let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()]; // for dev, assign each the same abundance
+    // TODO: remove: for dev, assign each the same abundance
+    let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()]; 
 
     loop { // loop until converged
         // E-step: Determine the number of reads we expect come from each genome
@@ -134,10 +162,11 @@ pub fn calculate_genome_kmer_coverage(
     }
 
     // Print results
-    println!("contig\t{}", reference_path); //TODO: Use the same methods as elsewhere for printing.
+    println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
     for (i, relabund) in contig_to_relative_abundance.iter().enumerate() {
         if print_zero_coverage_contigs || *relabund > 0.0 {
             println!("{}\t{}", index.tx_names[i], relabund*kmer_coverage_total / (index.seq_lengths[i] as f64));
         }
     }
+    info!("Finished printing contig coverages");
 }
