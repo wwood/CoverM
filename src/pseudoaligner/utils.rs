@@ -18,7 +18,7 @@ use debruijn::dna_string::DnaString;
 
 use pseudoaligner::config;
 
-const MAPPABILITY_HEADER_STRING: &'static str = "tx_name\tgene_name\ttx_kmer_count\ttx_fraction_unique\tgene_fraction_unique\n";
+const _MAPPABILITY_HEADER_STRING: &'static str = "tx_name\tgene_name\ttx_kmer_count\ttx_fraction_unique\tgene_fraction_unique\n";
 
 pub fn write_obj<T: Serialize, P: AsRef<Path> + Debug>(
     g: &T,
