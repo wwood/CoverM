@@ -122,10 +122,16 @@ where K: Kmer + Sync + Send {
             match eq_classes[i] {
                 None => unreachable!(),
                 Some(ref eqs) => {
-                    let num_eqs = eqs.len() as f64;
+                    let mut total_abundance_of_matching_contigs: f64 = 0.0;
+                    for eq in *eqs {
+                        let relabund = contig_to_relative_abundance[*eq as usize];
+                        total_abundance_of_matching_contigs += relabund;
+                    }
                     for eq in *eqs {
                         // TODO: Remove the 'as usize' by making eq a usize throughout
-                        contig_to_read_count[*eq as usize] += (*coverage as f64) / num_eqs;
+                        let relabund = contig_to_relative_abundance[*eq as usize];
+                        contig_to_read_count[*eq as usize] += (*coverage as f64) *
+                            relabund / total_abundance_of_matching_contigs;
                     }
                 }
             }

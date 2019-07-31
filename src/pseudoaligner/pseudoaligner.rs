@@ -310,6 +310,8 @@ fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
             }
         }
     }
+    // Can use unreachable!() here because fill_idx1 <= v1.len()
+    v1.resize_with(fill_idx1, || { unreachable!() });
 }
 
 pub fn process_reads<K: Kmer + Sync + Send>(
@@ -346,6 +348,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
                             let dna_string_fwd = str::from_utf8(record.seq()).unwrap();
                             let fwd_classes = index.map_read(&DnaString::from_dna_string(dna_string_fwd));
+                            debug!("Forward DNA string: {}", dna_string_fwd);
+                            debug!("Fwd classes: {:?}", fwd_classes);
 
                             //let dna_string_rev_in = str::from_utf8(record.seq()).unwrap();
                             // TODO: It would presumably be preferable to
@@ -364,7 +368,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                             }).collect();
                             let rev_classes = index.map_read(&DnaString::from_dna_string(str::from_utf8(&dna_string_rev).unwrap()));
 
-                            debug!("Found fwd eq_classees {:?} and reverse {:?}", fwd_classes, rev_classes);
+                            debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
 
                             let wrapped_read_data = match (fwd_classes, rev_classes) {
                                 (None, Some((eq_class, coverage))) | (Some((eq_class, coverage)), None) => {
@@ -457,12 +461,14 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         let coverage = read_data.3;
 
                         debug!("split cov {}, from {:?}", coverage, classes);
+                        let mut classes_sorted = classes.clone();
+                        classes_sorted.sort();
 
-                        if eq_class_indices.contains_key(&classes) {
-                            eq_class_coverages[*eq_class_indices.get(&classes).unwrap()] += coverage;
+                        if eq_class_indices.contains_key(&classes_sorted) {
+                            eq_class_coverages[*eq_class_indices.get(&classes_sorted).unwrap()] += coverage;
                         } else {
                             let index = eq_class_indices.len();
-                            eq_class_indices.insert(classes, index);
+                            eq_class_indices.insert(classes_sorted, index);
                             eq_class_coverages.push(coverage);
                         }
                     }
