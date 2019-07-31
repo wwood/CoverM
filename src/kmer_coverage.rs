@@ -9,17 +9,21 @@ use bio::io::{fasta, fastq};
 use bincode;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
+use genomes_and_contigs::GenomesAndContigs;
+
 #[derive(Serialize, Deserialize)]
 pub struct DebruijnIndex<K>
 where K: debruijn::Kmer {
     pub index: pseudoaligner::Pseudoaligner<K>,
     pub seq_lengths: Vec<usize>,
     pub tx_names: Vec<String>,
+    pub genomes_and_contigs: Option<GenomesAndContigs>,
 }
 
 pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send>(
     reference_path: &str,
-    num_threads: usize)
+    num_threads: usize,
+    genomes_and_contigs: Option<GenomesAndContigs>)
     -> DebruijnIndex<K> {
 
     // Build index
@@ -44,6 +48,7 @@ pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send>(
                 index: true_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
+                genomes_and_contigs: genomes_and_contigs,
             }
         }
     }
@@ -70,7 +75,9 @@ pub fn restore_index<'a, K: Kmer + DeserializeOwned>(
     let f = File::open(saved_index_path).expect("file not found");
     let mut unsnapper = snap::Reader::new(f);
     debug!("Deserialising DB ..");
-    return bincode::deserialize_from(&mut unsnapper).unwrap();
+    return bincode::deserialize_from(&mut unsnapper)
+        .expect("Error reading previously saved index - perhaps it was \
+                 generated with a different version of CoverM?");
 }
 
 
@@ -79,7 +86,7 @@ pub fn calculate_genome_kmer_coverage<K>(
     num_threads: usize,
     print_zero_coverage_contigs: bool,
     index: DebruijnIndex<K>)
-where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
+where K: Kmer + Sync + Send {
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq).expect("Failure to read reference sequences");
@@ -97,7 +104,7 @@ where K: Kmer + Sync + Send + Serialize + Deserialize<'static> {
     let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()]; 
 
     loop { // loop until converged
-        // E-step: Determine the number of reads we expect come from each genome
+        // E-step: Determine the number of reads we expect come from each contig
         // given their relative abundance.
 
         // for each equivalence class / count pair, we expect for genome A the

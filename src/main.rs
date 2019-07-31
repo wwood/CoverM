@@ -333,13 +333,7 @@ fn main(){
 
             let mut genome_names_content: Vec<u8>;
 
-            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
-                m, print_stream);
-            estimators_and_taker = estimators_and_taker.print_headers(
-                &"Genome", &mut std::io::stdout());
-            let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
-
             let single_genome = m.is_present("single-genome");
             let genomes_and_contigs_option = match separator.is_some() || single_genome {
                 true => None,
@@ -359,223 +353,245 @@ fn main(){
                 }
             };
 
-            // This would be better as a separate function to make this function
-            // smaller, but I find this hard because functions cannot return a
-            // trait.
-            let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
-            let mut genome_exclusion_filter_non_type: Option<NoExclusionGenomeFilter> = None;
-            let mut genome_exclusion_genomes_and_contigs: Option<GenomesAndContigsExclusionFilter> = None;
-            enum GenomeExclusionTypes {
-                SeparatorType, NoneType, GenomesAndContigsType
-            }
-            let genome_exclusion_type = {
-                if m.is_present("sharded") {
-                    if m.is_present("exclude-genomes-from-deshard") {
-                        let filename = m.value_of("exclude-genomes-from-deshard").unwrap();
-                        genome_names_content = std::fs::read(filename)
-                            .expect(&format!(
-                                "Failed to open file '{}' containing list of excluded genomes",
-                                filename));
-                        let mut genome_names_hash: HashSet<&[u8]> = HashSet::new();
-                        for n in genome_names_content.split(|s| *s == b"\n"[0]) {
-                            if n != b"" {
-                                genome_names_hash.insert(n);
-                            }
-                        }
-                        if genome_names_hash.is_empty() {
-                            warn!("No genomes read in that are to be excluded from desharding process");
-                            genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
-                            GenomeExclusionTypes::NoneType
-                        } else {
-                            info!("Read in {} distinct genomes to exclude from desharding process e.g. '{}'",
-                                  genome_names_hash.len(),
-                                  std::str::from_utf8(genome_names_hash.iter().next().unwrap())
-                                  .unwrap());
-                            if separator.is_some() {
-                                genome_exclusion_filter_separator_type = Some(
-                                    SeparatorGenomeExclusionFilter {
-                                        split_char: separator.unwrap(),
-                                        excluded_genomes: genome_names_hash
-                                    });
-                                GenomeExclusionTypes::SeparatorType
-                            } else {
-                                match genomes_and_contigs_option {
-                                    Some(ref gc) => {
-                                        genome_exclusion_genomes_and_contigs = Some(
-                                            GenomesAndContigsExclusionFilter {
-                                                genomes_and_contigs: gc,
-                                                excluded_genomes: genome_names_hash,
-                                            });
-                                        GenomeExclusionTypes::GenomesAndContigsType
-                                    },
-                                    None => unreachable!()
+            if m.values_of("methods").unwrap().find(|&m| m=="kmer").is_some() {
+                match genomes_and_contigs_option {
+                    None => {
+                        // TODO: Implement.
+                        error!("The kmer method must be used with multiple input \
+                                genomes and not a separator (for now)");
+                        process::exit(1);
+                    },
+                    Some(genomes_and_contigs) => {
+                        panic!()
+                    }
+                }
+
+            } else {
+
+                let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(
+                    m, print_stream);
+                estimators_and_taker = estimators_and_taker.print_headers(
+                    &"Genome", &mut std::io::stdout());
+                let filter_params = FilterParameters::generate_from_clap(m);
+
+                // This would be better as a separate function to make this function
+                // smaller, but I find this hard because functions cannot return a
+                // trait.
+                let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
+                let mut genome_exclusion_filter_non_type: Option<NoExclusionGenomeFilter> = None;
+                let mut genome_exclusion_genomes_and_contigs: Option<GenomesAndContigsExclusionFilter> = None;
+                enum GenomeExclusionTypes {
+                    SeparatorType, NoneType, GenomesAndContigsType
+                }
+                let genome_exclusion_type = {
+                    if m.is_present("sharded") {
+                        if m.is_present("exclude-genomes-from-deshard") {
+                            let filename = m.value_of("exclude-genomes-from-deshard").unwrap();
+                            genome_names_content = std::fs::read(filename)
+                                .expect(&format!(
+                                    "Failed to open file '{}' containing list of excluded genomes",
+                                    filename));
+                            let mut genome_names_hash: HashSet<&[u8]> = HashSet::new();
+                            for n in genome_names_content.split(|s| *s == b"\n"[0]) {
+                                if n != b"" {
+                                    genome_names_hash.insert(n);
                                 }
                             }
+                            if genome_names_hash.is_empty() {
+                                warn!("No genomes read in that are to be excluded from desharding process");
+                                genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                                GenomeExclusionTypes::NoneType
+                            } else {
+                                info!("Read in {} distinct genomes to exclude from desharding process e.g. '{}'",
+                                      genome_names_hash.len(),
+                                      std::str::from_utf8(genome_names_hash.iter().next().unwrap())
+                                      .unwrap());
+                                if separator.is_some() {
+                                    genome_exclusion_filter_separator_type = Some(
+                                        SeparatorGenomeExclusionFilter {
+                                            split_char: separator.unwrap(),
+                                            excluded_genomes: genome_names_hash
+                                        });
+                                    GenomeExclusionTypes::SeparatorType
+                                } else {
+                                    match genomes_and_contigs_option {
+                                        Some(ref gc) => {
+                                            genome_exclusion_genomes_and_contigs = Some(
+                                                GenomesAndContigsExclusionFilter {
+                                                    genomes_and_contigs: gc,
+                                                    excluded_genomes: genome_names_hash,
+                                                });
+                                            GenomeExclusionTypes::GenomesAndContigsType
+                                        },
+                                        None => unreachable!()
+                                    }
+                                }
+                            }
+                        } else {
+                            debug!("Not excluding any genomes during the deshard process");
+                            genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
+                            GenomeExclusionTypes::NoneType
                         }
                     } else {
-                        debug!("Not excluding any genomes during the deshard process");
                         genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
                         GenomeExclusionTypes::NoneType
                     }
-                } else {
-                    genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter{});
-                    GenomeExclusionTypes::NoneType
-                }
-            };
-
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-                if filter_params.doing_filtering() {
-                    run_genome(
-                        coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
-                            bam_files,
-                            filter_params.flag_filters,
-                            filter_params.min_aligned_length_single,
-                            filter_params.min_percent_identity_single,
-                            filter_params.min_aligned_percent_single,
-                            filter_params.min_aligned_length_pair,
-                            filter_params.min_percent_identity_pair,
-                            filter_params.min_aligned_percent_pair),
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        &genomes_and_contigs_option);
-
-                } else if m.is_present("sharded") {
-                    external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-                    // Seems crazy, but I cannot work out how to make this more
-                    // DRY, without making GenomeExclusion into an enum.
-                    match genome_exclusion_type {
-                        GenomeExclusionTypes::NoneType => {
-                            run_genome(
-                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                                    bam_files,
-                                    sort_threads,
-                                    &genome_exclusion_filter_non_type.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                        GenomeExclusionTypes::SeparatorType => {
-                            run_genome(
-                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                                    bam_files,
-                                    sort_threads,
-                                    &genome_exclusion_filter_separator_type.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                        GenomeExclusionTypes::GenomesAndContigsType => {
-                            run_genome(
-                                coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
-                                    bam_files,
-                                    sort_threads,
-                                    &genome_exclusion_genomes_and_contigs.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                    }
-                } else {
-                    run_genome(
-                        coverm::bam_generator::generate_named_bam_readers_from_bam_files(
-                            bam_files),
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        &genomes_and_contigs_option);
-                }
-            } else {
-                external_command_checker::check_for_bwa();
-                external_command_checker::check_for_samtools();
-
-                // Generate a temporary file of concatenated genomes if needed.
-                let mut concatenated_genomes: Option<NamedTempFile> = None;
-                if !m.is_present("reference") && !m.is_present("bam-files") {
-                    let list_of_genome_fasta_files = parse_list_of_genome_fasta_files(m);
-                    info!("Generating concatenated reference FASTA file of {} genomes ..",
-                          list_of_genome_fasta_files.len());
-                    concatenated_genomes = Some(
-                        coverm::bwa_index_maintenance::generate_concatenated_fasta_file(
-                            &list_of_genome_fasta_files));
-                }
-
-                if filter_params.doing_filtering() {
-                    debug!("Mapping and filtering..");
-                    let generator_sets = get_streamed_filtered_bam_readers(
-                        m, &concatenated_genomes, &filter_params);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
-                        }
-                    }
-                    run_genome(
-                        all_generators,
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        &genomes_and_contigs_option);
-                } else if m.is_present("sharded") {
-                    match genome_exclusion_type {
-                        GenomeExclusionTypes::NoneType => {
-                            run_genome(
-                                get_sharded_bam_readers(
-                                    m,
-                                    &concatenated_genomes,
-                                    &genome_exclusion_filter_non_type.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                        GenomeExclusionTypes::SeparatorType => {
-                            run_genome(
-                                get_sharded_bam_readers(
-                                    m,
-                                    &concatenated_genomes,
-                                    &genome_exclusion_filter_separator_type.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                        GenomeExclusionTypes::GenomesAndContigsType => {
-                            run_genome(
-                                get_sharded_bam_readers(
-                                    m,
-                                    &concatenated_genomes,
-                                    &genome_exclusion_genomes_and_contigs.unwrap()),
-                                m,
-                                &mut estimators_and_taker,
-                                separator,
-                                &genomes_and_contigs_option);
-                        },
-                    }
-                } else {
-                    let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
-                    let mut all_generators = vec!();
-                    let mut indices = vec!(); // Prevent indices from being dropped
-                    for set in generator_sets {
-                        indices.push(set.index);
-                        for g in set.generators {
-                            all_generators.push(g)
-                        }
-                    }
-                    run_genome(
-                        all_generators,
-                        m,
-                        &mut estimators_and_taker,
-                        separator,
-                        &genomes_and_contigs_option);
                 };
+
+                if m.is_present("bam-files") {
+                    let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+                    if filter_params.doing_filtering() {
+                        run_genome(
+                            coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
+                                bam_files,
+                                filter_params.flag_filters,
+                                filter_params.min_aligned_length_single,
+                                filter_params.min_percent_identity_single,
+                                filter_params.min_aligned_percent_single,
+                                filter_params.min_aligned_length_pair,
+                                filter_params.min_percent_identity_pair,
+                                filter_params.min_aligned_percent_pair),
+                            m,
+                            &mut estimators_and_taker,
+                            separator,
+                            &genomes_and_contigs_option);
+
+                    } else if m.is_present("sharded") {
+                        external_command_checker::check_for_samtools();
+                        let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
+                        // Seems crazy, but I cannot work out how to make this more
+                        // DRY, without making GenomeExclusion into an enum.
+                        match genome_exclusion_type {
+                            GenomeExclusionTypes::NoneType => {
+                                run_genome(
+                                    coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                        bam_files,
+                                        sort_threads,
+                                        &genome_exclusion_filter_non_type.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                            GenomeExclusionTypes::SeparatorType => {
+                                run_genome(
+                                    coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                        bam_files,
+                                        sort_threads,
+                                        &genome_exclusion_filter_separator_type.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                            GenomeExclusionTypes::GenomesAndContigsType => {
+                                run_genome(
+                                    coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
+                                        bam_files,
+                                        sort_threads,
+                                        &genome_exclusion_genomes_and_contigs.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                        }
+                    } else {
+                        run_genome(
+                            coverm::bam_generator::generate_named_bam_readers_from_bam_files(
+                                bam_files),
+                            m,
+                            &mut estimators_and_taker,
+                            separator,
+                            &genomes_and_contigs_option);
+                    }
+                } else {
+                    external_command_checker::check_for_bwa();
+                    external_command_checker::check_for_samtools();
+
+                    // Generate a temporary file of concatenated genomes if needed.
+                    let mut concatenated_genomes: Option<NamedTempFile> = None;
+                    if !m.is_present("reference") && !m.is_present("bam-files") {
+                        let list_of_genome_fasta_files = parse_list_of_genome_fasta_files(m);
+                        info!("Generating concatenated reference FASTA file of {} genomes ..",
+                              list_of_genome_fasta_files.len());
+                        concatenated_genomes = Some(
+                            coverm::bwa_index_maintenance::generate_concatenated_fasta_file(
+                                &list_of_genome_fasta_files));
+                    }
+
+                    if filter_params.doing_filtering() {
+                        debug!("Mapping and filtering..");
+                        let generator_sets = get_streamed_filtered_bam_readers(
+                            m, &concatenated_genomes, &filter_params);
+                        let mut all_generators = vec!();
+                        let mut indices = vec!(); // Prevent indices from being dropped
+                        for set in generator_sets {
+                            indices.push(set.index);
+                            for g in set.generators {
+                                all_generators.push(g)
+                            }
+                        }
+                        run_genome(
+                            all_generators,
+                            m,
+                            &mut estimators_and_taker,
+                            separator,
+                            &genomes_and_contigs_option);
+                    } else if m.is_present("sharded") {
+                        match genome_exclusion_type {
+                            GenomeExclusionTypes::NoneType => {
+                                run_genome(
+                                    get_sharded_bam_readers(
+                                        m,
+                                        &concatenated_genomes,
+                                        &genome_exclusion_filter_non_type.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                            GenomeExclusionTypes::SeparatorType => {
+                                run_genome(
+                                    get_sharded_bam_readers(
+                                        m,
+                                        &concatenated_genomes,
+                                        &genome_exclusion_filter_separator_type.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                            GenomeExclusionTypes::GenomesAndContigsType => {
+                                run_genome(
+                                    get_sharded_bam_readers(
+                                        m,
+                                        &concatenated_genomes,
+                                        &genome_exclusion_genomes_and_contigs.unwrap()),
+                                    m,
+                                    &mut estimators_and_taker,
+                                    separator,
+                                    &genomes_and_contigs_option);
+                            },
+                        }
+                    } else {
+                        let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
+                        let mut all_generators = vec!();
+                        let mut indices = vec!(); // Prevent indices from being dropped
+                        for set in generator_sets {
+                            indices.push(set.index);
+                            for g in set.generators {
+                                all_generators.push(g)
+                            }
+                        }
+                        run_genome(
+                            all_generators,
+                            m,
+                            &mut estimators_and_taker,
+                            separator,
+                            &genomes_and_contigs_option);
+                    };
+                }
             }
         },
         Some("filter") => {
@@ -657,7 +673,8 @@ fn main(){
                                 info!("No pre-existing index file found, generating one ..");
                                 coverm::kmer_coverage::generate_debruijn_index(
                                     reference,
-                                    num_threads)
+                                    num_threads,
+                                    None)
                             }
                         };
 
@@ -824,7 +841,7 @@ fn main(){
 
             info!("Generating index ..");
             let index = coverm::kmer_coverage::generate_debruijn_index::<coverm::pseudoaligner::config::KmerType>(
-                reference, num_threads);
+                reference, num_threads, None);
 
             info!("Saving index ..");
             coverm::kmer_coverage::save_index(
@@ -1867,7 +1884,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                          "variance",
                          "length",
                          "count",
-                         "reads_per_base"])
+                         "reads_per_base",
+                         "kmer"])
                      .default_value("relative_abundance"))
                 .arg(Arg::with_name("trim-min")
                      .long("trim-min")
