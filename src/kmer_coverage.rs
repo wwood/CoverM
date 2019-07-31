@@ -98,6 +98,12 @@ where K: Kmer + Sync + Send {
 
     let kmer_coverage_total: f64 = eq_class_coverages.iter().sum::<usize>() as f64;
 
+    // Make a new vec containing the eq_class memberships
+    let mut eq_classes = vec![None; eq_class_coverages.len()];
+    for (eq_class, index) in &eq_class_indices {
+        eq_classes[*index] = Some(eq_class)
+    }
+
     // EM algorithm
     // Randomly assign random relative abundances to each of the genomes
     // TODO: remove: for dev, assign each the same abundance
@@ -111,11 +117,6 @@ where K: Kmer + Sync + Send {
         // abundance of A divided by the sum of abundances of genomes in the
         // equivalence class.
         let mut contig_to_read_count = vec![0.0; index.seq_lengths.len()];
-        // Make a new vec containing the eq_class memberships
-        let mut eq_classes = vec![None; eq_class_coverages.len()];
-        for (eq_class, index) in &eq_class_indices {
-            eq_classes[*index] = Some(eq_class)
-        }
         debug!("eq_classes: {:?}", eq_classes);
         for (i, coverage) in eq_class_coverages.iter().enumerate() {
             match eq_classes[i] {
@@ -134,6 +135,9 @@ where K: Kmer + Sync + Send {
         // M-step: Work out the relative abundance given the number of reads
         // predicted in the E-step. Relative abundance is just the ratio of the
         // coverages, weighted by the inverse of each contig's length.
+        //
+        // Or, for genome mode, weighted by the inverse of the sum of the
+        // genome's length.
         //TODO: zip here instead?
         // First determine the total scaled abundance
         let mut total_scaling_abundance: f64 = 0.0;
