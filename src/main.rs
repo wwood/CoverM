@@ -361,8 +361,47 @@ fn main(){
                                 genomes and not a separator (for now)");
                         process::exit(1);
                     },
-                    Some(_genomes_and_contigs) => {
-                        panic!()
+                    Some(genomes_and_contigs) => {
+                        // TODO: Much of the following stanza code copied from
+                        // contig mode. When ready, refactor.
+                        let read_files = m.values_of("single");
+                        match read_files {
+                            Some(singles) => {
+                                if singles.len() > 1 {
+                                    error!("Using >1 single read files to map is not yet supported");
+                                    process::exit(1);
+                                }
+
+                                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+                                let reference = m.value_of("reference").unwrap();
+                                let potential_index_file = format!("{}.covermdb", reference);
+                                let index = match Path::new(&potential_index_file).exists() {
+                                    true => {
+                                        info!("Using pre-existing index {}", potential_index_file);
+                                        coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
+                                            &potential_index_file)
+                                    },
+                                    false => {
+                                        info!("No pre-existing index file found, generating one ..");
+                                        coverm::kmer_coverage::generate_debruijn_index(
+                                            reference,
+                                            num_threads,
+                                            Some(genomes_and_contigs))
+                                    }
+                                };
+
+                                coverm::kmer_coverage::calculate_genome_kmer_coverage(
+                                    singles.collect::<Vec<_>>()[0],
+                                    num_threads,
+                                    !m.is_present("no-zeros"),
+                                    index,
+                                );
+                            },
+                            None => {
+                                error!("Using -m kmer you must (for now) use --single to input reads");
+                                process::exit(1);
+                            }
+                        }
                     }
                 }
 
@@ -374,7 +413,7 @@ fn main(){
                     &"Genome", &mut std::io::stdout());
                 let filter_params = FilterParameters::generate_from_clap(m);
 
-                // This would be better as a separate function to make this function
+                // This would be better as a separate functi1on to make this function
                 // smaller, but I find this hard because functions cannot return a
                 // trait.
                 let mut genome_exclusion_filter_separator_type: Option<SeparatorGenomeExclusionFilter> = None;
