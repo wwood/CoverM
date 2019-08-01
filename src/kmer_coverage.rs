@@ -171,9 +171,12 @@ where K: Kmer + Sync + Send {
         // First determine the total scaled abundance
         let mut total_scaling_abundance: f64 = 0.0;
         for (i, read_count) in contig_to_read_count.iter().enumerate() {
-            let to_add = read_count / (index.seq_lengths[i] as f64);
-            //debug!("Adding to_add {} for contig number {}", to_add, i);
-            total_scaling_abundance += to_add;
+            total_scaling_abundance += match &index.genomes_and_contigs {
+                None => {
+                    read_count / (index.seq_lengths[i] as f64)
+                },
+                Some(_geco) => panic!()
+            }
         }
         // Next set the abundances so the total == 1.0
         //
