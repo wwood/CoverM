@@ -1017,6 +1017,26 @@ genome6	26.697144
                  genome6~random_sequence_length_11003	0\n")
              .unwrap();
     }
+
+    #[test]
+    fn test_contig_different_ref_lengths() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "kmer",
+                "-r",
+                "tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna",
+                "--single",
+                "tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq",
+            ])
+            .succeeds()
+            .stdout().is(
+                "contig	kmer\n\
+                 genome1	0.002844711575150617\n\
+                 genome2	0.37477019228323294\n")
+            .unwrap()
+    }
 }
 
 
