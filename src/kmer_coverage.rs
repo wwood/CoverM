@@ -11,6 +11,8 @@ use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 use genomes_and_contigs::GenomesAndContigs;
 
+use log::Level;
+
 #[derive(Serialize, Deserialize)]
 pub struct DebruijnIndex<K>
 where K: debruijn::Kmer {
@@ -94,7 +96,15 @@ where K: Kmer + Sync + Send {
         reads, &index.index, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
-    debug!("eq_class_indices: {:?}, eq_class_coverages: {:?}", eq_class_indices, eq_class_coverages);
+
+    if log_enabled!(Level::Debug) {
+        for (eq_class, index) in &eq_class_indices {
+            debug!("eq_class_index: {:?}\t{}", eq_class, index);
+        };
+        for (i, eq_class_coverage) in eq_class_coverages.iter().enumerate() {
+            debug!("eq_class_coverage {} {}", i, eq_class_coverage);
+        }
+    }
 
     let kmer_coverage_total: f64 = eq_class_coverages.iter().sum::<usize>() as f64;
 
@@ -107,7 +117,9 @@ where K: Kmer + Sync + Send {
     // EM algorithm
     // Randomly assign random relative abundances to each of the genomes
     // TODO: remove: for dev, assign each the same abundance
-    let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()]; 
+    info!("Starting EM process ..");
+    let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()];
+    let mut num_covergence_steps: u32 = 0;
 
     loop { // loop until converged
         // E-step: Determine the number of reads we expect come from each contig
@@ -175,7 +187,12 @@ where K: Kmer + Sync + Send {
             contig_to_relative_abundance[i] = new_relabund;
         }
         debug!("At end of E-step, have coverages: {:?}", contig_to_relative_abundance);
-        if converge { break; }
+
+        num_covergence_steps += 1;
+        if converge {
+            info!("EM process converged after {} steps", num_covergence_steps);
+            break;
+        }
     }
 
     // Print results
