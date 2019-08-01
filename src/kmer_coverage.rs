@@ -134,14 +134,25 @@ where K: Kmer + Sync + Send {
             match eq_classes[i] {
                 None => unreachable!(),
                 Some(ref eqs) => {
-                    let mut total_abundance_of_matching_contigs: f64 = 0.0;
-                    for eq in *eqs {
-                        let relabund = contig_to_relative_abundance[*eq as usize];
-                        total_abundance_of_matching_contigs += relabund;
-                    }
-                    for eq in *eqs {
-                        // TODO: Remove the 'as usize' by making eq a usize throughout
-                        let relabund = contig_to_relative_abundance[*eq as usize];
+                    // Find coverages of each contig to add
+                    let relative_abundances: Vec<f64> = eqs.iter().map(
+                        |eq|
+                        match &index.genomes_and_contigs {
+                            None => {
+                                // Processing contigs
+                                // TODO: Remove the 'as usize' by making eq a usize throughout
+                                contig_to_relative_abundance[*eq as usize]
+                            },
+                            Some(_geco) => {
+                                // Processing genomes
+                                panic!() // TODO: Implement.
+                            }
+                        }
+                    ).collect();
+
+                    // Add coverages divided by the sum of relative abundances
+                    let total_abundance_of_matching_contigs: f64 = relative_abundances.iter().sum();
+                    for (eq, relabund) in eqs.iter().zip(relative_abundances.iter()) {
                         contig_to_read_count[*eq as usize] += (*coverage as f64) *
                             relabund / total_abundance_of_matching_contigs;
                     }

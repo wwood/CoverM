@@ -361,7 +361,7 @@ fn main(){
                                 genomes and not a separator (for now)");
                         process::exit(1);
                     },
-                    Some(genomes_and_contigs) => {
+                    Some(_genomes_and_contigs) => {
                         panic!()
                     }
                 }
