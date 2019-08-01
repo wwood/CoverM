@@ -119,6 +119,7 @@ where K: Kmer + Sync + Send {
     // TODO: remove: for dev, assign each the same abundance
     info!("Starting EM process ..");
     let mut contig_to_relative_abundance = vec![1.0; index.seq_lengths.len()];
+    let mut contig_to_read_count;
     let mut num_covergence_steps: u32 = 0;
 
     loop { // loop until converged
@@ -128,8 +129,7 @@ where K: Kmer + Sync + Send {
         // for each equivalence class / count pair, we expect for genome A the
         // abundance of A divided by the sum of abundances of genomes in the
         // equivalence class.
-        let mut contig_to_read_count = vec![0.0; index.seq_lengths.len()];
-        debug!("eq_classes: {:?}", eq_classes);
+        contig_to_read_count = vec![0.0; index.seq_lengths.len()];
         for (i, coverage) in eq_class_coverages.iter().enumerate() {
             match eq_classes[i] {
                 None => unreachable!(),
@@ -178,7 +178,7 @@ where K: Kmer + Sync + Send {
                 // Enough abundance that this contig might stop convergence if it
                 // changed by enough.
                 let delta = new_relabund / contig_to_relative_abundance[i];
-                debug!("For testing convergence, found delta {}", delta);
+                debug!("For testing convergence of index {}, found delta {}", i, delta);
                 if delta < 0.99 || delta > 1.01 {
                     debug!("No converge for you");
                     converge = false;
@@ -186,7 +186,7 @@ where K: Kmer + Sync + Send {
             }
             contig_to_relative_abundance[i] = new_relabund;
         }
-        debug!("At end of E-step, have coverages: {:?}", contig_to_relative_abundance);
+        debug!("At end of M-step, have relative abundances: {:?}", contig_to_relative_abundance);
 
         num_covergence_steps += 1;
         if converge {
@@ -197,9 +197,10 @@ where K: Kmer + Sync + Send {
 
     // Print results
     println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
-    for (i, relabund) in contig_to_relative_abundance.iter().enumerate() {
-        if print_zero_coverage_contigs || *relabund > 0.0 {
-            println!("{}\t{}", index.tx_names[i], relabund*kmer_coverage_total / (index.seq_lengths[i] as f64));
+    for (i, total_coverage) in contig_to_read_count.iter().enumerate() {
+        if print_zero_coverage_contigs || *total_coverage > 0.0 {
+            // Print average coverage as total coverage divided by contig length.
+            println!("{}\t{}", index.tx_names[i], total_coverage / (index.seq_lengths[i] as f64));
         }
     }
     info!("Finished printing contig coverages");
