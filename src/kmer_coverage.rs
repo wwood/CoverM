@@ -226,9 +226,33 @@ where K: Kmer + Sync + Send {
                 debug!("At end of M-step, have relative abundances: {:?}", contig_to_relative_abundance);
 
             },
-            Some(_geco) => {
+            Some(geco) => {
                 // If we are calculating per-genome, we calculate the relative abundance
                 // of each genome, not the relative abundance of each contig.
+
+                // TODO: Seems suboptimal to calculate the lengths this every
+                // time, maybe do at start.
+                //
+                // TODO: Maybe doesn't make sense to loop over genomes that have
+                // no coverage, can we not do that?
+                let mut genome_lengths: Vec<usize> = vec![0; geco.genomes.len()];
+                let mut genome_coverages: Vec<f64> = vec![0.0; geco.genomes.len()];
+
+                // For each contig in each genome
+                for (contig, genome_index) in geco.contig_to_genome.iter() {
+                    match contig_to_relative_abundance[contig_to_tx_index[contig]] {
+                        Some(coverage) => {
+                            genome_coverages[genome_index] += coverage;
+                        },
+                        None => {}
+                    }
+                    genome_lengths[genome_index] += index.seq_lengths[contig_to_tx_index[contig]]
+                }
+
+                let genome_relative_abundances = genome_coverages.iter().zip(genome_lengths).map(
+                    |(cov, l)|
+                    cov / (l as f64)).collect();
+                let total_relative_abundance = genome_relative_abundances.iter().sum();
                 panic!()
             }
         }

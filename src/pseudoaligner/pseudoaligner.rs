@@ -320,7 +320,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
     num_threads: usize,
     // Result returned is equivalence class indices mapped to indexes, and
     // counts for each observed index.
-) -> Result<(std::collections::BTreeMap<Vec<u32>, usize>, Vec<usize>), Error> {
+) -> Result<(std::collections::BTreeMap<Vec<u32>, usize>, Vec<usize>, Vec<usize>), Error> {
     info!("Done Reading index");
     info!("Starting Multi-threaded Mapping");
 
@@ -329,6 +329,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
     let mut eq_class_indices: BTreeMap<Vec<u32>, usize> = BTreeMap::new();
     let mut eq_class_coverages: Vec<usize> = vec![];
+    let mut eq_class_read_counts: Vec<usize> = vec![];
 
     info!("Spawning {} threads for Mapping.", num_threads);
     crossbeam::scope(|scope| {
@@ -465,11 +466,14 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         classes_sorted.sort();
 
                         if eq_class_indices.contains_key(&classes_sorted) {
-                            eq_class_coverages[*eq_class_indices.get(&classes_sorted).unwrap()] += coverage;
+                            let i = *eq_class_indices.get(&classes_sorted).unwrap();
+                            eq_class_coverages[i] += coverage;
+                            eq_class_read_counts[i] += 1;
                         } else {
                             let index = eq_class_indices.len();
                             eq_class_indices.insert(classes_sorted, index);
                             eq_class_coverages.push(coverage);
+                            eq_class_read_counts.push(1);
                         }
                     }
 
@@ -487,8 +491,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
         } // end-for
     }); //end crossbeam
 
-    debug!("Result: {:?}, {:?}", eq_class_indices, eq_class_coverages);
+    debug!("Result: {:?}, {:?}, {:?}", eq_class_indices, eq_class_coverages, eq_class_read_counts);
 
     info!("Done Mapping Reads");
-    Ok((eq_class_indices, eq_class_coverages))
+    Ok((eq_class_indices, eq_class_coverages, eq_class_read_counts))
 }
