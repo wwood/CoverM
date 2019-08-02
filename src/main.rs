@@ -385,16 +385,16 @@ fn main(){
                                         info!("No pre-existing index file found, generating one ..");
                                         coverm::kmer_coverage::generate_debruijn_index(
                                             reference,
-                                            num_threads,
-                                            Some(genomes_and_contigs))
+                                            num_threads)
                                     }
                                 };
 
-                                coverm::kmer_coverage::calculate_genome_kmer_coverage(
+                                coverm::genome_pseudoaligner::calculate_genome_kmer_coverage(
                                     singles.collect::<Vec<_>>()[0],
                                     num_threads,
                                     !m.is_present("no-zeros"),
-                                    index,
+                                    &index,
+                                    &genomes_and_contigs,
                                 );
                             },
                             None => {
@@ -712,12 +712,11 @@ fn main(){
                                 info!("No pre-existing index file found, generating one ..");
                                 coverm::kmer_coverage::generate_debruijn_index(
                                     reference,
-                                    num_threads,
-                                    None)
+                                    num_threads)
                             }
                         };
 
-                        coverm::kmer_coverage::calculate_genome_kmer_coverage(
+                        coverm::kmer_coverage::calculate_contig_kmer_coverage(
                             singles.collect::<Vec<_>>()[0],
                             num_threads,
                             !m.is_present("no-zeros"),
@@ -880,7 +879,7 @@ fn main(){
 
             info!("Generating index ..");
             let index = coverm::kmer_coverage::generate_debruijn_index::<coverm::pseudoaligner::config::KmerType>(
-                reference, num_threads, None);
+                reference, num_threads);
 
             info!("Saving index ..");
             coverm::kmer_coverage::save_index(

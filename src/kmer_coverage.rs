@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::BufWriter;
-use std::collections::BTreeSet;
 
 use pseudoaligner::build_index::build_index;
 use pseudoaligner::*;
@@ -10,8 +9,6 @@ use bio::io::{fasta, fastq};
 use bincode;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
-use genomes_and_contigs::GenomesAndContigs;
-
 use log::Level;
 
 #[derive(Serialize, Deserialize)]
@@ -20,13 +17,11 @@ where K: debruijn::Kmer {
     pub index: pseudoaligner::Pseudoaligner<K>,
     pub seq_lengths: Vec<usize>,
     pub tx_names: Vec<String>,
-    pub genomes_and_contigs: Option<GenomesAndContigs>,
 }
 
 pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send>(
     reference_path: &str,
-    num_threads: usize,
-    genomes_and_contigs: Option<GenomesAndContigs>)
+    num_threads: usize)
     -> DebruijnIndex<K> {
 
     // Build index
@@ -51,7 +46,6 @@ pub fn generate_debruijn_index<'a, K: Kmer + Sync + Send>(
                 index: true_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-                genomes_and_contigs: genomes_and_contigs,
             }
         }
     }
@@ -84,7 +78,7 @@ pub fn restore_index<'a, K: Kmer + DeserializeOwned>(
 }
 
 
-pub fn calculate_genome_kmer_coverage<K>(
+pub fn calculate_contig_kmer_coverage<K>(
     forward_fastq: &str,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
@@ -93,7 +87,7 @@ where K: Kmer + Sync + Send {
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq).expect("Failure to read reference sequences");
-    let (eq_class_indices, eq_class_coverages) = pseudoaligner::process_reads(
+    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads(
         reads, &index.index, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
@@ -136,43 +130,10 @@ where K: Kmer + Sync + Send {
                 None => unreachable!(),
                 Some(ref eqs) => {
                     // Find coverages of each contig to add
-                    let mut seen_genomes: BTreeSet<usize> = BTreeSet::new();
                     let relative_abundances: Vec<f64> = eqs.iter().map(
                         |eq|
-                        match &index.genomes_and_contigs {
-                            None => {
-                                // Processing contigs
-                                // TODO: Remove the 'as usize' by making eq a usize throughout
-                                contig_to_relative_abundance[*eq as usize]
-                            },
-                            Some(geco) => {
-                                // Processing genomes. Each genome is only
-                                // counted once, instead of having it possible
-                                // that 2 contigs from the same genome both
-                                // match. This makes the analysis consistent
-                                // between 2 contigs with a repeat vs 1 contig
-                                // with 2 copies of the repeat.
-
-                                // TODO: Use a contig index rather than a contig
-                                // name here.
-                                let contig_name = &index.tx_names[*eq as usize];
-                                let genome_index = geco.genome_index_of_contig(&contig_name)
-                                    .expect(
-                                        &format!("Unable to find contig name associated with a genome: {}",
-                                                &contig_name));
-                                match seen_genomes.insert(genome_index) {
-                                    true => {
-                                        // Genome not previously seen here
-                                        contig_to_relative_abundance[*eq as usize]
-                                    },
-                                    false => {
-                                        // Genome already seen, ignore it
-                                        0.0
-                                    }
-                                }
-                            }
-                        }
-                    ).collect();
+                        // TODO: Remove the 'as usize' by making eq a usize throughout
+                        contig_to_relative_abundance[*eq as usize]).collect();
 
                     // Add coverages divided by the sum of relative abundances
                     let total_abundance_of_matching_contigs: f64 = relative_abundances.iter().sum();
@@ -196,66 +157,32 @@ where K: Kmer + Sync + Send {
         let mut total_scaling_abundance: f64 = 0.0;
         let mut converge = true;
 
-        match &index.genomes_and_contigs {
-            None => {
-                for (i, read_count) in contig_to_read_count.iter().enumerate() {
-                    total_scaling_abundance += read_count / (index.seq_lengths[i] as f64)
-                }
-
-                // Next set the abundances so the total == 1.0
-                //
-                // Converge when all contigs with total abundance > 0.01 * kmer_coverage_total
-                // change abundance by < 1%.
-                for (i, read_count) in contig_to_read_count.iter().enumerate() {
-                    let to_add = read_count / (index.seq_lengths[i] as f64);
-                    let new_relabund = to_add / total_scaling_abundance;
-                    if new_relabund * kmer_coverage_total > 0.01*100.0 { // Add 100 in there
-                        // as a rough mapped kmers per aligning fragment.
-
-                        // Enough abundance that this contig might stop convergence if it
-                        // changed by enough.
-                        let delta = new_relabund / contig_to_relative_abundance[i];
-                        debug!("For testing convergence of index {}, found delta {}", i, delta);
-                        if delta < 0.99 || delta > 1.01 {
-                            debug!("No converge for you");
-                            converge = false;
-                        }
-                    }
-                    contig_to_relative_abundance[i] = new_relabund;
-                }
-                debug!("At end of M-step, have relative abundances: {:?}", contig_to_relative_abundance);
-
-            },
-            Some(geco) => {
-                // If we are calculating per-genome, we calculate the relative abundance
-                // of each genome, not the relative abundance of each contig.
-
-                // TODO: Seems suboptimal to calculate the lengths this every
-                // time, maybe do at start.
-                //
-                // TODO: Maybe doesn't make sense to loop over genomes that have
-                // no coverage, can we not do that?
-                let mut genome_lengths: Vec<usize> = vec![0; geco.genomes.len()];
-                let mut genome_coverages: Vec<f64> = vec![0.0; geco.genomes.len()];
-
-                // For each contig in each genome
-                for (contig, genome_index) in geco.contig_to_genome.iter() {
-                    match contig_to_relative_abundance[contig_to_tx_index[contig]] {
-                        Some(coverage) => {
-                            genome_coverages[genome_index] += coverage;
-                        },
-                        None => {}
-                    }
-                    genome_lengths[genome_index] += index.seq_lengths[contig_to_tx_index[contig]]
-                }
-
-                let genome_relative_abundances = genome_coverages.iter().zip(genome_lengths).map(
-                    |(cov, l)|
-                    cov / (l as f64)).collect();
-                let total_relative_abundance = genome_relative_abundances.iter().sum();
-                panic!()
-            }
+        for (i, read_count) in contig_to_read_count.iter().enumerate() {
+            total_scaling_abundance += read_count / (index.seq_lengths[i] as f64)
         }
+
+        // Next set the abundances so the total == 1.0
+        //
+        // Converge when all contigs with total abundance > 0.01 * kmer_coverage_total
+        // change abundance by < 1%.
+        for (i, read_count) in contig_to_read_count.iter().enumerate() {
+            let to_add = read_count / (index.seq_lengths[i] as f64);
+            let new_relabund = to_add / total_scaling_abundance;
+            if new_relabund * kmer_coverage_total > 0.01*100.0 { // Add 100 in there
+                // as a rough mapped kmers per aligning fragment.
+
+                // Enough abundance that this contig might stop convergence if it
+                // changed by enough.
+                let delta = new_relabund / contig_to_relative_abundance[i];
+                debug!("For testing convergence of index {}, found delta {}", i, delta);
+                if delta < 0.99 || delta > 1.01 {
+                    debug!("No converge for you");
+                    converge = false;
+                }
+            }
+            contig_to_relative_abundance[i] = new_relabund;
+        }
+        debug!("At end of M-step, have relative abundances: {:?}", contig_to_relative_abundance);
 
         num_covergence_steps += 1;
         if converge {

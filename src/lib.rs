@@ -12,6 +12,7 @@ pub mod coverage_printer;
 pub mod shard_bam_reader;
 pub mod genome_exclusion;
 pub mod kmer_coverage;
+pub mod genome_pseudoaligner;
 pub mod pseudoaligner;
 
 extern crate bio;
