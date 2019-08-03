@@ -70,6 +70,9 @@ pub fn read_genome_definition_file(definition_file_path: &str)
     let file = std::io::BufReader::new(&f);
     let mut contig_to_genome: HashMap<String, String> = HashMap::new();
     let mut genome_to_contig: HashMap<String, Vec<String>> = HashMap::new();
+    // Maintain the same order as the input file.
+    let mut genome_order: Vec<String> = vec![];
+
     for line_res in file.lines() {
         let line = line_res.expect("Read error on genome definition file");
         let v: Vec<&str> = line
@@ -94,6 +97,7 @@ pub fn read_genome_definition_file(definition_file_path: &str)
             } else {
                 genome_to_contig.insert(
                     genome.to_string(), vec!(contig.to_string()));
+                genome_order.push(genome.to_string());
             }
         } else if v.len() == 0 {
             continue;
@@ -110,8 +114,9 @@ pub fn read_genome_definition_file(definition_file_path: &str)
           contig_to_genome.len(), genome_to_contig.len());
 
     let mut gc = GenomesAndContigs::new();
-    for (genome, contigs) in genome_to_contig.iter() {
-        let genome_index = gc.establish_genome(genome.to_string());
+    for genome in genome_order {
+        let contigs = &genome_to_contig[&genome];
+        let genome_index = gc.establish_genome(genome);
         for contig in contigs {
             gc.insert(contig.to_string(), genome_index);
         }
