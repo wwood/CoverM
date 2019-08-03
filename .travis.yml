@@ -6,10 +6,32 @@ rust:
   - beta
   - stable
 
+install:
+  # Modified from https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/use-conda-with-travis-ci.html
+  - sudo apt-get update
+  # We do this conditionally because it saves us some downloading if the
+  # version is the same.
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+  - conda config --add channels defaults
+  - conda config --add channels bioconda
+  - conda config --add channels conda-forge
+
+  - conda create -q -n test-environment bwa samtools
+  - source activate test-environment
+  - cargo build --verbose
+
 cache: cargo
 
 os:
-  - osx
+  - linux
 
 env:
   - ARCH=x86_64
@@ -19,12 +41,3 @@ build: false
 test_script:
 - cargo test
 
-addons:
-  apt:
-    packages:
-      - bwa
-      - samtools
-  homebrew:
-    packages:
-      - bwa
-      - samtools
