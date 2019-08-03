@@ -338,6 +338,18 @@ pub fn process_reads<K: Kmer + Sync + Send>(
             let reader = Arc::clone(&atomic_reader);
 
             scope.spawn(move || {
+                let calculate_fwd_rev = |seq: &str| {
+                    let dna_string = DnaString::from_dna_string(seq);
+                    debug!("Mapping forward DNA string: {:?}", dna_string);
+                    let fwd_classes = index.map_read(&dna_string);
+
+                    debug!("Mapping reverse DNA string: {:?}", dna_string.rc());
+                    let rev_classes = index.map_read(&dna_string.rc());
+                    debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
+
+                    (fwd_classes, rev_classes)
+                };
+
                 loop {
                     // If work is available, do that work.
                     match utils::get_next_record(&reader) {
@@ -347,14 +359,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                                 Err(err) => panic!("Error {:?} in reading fastq", err),
                             };
 
-                            let dna_string_in = str::from_utf8(record.seq()).unwrap();
-                            let dna_string = DnaString::from_dna_string(dna_string_in);
-                            debug!("Mapping forward DNA string: {:?}", dna_string);
-                            let fwd_classes = index.map_read(&dna_string);
-
-                            debug!("Mapping reverse DNA string: {:?}", dna_string.rc());
-                            let rev_classes = index.map_read(&dna_string.rc());
-                            debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
+                            let seq = str::from_utf8(record.seq()).unwrap();
+                            let (fwd_classes, rev_classes) = calculate_fwd_rev(seq);
 
                             let wrapped_read_data = match (fwd_classes, rev_classes) {
                                 (None, Some((eq_class, coverage))) | (Some((eq_class, coverage)), None) => {
