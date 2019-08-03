@@ -347,28 +347,13 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                                 Err(err) => panic!("Error {:?} in reading fastq", err),
                             };
 
-                            let dna_string_fwd = str::from_utf8(record.seq()).unwrap();
-                            let fwd_classes = index.map_read(&DnaString::from_dna_string(dna_string_fwd));
-                            debug!("Forward DNA string: {}", dna_string_fwd);
-                            debug!("Fwd classes: {:?}", fwd_classes);
+                            let dna_string_in = str::from_utf8(record.seq()).unwrap();
+                            let dna_string = DnaString::from_dna_string(dna_string_in);
+                            debug!("Mapping forward DNA string: {:?}", dna_string);
+                            let fwd_classes = index.map_read(&dna_string);
 
-                            //let dna_string_rev_in = str::from_utf8(record.seq()).unwrap();
-                            // TODO: It would presumably be preferable to
-                            // implement this in DnaString itself, but the
-                            // complement() function appears to be commented out
-                            // in the debruijn package. Not sure why.
-                            let dna_string_rev: Vec<u8> = record.seq().iter().rev().map(|c| {
-                                match c {
-                                    b'A' => b'T',
-                                    b'T' => b'A',
-                                    b'G' => b'C',
-                                    b'C' => b'G',
-                                    b'N' => b'N',
-                                    _ => panic!("Found unexpected character in fastq: {:?}", c)
-                                }
-                            }).collect();
-                            let rev_classes = index.map_read(&DnaString::from_dna_string(str::from_utf8(&dna_string_rev).unwrap()));
-
+                            debug!("Mapping reverse DNA string: {:?}", dna_string.rc());
+                            let rev_classes = index.map_read(&dna_string.rc());
                             debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
 
                             let wrapped_read_data = match (fwd_classes, rev_classes) {
