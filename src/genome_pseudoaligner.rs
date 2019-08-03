@@ -159,10 +159,11 @@ where K: Kmer + Sync + Send {
 
     // Print results
     println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
+    debug!("genome_to_read_count: {:?}", genome_to_read_count);
     for (i, total_coverage) in genome_to_read_count.iter().enumerate() {
         if print_zero_coverage_contigs || *total_coverage > 0.0 {
             // Print average coverage as total coverage divided by contig length.
-            println!("{}\t{}", genomes_and_contigs.genomes[i], total_coverage / (index.seq_lengths[i] as f64));
+            println!("{}\t{}", genomes_and_contigs.genomes[i], total_coverage / (genome_lengths[i] as f64));
         }
     }
     info!("Finished printing genome coverages");
