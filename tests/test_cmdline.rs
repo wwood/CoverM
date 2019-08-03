@@ -1054,7 +1054,7 @@ genome6	26.697144
             .succeeds()
             .stdout().is(
                 "contig	kmer\n\
-                 g	0.565\n")
+                 g	0.226\n")
             .unwrap()
     }
 
@@ -1074,8 +1074,8 @@ genome6	26.697144
             .succeeds()
             .stdout().is(
                 "contig	kmer\n\
-                 g2	0.5621552884248494\n\
-                 g1	0.0018964743834337446\n")
+                 g1	0.002844711575150617\n\
+                 g2	0.37477019228323294\n")
             .unwrap()
     }
 }
