@@ -56,12 +56,15 @@ where K: Kmer + Sync + Send {
             .map(|i| index.seq_lengths[*i])
             .sum();
     }
+    debug!("Genome contigs: {:?}", genome_contigs);
+    debug!("contig_idx_to_genome_idx: {:?}", contig_idx_to_genome_idx);
+    debug!("genome_lengths: {:?}", genome_lengths);
 
     // EM algorithm
     // Randomly assign random relative abundances to each of the genomes
     // TODO: remove: for dev, assign each the same abundance
     info!("Starting EM process ..");
-    let mut genome_to_relative_abundance = vec![1.0; index.seq_lengths.len()];
+    let mut genome_to_relative_abundance = vec![2.0; genomes_and_contigs.genomes.len()];
     let mut genome_to_read_count;
     let mut num_covergence_steps: u32 = 0;
 
@@ -77,21 +80,19 @@ where K: Kmer + Sync + Send {
             match eq_classes[i] {
                 None => unreachable!(),
                 Some(ref eqs) => {
-                    // Find coverages of each contig to add
+                    // Each genome is only counted once, instead of having it
+                    // possible that 2 contigs from the same genome both match.
+                    // This makes the analysis consistent between 2 contigs with
+                    // a repeat vs 1 contig with 2 copies of the repeat.
                     let mut seen_genomes: BTreeSet<usize> = BTreeSet::new();
+
                     let relative_abundances: Vec<f64> = eqs.iter().map(|eq| {
-                        // Each genome is only counted once, instead of
-                        // having it possible that 2 contigs from the
-                        // same genome both match. This makes the
-                        // analysis consistent between 2 contigs with a
-                        // repeat vs 1 contig with 2 copies of the
-                        // repeat.
 
                         let genome_index = contig_idx_to_genome_idx[*eq as usize];
                         match seen_genomes.insert(genome_index) {
                             true => {
                                 // Genome not previously seen here
-                                genome_to_relative_abundance[*eq as usize]
+                                genome_to_relative_abundance[genome_index]
                             },
                             false => {
                                 // Genome already seen, ignore it
@@ -103,13 +104,13 @@ where K: Kmer + Sync + Send {
                     // Add coverages divided by the sum of relative abundances
                     let total_abundance_of_matching_contigs: f64 = relative_abundances.iter().sum();
                     for (eq, relabund) in eqs.iter().zip(relative_abundances.iter()) {
-                        genome_to_read_count[*eq as usize] += (*coverage as f64) *
+                        genome_to_read_count[contig_idx_to_genome_idx[*eq as usize]] += (*coverage as f64) *
                             relabund / total_abundance_of_matching_contigs;
                     }
                 }
             }
         }
-        debug!("After E-step have contig read counts: {:?}", genome_to_read_count);
+        debug!("After E-step have genome coverages: {:?}", genome_to_read_count);
 
         // M-step: Work out the relative abundance given the number of reads
         // predicted in the E-step. Relative abundance is just the ratio of the
@@ -126,6 +127,7 @@ where K: Kmer + Sync + Send {
             |(cov, l)|
             cov / (*l as f64)).collect();
         let total_coverage: f64 = genome_coverages.iter().sum();
+        debug!("Found genome coverages {:?} for total {}", genome_coverages, total_coverage);
 
         // Next set the abundances so the total == 1.0
         //
@@ -160,10 +162,10 @@ where K: Kmer + Sync + Send {
     for (i, total_coverage) in genome_to_read_count.iter().enumerate() {
         if print_zero_coverage_contigs || *total_coverage > 0.0 {
             // Print average coverage as total coverage divided by contig length.
-            println!("{}\t{}", index.tx_names[i], total_coverage / (index.seq_lengths[i] as f64));
+            println!("{}\t{}", genomes_and_contigs.genomes[i], total_coverage / (index.seq_lengths[i] as f64));
         }
     }
-    info!("Finished printing contig coverages");
+    info!("Finished printing genome coverages");
 }
 
 fn generate_genome_to_contig_indices_vec(

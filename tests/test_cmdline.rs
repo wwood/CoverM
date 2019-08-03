@@ -1019,7 +1019,7 @@ genome6	26.697144
     }
 
     #[test]
-    fn test_contig_different_ref_lengths() {
+    fn test_contig_kmer_different_ref_lengths() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -1035,6 +1035,47 @@ genome6	26.697144
                 "contig	kmer\n\
                  genome1	0.002844711575150617\n\
                  genome2	0.37477019228323294\n")
+            .unwrap()
+    }
+
+    #[test]
+    fn test_genome_kmer_one_genome() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "kmer",
+                "--single",
+                "tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq",
+                "-r",
+                "tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna",
+                "--genome-definition",
+                "tests/data/2_single_species_dummy_dataset/single_genome_example_tsv"])
+            .succeeds()
+            .stdout().is(
+                "contig	kmer\n\
+                 g	0.565\n")
+            .unwrap()
+    }
+
+    #[test]
+    fn test_genome_kmer_two_genomes() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "kmer",
+                "--single",
+                "tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq",
+                "-r",
+                "tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna",
+                "--genome-definition",
+                "tests/data/2_single_species_dummy_dataset/two_genomes_tsv"])
+            .succeeds()
+            .stdout().is(
+                "contig	kmer\n\
+                 g2	0.5621552884248494\n\
+                 g1	0.0018964743834337446\n")
             .unwrap()
     }
 }
