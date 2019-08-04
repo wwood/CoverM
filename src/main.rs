@@ -354,6 +354,11 @@ fn main(){
             };
 
             if m.values_of("methods").unwrap().find(|&m| m=="kmer").is_some() {
+                if m.values_of("methods").unwrap().len() > 1 {
+                    error!("The kmer method cannot be specified with other coverage calculation methods.");
+                    process::exit(1);
+                }
+
                 match genomes_and_contigs_option {
                     None => {
                         // TODO: Implement.
@@ -692,6 +697,10 @@ fn main(){
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"kmer") {
+                if methods.len() > 1 {
+                    error!("The kmer method cannot be specified with other coverage calculation methods.");
+                    process::exit(1);
+                }
                 let read_files = m.values_of("single");
                 match read_files {
                     Some(singles) => {
