@@ -80,15 +80,23 @@ pub fn restore_index<'a, K: Kmer + DeserializeOwned>(
 
 pub fn calculate_contig_kmer_coverage<K>(
     forward_fastq: &str,
+    reverse_fastq: Option<&str>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
     index: DebruijnIndex<K>)
 where K: Kmer + Sync + Send {
 
     // Do the mappings
-    let reads = fastq::Reader::from_file(forward_fastq).expect("Failure to read reference sequences");
+    let reads = fastq::Reader::from_file(forward_fastq)
+        .expect(&format!("Failure to read file {}", forward_fastq));
+    let reverse_reads = match reverse_fastq {
+        Some(s) => Some(
+            fastq::Reader::from_file(s)
+                .expect(&format!("Failure to read reverse read file {}", s))),
+        None => None
+    };
     let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads(
-        reads, &index.index, num_threads)
+        reads, reverse_reads, &index.index, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
 

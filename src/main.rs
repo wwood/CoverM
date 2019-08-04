@@ -391,6 +391,7 @@ fn main(){
 
                                 coverm::genome_pseudoaligner::calculate_genome_kmer_coverage(
                                     singles.collect::<Vec<_>>()[0],
+                                    None,
                                     num_threads,
                                     !m.is_present("no-zeros"),
                                     &index,
@@ -718,6 +719,7 @@ fn main(){
 
                         coverm::kmer_coverage::calculate_contig_kmer_coverage(
                             singles.collect::<Vec<_>>()[0],
+                            None,
                             num_threads,
                             !m.is_present("no-zeros"),
                             index,
