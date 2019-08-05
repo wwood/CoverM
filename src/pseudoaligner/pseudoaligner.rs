@@ -344,186 +344,50 @@ pub fn process_reads<K: Kmer + Sync + Send>(
     let mut eq_class_coverages: Vec<usize> = vec![];
     let mut eq_class_read_counts: Vec<usize> = vec![];
 
-    let calculate_fwd_rev = |seq: &str| {
-        let dna_string = DnaString::from_dna_string(seq);
-        debug!("Mapping forward DNA string: {:?}", dna_string);
-        let fwd_classes = index.map_read(&dna_string);
-
-        debug!("Mapping reverse DNA string: {:?}", dna_string.rc());
-        let rev_classes = index.map_read(&dna_string.rc());
-        debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
-
-        (fwd_classes, rev_classes)
-    };
-
     info!("Spawning {} threads for Mapping.", num_threads);
     crossbeam::scope(|scope| {
         for _ in 0..num_threads {
             let tx = tx.clone();
             let readers = Arc::clone(&atomic_readers);
 
-            if mapping_pairs {
-                scope.spawn(move || {
-                    loop {
+            scope.spawn(move || {
+                loop {
+                    // TODO: Is is slow here to run a function for each read?
+                    // Presumably? Fix by benchmarking inline(always)
+                    let wrapped_read_data = if mapping_pairs {
                         // If work is available, do that work.
                         match get_next_record_pair(&readers) {
                             Some(recs) => {
                                 match recs {
                                     Ok((fwd_record, rev_record)) => {
-                                        // Read sequences and do the mapping
-                                        let fwd_seq = str::from_utf8(fwd_record.seq()).unwrap();
-                                        let (fwd_fwd_classes, fwd_rev_classes) = calculate_fwd_rev(fwd_seq);
-
-                                        let rev_seq = str::from_utf8(rev_record.seq()).unwrap();
-                                        let (rev_fwd_classes, rev_rev_classes) = calculate_fwd_rev(rev_seq);
-
-                                        // TODO: Check for mismatching sequence names like BWA does
-
-                                        // Process
-                                        // TODO: Do not assume pairs are in forward-reverse orientation.
-                                        let add_coverage = |c: &Option<(std::vec::Vec<u32>, usize)>| {
-                                            match c {
-                                                Some((_, coverage)) => *coverage,
-                                                None => 0
-                                            }
-                                        };
-                                        let forward_mapping_coverage =
-                                            add_coverage(&fwd_fwd_classes) + add_coverage(&rev_rev_classes);
-                                        let reverse_mapping_coverage =
-                                            add_coverage(&fwd_rev_classes) + add_coverage(&rev_fwd_classes);
-                                        debug!("Found mapping f/r mapping coverages for pair: {}/{}",
-                                               forward_mapping_coverage, reverse_mapping_coverage);
-
-                                        let wrapped_read_data = if forward_mapping_coverage > reverse_mapping_coverage {
-                                            if forward_mapping_coverage > READ_COVERAGE_THRESHOLD*2 {
-                                                // Mapped read pair in sense direction
-                                                Some((true,
-                                                      fwd_record.id().to_owned(),
-                                                      match (fwd_fwd_classes, rev_rev_classes) {
-                                                          (Some((mut f_eq_class, _)), Some((r_eq_class, _))) => {
-                                                              // Intersect operates in place
-                                                              intersect(&mut f_eq_class, &r_eq_class);
-                                                              f_eq_class
-                                                          },
-                                                          (Some((f_eq_class, _)), None) => f_eq_class,
-                                                          (None, Some((r_eq_class, _))) => r_eq_class,
-                                                          (None, None) => unreachable!()
-                                                      },
-                                                      forward_mapping_coverage))
-                                            } else {
-                                                // Don't waste time calculating unused info here
-                                                Some((false, fwd_record.id().to_owned(), vec![], 0))
-                                            }
-                                        } else {
-                                            if reverse_mapping_coverage > READ_COVERAGE_THRESHOLD*2 {
-                                                // Mapped read pair in sense direction
-                                                Some((true,
-                                                      fwd_record.id().to_owned(),
-                                                      match (fwd_rev_classes, rev_fwd_classes) {
-                                                          (Some((mut f_eq_class, _)), Some((r_eq_class, _))) => {
-                                                              // Intersect operates in place
-                                                              intersect(&mut f_eq_class, &r_eq_class);
-                                                              f_eq_class
-                                                          },
-                                                          (Some((f_eq_class, _)), None) => f_eq_class,
-                                                          (None, Some((r_eq_class, _))) => r_eq_class,
-                                                          (None, None) => unreachable!()
-                                                      },
-                                                      reverse_mapping_coverage))
-                                            } else {
-                                                // Don't waste time calculating unused info here
-                                                Some((false, fwd_record.id().to_owned(), vec![], 0))
-                                            }
-                                        };
-
-                                        tx.send(wrapped_read_data).expect("Could not send data!");
-
+                                        map_read_pair(&fwd_record, &rev_record, index)
                                     },
-                                    Err(err) => panic!("Error {:?} in reading paired fastq", err),
+                                    Err(err) => panic!("Error {:?} in reading paired fastq", err)
                                 }
-                            }
+                            },
                             None => {
-                                // send None to tell receiver that the queue ended
-                                tx.send(None).expect("Could not forward send data!");
+                                tx.send(None).expect("Could not send finishing sentinal None while mapping paired");
                                 break;
                             }
                         }
-                    }
-                });
-            } else {
-                scope.spawn(move || {
-                    loop {
-                        // If work is available, do that work.
+                    } else {
                         match get_next_first_record(&readers) {
                             Some(result_record) => {
-                                let record = match result_record {
-                                    Ok(record) => record,
+                                match result_record {
+                                    Ok(record) => map_single_reads(&record, index),
                                     Err(err) => panic!("Error {:?} in reading fastq", err),
-                                };
-
-                                let seq = str::from_utf8(record.seq()).unwrap();
-                                let (fwd_classes, rev_classes) = calculate_fwd_rev(seq);
-
-                                let wrapped_read_data = match (fwd_classes, rev_classes) {
-                                    (None, Some((eq_class, coverage))) | (Some((eq_class, coverage)), None) => {
-                                        if coverage >= READ_COVERAGE_THRESHOLD && !eq_class.is_empty() {
-                                            Some((true, record.id().to_owned(), eq_class, coverage))
-                                        } else {
-                                            Some((false, record.id().to_owned(), eq_class, coverage))
-                                        }
-                                    },
-                                    (Some((eq_class_fwd, coverage_fwd)),
-                                     Some((eq_class_rev, coverage_rev))) => {
-                                        // Both match, take the read with the highest coverage
-                                        match (eq_class_fwd.is_empty(), eq_class_rev.is_empty()) {
-                                            (false, false) => {
-                                                if coverage_fwd > coverage_rev {
-                                                    if coverage_fwd > READ_COVERAGE_THRESHOLD {
-                                                        Some((true, record.id().to_owned(), eq_class_fwd, coverage_fwd))
-                                                    } else {
-                                                        Some((false, record.id().to_owned(), eq_class_fwd, coverage_fwd))
-                                                    }
-                                                } else {
-                                                    if coverage_rev > READ_COVERAGE_THRESHOLD {
-                                                        Some((true, record.id().to_owned(), eq_class_rev, coverage_rev))
-                                                    } else {
-                                                        Some((false, record.id().to_owned(), eq_class_rev, coverage_rev))
-                                                    }
-                                                }
-                                            },
-                                            (true, false) => {
-                                                if coverage_fwd > READ_COVERAGE_THRESHOLD {
-                                                    Some((true, record.id().to_owned(), eq_class_fwd, coverage_fwd))
-                                                } else {
-                                                    Some((false, record.id().to_owned(), eq_class_fwd, coverage_fwd))
-                                                }
-                                            },
-                                            (false, true) => {
-                                                if coverage_rev > READ_COVERAGE_THRESHOLD {
-                                                    Some((true, record.id().to_owned(), eq_class_rev, coverage_rev))
-                                                } else {
-                                                    Some((false, record.id().to_owned(), eq_class_rev, coverage_rev))
-                                                }
-                                            },
-                                            (true, true) => Some((false, record.id().to_owned(), Vec::new(), 0))
-                                        }
-                                    },
-                                    (None, None) => Some((false, record.id().to_owned(), Vec::new(), 0)),
-
-                                };
-
-                                tx.send(wrapped_read_data).expect("Could not send data!");
-                            }
+                                }
+                            },
                             None => {
-                                // send None to tell receiver that the queue ended
-                                tx.send(None).expect("Could not send data!");
+                                tx.send(None).expect("Could not send finishing sentinal None while mapping single");
                                 break;
                             }
-                        }; //end-match
-                    } // end loop
-                }); //end-scope
-            } // end if mapping_pairs
-        } // end-for
+                        }
+                    };
+                    tx.send(Some(wrapped_read_data)).expect("Could not send data!");
+                }
+            });
+        }
 
         let mut read_counter: usize = 0;
         let mut mapped_read_counter: usize = 0;
@@ -624,5 +488,156 @@ fn get_next_record_pair<R: io::Read>(
     } else {
         // Natural end to both files.
         return None
+    }
+}
+
+fn calculate_fwd_rev<K: Kmer + Sync + Send>(
+    seq: &str,
+    index: &Pseudoaligner<K>)
+    -> (Option<(Vec<u32>, usize)>, Option<(Vec<u32>, usize)>) {
+
+    let dna_string = DnaString::from_dna_string(seq);
+    debug!("Mapping forward DNA string: {:?}", dna_string);
+    let fwd_classes = index.map_read(&dna_string);
+
+    debug!("Mapping reverse DNA string: {:?}", dna_string.rc());
+    let rev_classes = index.map_read(&dna_string.rc());
+    debug!("Found fwd eq_classes {:?} and reverse {:?}", fwd_classes, rev_classes);
+
+    (fwd_classes, rev_classes)
+}
+
+fn add_coverage(c: &Option<(std::vec::Vec<u32>, usize)>)
+                -> usize {
+    match c {
+        Some((_, coverage)) => *coverage,
+        None => 0
+    }
+}
+
+
+fn map_read_pair<K: Kmer + Sync + Send>(
+    fwd_record: &fastq::Record,
+    rev_record: &fastq::Record,
+    index: &Pseudoaligner<K>)
+    -> (bool, String, Vec<u32>, usize) {
+
+    // Read sequences and do the mapping
+    let fwd_seq = str::from_utf8(fwd_record.seq()).unwrap();
+    let (fwd_fwd_classes, fwd_rev_classes) = calculate_fwd_rev(fwd_seq, index);
+
+    let rev_seq = str::from_utf8(rev_record.seq()).unwrap();
+    let (rev_fwd_classes, rev_rev_classes) = calculate_fwd_rev(rev_seq, index);
+
+    // TODO: Check for mismatching sequence names like BWA does
+
+    // Process
+    // TODO: Do not assume pairs are in forward-reverse orientation.
+    let forward_mapping_coverage =
+        add_coverage(&fwd_fwd_classes) + add_coverage(&rev_rev_classes);
+    let reverse_mapping_coverage =
+        add_coverage(&fwd_rev_classes) + add_coverage(&rev_fwd_classes);
+    debug!("Found mapping f/r mapping coverages for pair: {}/{}",
+           forward_mapping_coverage, reverse_mapping_coverage);
+
+    return if forward_mapping_coverage > reverse_mapping_coverage {
+        if forward_mapping_coverage > READ_COVERAGE_THRESHOLD*2 {
+            // Mapped read pair in sense direction
+            (true,
+             fwd_record.id().to_owned(),
+             match (fwd_fwd_classes, rev_rev_classes) {
+                 (Some((mut f_eq_class, _)), Some((r_eq_class, _))) => {
+                     // Intersect operates in place
+                     intersect(&mut f_eq_class, &r_eq_class);
+                     f_eq_class
+                 },
+                 (Some((f_eq_class, _)), None) => f_eq_class,
+                 (None, Some((r_eq_class, _))) => r_eq_class,
+                 (None, None) => unreachable!()
+             },
+             forward_mapping_coverage)
+        } else {
+            // Don't waste time calculating unused info here
+            (false, fwd_record.id().to_owned(), vec![], 0)
+        }
+    } else {
+        if reverse_mapping_coverage > READ_COVERAGE_THRESHOLD*2 {
+            // Mapped read pair in sense direction
+            (true,
+             fwd_record.id().to_owned(),
+             match (fwd_rev_classes, rev_fwd_classes) {
+                 (Some((mut f_eq_class, _)), Some((r_eq_class, _))) => {
+                     // Intersect operates in place
+                     intersect(&mut f_eq_class, &r_eq_class);
+                     f_eq_class
+                 },
+                 (Some((f_eq_class, _)), None) => f_eq_class,
+                 (None, Some((r_eq_class, _))) => r_eq_class,
+                 (None, None) => unreachable!()
+             },
+             reverse_mapping_coverage)
+        } else {
+            // Don't waste time calculating unused info here
+            (false, fwd_record.id().to_owned(), vec![], 0)
+        }
+    };
+}
+
+
+
+
+fn map_single_reads<K: Kmer + Sync + Send>(
+    record: &fastq::Record,
+    index: &Pseudoaligner<K>)
+    -> (bool, String, Vec<u32>, usize)  {
+
+    let seq = str::from_utf8(record.seq()).unwrap();
+    let (fwd_classes, rev_classes) = calculate_fwd_rev(seq, index);
+
+    return match (fwd_classes, rev_classes) {
+        (None, Some((eq_class, coverage))) | (Some((eq_class, coverage)), None) => {
+            if coverage >= READ_COVERAGE_THRESHOLD && !eq_class.is_empty() {
+                (true, record.id().to_owned(), eq_class, coverage)
+            } else {
+                (false, record.id().to_owned(), eq_class, coverage)
+            }
+        },
+        (Some((eq_class_fwd, coverage_fwd)),
+         Some((eq_class_rev, coverage_rev))) => {
+            // Both match, take the read with the highest coverage
+            match (eq_class_fwd.is_empty(), eq_class_rev.is_empty()) {
+                (false, false) => {
+                    if coverage_fwd > coverage_rev {
+                        if coverage_fwd > READ_COVERAGE_THRESHOLD {
+                            (true, record.id().to_owned(), eq_class_fwd, coverage_fwd)
+                        } else {
+                            (false, record.id().to_owned(), eq_class_fwd, coverage_fwd)
+                        }
+                    } else {
+                        if coverage_rev > READ_COVERAGE_THRESHOLD {
+                            (true, record.id().to_owned(), eq_class_rev, coverage_rev)
+                        } else {
+                            (false, record.id().to_owned(), eq_class_rev, coverage_rev)
+                        }
+                    }
+                },
+                (true, false) => {
+                    if coverage_fwd > READ_COVERAGE_THRESHOLD {
+                        (true, record.id().to_owned(), eq_class_fwd, coverage_fwd)
+                    } else {
+                        (false, record.id().to_owned(), eq_class_fwd, coverage_fwd)
+                    }
+                },
+                (false, true) => {
+                    if coverage_rev > READ_COVERAGE_THRESHOLD {
+                        (true, record.id().to_owned(), eq_class_rev, coverage_rev)
+                    } else {
+                        (false, record.id().to_owned(), eq_class_rev, coverage_rev)
+                    }
+                },
+                (true, true) => (false, record.id().to_owned(), Vec::new(), 0)
+            }
+        },
+        (None, None) => (false, record.id().to_owned(), Vec::new(), 0)
     }
 }
