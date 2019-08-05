@@ -78,13 +78,13 @@ pub fn restore_index<'a, K: Kmer + DeserializeOwned>(
 }
 
 
-pub fn calculate_contig_kmer_coverage<K>(
+pub fn calculate_contig_kmer_coverage<K: Kmer + Sync + Send>(
     forward_fastq: &str,
     reverse_fastq: Option<&str>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
-    index: DebruijnIndex<K>)
-where K: Kmer + Sync + Send {
+    index: &DebruijnIndex<K>)
+-> Vec<(usize, f64)>{
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq)
@@ -200,12 +200,33 @@ where K: Kmer + Sync + Send {
     }
 
     // Print results
-    println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
+    let mut to_return = vec!();
     for (i, total_coverage) in contig_to_read_count.iter().enumerate() {
         if print_zero_coverage_contigs || *total_coverage > 0.0 {
             // Print average coverage as total coverage divided by contig length.
-            println!("{}\t{}", index.tx_names[i], total_coverage / (index.seq_lengths[i] as f64));
+            to_return.push((i, total_coverage / (index.seq_lengths[i] as f64)));
         }
+    }
+    return to_return;
+}
+
+pub fn calculate_and_print_contig_kmer_coverages<K: Kmer + Send + Sync>(
+    forward_fastq: &str,
+    reverse_fastq: Option<&str>,
+    num_threads: usize,
+    print_zero_coverage_contigs: bool,
+    index: &DebruijnIndex<K>) {
+
+    let covs = calculate_contig_kmer_coverage(
+        forward_fastq,
+        reverse_fastq,
+        num_threads,
+        print_zero_coverage_contigs,
+        index);
+
+    println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
+    for contig_res in covs {
+        println!("{}\t{}", index.tx_names[contig_res.0], contig_res.1);
     }
     info!("Finished printing contig coverages");
 }

@@ -721,12 +721,12 @@ fn main(){
                 };
 
                 let mapping_pairs = mapping_parameters.read1.len() > 0;
-                coverm::kmer_coverage::calculate_contig_kmer_coverage(
+                coverm::kmer_coverage::calculate_and_print_contig_kmer_coverages(
                     if mapping_pairs { mapping_parameters.read1[0] } else { mapping_parameters.unpaired[0] },
                     if mapping_pairs { Some(mapping_parameters.read2[0]) } else { None },
                     num_threads,
                     !m.is_present("no-zeros"),
-                    index,
+                    &index,
                 );
             }
 
