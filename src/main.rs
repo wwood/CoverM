@@ -701,44 +701,33 @@ fn main(){
                     error!("The kmer method cannot be specified with other coverage calculation methods.");
                     process::exit(1);
                 }
-                let read_files = m.values_of("single");
-                match read_files {
-                    Some(singles) => {
-                        if singles.len() > 1 {
-                            error!("Using >1 single read files to map is not yet supported");
-                            process::exit(1);
-                        }
+                let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
 
-                        let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
-                        let reference = m.value_of("reference").unwrap();
-                        let potential_index_file = format!("{}.covermdb", reference);
-                        let index = match Path::new(&potential_index_file).exists() {
-                            true => {
-                                info!("Using pre-existing index {}", potential_index_file);
-                                coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
-                                    &potential_index_file)
-                            },
-                            false => {
-                                info!("No pre-existing index file found, generating one ..");
-                                coverm::kmer_coverage::generate_debruijn_index(
-                                    reference,
-                                    num_threads)
-                            }
-                        };
-
-                        coverm::kmer_coverage::calculate_contig_kmer_coverage(
-                            singles.collect::<Vec<_>>()[0],
-                            None,
-                            num_threads,
-                            !m.is_present("no-zeros"),
-                            index,
-                        );
+                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+                let reference = m.value_of("reference").unwrap();
+                let potential_index_file = format!("{}.covermdb", reference);
+                let index = match Path::new(&potential_index_file).exists() {
+                    true => {
+                        info!("Using pre-existing index {}", potential_index_file);
+                        coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
+                            &potential_index_file)
                     },
-                    None => {
-                        error!("Using -m kmer you must (for now) use --single to input reads");
-                        process::exit(1);
+                    false => {
+                        info!("No pre-existing index file found, generating one ..");
+                        coverm::kmer_coverage::generate_debruijn_index(
+                            reference,
+                            num_threads)
                     }
-                }
+                };
+
+                let mapping_pairs = mapping_parameters.read1.len() > 0;
+                coverm::kmer_coverage::calculate_contig_kmer_coverage(
+                    if mapping_pairs { mapping_parameters.read1[0] } else { mapping_parameters.unpaired[0] },
+                    if mapping_pairs { Some(mapping_parameters.read2[0]) } else { None },
+                    num_threads,
+                    !m.is_present("no-zeros"),
+                    index,
+                );
             }
 
             else {

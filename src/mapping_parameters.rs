@@ -10,14 +10,14 @@ pub enum ReadFormat {
 }
 
 pub struct MappingParameters<'a> {
-    references: Vec<&'a str>,
-    threads: u16,
-    read1: Vec<&'a str>,
-    read2: Vec<&'a str>,
-    interleaved: Vec<&'a str>,
-    unpaired: Vec<&'a str>,
+    pub references: Vec<&'a str>,
+    pub threads: u16,
+    pub read1: Vec<&'a str>,
+    pub read2: Vec<&'a str>,
+    pub interleaved: Vec<&'a str>,
+    pub unpaired: Vec<&'a str>,
     iter_reference_index: usize,
-    bwa_options: Option<&'a str>
+    pub bwa_options: Option<&'a str>
 }
 
 impl<'a> MappingParameters<'a> {
