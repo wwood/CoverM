@@ -13,17 +13,28 @@ pub fn screen_and_print_matching_genomes(
     info!("Running mash screen against db {} ..", mash_db_path_str);
 
     for readset in read_inputs.readsets() {
-        let mut cmd = std::process::Command::new("mash");
+        let mut read_input = readset.0.to_string();
+        match readset.1 {
+            Some(r2) => {read_input += &format!(" {}",r2)},
+            None => {}
+        }
+        let cmd_string = format!(
+            "set -e -o pipefail; \
+             cat {} \
+             |mash screen -p {} -i {} {} -",
+            read_input,
+            num_threads,
+            min_identity,
+            mash_db_path_str
+        );
+
+        let mut cmd = std::process::Command::new("bash");
         cmd
-            .arg("screen")
-            .arg("-p")
-            .arg(format!("{}", num_threads))
-            .arg("-i")
-            .arg(&format!("{}",min_identity))
-            .arg(mash_db_path_str)
-            .arg(readset.0) // Ignore r2 for now. TODO: Fix?
+            .arg("-c")
+            .arg(&cmd_string)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+
         info!("Running mash screen process on {}", readset.0);
         let process = cmd.spawn().expect("Failed to start mash screen process");
         // process.wait().expect("Failed to finish process");
