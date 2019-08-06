@@ -210,23 +210,39 @@ pub fn calculate_contig_kmer_coverage<K: Kmer + Sync + Send>(
     return to_return;
 }
 
+pub struct PseudoalignmentReadInput {
+    pub forward_fastq: String,
+    pub reverse_fastq: Option<String>,
+    pub sample_name: String
+}
+
 pub fn calculate_and_print_contig_kmer_coverages<K: Kmer + Send + Sync>(
-    forward_fastq: &str,
-    reverse_fastq: Option<&str>,
+    read_inputs: &Vec<PseudoalignmentReadInput>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
     index: &DebruijnIndex<K>) {
 
-    let covs = calculate_contig_kmer_coverage(
-        forward_fastq,
-        reverse_fastq,
-        num_threads,
-        print_zero_coverage_contigs,
-        index);
+    println!("Sample\tContig\tCoverage");
+    for read_input in read_inputs {
+        let covs = calculate_contig_kmer_coverage(
+            &read_input.forward_fastq,
+            match read_input.reverse_fastq {
+                Some(ref s) => Some(&s),
+                None => None
+            },
+            num_threads,
+            print_zero_coverage_contigs,
+            index);
 
-    println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
-    for contig_res in covs {
-        println!("{}\t{}", index.tx_names[contig_res.0], contig_res.1);
+        for contig_res in covs {
+            println!(
+                "{}\t{}\t{}",
+                read_input.sample_name,
+                index.tx_names[contig_res.0],
+                contig_res.1);
+        }
+        info!("Finished printing contig coverages for sample {}",
+              read_input.sample_name);
     }
     info!("Finished printing contig coverages");
 }

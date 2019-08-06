@@ -1007,14 +1007,14 @@ genome6	26.697144
                 "tests/data/7seqs.fna"])
             .succeeds()
             .stdout().is(
-                "contig	kmer\n\
-                 genome1~random_sequence_length_11000	0\n\
-                 genome1~random_sequence_length_11010	0\n\
-                 genome2~seq1	0.6\n\
-                 genome3~random_sequence_length_11001	0\n\
-                 genome4~random_sequence_length_11002	0\n\
-                 genome5~seq2	0.6\n\
-                 genome6~random_sequence_length_11003	0\n")
+                "Sample	Contig	Coverage\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome1~random_sequence_length_11000	0\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome1~random_sequence_length_11010	0\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome2~seq1	0.6\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome3~random_sequence_length_11001	0\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome4~random_sequence_length_11002	0\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome5~seq2	0.6\n\
+                 tests/data/7seqs.fna/tests/data/reads_for_seq1_and_seq2.1.fq	genome6~random_sequence_length_11003	0\n")
              .unwrap();
     }
 
@@ -1032,9 +1032,9 @@ genome6	26.697144
             ])
             .succeeds()
             .stdout().is(
-                "contig	kmer\n\
-                 genome1	0.002844711575150617\n\
-                 genome2	0.37477019228323294\n")
+                "Sample	Contig	Coverage\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq	genome1	0.002844711575150617\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq	genome2	0.37477019228323294\n")
             .unwrap()
     }
 

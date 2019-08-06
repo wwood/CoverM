@@ -701,10 +701,28 @@ fn main(){
                     error!("The kmer method cannot be specified with other coverage calculation methods.");
                     process::exit(1);
                 }
-                let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
-
                 let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
                 let reference = m.value_of("reference").unwrap();
+
+                let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
+
+                let mut pseudoalignment_read_input = vec!();
+                for (r1, r2) in mapping_parameters.read1.iter().zip(mapping_parameters.read2.iter()) {
+                    pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
+                        forward_fastq: r1.to_string(),
+                        reverse_fastq: Some(r2.to_string()),
+                        sample_name: format!("{}/{}", reference, r1)
+                    })
+                }
+                // Add singles
+                for s in mapping_parameters.unpaired {
+                    pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
+                        forward_fastq: s.to_string(),
+                        reverse_fastq: None,
+                        sample_name: format!("{}/{}", reference, s)
+                    })
+                }
+
                 let potential_index_file = format!("{}.covermdb", reference);
                 let index = match Path::new(&potential_index_file).exists() {
                     true => {
@@ -720,10 +738,8 @@ fn main(){
                     }
                 };
 
-                let mapping_pairs = mapping_parameters.read1.len() > 0;
                 coverm::kmer_coverage::calculate_and_print_contig_kmer_coverages(
-                    if mapping_pairs { mapping_parameters.read1[0] } else { mapping_parameters.unpaired[0] },
-                    if mapping_pairs { Some(mapping_parameters.read2[0]) } else { None },
+                    &pseudoalignment_read_input,
                     num_threads,
                     !m.is_present("no-zeros"),
                     &index,
