@@ -1078,6 +1078,39 @@ genome6	26.697144
                  g2	0.37477019228323294\n")
             .unwrap()
     }
+
+    #[test]
+    fn test_screen_positive() {
+        Assert::main_binary()
+            .with_args(&[
+                "screen",
+                "--mash-screen-db",
+                "tests/data/2_single_species_dummy_dataset/screen/1/genome1_genome2.msh",
+                "--single",
+                "tests/data/2_single_species_dummy_dataset/screen/1/genome1.50paired_reads.fa.gz",
+            ])
+            .succeeds()
+            .stdout().is(
+                "genome1.fna	0.97991\n")
+            .unwrap()
+    }
+
+    #[test]
+    fn test_screen_negative() {
+        Assert::main_binary()
+            .with_args(&[
+                "screen",
+                "--mash-screen-db",
+                "tests/data/2_single_species_dummy_dataset/screen/1/genome1_genome2.msh",
+                "--single",
+                "tests/data/2_single_species_dummy_dataset/screen/1/genome1.50paired_reads.fa.gz",
+                "--min-identity",
+                "0.999"
+            ])
+            .succeeds()
+            .stdout().is("")
+            .unwrap()
+    }
 }
 
 

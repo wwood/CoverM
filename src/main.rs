@@ -707,6 +707,7 @@ fn main(){
                 let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
 
                 let mut pseudoalignment_read_input = vec!();
+                // TODO: Use MappingParameters#readsets instead here
                 for (r1, r2) in mapping_parameters.read1.iter().zip(mapping_parameters.read2.iter()) {
                     pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
                         forward_fastq: r1.to_string(),
@@ -901,6 +902,23 @@ fn main(){
             coverm::kmer_coverage::save_index(
                 index, &output);
             info!("Saving complete");
+        },
+        Some("screen") => {
+            let m = matches.subcommand_matches("screen").unwrap();
+            set_log_level(m, true);
+
+            // Not really mapping parameters but gets the job done
+            let read_inputs = MappingParameters::generate_from_clap(&m, &None);
+            let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+
+            external_command_checker::check_for_mash();
+
+            coverm::screen::screen_and_print_matching_genomes(
+                m.value_of("mash-screen-db").unwrap(),
+                &read_inputs,
+                num_threads,
+                parse_percentage(&m, "min-identity"),
+            );
         }
         _ => {
             app.print_help().unwrap();
@@ -2248,5 +2266,70 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-t")
                      .long("threads")
                      .default_value("1")
-                     .takes_value(true)));
+                     .takes_value(true))
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")))
+
+        .subcommand(
+            SubCommand::with_name("screen")
+                .about("Screen a genome set to determine presence / absence")
+                .arg(Arg::with_name("mash-screen-db")
+                     .short("-d")
+                     .long("mash-screen-db")
+                     .required(true)
+                     .takes_value(true))
+                .arg(Arg::with_name("min-identity")
+                     .short("-m")
+                     .long("min-identity")
+                     .default_value("0.02")
+                     .takes_value(true))
+                .arg(Arg::with_name("read1")
+                     .short("-1")
+                     .multiple(true)
+                     .takes_value(true)
+                     .requires("read2")
+                     .required_unless_one(
+                         &["coupled","interleaved","single"]))
+                .arg(Arg::with_name("read2")
+                     .short("-2")
+                     .multiple(true)
+                     .takes_value(true)
+                     .requires("read1")
+                     .required_unless_one(
+                         &["coupled","interleaved","single"]))
+                .arg(Arg::with_name("coupled")
+                     .short("-c")
+                     .long("coupled")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","interleaved","single"]))
+                .arg(Arg::with_name("interleaved")
+                     .long("interleaved")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","coupled","single"]))
+                .arg(Arg::with_name("single")
+                     .long("single")
+                     .multiple(true)
+                     .takes_value(true)
+                     .required_unless_one(
+                         &["read1","coupled","interleaved"]))
+
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
+                     .takes_value(true))
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")));
 }

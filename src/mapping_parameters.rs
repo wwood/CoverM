@@ -80,7 +80,10 @@ impl<'a> MappingParameters<'a> {
         return MappingParameters {
             references: match reference_tempfile {
                 Some(r) => vec!(r.path().to_str().unwrap()),
-                None => m.values_of("reference").unwrap().collect()
+                None => match m.values_of("reference") {
+                    Some(refs) => refs.collect(),
+                    None => vec![]
+                }
             },
             threads: m.value_of("threads").unwrap().parse::<u16>()
                 .expect("Failed to convert threads argument into integer"),
@@ -91,6 +94,20 @@ impl<'a> MappingParameters<'a> {
             iter_reference_index: 0,
             bwa_options: bwa_options,
         }
+    }
+
+    // Return a Vec of str + Option<str> where each entry is a read pair or
+    // single with None.
+    pub fn readsets(&self) -> Vec<(&str, Option<&str>)> {
+        let mut to_return: Vec<(&str, Option<&str>)> = vec!();
+
+        for (ref r1, ref r2) in self.read1.iter().zip(self.read2.iter()) {
+            to_return.push((r1, Some(r2)))
+        }
+        for ref s in self.unpaired.iter() {
+            to_return.push((&s, None))
+        }
+        return to_return
     }
 }
 

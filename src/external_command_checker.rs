@@ -10,6 +10,10 @@ pub fn check_for_samtools() {
     self::check_for_external_command_presence("samtools", "which samtools");
 }
 
+pub fn check_for_mash() {
+    self::check_for_external_command_presence("mash", "which mash");
+}
+
 fn check_for_external_command_presence(
     executable_name: &str, testing_cmd: &str) {
     debug!("Checking for {} ..", executable_name);

@@ -31,6 +31,7 @@ serde = "1.0"
 flate2 = "1.0"
 debruijn = { git = "https://github.com/10XGenomics/rust-debruijn"}
 snap = "0.2"
+csv = "1.1"
 
 [dev-dependencies]
 assert_cli = "0.6.*"

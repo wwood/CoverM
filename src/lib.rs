@@ -14,6 +14,7 @@ pub mod genome_exclusion;
 pub mod kmer_coverage;
 pub mod genome_pseudoaligner;
 pub mod pseudoaligner;
+pub mod screen;
 
 extern crate bio;
 #[macro_use]
@@ -36,6 +37,7 @@ extern crate flate2;
 extern crate bincode;
 #[macro_use]
 extern crate serde;
+extern crate csv;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
