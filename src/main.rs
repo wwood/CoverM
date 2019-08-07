@@ -367,6 +367,7 @@ fn main(){
                         process::exit(1);
                     },
                     Some(genomes_and_contigs) => {
+
                         // TODO: Much of the following stanza code copied from
                         // contig mode. When ready, refactor.
                         let read_files = m.values_of("single");
@@ -697,49 +698,13 @@ fn main(){
 
             let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
             if methods.contains(&"kmer") {
-                if methods.len() > 1 {
-                    error!("The kmer method cannot be specified with other coverage calculation methods.");
-                    process::exit(1);
-                }
-                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
-                let reference = m.value_of("reference").unwrap();
-
-                let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
-
-                let mut pseudoalignment_read_input = vec!();
-                // TODO: Accept interleaved output here, in genome and in screen
-                for readset in mapping_parameters.readsets() {
-                    pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
-                        forward_fastq: readset.0.to_string(),
-                        reverse_fastq: match readset.1 {
-                            Some(r2) => Some(r2.to_string()),
-                            None => None
-                        },
-                        sample_name: format!("{}/{}", reference, readset.0)
-                    })
-
-                }
-
-                let potential_index_file = format!("{}.covermdb", reference);
-                let index = match Path::new(&potential_index_file).exists() {
-                    true => {
-                        info!("Using pre-existing index {}", potential_index_file);
-                        coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
-                            &potential_index_file)
-                    },
-                    false => {
-                        info!("No pre-existing index file found, generating one ..");
-                        coverm::kmer_coverage::generate_debruijn_index(
-                            reference,
-                            num_threads)
-                    }
-                };
+                let pseudoalign_params = parse_pseudoaligner_parameters(&m);
 
                 coverm::kmer_coverage::calculate_and_print_contig_kmer_coverages(
-                    &pseudoalignment_read_input,
-                    num_threads,
+                    &pseudoalign_params.reads,
+                    pseudoalign_params.num_threads,
                     !m.is_present("no-zeros"),
-                    &index,
+                    &pseudoalign_params.index,
                 );
             }
 
@@ -1600,6 +1565,64 @@ fn run_contig<'a,
         &mut std::io::stdout(),
         None,
         &estimators_and_taker.columns_to_normalise);
+}
+
+struct PseudoAlignmentParameters {
+    pub num_threads: usize,
+    pub reference: String,
+    pub reads: Vec<coverm::kmer_coverage::PseudoalignmentReadInput>,
+    pub index: coverm::kmer_coverage::DebruijnIndex<debruijn::kmer::VarIntKmer<u64, debruijn::kmer::K24>>
+}
+
+fn parse_pseudoaligner_parameters(
+    m: &clap::ArgMatches)
+    -> PseudoAlignmentParameters {
+
+    let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+    if methods.len() > 1 {
+        error!("The kmer method cannot be specified with other coverage calculation methods.");
+        process::exit(1);
+    }
+    let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+    let reference = m.value_of("reference").unwrap();
+
+    let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
+
+    let mut pseudoalignment_read_input = vec!();
+    // TODO: Accept interleaved output here, in genome and in screen
+    for readset in mapping_parameters.readsets() {
+        pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
+            forward_fastq: readset.0.to_string(),
+            reverse_fastq: match readset.1 {
+                Some(r2) => Some(r2.to_string()),
+                None => None
+            },
+            sample_name: format!("{}/{}", reference, readset.0)
+        })
+
+    }
+
+    let potential_index_file = format!("{}.covermdb", reference);
+    let index = match Path::new(&potential_index_file).exists() {
+        true => {
+            info!("Using pre-existing index {}", potential_index_file);
+            coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
+                &potential_index_file)
+        },
+        false => {
+            info!("No pre-existing index file found, generating one ..");
+            coverm::kmer_coverage::generate_debruijn_index(
+                reference,
+                num_threads)
+        }
+    };
+
+    return PseudoAlignmentParameters {
+        num_threads: num_threads,
+        reference: reference.to_string(),
+        reads: pseudoalignment_read_input,
+        index: index
+    }
 }
 
 
