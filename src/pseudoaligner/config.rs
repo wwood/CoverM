@@ -9,7 +9,7 @@ pub const FASTA_FORMAT_ENSEMBL: u8 = 1;
 // main configs
 pub const MEM_SIZE: usize = 1;
 pub const MIN_KMERS: usize = 1;
-pub const STRANDED: bool = true;
+pub const STRANDED: bool = false;
 pub const REPORT_ALL_KMER: bool = false;
 pub const READ_COVERAGE_THRESHOLD: usize = 32;
 pub const LEFT_EXTEND_FRACTION: f64 = 0.4;
