@@ -353,11 +353,9 @@ fn main(){
                 }
             };
 
-            if m.values_of("methods").unwrap().find(|&m| m=="kmer").is_some() {
-                if m.values_of("methods").unwrap().len() > 1 {
-                    error!("The kmer method cannot be specified with other coverage calculation methods.");
-                    process::exit(1);
-                }
+            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+            if methods.contains(&"kmer") {
+                let pseudoalign_params = parse_pseudoaligner_parameters(&m);
 
                 match genomes_and_contigs_option {
                     None => {
@@ -367,48 +365,13 @@ fn main(){
                         process::exit(1);
                     },
                     Some(genomes_and_contigs) => {
-
-                        // TODO: Much of the following stanza code copied from
-                        // contig mode. When ready, refactor.
-                        let read_files = m.values_of("single");
-                        match read_files {
-                            Some(singles) => {
-                                if singles.len() > 1 {
-                                    error!("Using >1 single read files to map is not yet supported");
-                                    process::exit(1);
-                                }
-
-                                let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
-                                let reference = m.value_of("reference").unwrap();
-                                let potential_index_file = format!("{}.covermdb", reference);
-                                let index = match Path::new(&potential_index_file).exists() {
-                                    true => {
-                                        info!("Using pre-existing index {}", potential_index_file);
-                                        coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
-                                            &potential_index_file)
-                                    },
-                                    false => {
-                                        info!("No pre-existing index file found, generating one ..");
-                                        coverm::kmer_coverage::generate_debruijn_index(
-                                            reference,
-                                            num_threads)
-                                    }
-                                };
-
-                                coverm::genome_pseudoaligner::calculate_genome_kmer_coverage(
-                                    singles.collect::<Vec<_>>()[0],
-                                    None,
-                                    num_threads,
-                                    !m.is_present("no-zeros"),
-                                    &index,
-                                    &genomes_and_contigs,
-                                );
-                            },
-                            None => {
-                                error!("Using -m kmer you must (for now) use --single to input reads");
-                                process::exit(1);
-                            }
-                        }
+                        coverm::genome_pseudoaligner::calculate_and_print_genome_kmer_coverages(
+                            &pseudoalign_params.reads,
+                            pseudoalign_params.num_threads,
+                            !m.is_present("no-zeros"),
+                            &pseudoalign_params.index,
+                            &genomes_and_contigs,
+                        );
                     }
                 }
 

@@ -8,14 +8,14 @@ use debruijn::Kmer;
 use bio::io::fastq;
 use log::Level;
 
-pub fn calculate_genome_kmer_coverage<K>(
+pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
     forward_fastq: &str,
     reverse_fastq: Option<&str>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
     index: &DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs)
-where K: Kmer + Sync + Send {
+-> Vec<(usize, f64)> {
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq)
@@ -166,15 +166,16 @@ where K: Kmer + Sync + Send {
     }
 
     // Print results
-    println!("contig\tkmer"); //TODO: Use the same methods as elsewhere for printing.
+    let mut to_return = vec!();
     debug!("genome_to_read_count: {:?}", genome_to_read_count);
     for (i, total_coverage) in genome_to_read_count.iter().enumerate() {
         if print_zero_coverage_contigs || *total_coverage > 0.0 {
             // Print average coverage as total coverage divided by contig length.
-            println!("{}\t{}", genomes_and_contigs.genomes[i], total_coverage / (genome_lengths[i] as f64));
+            to_return.push((i, total_coverage / (genome_lengths[i] as f64)));
         }
     }
     info!("Finished printing genome coverages");
+    return to_return;
 }
 
 fn generate_genome_to_contig_indices_vec(
@@ -194,4 +195,38 @@ fn generate_genome_to_contig_indices_vec(
     }
 
     return tx_ids_of_genomes
+}
+
+
+pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync>(
+    read_inputs: &Vec<PseudoalignmentReadInput>,
+    num_threads: usize,
+    print_zero_coverage_contigs: bool,
+    index: &DebruijnIndex<K>,
+    genomes_and_contigs: &GenomesAndContigs) {
+
+    println!("Sample\tGenome\tCoverage");
+    for read_input in read_inputs {
+        let covs = calculate_genome_kmer_coverage(
+            &read_input.forward_fastq,
+            match read_input.reverse_fastq {
+                Some(ref s) => Some(&s),
+                None => None
+            },
+            num_threads,
+            print_zero_coverage_contigs,
+            index,
+            genomes_and_contigs);
+
+        for res in covs {
+            println!(
+                "{}\t{}\t{}",
+                read_input.sample_name,
+                genomes_and_contigs.genomes[res.0],
+                res.1);
+        }
+        info!("Finished printing genome coverages for sample {}",
+              read_input.sample_name);
+    }
+    info!("Finished printing contig coverages");
 }

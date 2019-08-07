@@ -1053,13 +1053,13 @@ genome6	26.697144
                 "tests/data/2_single_species_dummy_dataset/single_genome_example_tsv"])
             .succeeds()
             .stdout().is(
-                "contig	kmer\n\
-                 g	0.226\n")
+                "Sample	Genome	Coverage\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq	g	0.226\n")
             .unwrap()
     }
 
     #[test]
-    fn test_genome_kmer_two_genomes() {
+    fn test_genome_kmer_two_genomes_single_input() {
         Assert::main_binary()
             .with_args(&[
                 "genome",
@@ -1073,9 +1073,31 @@ genome6	26.697144
                 "tests/data/2_single_species_dummy_dataset/two_genomes_tsv"])
             .succeeds()
             .stdout().is(
-                "contig	kmer\n\
-                 g1	0.002844711575150617\n\
-                 g2	0.37477019228323294\n")
+                "Sample	Genome	Coverage\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq	g1	0.002844711575150617\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/reads/2genomes_2_reads.fq	g2	0.37477019228323294\n")
+            .unwrap()
+    }
+
+    #[test]
+    fn test_genome_kmer_two_genomes_paired_input() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "kmer",
+                "-c",
+                "tests/data/2_single_species_dummy_dataset/genome1_read_over100bp.1.fq",
+                "tests/data/2_single_species_dummy_dataset/genome1_read_over100bp_one_bp_shorter.1.fq",
+                "-r",
+                "tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna",
+                "--genome-definition",
+                "tests/data/2_single_species_dummy_dataset/two_genomes_tsv"])
+            .succeeds()
+            .stdout().is(
+                "Sample	Genome	Coverage\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/genome1_read_over100bp.1.fq	g1	0.35\n\
+                 tests/data/2_single_species_dummy_dataset/2genomes_different_lengths.fna/tests/data/2_single_species_dummy_dataset/genome1_read_over100bp.1.fq	g2	0\n")
             .unwrap()
     }
 
