@@ -1,0 +1,28 @@
+#FormatVersion Parsnp v1.1
+#SequenceCount 3
+##SequenceIndex 1
+##SequenceFile 2genomes_different_lengths.genome1.fasta.ref
+##SequenceHeader >genome1 random
+##SequenceLength 200bp
+##SequenceIndex 2
+##SequenceFile 2genomes_different_lengths.genome2.fasta
+##SequenceHeader >genome2 one A to T SNP at position 100
+##SequenceLength 300bp
+##SequenceIndex 3
+##SequenceFile 2genomes_different_lengths.genome1_duplicate.fasta
+##SequenceHeader >genome1_near_duplicate genome1_plus_A_at_start
+##SequenceLength 201bp
+#IntervalCount 1
+>1:0-199 + cluster1 :p1
+tcgcccgtcaccaccccaattcatacaccactagcggttagcaacgattgaccttgttatttatgccccgtgccctgaca
+gccttgaatggcttaccgtAatctatgagttagtaatttcgcctccttgatccaatcgtcgctcactccgcccggaaaac
+cagttaatcgacctggtgtatcgtacagaccacatctttc
+>2:0-199 + cluster1 :p1
+tcgcccgtcaccaccccaattcatacaccactagcggttagcaacgattgaccttgttatttatgccccgtgccctgaca
+gccttgaatggcttaccgtTatctatgagttagtaatttcgcctccttgatccaatcgtcgctcactccgcccggaaaac
+cagttaatcgacctggtgtatcgtacagaccacatctttc
+>3:1-200 + cluster1 s1:p1
+tcgcccgtcaccaccccaattcatacaccactagcggttagcaacgattgaccttgttatttatgccccgtgccctgaca
+gccttgaatggcttaccgtAatctatgagttagtaatttcgcctccttgatccaatcgtcgctcactccgcccggaaaac
+cagttaatcgacctggtgtatcgtacagaccacatctttc
+=

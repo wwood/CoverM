@@ -15,6 +15,7 @@ pub mod kmer_coverage;
 pub mod genome_pseudoaligner;
 pub mod pseudoaligner;
 pub mod screen;
+pub mod core_genome;
 
 extern crate bio;
 #[macro_use]

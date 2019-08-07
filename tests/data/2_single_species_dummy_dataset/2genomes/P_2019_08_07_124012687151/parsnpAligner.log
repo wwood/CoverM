@@ -1,0 +1,44 @@
+Number of sequences analyzed:         3
+
+Sequence 1 : /home/ben/git/coverm/tests/data/2_single_species_dummy_dataset/2genomes/P_2019_08_07_124012687151/2genomes_different_lengths.genome1.fasta.ref
+2genomes_different_lengths.genome1.fasta.ref
+Length:       200 bps
+ GC:      99.0
+ AT:     101.0
+Sequence 2 : genomes/2genomes_different_lengths.genome2.fasta
+2genomes_different_lengths.genome2.fasta
+Length:       300 bps
+ GC:     147.0
+ AT:     153.0
+Sequence 3 : genomes/2genomes_different_lengths.genome1_duplicate.fasta
+2genomes_different_lengths.genome1_duplicate.fasta
+Length:       201 bps
+ GC:      99.0
+ AT:     102.0
+d value:   300
+q value:   30
+
+Mum anchor size:   8.0
+Number of MUM anchors found:   2 
+Number of MUMs found:   0 
+Total MUMs found((Anchors+MUMs)-filtered):   2 
+
+Random MUM length:   1 
+Minimum Cluster length:   21
+Number of MUMs filtered:   0 
+Number of Clusters filtered:   0 
+
+Number of clusters created:   1 
+Average number of MUMs per cluster:   2 
+Average cluster length:   200 bps
+Cluster coverage in sequence 1:   100.0%
+Cluster coverage in sequence 2:   66.7%
+Cluster coverage in sequence 3:   99.5%
+Total coverage among all sequences:   85.6%
+
+ MUM anchor search elapsed time:   0.0s 
+ MUM coarsening elapsed time:   0.0s 
+ MUM filtering elapsed time:   0.0s 
+ MUM clustering elapsed time:   0.0s 
+ Inter-clustering elapsed time:   0.0s 
+ Total running time:   0.0s 

@@ -49,7 +49,7 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
     }
 
     // Generate some useful data structures that are used repeatedly in the EM
-    // process.
+    // process. TODO: Abstract this out so it isn't calculated for each sample.
     let genome_contigs = generate_genome_to_contig_indices_vec(
         &genomes_and_contigs,
         &index.tx_names
