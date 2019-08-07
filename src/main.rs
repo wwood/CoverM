@@ -707,21 +707,17 @@ fn main(){
                 let mapping_parameters = MappingParameters::generate_from_clap(&m, &None);
 
                 let mut pseudoalignment_read_input = vec!();
-                // TODO: Use MappingParameters#readsets instead here
-                for (r1, r2) in mapping_parameters.read1.iter().zip(mapping_parameters.read2.iter()) {
+                // TODO: Accept interleaved output here, in genome and in screen
+                for readset in mapping_parameters.readsets() {
                     pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
-                        forward_fastq: r1.to_string(),
-                        reverse_fastq: Some(r2.to_string()),
-                        sample_name: format!("{}/{}", reference, r1)
+                        forward_fastq: readset.0.to_string(),
+                        reverse_fastq: match readset.1 {
+                            Some(r2) => Some(r2.to_string()),
+                            None => None
+                        },
+                        sample_name: format!("{}/{}", reference, readset.0)
                     })
-                }
-                // Add singles
-                for s in mapping_parameters.unpaired {
-                    pseudoalignment_read_input.push(coverm::kmer_coverage::PseudoalignmentReadInput {
-                        forward_fastq: s.to_string(),
-                        reverse_fastq: None,
-                        sample_name: format!("{}/{}", reference, s)
-                    })
+
                 }
 
                 let potential_index_file = format!("{}.covermdb", reference);
