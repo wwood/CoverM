@@ -65,7 +65,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
         // While there are more contig tranches, process them
         loop {
             let contig_id = genome_regions[region_index_start].contig_id;
-            println!("Marking contig {} .. ", contig_id);
+            debug!("Marking contig {} .. ", contig_id);
             let core_node_ids = thread_and_find_core_nodes(
                 &aligner,
                 &contig_sequences[contig_id],
@@ -135,7 +135,7 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                 .slice(*offset as usize,kmer_length)
                 .to_string();
             if found_slice == contig.get_kmer::<K>(0).to_string() {
-                println!("Found forward node for kmer {}", found_slice);
+                debug!("Found forward node for kmer {}", found_slice);
                 Some(GraphPosition {
                     node_id: *nid as usize,
                     offset: *offset,
@@ -144,7 +144,7 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                 })
             } else {
                 // Kmer hash mismatch
-                println!("kmer hash doesn't end up pointing to the correct kmer");
+                debug!("kmer hash doesn't end up pointing to the correct kmer");
                 None
             }
         },
@@ -170,7 +170,7 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                         .slice(*offset as usize,kmer_length)
                         .to_string();
                     if found_slice == first_contig_kmer_rc.to_string() {
-                        println!("Found rc node {}", found_slice);
+                        debug!("Found rc node {}", found_slice);
                         GraphPosition {
                             node_id: *nid as usize,
                             offset: *offset,
@@ -200,20 +200,21 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
 
     let mut current_position = get_starting_position(
         &aligner, contig_sequence, contig_id);
-    println!("Starting with position: {:?}", current_position);
+    debug!("Starting with position: {:?}", current_position);
 
     let kmer_length = K::k();
     let last_kmer_pos = contig_sequence.len() - kmer_length;
-    println!("Found last kmer index {}", last_kmer_pos);
+    debug!("Found last kmer index {}", last_kmer_pos);
 
     let mut marked_nodes = vec![];
     let mut last_node_id = None;
     let mut current_core_region_idx = 0;
 
-    println!("Found entire contig sequence {:?}", contig_sequence);
+    debug!("Found entire contig sequence {:?}", contig_sequence);
 
     for _ in 1..last_kmer_pos {
-        println!("\n===== Finding kmer at contig position {}", current_position.contig_position);
+        debug!("");
+        debug!("===== Finding kmer at contig position {}", current_position.contig_position);
         // if position is in core genome, mark it.
         let mut current_core_region = &core_regions[current_core_region_idx];
         if current_core_region.start <= current_position.contig_position {
@@ -226,12 +227,12 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
                     break;
                 }
             }
-            println!("In core region or just coming out of one ..");
+            debug!("In core region or just coming out of one ..");
 
             // If we are in the range of the next core region, add this node
             current_core_region = &core_regions[current_core_region_idx];
             if current_core_region.start <= current_position.contig_position {
-                println!("Marking the current node {}", current_position.node_id);
+                debug!("Marking the current node {}", current_position.node_id);
                 match last_node_id {
                     Some(nid) => {
                         if current_position.node_id != nid {
@@ -253,7 +254,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
             &mut current_position,
             &aligner,
             &target_kmer);
-        println!("next_position: {:?}", current_position);
+        debug!("next_position: {:?}", current_position);
 
         // Double check that the sequence now has the right kmer in that
         // position.
@@ -264,17 +265,17 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
         // Found_kmer is a DnaStringSlice
         let mut found_kmer = found_sequence
             .get_kmer::<K>(current_position.offset as usize);
-        println!("Before potential rc(), forward found was {:?}", found_kmer);
+        debug!("Before potential rc(), forward found was {:?}", found_kmer);
         if !current_position.is_forward {
-            println!("not is_forward");
+            debug!("not is_forward");
             found_kmer = found_kmer.rc();
         }
         if found_kmer != target_kmer {
-            println!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
+            debug!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
                      target_kmer, found_kmer);
             std::process::exit(1);
         }
-        println!("Found kmer was correct");
+        debug!("Found kmer was correct");
     }
 
     return marked_nodes;
@@ -288,22 +289,22 @@ fn next_position<K: Kmer + Send + Sync>(
     kmer: &K) {
 
     let k = K::k();
-    println!("Finding kmer {:?}", kmer);
+    debug!("Finding kmer {:?}", kmer);
 
     // If we are in the middle of the node, then just update the offset
     let current_node = aligner.dbg.get_node(position.node_id as usize);
     if position.is_forward && position.offset as usize+k+1 < current_node.len() {
-        println!("Just going forward on the same node");
+        debug!("Just going forward on the same node");
         position.offset += 1;
     } else if !position.is_forward && position.offset > 0 {
-        println!("Just going reverse on the same node");
+        debug!("Just going reverse on the same node");
         position.offset -= 1;
     } else {
         let edges = match position.is_forward {
             true => current_node.r_edges(),
             false => current_node.l_edges()
         };
-        println!("Found potential edges: {:?}", edges);
+        debug!("Found potential edges: {:?}", edges);
         let correct_edge = edges.iter().find(|edge| {
             let (target_node_id, incoming_side, _is_flipped) = (edge.0, edge.1, edge.2);
             let target_node = aligner.dbg.get_node(target_node_id);
@@ -312,12 +313,12 @@ fn next_position<K: Kmer + Send + Sync>(
                 Dir::Left => target_node.sequence().get_kmer::<K>(0),
                 Dir::Right => target_node.sequence().get_kmer::<K>(target_node.len()-k).rc()
             };
-            println!("Testing new kmer {:?} from entire sequence {:?}", new_kmer, target_node.sequence());
+            debug!("Testing new kmer {:?} from entire sequence {:?}", new_kmer, target_node.sequence());
             new_kmer == *kmer
         });
         match correct_edge {
             Some(edge) => {
-                println!("Found the right edge: {:?}", edge);
+                debug!("Found the right edge: {:?}", edge);
                 position.node_id = edge.0;
                 match edge.1 {
                     Dir::Left => {
@@ -335,7 +336,7 @@ fn next_position<K: Kmer + Send + Sync>(
                 panic!("Did not find the right edge")
             }
         }
-        println!("Got as");
+        debug!("Got as");
     }
     position.contig_position += 1;
 }
@@ -346,8 +347,14 @@ mod tests {
     use pseudoaligner::*;
     use bio::io::fasta;
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[test]
     fn test_core_genome_hello_world() {
+        init();
+
         let cores = vec![vec![
             CoreGenomicRegion {
                 clade_id: 7,
@@ -369,16 +376,16 @@ mod tests {
             &seqs, &tx_names, &tx_gene_map, 1
         );
         let real_index = index.unwrap();
-        println!("Graph was {:?}", &real_index.dbg);
+        debug!("Graph was {:?}", &real_index.dbg);
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &seqs,
             real_index
         );
-        println!("done");
+        debug!("done");
 
-        println!("core_aligner.node_id_to_clade_cores: {:?}",
+        debug!("core_aligner.node_id_to_clade_cores: {:?}",
                  core_aligner.node_id_to_clade_cores);
         let mut expected = BTreeMap::new();
         expected.insert(2, vec![7]);
@@ -388,6 +395,7 @@ mod tests {
 
     #[test]
     fn test_core_genome_2_core_regions() {
+        init();
         let cores = vec![vec![
             CoreGenomicRegion {
                 clade_id: 11,
@@ -415,16 +423,16 @@ mod tests {
             &seqs, &tx_names, &tx_gene_map, 1
         );
         let real_index = index.unwrap();
-        println!("Graph was {:?}", &real_index.dbg);
+        debug!("Graph was {:?}", &real_index.dbg);
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &seqs,
             real_index
         );
-        println!("done");
+        debug!("done");
 
-        println!("core_aligner.node_id_to_clade_cores: {:?}",
+        debug!("core_aligner.node_id_to_clade_cores: {:?}",
                  core_aligner.node_id_to_clade_cores);
         let mut expected = BTreeMap::new();
         expected.insert(5, vec![11]);
