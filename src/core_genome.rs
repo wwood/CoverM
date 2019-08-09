@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use pseudoaligner::pseudoaligner::Pseudoaligner;
-use debruijn::{Kmer, Vmer, Dir};
+use debruijn::{Kmer, Vmer, Mer, Dir};
 use debruijn::dna_string::DnaString;
 
 // A region marked as being core for a clade
@@ -128,14 +128,16 @@ fn get_starting_position<K: Kmer + Send + Sync>(
         &contig.get_kmer::<K>(0)) {
 
         Some((nid, offset)) => {
-            let found_slice = aligner
+            let found_sequence = aligner
                 .dbg
                 .get_node(*nid as usize)
-                .sequence()
-                .slice(*offset as usize,kmer_length)
-                .to_string();
-            if found_slice == contig.get_kmer::<K>(0).to_string() {
-                debug!("Found forward node for kmer {}", found_slice);
+                .sequence();
+            // Test for len first because the kmer might be wrongly pointing to
+            // a shorter node.
+            if found_sequence.len() >= *offset as usize + kmer_length &&
+                found_sequence.get_kmer::<K>(*offset as usize) ==
+                contig.get_kmer::<K>(0) {
+                debug!("Found forward node for kmer {:?}", contig.get_kmer::<K>(0));
                 Some(GraphPosition {
                     node_id: *nid as usize,
                     offset: *offset,
@@ -144,7 +146,12 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                 })
             } else {
                 // Kmer hash mismatch
-                debug!("kmer hash doesn't end up pointing to the correct kmer");
+                debug!("kmer hash doesn't end up pointing to the correct kmer: \
+                        wanted kmer {:?} and node sequence was {:?}, with offset {}",
+                       &contig.get_kmer::<K>(0),
+                       found_sequence.get_kmer::<K>(*offset as usize),
+                       offset
+                );
                 None
             }
         },
@@ -167,10 +174,9 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                         .dbg
                         .get_node(*nid as usize)
                         .sequence()
-                        .slice(*offset as usize,kmer_length)
-                        .to_string();
-                    if found_slice == first_contig_kmer_rc.to_string() {
-                        debug!("Found rc node {}", found_slice);
+                        .get_kmer::<K>(*offset as usize);
+                    if found_slice == *first_contig_kmer_rc {
+                        debug!("Found rc node {:?}", found_slice);
                         GraphPosition {
                             node_id: *nid as usize,
                             offset: *offset,
@@ -179,8 +185,15 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                         }
                     } else {
                         // Kmer hash mismatch
-                        error!("Unable to find starting node for contig number {} in the graph",
-                               contig_id);
+                        error!("Unable to find starting node for contig number {} in the graph: \
+                                wanted kmer {:?} and node sequence was {:?}, with offset {}",
+                               contig_id,
+                               &contig.get_kmer::<K>(0),
+                               aligner
+                               .dbg
+                               .get_node(*nid as usize)
+                               .sequence(),
+                               offset);
                         std::process::exit(1);
                     }
                 }
@@ -437,6 +450,62 @@ mod tests {
         let mut expected = BTreeMap::new();
         expected.insert(5, vec![11]);
         expected.insert(4, vec![11]);
+        assert_eq!(expected, core_aligner.node_id_to_clade_cores);
+    }
+
+
+    #[test]
+    fn test_core_genome_2_genomes() {
+        init();
+        let cores = vec![vec![
+            CoreGenomicRegion {
+                clade_id: 11,
+                contig_id: 0,
+                start: 0,
+                stop: 10
+            },
+            CoreGenomicRegion {
+                clade_id: 11,
+                contig_id: 0,
+                start: 80,
+                stop: 82
+            },
+        ], vec![
+            CoreGenomicRegion {
+                clade_id: 12,
+                contig_id: 1,
+                start: 10,
+                stop: 15
+            },
+        ]];
+
+        // Build index
+        let reference_reader = fasta::Reader::from_file(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
+            .expect("reference reading failed.");
+        info!("Reading reference sequences in ..");
+        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+            .expect("Failure to read contigs file");
+        info!("Building debruijn index ..");
+        let index = build_index::build_index::<config::KmerType>(
+            &seqs, &tx_names, &tx_gene_map, 1
+        );
+        let real_index = index.unwrap();
+        debug!("Graph was {:?}", &real_index.dbg);
+
+        let core_aligner = generate_core_genome_pseudoaligner(
+            &cores,
+            &seqs,
+            real_index
+        );
+        debug!("done");
+
+        debug!("core_aligner.node_id_to_clade_cores: {:?}",
+                 core_aligner.node_id_to_clade_cores);
+        let mut expected = BTreeMap::new();
+        expected.insert(5, vec![11]);
+        expected.insert(4, vec![11]);
+        expected.insert(2, vec![11,12]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
     }
 }
