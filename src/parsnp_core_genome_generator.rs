@@ -142,17 +142,18 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
     let indices: Vec<usize> = named_regionset.names.iter().map(|name| {
         name.split(" ").next().unwrap().parse::<usize>().unwrap()
     }).collect();
+    debug!("New indices for core-genomes: {:?}", indices);
 
     let mut new_vec = vec![vec![]; indices.len()];
-    for i in indices {
+    for (prev_i, new_i) in indices.iter().enumerate() {
         // TODO: Probably better ways than clone here
-        new_vec[i] = named_regionset.regions[i].clone()
+        new_vec[*new_i] = named_regionset.regions[prev_i].clone();
     }
 
     return new_vec;
 }
 
-
+#[derive(Debug)]
 struct NamedCoreGenomicRegionSet {
     names: Vec<String>,
     regions: Vec<Vec<CoreGenomicRegion>>,
@@ -203,6 +204,7 @@ fn core_genomes_from_backbone_intervals<R: Read>(
         let mut i = 0;
         match record_res {
             Ok(record) => {
+                debug!("Parsing backbone interval line: {:?}", record);
                 while i/2 < num_genomes {
                     let genome_idx = i/2;
                     core_regions[genome_idx].push(
@@ -308,50 +310,52 @@ mod tests {
         );
         assert_eq!(
             vec![
+
                 vec![
-                    CoreGenomicRegion {
-                        clade_id: 7,
-                        contig_id: 0,
-                        start: 1,
-                        stop: 87,
-                    },
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
                         start: 88,
                         stop: 200,
                     },
-                ],
-
-                vec![
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 114,
-                        stop: 200,
+                        start: 1,
+                        stop: 87,
                     },
+                ],
+
+                vec![
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
                         start: 1,
                         stop: 113,
                     },
+                    CoreGenomicRegion {
+                        clade_id: 7,
+                        contig_id: 0,
+                        start: 114,
+                        stop: 200,
+                    },
                 ],
 
                 vec![
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 2,
-                        stop: 88,
+                        start: 89,
+                        stop: 201,
                     },
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 89,
-                        stop: 201,
+                        start: 2,
+                        stop: 88,
                     },
                 ],
+
             ],
             cores);
     }
