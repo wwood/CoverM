@@ -5,12 +5,14 @@ use debruijn::{Kmer, Vmer, Mer, Dir};
 use debruijn::dna_string::DnaString;
 
 // A region marked as being core for a clade
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct CoreGenomicRegion {
     pub clade_id: u32,
     pub contig_id: usize,
     pub start: u32,
     pub stop: u32,
 }
+
 
 /// Represent a Pseudoaligner that has extra annotations, specifically, some
 /// regions are marked as being 'core' for a given clade, and so it is more

@@ -16,6 +16,7 @@ pub mod genome_pseudoaligner;
 pub mod pseudoaligner;
 pub mod screen;
 pub mod core_genome;
+pub mod parsnp_core_genome_generator;
 
 extern crate bio;
 #[macro_use]
@@ -45,6 +46,7 @@ use genomes_and_contigs::GenomesAndContigs;
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::process;
+use std::io::Read;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
@@ -169,6 +171,27 @@ where T: std::cmp::PartialEq<T> {
     return Err("Element not found in slice")
 }
 
+
+fn run_command_safely(
+    cmd: &mut std::process::Command, process_name: &str)
+    -> std::process::Child {
+    let mut process = cmd.spawn().expect(&format!("Failed to spawn {}", process_name));
+    let es = process.wait()
+        .expect(&format!("Failed to glean exitstatus from failing {} process", process_name));
+    if !es.success() {
+        error!("Error when running {} process.", process_name);
+        let mut err = String::new();
+        process.stderr.expect(&format!("Failed to grab stderr from failed {} process", process_name))
+            .read_to_string(&mut err).expect("Failed to read stderr into string");
+        error!("The STDERR was: {:?}", err);
+        process.stdout.expect(&format!("Failed to grab stdout from failed {} process", process_name))
+            .read_to_string(&mut err).expect("Failed to read stdout into string");
+        error!("The STDOUT was: {:?}", err);
+        error!("Cannot continue after parsnp failed.");
+        std::process::exit(1);
+    }
+    return process;
+}
 
 #[cfg(test)]
 mod tests {
