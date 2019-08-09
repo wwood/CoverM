@@ -38,7 +38,7 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
     debug!("Writing temporary FASTA files for parsnp ..");
     for (i, abs_path) in absolute_fasta_paths.iter().enumerate() {
         let output_path = genomes_path.join(std::path::Path::new(
-            &format!("genome{}.fasta", i)));
+            &format!("genome{}.fasta", i+1)));
         let reader = fasta::Reader::from_file(abs_path)
             .expect("Failed to open read fasta file for parsnp");
         let mut writer = fasta::Writer::to_file(output_path)
@@ -47,8 +47,8 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
             let record = record_res.expect("Failed to parse FASTA");
 
             writer.write(
-                &format!("clade{}_genome{}_contig{}",
-                         clade_id, i, contig_idx),
+                &format!("{} contig{}",
+                         i, contig_idx),
                 None,
                 &record.seq())
                 .expect("Failed to write FASTA for parsnp input");
@@ -65,15 +65,35 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
     let mut cmd = std::process::Command::new("parsnp");
     cmd
         .arg("-r")
-        // Use the first genome as the reference one
-        .arg(tmp_dir.path().join(Path::new("genome")).join(Path::new(&format!("genome0.fasta"))))
+        // Use the second genome as the reference one, otherwise it seems not
+        // detect them. I dunno.
+        .arg(tmp_dir.path().join(Path::new("genomes")).join(Path::new(&format!("genome2.fasta"))))
         .arg("-c")
-        .arg("genome")
+        .arg("genomes")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     debug!("Running parsnp cmd: {:?}", &cmd);
-    run_command_safely(&mut cmd, "parsnp");
-    debug!("Finished running parsnp");
+    // Parsnp can fail at steps after MUMi part, and that's OK.
+    let mut process = cmd.spawn().expect(&format!("Failed to spawn {}", "parsnp"));
+    process.wait()
+        .expect(&format!("Failed to glean exitstatus from failing {} process", "parsnp"));
+    // if the stdout has certain words, we are in business.
+    let mut stdout = String::new();
+    process.stdout.unwrap().read_to_string(&mut stdout).expect("Failed to read parsnp stdout");
+    if stdout.find("Running PhiPack").is_none() {
+        error!("Parsnp failed.");
+        let mut err = String::new();
+        process.stderr.expect(&format!("Failed to grab stderr from failed {} process", "parsnp"))
+            .read_to_string(&mut err).expect("Failed to read stderr into string");
+        error!("The STDERR was: {:?}", err);
+        error!("The STDOUT was: {:?}", stdout);
+    }
+
+    // TODO: Comment out this debug code.
+    let mut cp = std::process::Command::new("cp");
+    cp.arg("-r")
+        .arg(tmp_dir.path())
+        .arg("/tmp/tester").spawn().unwrap().wait().unwrap();
 
     // Find the P_ directory in the current directory. parsnp -o does not appear
     // to work as intended.
@@ -113,15 +133,35 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
     std::env::set_current_dir(original_working_directory)
         .expect("Failed to run set working directory");
 
-    return core_genomes_from_backbone_intervals(
-        cores, clade_id)
+    // Parse backbone file
+    let named_regionset = core_genomes_from_backbone_intervals(
+        cores, clade_id);
+
+    // Reorder the set as the parsnp output order I don't think is
+    // deterministic.
+    let indices: Vec<usize> = named_regionset.names.iter().map(|name| {
+        name.split(" ").next().unwrap().parse::<usize>().unwrap()
+    }).collect();
+
+    let mut new_vec = vec![vec![]; indices.len()];
+    for i in indices {
+        // TODO: Probably better ways than clone here
+        new_vec[i] = named_regionset.regions[i].clone()
+    }
+
+    return new_vec;
 }
 
+
+struct NamedCoreGenomicRegionSet {
+    names: Vec<String>,
+    regions: Vec<Vec<CoreGenomicRegion>>,
+}
 
 fn core_genomes_from_backbone_intervals<R: Read>(
     reader: R,
     clade_id: u32)
-    -> Vec<Vec<CoreGenomicRegion>> {
+    -> NamedCoreGenomicRegionSet {
 
     // example files:
     // >genome1 random_start	>genome1 random_end	>genome2 one A to T SNP at position 100_start	>genome2 one A to T SNP at position 100_end	>genome1_near_duplicate genome1_plus_A_at_start_start	>genome1_near_duplicate genome1_plus_A_at_start_end
@@ -137,12 +177,26 @@ fn core_genomes_from_backbone_intervals<R: Read>(
         .from_reader(reader);
 
     // Read one line, which will be a single LCB
-    let num_headers = rdr.headers()
-        .expect("Failed to get header line from backbone interval stream")
-        .len();
+    let headers = rdr.headers()
+        .expect("Failed to get header line from backbone interval stream");
+    let num_headers = headers.len();
     assert!(num_headers > 0);
     assert!(num_headers % 2 == 0);
     let num_genomes = num_headers / 2;
+
+    // Extract the names of each of the genomes
+    let mut names = vec![];
+    let mut header_i = 0;
+    while header_i < num_headers {
+        // Name is the header minus the _start which is 6 chars long
+        let mut name = headers[header_i].to_string();
+        name.replace_range(name.len()-6.., "");
+        name.replace_range(0..1,""); // Remove the '>'.
+        names.push(name);
+        header_i += 2;
+    }
+    debug!("Got names from backbone: {:?}", names);
+
     let mut core_regions: Vec<Vec<CoreGenomicRegion>> = vec![vec![]; num_genomes];
 
     for record_res in rdr.records() {
@@ -170,8 +224,12 @@ fn core_genomes_from_backbone_intervals<R: Read>(
             }
         }
     }
+    debug!("Got original regions from backbone: {:?}", core_regions);
 
-    return core_regions;
+    return NamedCoreGenomicRegionSet {
+        names: names,
+        regions: core_regions
+    }
 }
 
 #[cfg(test)]
@@ -234,7 +292,7 @@ mod tests {
                     },
                 ]
             ],
-            core_genomes_from_backbone_intervals(backbones, 7));
+            core_genomes_from_backbone_intervals(backbones, 7).regions);
     }
 
     #[test]
@@ -246,7 +304,7 @@ mod tests {
                 "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_split.fasta",
                 "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_duplicate.fasta",
             ],
-            6
+            7
         );
         assert_eq!(
             vec![
@@ -254,16 +312,17 @@ mod tests {
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 2,
-                        stop: 88,
+                        start: 1,
+                        stop: 87,
                     },
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 89,
-                        stop: 201,
+                        start: 88,
+                        stop: 200,
                     },
                 ],
+
                 vec![
                     CoreGenomicRegion {
                         clade_id: 7,
@@ -278,20 +337,21 @@ mod tests {
                         stop: 113,
                     },
                 ],
+
                 vec![
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 1,
-                        stop: 87,
+                        start: 2,
+                        stop: 88,
                     },
                     CoreGenomicRegion {
                         clade_id: 7,
                         contig_id: 0,
-                        start: 88,
-                        stop: 200,
+                        start: 89,
+                        stop: 201,
                     },
-                ]
+                ],
             ],
             cores);
     }

@@ -184,9 +184,10 @@ fn run_command_safely(
         process.stderr.expect(&format!("Failed to grab stderr from failed {} process", process_name))
             .read_to_string(&mut err).expect("Failed to read stderr into string");
         error!("The STDERR was: {:?}", err);
+        let mut out = String::new();
         process.stdout.expect(&format!("Failed to grab stdout from failed {} process", process_name))
-            .read_to_string(&mut err).expect("Failed to read stdout into string");
-        error!("The STDOUT was: {:?}", err);
+            .read_to_string(&mut out).expect("Failed to read stdout into string");
+        error!("The STDOUT was: {:?}", out);
         error!("Cannot continue after parsnp failed.");
         std::process::exit(1);
     }
