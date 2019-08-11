@@ -29,9 +29,11 @@ failure = "0.1"
 crossbeam = "0.4"
 serde = "1.0"
 flate2 = "1.0"
-debruijn = { git = "https://github.com/10XGenomics/rust-debruijn"}
+# Possibly works with newer commits, but this was the newest at time of writing.
+debruijn = { git = "https://github.com/10XGenomics/rust-debruijn", rev = "9c7caf1903b15758c8e9c7fa546b6f3fcf438fdc" }
 snap = "0.2"
 csv = "1.1"
+rstar = "0.5"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
