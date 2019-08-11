@@ -172,12 +172,11 @@ where T: std::cmp::PartialEq<T> {
 }
 
 
-fn run_command_safely(
-    cmd: &mut std::process::Command, process_name: &str)
-    -> std::process::Child {
-    let mut process = cmd.spawn().expect(&format!("Failed to spawn {}", process_name));
+fn finish_command_safely(
+    mut process: std::process::Child, process_name: &str) {
     let es = process.wait()
         .expect(&format!("Failed to glean exitstatus from failing {} process", process_name));
+    debug!("Process {} finished", process_name);
     if !es.success() {
         error!("Error when running {} process.", process_name);
         let mut err = String::new();
@@ -188,10 +187,9 @@ fn run_command_safely(
         process.stdout.expect(&format!("Failed to grab stdout from failed {} process", process_name))
             .read_to_string(&mut out).expect("Failed to read stdout into string");
         error!("The STDOUT was: {:?}", out);
-        error!("Cannot continue after parsnp failed.");
+        error!("Cannot continue after {} failed.", process_name);
         std::process::exit(1);
     }
-    return process;
 }
 
 #[cfg(test)]

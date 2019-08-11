@@ -1,5 +1,6 @@
+
 use std;
-use std::io::Read;
+use std::io::{Read, BufReader};
 use std::path::Path;
 
 use core_genome::CoreGenomicRegion;
@@ -7,7 +8,7 @@ use csv;
 use tempdir::TempDir;
 use bio::io::fasta;
 
-use run_command_safely;
+use finish_command_safely;
 
 pub fn parsnp_core_genomes_from_genome_fasta_files(
     genome_fasta_paths: &[&str],
@@ -80,12 +81,13 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
     // if the stdout has certain words, we are in business.
     let mut stdout = String::new();
     process.stdout.unwrap().read_to_string(&mut stdout).expect("Failed to read parsnp stdout");
+    let mut parsnp_err = String::new();
+    process.stderr.expect(&format!("Failed to grab stderr from failed {} process", "parsnp"))
+        .read_to_string(&mut parsnp_err).expect("Failed to read stderr into string");
+    debug!("Parsnp STDOUT was {:?}", stdout);
+    debug!("Parsnp STDERR was: {:?}", parsnp_err);
     if stdout.find("Running PhiPack").is_none() {
         error!("Parsnp failed.");
-        let mut err = String::new();
-        process.stderr.expect(&format!("Failed to grab stderr from failed {} process", "parsnp"))
-            .read_to_string(&mut err).expect("Failed to read stderr into string");
-        error!("The STDERR was: {:?}", err);
         error!("The STDOUT was: {:?}", stdout);
     }
 
@@ -126,16 +128,18 @@ pub fn parsnp_core_genomes_from_genome_fasta_files(
         .arg("-")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
-    let harvest_child = run_command_safely(&mut harvest, "harvest");
+    let process_name = "harvest";
+    let mut process = harvest.spawn().expect(&format!("Failed to spawn {}", process_name));
+    let stdout = process.stdout.as_mut().unwrap();
+    let stdout_reader = BufReader::new(stdout);
 
-    let cores = harvest_child.stdout.unwrap();
+    // Parse backbone file while streaming
+    let named_regionset = core_genomes_from_backbone_intervals(
+        stdout_reader, clade_id);
+    finish_command_safely(process, process_name);
 
     std::env::set_current_dir(original_working_directory)
         .expect("Failed to run set working directory");
-
-    // Parse backbone file
-    let named_regionset = core_genomes_from_backbone_intervals(
-        cores, clade_id);
 
     // Reorder the set as the parsnp output order I don't think is
     // deterministic.
@@ -182,7 +186,7 @@ fn core_genomes_from_backbone_intervals<R: Read>(
         .expect("Failed to get header line from backbone interval stream");
     let num_headers = headers.len();
     assert!(num_headers > 0);
-    assert!(num_headers % 2 == 0);
+    assert!(num_headers % 2 == 0, format!("Uneven number of headers seen, header line was {}", headers.as_slice()));
     let num_genomes = num_headers / 2;
 
     // Extract the names of each of the genomes
@@ -204,17 +208,20 @@ fn core_genomes_from_backbone_intervals<R: Read>(
         let mut i = 0;
         match record_res {
             Ok(record) => {
-                debug!("Parsing backbone interval line: {:?}", record);
+                //debug!("Parsing backbone interval line: {:?}", record);
                 while i/2 < num_genomes {
                     let genome_idx = i/2;
                     core_regions[genome_idx].push(
                         CoreGenomicRegion {
                             clade_id: clade_id,
                             contig_id: 0,
-                            start: record[i].parse()
-                                .expect("Failed to parse LCB start number from backbone intervals"),
-                            stop: record[i+1].parse()
-                                .expect("Failed to parse LCB stop number from backbone intervals"),
+                            // Parse in negatives, but then ignore them.
+                            start: record[i].parse::<i32>()
+                                .expect("Failed to parse LCB start number from backbone intervals")
+                                .abs() as u32,
+                            stop: record[i+1].parse::<i32>()
+                                .expect("Failed to parse LCB stop number from backbone intervals")
+                                .abs() as u32,
                         }
                     );
                     i += 2;
@@ -226,7 +233,7 @@ fn core_genomes_from_backbone_intervals<R: Read>(
             }
         }
     }
-    debug!("Got original regions from backbone: {:?}", core_regions);
+    //debug!("Got original regions from backbone: {:?}", core_regions);
 
     return NamedCoreGenomicRegionSet {
         names: names,
@@ -358,5 +365,34 @@ mod tests {
 
             ],
             cores);
+    }
+
+    #[test]
+    fn test_real_parsnp_real_data() {
+        init();
+        let _cores = parsnp_core_genomes_from_genome_fasta_files(
+            &vec![
+                "tests/data/parsnp/1_first_group/73.20110600_S2D.10.fna",
+                "tests/data/parsnp/1_first_group/73.20120800_S1D.21.fna", // best comp-4*cont
+                "tests/data/parsnp/1_first_group/73.20120600_E3D.30.fna", // worst
+                "tests/data/parsnp/1_first_group/73.20110600_S3M.17.fna",
+                "tests/data/parsnp/1_first_group/73.20110700_S2D.12.fna",
+                "tests/data/parsnp/1_first_group/73.20110700_S2M.14.fna",
+                "tests/data/parsnp/1_first_group/73.20110800_S1D.9.fna",
+                "tests/data/parsnp/1_first_group/73.20110800_S2D.13.fna",
+                "tests/data/parsnp/1_first_group/73.20110800_S2M.16.fna",
+                "tests/data/parsnp/1_first_group/73.20110800_S3D.14.fna",
+                "tests/data/parsnp/1_first_group/73.20120600_S2D.19.fna",
+                "tests/data/parsnp/1_first_group/73.20120700_S1D.20.fna",
+                "tests/data/parsnp/1_first_group/73.20120700_S1X.9.fna",
+                "tests/data/parsnp/1_first_group/73.20120700_S2X.9.fna",
+                "tests/data/parsnp/1_first_group/73.20120700_S3D.12.fna",
+                "tests/data/parsnp/1_first_group/73.20120700_S3X.12.fna",
+                "tests/data/parsnp/1_first_group/73.20120800_S1X.13.fna",
+                "tests/data/parsnp/1_first_group/73.20120800_S2X.9.fna",
+            ],
+            9
+        );
+
     }
 }
