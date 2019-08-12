@@ -8,7 +8,7 @@ use nucmer_runner;
 
 use core_genome::CoreGenomicRegion;
 use tempdir::TempDir;
-// use bio::io::fasta;
+use bio::io::fasta;
 
 use rstar::RTree;
 
@@ -28,7 +28,7 @@ impl rstar::RTreeObject for AlignedSection {
     }
 }
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Clone)]
 struct RefAlignedSection {
     pub start: i64, // i64 since u32 isn't supported by rstar
     pub stop: i64,
@@ -41,6 +41,18 @@ impl rstar::RTreeObject for RefAlignedSection {
     fn envelope(&self) -> Self::Envelope {
         rstar::AABB::from_corners([self.start, 0], [self.stop, 0])
     }
+}
+
+#[derive(Debug)]
+struct ContigAlignments<'a> {
+    ref_contig: &'a str,
+    alignments: Vec<&'a nucmer_runner::NucmerDeltaAlignment>
+}
+
+// TODO: Needed? Or just use RefAlignedSection ?
+struct RefAlignedRegion {
+    start: u32,
+    stop: u32,
 }
 
 
@@ -60,42 +72,33 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
     let reference_suffix_prefix_str = reference_suffix_prefix.to_str()
         .expect("Failed to convert prefix path to str");
 
-    let reference_contig_name_to_id = read_reference_contig_names();
+    let reference_contig_name_to_id = read_reference_contig_names(&reference_fasta);
+    debug!("Read {} contigs from reference", reference_contig_name_to_id.len());
 
-    //ref_contig name to all aligned regions
-    let mut ref_aligned_regions: Option<BTreeMap<String, Vec<RTree<RefAlignedSection>>>>;
-    //ref_contig name to poisoned regions
-    let mut ref_poisoned_regions: BTreeMap<String, Vec<RTree<RefAlignedSection>>>;
+    debug!("Generating nucmer alignments ..");
+    let mut all_alignments = generate_nucmer_alignments(
+        &reference_suffix_prefix_str,
+        &reference_fasta,
+        &genome_fasta_paths[1..genome_fasta_paths.len()]);
+
+    //ref_contig index to all aligned regions (whole thing is None for first)
+    let mut ref_aligned_regions: Option<Vec<Option<RTree<RefAlignedSection>>>> = None;
+    //ref_contig index to poisoned regions
+    let mut ref_poisoned_regions: Vec<Option<RTree<RefAlignedSection>>> =
+        vec![None; reference_contig_name_to_id.len()];
 
     // Nucmer each non-first genome against the reference in a new function
-    for (i, query_fasta) in genome_fasta_paths.iter().enumerate() {
-        if i==0 { continue } // Don't compare reference to itself
-
-        // Read the .delta file hits. The format is described at
-        // http://mummer.sourceforge.net/manual/#nucmer
-        let alignments = nucmer_runner::run_nucmer_and_show_coords(
-            reference_suffix_prefix_str,
-            reference_fasta,
-            query_fasta);
-        debug!("Without parsing, nucmer generated {} alignments for {}",
-               alignments.len(), query_fasta);
-        // Accept hits > 250bp
-        let mut passable_alignments: Vec<&nucmer_runner::NucmerAlignment> = alignments
-            .iter()
-            .filter(|f| f.ref_length() >= 250 && f.identity > 80.)
-            .collect();
-        debug!("After removing low quality alignments, found {} alignments for {}",
-               alignments.len(), query_fasta);
-
+    for mut alignments in all_alignments.iter_mut() {
         // Split each of the alignments into per-reference-contig chunks
-        let alignment_chunks = split_alignments_by_ref_contig(&mut passable_alignments);
+        let alignment_chunks = split_alignments_by_ref_contig(&mut alignments);
 
         // insert the reference coordinates into the tree
-        let mut regions_poisoned_by_query = BTreeMap::new(); //ref_contig name to position pairs
-        for contig_alignments in alignment_chunks {
+        let mut regions_poisoned_by_query = vec![vec![]; reference_contig_name_to_id.len()]; //ref_contig index to position pairs
+        for contig_alignments in alignment_chunks.iter() {
             if contig_alignments.ref_contig != "73.20120800_S1D.21_contig_8557" {
                 continue; //debug
             }
+            let reference_contig_index = reference_contig_name_to_id[contig_alignments.ref_contig];
             debug!("Determining alignments against contig {:?}", contig_alignments);
             let aligned_sections: Vec<AlignedSection> = contig_alignments
                 .alignments
@@ -103,8 +106,8 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
                 .enumerate()
                 .map(|(i, aln)|
                      AlignedSection {
-                         start: aln.ref_start as i64,
-                         stop: aln.ref_stop as i64,
+                         start: aln.seq1_start as i64,
+                         stop: aln.seq1_stop as i64,
                          alignment_id: i
                      })
                 .collect();
@@ -127,11 +130,9 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
                     }
                 }
             }
-
             if poisoned_regions_in_this_contig.len() > 0 {
-                regions_poisoned_by_query.insert(
-                    contig_alignments.ref_contig,
-                    poisoned_regions_in_this_contig);
+                regions_poisoned_by_query[reference_contig_index] =
+                    poisoned_regions_in_this_contig;
             }
 
             break;
@@ -144,35 +145,77 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
         // aligned here
         ref_aligned_regions = Some(
             intersect(
-                ref_aligned_regions,
-                alignment_chunks,
-                reference_contig_name_to_id));
+                &ref_aligned_regions,
+                &alignment_chunks,
+                &reference_contig_name_to_id));
+        debug!("ref_aligned_regions remaining: {:?}", ref_aligned_regions);
 
         // Set poisoned regions to be the union of the regions poisoned
         // previously and those poisoned by this genome.
-        ref_poisoned_regions = union(
-            ref_poisoned_regions, regions_poisoned_by_query);
+        panic!();
+        // ref_poisoned_regions = union(
+        //     ref_poisoned_regions, regions_poisoned_by_query);
 
         break;
     }
+    panic!()
+    //return generate_final_core_genomes(ref_aligned_regions, ref_poisoned_regions);
+}
 
-    return generate_final_core_genomes(ref_aligned_regions, ref_poisoned_regions);
+fn read_reference_contig_names(
+    fasta_path: &str)
+    -> BTreeMap<String, usize> {
+
+    let reader = fasta::Reader::from_file(fasta_path)
+        .expect(&format!("Failed to open reference fasta file {}", fasta_path));
+    let mut tree = BTreeMap::new();
+    for (i, record) in reader.records().enumerate() {
+        tree.insert(record.expect("Failed to parse ref fasta").id().to_string(), i);
+    }
+    return tree;
+}
+
+fn generate_nucmer_alignments(
+    reference_suffix_prefix_str: &str,
+    reference_fasta: &str,
+    query_fasta_paths: &[&str]
+) -> Vec<Vec<nucmer_runner::NucmerDeltaAlignment>> {
+
+    return query_fasta_paths
+        .iter()
+        .map(|q| nucmer_runner::nucmer_to_deltas(
+            reference_suffix_prefix_str,
+            reference_fasta,
+            q))
+        .collect()
 }
 
 fn intersect(
-    aligned_regions1: Option<BTreeMap<usize, Vec<RTree<RefAlignedSection>>>>,
-    aligned_chunks: Vec<ContigAlignments>,
-    reference_contig_name_to_id: BTreeMap<String, usize>)
-    -> Option<BTreeMap<String, Vec<RTree<RefAlignedSection>>>> {
+    aligned_regions1: &Option<Vec<Option<RTree<RefAlignedSection>>>>,
+    aligned_chunks: &Vec<ContigAlignments>,
+    reference_contig_name_to_id: &BTreeMap<String, usize>)
+    -> Vec<Option<RTree<RefAlignedSection>>> {
 
-    match aligned_regions1 {
+    return match aligned_regions1 {
         None => {
             // No previous regions. Just add the regions in the aligned_chunks.
-            for chunk in aligned_chunks {
-                let ref_contig_id = reference_contig_name_to_it[aligned_chunks.ref_contig];
-
+            let mut regions1 = vec![None; reference_contig_name_to_id.len()];
+            for contig_alignments in aligned_chunks {
+                let ref_contig_id = reference_contig_name_to_id[contig_alignments.ref_contig];
+                regions1[ref_contig_id] = Some(
+                    RTree::bulk_load(
+                        contig_alignments
+                            .alignments
+                            .iter()
+                            .map(|a| RefAlignedSection {
+                                start: a.seq1_start as i64,
+                                stop: a.seq1_stop as i64,
+                            })
+                            .collect()))
             }
-        }
+            regions1
+        },
+        Some(to_return) => {panic!()}
     }
 }
 
@@ -193,26 +236,15 @@ fn generate_nucmer_suffixes(fasta: &str, prefix: &std::path::Path) {
     run_command_safely(cmd, "nucmer --save");
 }
 
-#[derive(Debug)]
-struct ContigAlignments<'a> {
-    ref_contig: &'a str,
-    alignments: Vec<&'a nucmer_runner::NucmerAlignment>
-}
-
-struct RefAlignedRegion {
-    start: u32,
-    stop: u32,
-}
-
 // Split alignments by contig, then return alignments ordered by ref_contig,
 // then ref_start, then undefined.
 fn split_alignments_by_ref_contig<'a>(
-    alignments: &'a mut Vec<&nucmer_runner::NucmerAlignment>)
+    alignments: &'a mut Vec<nucmer_runner::NucmerDeltaAlignment>)
     -> Vec<ContigAlignments<'a>> {
 
     alignments.sort_unstable_by(|a,b| a.partial_cmp(b).unwrap());
 
-    let mut prev_contig = &alignments[0].ref_contig;
+    let mut prev_contig = &alignments[0].seq1_name;
     let mut chunks: Vec<ContigAlignments> = vec![];
     let mut prev_chunk_id: usize = 0;
     for (i, aln) in alignments.iter().enumerate() {
@@ -222,9 +254,9 @@ fn split_alignments_by_ref_contig<'a>(
                 alignments: vec![aln]
             });
         } else {
-            if aln.ref_contig != *prev_contig {
+            if aln.seq1_name != *prev_contig {
                 prev_chunk_id += 1;
-                prev_contig = &aln.ref_contig;
+                prev_contig = &aln.seq1_name;
                 chunks.push(ContigAlignments {
                     ref_contig: prev_contig,
                     alignments: vec![aln]
@@ -248,7 +280,17 @@ mod tests {
     }
 
     #[test]
-    fn test_nucmer_generate_core_hello_world() {
+    fn test_nucmer_generate_core_hello_world_dummy() {
+        init();
+        let parsed = nucmer_core_genomes_from_genome_fasta_files(
+            &["tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_duplicate.fasta",
+              "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g2.fasta"],
+            8
+        );
+    }
+
+    #[test]
+    fn test_nucmer_generate_core_hello_world_real() {
         init();
         let parsed = nucmer_core_genomes_from_genome_fasta_files(
             &["tests/data/parsnp/1_first_group/73.20120800_S1D.21.fna",

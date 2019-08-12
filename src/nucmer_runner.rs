@@ -3,97 +3,134 @@ use std::io::BufReader;
 use finish_command_safely;
 use csv;
 
-#[derive(Debug, PartialEq, PartialOrd)]
-pub struct NucmerAlignment {
-    pub ref_contig: String, // split_alignments_by_ref_contig requires the order
-    // of this struct to be at least ref_contig, ref_start, ..
-    pub ref_start: u32,
-    pub ref_stop: u32,
-    pub query_start: u32,
-    pub query_stop: u32,
-    pub query_contig: String,
-    pub identity: f32,
-}
-
-impl NucmerAlignment {
-    pub fn ref_length(&self) -> u32 {
-        // Start is always < stop, otherwise here and elsewhere is wrong.
-        assert!(self.ref_stop > self.ref_start);
-        self.ref_stop - self.ref_start + 1
-    }
-}
-
-pub fn run_nucmer_and_show_coords(
+pub fn nucmer_to_deltas(
     ref_suffix: &str,
     ref_file: &str,
-    query_file: &str)
--> Vec<NucmerAlignment>{
+    query_file: &str
+) -> Vec<NucmerDeltaAlignment> {
 
-    let mut cmd = std::process::Command::new("bash");
-    let real_cmd = format!(
-        "set -e -o pipefail; nucmer --delta=/dev/stdout --load={} {} {} |show-coords -T /dev/stdin |tail -n+5",
-        ref_suffix, ref_file, query_file);
-    cmd.arg("-c").arg(real_cmd)
+    let mut cmd = std::process::Command::new("nucmer");
+    cmd
+        .arg("--delta=/dev/stdout")
+        .arg(&format!("--load={}", ref_suffix))
+        .arg(ref_file)
+        .arg(query_file)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
 
     debug!("Running nucmer cmd: {:?}", &cmd);
     // Parsnp can fail at steps after MUMi part, and that's OK.
     let mut process = cmd.spawn().expect(&format!("Failed to spawn {}", "nucmer"));
-    process.wait()
-        .expect(&format!("Failed to glean exitstatus from failing {} process", "nucmer"));
-    // if the stdout has certain words, we are in business.
     let nucmer_stdout = process.stdout.as_mut().unwrap();
     let nucmer_stdout_reader = BufReader::new(nucmer_stdout);
-    let aligns = parse_show_coords(nucmer_stdout_reader);
+    let aligns = parse_delta(nucmer_stdout_reader);
     finish_command_safely(process, "nucmer");
     return aligns;
 }
 
+enum NucmerDeltaParsingState {
+    NextLinePaths,
+    NextLineNucmer,
+    NextLineHeaderOrOverview,
+    NextLineInsert
+}
 
-fn parse_show_coords<R: Read>(
-    reader: R) -> Vec<NucmerAlignment> {
+fn parse_delta<R: Read>(
+    reader: R) -> Vec<NucmerDeltaAlignment> {
 
     let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
+        .delimiter(b' ')
         .has_headers(false)
+        .flexible(true)
         .from_reader(reader);
 
-    let mut to_return = Vec::new();
+    let mut state = NucmerDeltaParsingState::NextLinePaths;
+    let mut aligns = vec![];
+    let mut current_record = NucmerDeltaAlignment {
+        seq1_name: String::new(),
+        seq2_name: String::new(),
+        seq1_start: 0,
+        seq1_stop: 0,
+        seq2_start: 0,
+        seq2_stop: 0,
+        num_errors: 0,
+        num_similarity_errors: 0,
+        insertions: vec![],
+    };
+    let mut last_ref_name = String::new();
+    let mut last_query_name = String::new();
+
     for record_res in rdr.records() {
         match record_res {
             Ok(record) => {
-                let aln = NucmerAlignment {
-                    ref_start: record[0].parse::<u32>().expect("Unexpected format of show-coords output"),
-                    ref_stop: record[1].parse::<u32>().expect("Unexpected format of show-coords output"),
-                    query_start: record[2].parse::<u32>().expect("Unexpected format of show-coords output"),
-                    query_stop: record[3].parse::<u32>().expect("Unexpected format of show-coords output"),
-                    identity: record[6].parse::<f32>().expect("Unexpected format of show-coords output"),
-                    ref_contig: record[7].to_string(),
-                    query_contig: record[8].to_string(),
-                };
-                //debug!("Found nucmer alignment: {:?}", &aln);
-                to_return.push(aln);
+                match state {
+                    NucmerDeltaParsingState::NextLinePaths => {
+                        state = NucmerDeltaParsingState::NextLineNucmer;
+                    }
+                    NucmerDeltaParsingState::NextLineNucmer => {
+                        assert!(&record[0]=="NUCMER", format!("nucmer delta parsing error: {:?}", record));
+                        state = NucmerDeltaParsingState::NextLineHeaderOrOverview;
+                    },
+                    NucmerDeltaParsingState::NextLineHeaderOrOverview => {
+                        if record[0].starts_with(">") {
+                            last_ref_name = record[0][1..].to_string();
+                            last_query_name = record[1].to_string();
+                        } else {
+                            current_record = NucmerDeltaAlignment {
+                                seq1_name: last_ref_name.clone(),
+                                seq2_name: last_query_name.clone(),
+                                seq1_start: record[0].parse().expect("nucmer delta parse error"),
+                                seq1_stop: record[1].parse().expect("nucmer delta parse error"),
+                                seq2_start: record[2].parse().expect("nucmer delta parse error"),
+                                seq2_stop: record[3].parse().expect("nucmer delta parse error"),
+                                num_errors: record[4].parse().expect("nucmer delta parse error"),
+                                num_similarity_errors: record[5].parse().expect("nucmer delta parse error"),
+                                insertions: vec![],
+                            };
+                            state = NucmerDeltaParsingState::NextLineInsert;
+                        }
+                    },
+                    NucmerDeltaParsingState::NextLineInsert => {
+                        assert!(record.len()==1);
+                        if &record[0] == "0" {
+                            aligns.push(current_record.clone());
+                            state = NucmerDeltaParsingState::NextLineHeaderOrOverview;
+                        } else {
+                            current_record.insertions.push(record[0].parse().expect("nucmer delta parse error"))
+                        }
+                    }
+                }
             },
             Err(e) => {
-                error!("Error parsing nucmer/show-coords output: {}", e);
+                error!("Error parsing nucmer output: {}", e);
                 std::process::exit(1);
             }
         }
     }
-    return to_return;
+
+    return aligns;
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct NucmerDeltaAlignment {
-    pub seq1_name: String,
-    pub seq2_name: String,
+    pub seq1_name: String,// split_alignments_by_ref_contig requires the order
+    // of this struct to be at least ref_contig, ref_start, ..
     pub seq1_start: u32,
     pub seq1_stop: u32,
+    pub seq2_name: String,
     pub seq2_start: u32,
     pub seq2_stop: u32,
     pub num_errors: u32,
     pub num_similarity_errors: u32,
     pub insertions: Vec<i16>,
+}
+
+impl NucmerDeltaAlignment {
+    pub fn ref_length(&self) -> u32 {
+        // Start is always < stop, otherwise here and elsewhere is wrong.
+        assert!(self.seq1_stop > self.seq1_start);
+        self.seq1_stop - self.seq1_start + 1
+    }
 }
 
 impl NucmerDeltaAlignment {
@@ -173,7 +210,7 @@ mod tests {
 
         assert_eq!(100, s.query_coord_at(10));
         assert_eq!(100, s.query_coord_at(11));
-        //assert_eq!(101, s.query_coord_at(12)); // These test cases are real,
+        //assert_eq!(101, s.query_coord_at(12)); // TODO: These test cases are real,
         // but I'm fed up with this function, so eh for now.
         assert_eq!(103, s.query_coord_at(13));
         //assert_eq!(104, s.query_coord_at(14));
@@ -186,22 +223,42 @@ mod tests {
     }
 
     #[test]
-    fn test_nucmer_parser_hello_world() {
+    fn test_parse_delta() {
         init();
-        let parsed = run_nucmer_and_show_coords(
+        let parsed = nucmer_to_deltas(
             "tests/data/parsnp/1_first_group/73.20120800_S1D.21.fna",
             "tests/data/parsnp/1_first_group/73.20120800_S1D.21.fna",
             "tests/data/parsnp/1_first_group/73.20120600_E3D.30.fna",
         );
         assert_eq!(674-4, parsed.len());
-        assert!(parsed.iter().find(|a| **a == NucmerAlignment {
-            ref_start: 908,
-            ref_stop: 1599,
-            query_start: 21120,
-            query_stop: 20429,
-            identity: 88.58,
-            ref_contig: "73.20120800_S1D.21_contig_20912".to_string(),
-            query_contig: "73.20120600_E3D.30_contig_20710".to_string(),
+        assert!(parsed.iter().find(|a| {
+            *a == &NucmerDeltaAlignment {
+                seq1_name: "73.20120800_S1D.21_contig_1092".to_string(),
+                seq2_name: "73.20120600_E3D.30_contig_64048".to_string(),
+                seq1_start: 97138,
+                seq1_stop: 104056,
+                seq2_start: 1,
+                seq2_stop: 6935,
+                num_errors: 58,
+                num_similarity_errors: 58,
+                insertions: vec![
+                    -337,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    -3548,
+                    -2,
+                    -2084,
+                    -2,
+                    -1],
+            }
         }).is_some());
     }
 }
