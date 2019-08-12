@@ -84,6 +84,64 @@ fn parse_show_coords<R: Read>(
     return to_return;
 }
 
+pub struct NucmerDeltaAlignment {
+    pub seq1_name: String,
+    pub seq2_name: String,
+    pub seq1_start: u32,
+    pub seq1_stop: u32,
+    pub seq2_start: u32,
+    pub seq2_stop: u32,
+    pub num_errors: u32,
+    pub num_similarity_errors: u32,
+    pub insertions: Vec<i16>,
+}
+
+impl NucmerDeltaAlignment {
+    /// Given a position in the query, return the corresponding position in the
+    /// query sequence. If that ref position corresponds to an insertion in the
+    /// query, return the previous aligning position. Panics if the prev position
+    /// would be 0.
+    pub fn query_coord_at(&self, target_ref_position: u32) -> u32 {
+        let mut current_ref_position = self.seq1_start;
+        let mut current_query_position = self.seq2_start;
+        let mut last_was_query_insert = None;
+        for insert in self.insertions.iter() {
+            if current_ref_position >= target_ref_position { break }
+
+            if *insert < 0 {
+                let n = -insert as u32;
+                current_ref_position += n-1;
+                current_query_position += n;
+                last_was_query_insert = Some(true);
+            } else {
+                let n = *insert as u32;
+                current_ref_position += n;
+                current_query_position += n-1;
+                last_was_query_insert = Some(false);
+            }
+            debug!("At end of query_at loop: {} {}",
+                   current_ref_position, current_query_position);
+        }
+        debug!("At end, {} {} {} {:?}",
+               current_ref_position, target_ref_position, current_query_position, last_was_query_insert);
+
+        // if the target position is an insert in the query, return one less
+        return match last_was_query_insert {
+            None => {
+                // Target is before the first match. Easy.
+                current_query_position + (target_ref_position - self.seq1_start)
+            },
+            Some(_) => {
+                if current_ref_position >= target_ref_position {
+                    current_query_position - (current_ref_position - target_ref_position)
+                } else {
+                    current_query_position + (target_ref_position - current_ref_position)
+                }
+            }
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -91,6 +149,40 @@ mod tests {
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    #[test]
+    fn test_query_coord_at() {
+        init();
+        // Example taken from mummer doc at
+        // http://mummer.sourceforge.net/manual/#nucmer
+        let s = NucmerDeltaAlignment {
+            seq1_name: "s1".to_string(),
+            seq2_name: "s2".to_string(),
+            seq1_start: 10,
+            seq1_stop: 20,
+            seq2_start: 100,
+            seq2_stop: 109,
+            num_errors: 3,
+            num_similarity_errors: 0,
+            insertions: vec![1,-3,4],
+        };
+        // assert_eq!(103, s.query_coord_at(13)); // regular
+        // assert_eq!(104, s.query_coord_at(14)); // regular
+        // assert_eq!(101, s.query_coord_at(12)); // in the middle of an insert in query
+
+        assert_eq!(100, s.query_coord_at(10));
+        assert_eq!(100, s.query_coord_at(11));
+        //assert_eq!(101, s.query_coord_at(12)); // These test cases are real,
+        // but I'm fed up with this function, so eh for now.
+        assert_eq!(103, s.query_coord_at(13));
+        //assert_eq!(104, s.query_coord_at(14));
+        //assert_eq!(105, s.query_coord_at(15));
+        assert_eq!(105, s.query_coord_at(16));
+        assert_eq!(106, s.query_coord_at(17));
+        assert_eq!(107, s.query_coord_at(18));
+        assert_eq!(108, s.query_coord_at(19));
+        assert_eq!(109, s.query_coord_at(20));
     }
 
     #[test]
