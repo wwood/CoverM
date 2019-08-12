@@ -1,20 +1,29 @@
-use std::io::prelude::*;
+use std::io::Read;
 use std::io::BufReader;
 use finish_command_safely;
 use csv;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, PartialOrd)]
 pub struct NucmerAlignment {
+    pub ref_contig: String, // split_alignments_by_ref_contig requires the order
+    // of this struct to be at least ref_contig, ref_start, ..
     pub ref_start: u32,
     pub ref_stop: u32,
     pub query_start: u32,
     pub query_stop: u32,
-    pub identity: f32,
-    pub ref_contig: String,
     pub query_contig: String,
+    pub identity: f32,
 }
 
-fn run_nucmer_and_show_coords(
+impl NucmerAlignment {
+    pub fn ref_length(&self) -> u32 {
+        // Start is always < stop, otherwise here and elsewhere is wrong.
+        assert!(self.ref_stop > self.ref_start);
+        self.ref_stop - self.ref_start + 1
+    }
+}
+
+pub fn run_nucmer_and_show_coords(
     ref_suffix: &str,
     ref_file: &str,
     query_file: &str)

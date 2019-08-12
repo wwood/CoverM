@@ -17,6 +17,7 @@ pub mod pseudoaligner;
 pub mod screen;
 pub mod core_genome;
 pub mod nucmer_runner;
+pub mod nucmer_core_genome_generator;
 
 extern crate bio;
 #[macro_use]
@@ -40,6 +41,7 @@ extern crate bincode;
 #[macro_use]
 extern crate serde;
 extern crate csv;
+extern crate rstar;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
@@ -171,7 +173,8 @@ where T: std::cmp::PartialEq<T> {
 }
 
 fn finish_command_safely(
-    mut process: std::process::Child, process_name: &str) {
+    mut process: std::process::Child, process_name: &str)
+-> std::process::Child {
     let es = process.wait()
         .expect(&format!("Failed to glean exitstatus from failing {} process", process_name));
     debug!("Process {} finished", process_name);
@@ -188,6 +191,16 @@ fn finish_command_safely(
         error!("Cannot continue after {} failed.", process_name);
         std::process::exit(1);
     }
+    return process;
+}
+
+fn run_command_safely(
+    mut cmd: std::process::Command,
+    process_name: &str)
+    -> std::process::Child {
+
+    let process = cmd.spawn().expect(&format!("Failed to spawn {}", process_name));
+    return finish_command_safely(process, process_name);
 }
 
 #[cfg(test)]
