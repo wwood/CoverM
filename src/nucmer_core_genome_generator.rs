@@ -95,9 +95,9 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
         // insert the reference coordinates into the tree
         let mut regions_poisoned_by_query = vec![vec![]; reference_contig_name_to_id.len()]; //ref_contig index to position pairs
         for contig_alignments in alignment_chunks.iter() {
-            if contig_alignments.ref_contig != "73.20120800_S1D.21_contig_8557" {
-                continue; //debug
-            }
+            // if contig_alignments.ref_contig != "73.20120800_S1D.21_contig_8557" {
+            //     continue; //debug
+            // }
             let reference_contig_index = reference_contig_name_to_id[contig_alignments.ref_contig];
             debug!("Determining alignments against contig {:?}", contig_alignments);
             let aligned_sections: Vec<AlignedSection> = contig_alignments
@@ -134,8 +134,6 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
                 regions_poisoned_by_query[reference_contig_index] =
                     poisoned_regions_in_this_contig;
             }
-
-            break;
         }
         debug!("Found poisoned regions: {:?}", regions_poisoned_by_query);
 
@@ -152,11 +150,9 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
 
         // Set poisoned regions to be the union of the regions poisoned
         // previously and those poisoned by this genome.
-        panic!();
-        // ref_poisoned_regions = union(
-        //     ref_poisoned_regions, regions_poisoned_by_query);
-
-        break;
+        ref_poisoned_regions = union(
+            &ref_poisoned_regions,
+            &regions_poisoned_by_query);
     }
     panic!()
     //return generate_final_core_genomes(ref_aligned_regions, ref_poisoned_regions);
@@ -215,15 +211,92 @@ fn intersect(
             }
             regions1
         },
-        Some(to_return) => {panic!()}
+        Some(to_return) => {
+            let mut regions_vec = vec![None; reference_contig_name_to_id.len()];
+            for contig_alignments in aligned_chunks {
+                let ref_contig_id = reference_contig_name_to_id[contig_alignments.ref_contig];
+
+                // Intersect the alignments for the current region against the
+                // previous alignments.
+                match &to_return[ref_contig_id] {
+                    None => {
+                        // No previous alignments in this contig, so ignore.
+                    },
+                    Some(prev_rtree) => {
+                        let mut new_alignments = vec![];
+                        for alignment in &contig_alignments.alignments {
+                            for intersect in prev_rtree.locate_in_envelope_intersecting(
+                                &rstar::AABB::from_corners(
+                                    [alignment.seq1_start as i64,0],
+                                    [alignment.seq1_stop as i64,0])) {
+                                new_alignments.push(
+                                    RefAlignedSection {
+                                        start: std::cmp::max(alignment.seq1_start as i64, intersect.start),
+                                        stop: std::cmp::min(alignment.seq1_stop as i64, intersect.stop),
+                                    }
+                                )
+                            }
+                        }
+                        regions_vec[ref_contig_id] = Some(RTree::bulk_load(new_alignments))
+                    }
+                }
+            }
+            regions_vec
+        }
     }
+}
+
+fn union(
+    ref_poisoned_regions: &Vec<Option<RTree<RefAlignedSection>>>,
+    regions_poisoned_by_query: &Vec<Vec<(i64, i64)>>)
+    -> Vec<Option<RTree<RefAlignedSection>>> {
+
+    // The two vectors should have the same length, so zip iter.
+    return ref_poisoned_regions.iter().zip(regions_poisoned_by_query.iter())
+        .map(|(prev_poisons_opt, cur_poisons)| {
+            // Given two sorted lists of coordinates, return their union, for each contig
+            match prev_poisons_opt {
+                None => {
+                    if cur_poisons.is_empty() {
+                        None
+                    } else {
+                        let mut current_start = cur_poisons[0].0;
+                        let mut current_stop = cur_poisons[0].1;
+                        let mut poisoned_regions = vec![];
+                        for coord in cur_poisons {
+                            if current_start <= coord.0 {
+                                // If fully contained, do nothing
+                                // If start is within, but stop is beyond, extend
+                                current_stop = std::cmp::max(current_stop, coord.1);
+                            } else {
+                                // If start is beyond, save last and start anew
+                                poisoned_regions.push(RefAlignedSection {
+                                    start: current_start,
+                                    stop: current_stop
+                                });
+                                current_start = coord.0;
+                                current_stop = coord.1;
+                            }
+                        }
+                        // Push the last
+                        poisoned_regions.push(RefAlignedSection {
+                            start: current_start,
+                            stop: current_stop
+                        });
+                        Some(RTree::bulk_load(poisoned_regions))
+                    }
+                },
+                Some(_prev_rtree) => panic!()
+            }
+        })
+        .collect();
 }
 
 // Generate the core genome regions, which is the union of the
 // aligned sections minus the poisoned regions.
 fn generate_final_core_genomes(
-    ref_aligned_regions: Option<BTreeMap<String, Vec<RTree<RefAlignedSection>>>>,
-    ref_poisoned_regions: BTreeMap<String, Vec<RTree<RefAlignedSection>>>)
+    _ref_aligned_regions: Option<BTreeMap<String, Vec<RTree<RefAlignedSection>>>>,
+    _ref_poisoned_regions: BTreeMap<String, Vec<RTree<RefAlignedSection>>>)
     -> Vec<Vec<CoreGenomicRegion>> {
     panic!()
 }
@@ -283,8 +356,10 @@ mod tests {
     fn test_nucmer_generate_core_hello_world_dummy() {
         init();
         let parsed = nucmer_core_genomes_from_genome_fasta_files(
-            &["tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_duplicate.fasta",
-              "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g2.fasta"],
+            &["tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g2.fasta",
+              "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_duplicate.fasta",
+              "tests/data/2_single_species_dummy_dataset/2genomes/parsnp/g1_split.fasta",
+              ],
             8
         );
     }
