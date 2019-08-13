@@ -28,7 +28,7 @@ impl rstar::RTreeObject for AlignedSection {
     }
 }
 
-#[derive(Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Debug, PartialOrd, PartialEq, Clone, Eq, Ord)]
 struct RefAlignedSection {
     pub start: i64, // i64 since u32 isn't supported by rstar
     pub stop: i64,
@@ -49,16 +49,10 @@ struct ContigAlignments<'a> {
     alignments: Vec<&'a nucmer_runner::NucmerDeltaAlignment>
 }
 
-// TODO: Needed? Or just use RefAlignedSection ?
-struct RefAlignedRegion {
-    start: u32,
-    stop: u32,
-}
-
 
 pub fn nucmer_core_genomes_from_genome_fasta_files(
     genome_fasta_paths: &[&str],
-    _clade_id: u32
+    clade_id: u32
 ) -> Vec<Vec<CoreGenomicRegion>> {
 
     // Use the first genome passed as the reference
@@ -154,8 +148,21 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
             &ref_poisoned_regions,
             &regions_poisoned_by_query);
     }
-    panic!()
-    //return generate_final_core_genomes(ref_aligned_regions, ref_poisoned_regions);
+
+    let ref_alignments = generate_final_ref_core_genome_regions(
+        clade_id,
+        ref_aligned_regions,
+        ref_poisoned_regions);
+
+    let mut query_alignments = match_query_alignments_to_ref_alignments(
+        clade_id,
+        &reference_contig_name_to_id,
+        &genome_fasta_paths[1..],
+        &ref_alignments,
+        &all_alignments);
+
+    query_alignments.insert(0, ref_alignments);
+    return query_alignments;
 }
 
 fn read_reference_contig_names(
@@ -294,12 +301,159 @@ fn union(
 
 // Generate the core genome regions, which is the union of the
 // aligned sections minus the poisoned regions.
-fn generate_final_core_genomes(
-    _ref_aligned_regions: Option<BTreeMap<String, Vec<RTree<RefAlignedSection>>>>,
-    _ref_poisoned_regions: BTreeMap<String, Vec<RTree<RefAlignedSection>>>)
-    -> Vec<Vec<CoreGenomicRegion>> {
-    panic!()
+fn generate_final_ref_core_genome_regions(
+    clade_id: u32,
+    ref_aligned_regions: Option<Vec<Option<RTree<RefAlignedSection>>>>,
+    ref_poisoned_regions: Vec<Option<RTree<RefAlignedSection>>>)
+    -> Vec<CoreGenomicRegion> {
+
+    let mut core_genome_regions = vec![];
+    ref_aligned_regions
+        .expect("Found no aligned regions for this species, giving up.")
+        .iter()
+        .zip(ref_poisoned_regions.iter())
+        .enumerate()
+        .for_each( |(contig_idx, (aligned_opt, poison_opt))| {
+            match aligned_opt {
+                None => {}, // No alignments in this contig.
+                Some(alignment_rtree) => {
+                    // TODO: It seems like iterating over the rtree in sorted
+                    // order should be possible, but I've not thought too deeply
+                    // about it.
+                    let mut aligns_sorted: Vec<&RefAlignedSection> = alignment_rtree.iter().collect();
+                    aligns_sorted.sort_unstable();
+
+                    // We do not need to flatten the alignments because marking
+                    // something as core is just a yes/no thing later on in this
+                    // whole process.
+                    for align in aligns_sorted.iter() {
+                        match poison_opt {
+                            None => {
+                                core_genome_regions.push(CoreGenomicRegion {
+                                    clade_id: clade_id,
+                                    contig_id: contig_idx,
+                                    start: align.start as u32,
+                                    stop: align.stop as u32,
+                                })
+                            },
+                            Some(poison_rtree) => {
+                                // Find intersecting poison alignments, and sort them
+                                let mut poisons: Vec<&RefAlignedSection> = poison_rtree
+                                    .locate_in_envelope_intersecting(
+                                        &rstar::AABB::from_corners([align.start,0],[align.stop,0]))
+                                    .collect();
+                                poisons.sort_unstable();
+
+                                // Add the remaining parts
+                                let mut current_align_start = align.start;
+                                for poison in poisons {
+                                    // If align start < poison_start, log an
+                                    // aligned section, and reset align_start
+                                    if current_align_start < poison.start {
+                                        core_genome_regions.push (CoreGenomicRegion {
+                                            clade_id: clade_id,
+                                            contig_id: contig_idx,
+                                            start: current_align_start as u32,
+                                            stop: poison.start as u32 - 1,
+                                        });
+                                        current_align_start = poison.stop + 1;
+                                    } else {
+                                        // Else set next aligned start to be max
+                                        // of current_poison.stop+1 and
+                                        // current_align_start. Have to include
+                                        // the latter because this poison might
+                                        // be fully contained within the last
+                                        // one.
+                                        current_align_start = std::cmp::max(
+                                            poison.stop + 1,
+                                            current_align_start)
+                                    }
+                                }
+                                // Add the final aligned section if one exists
+                                if current_align_start < align.stop {
+                                    core_genome_regions.push(CoreGenomicRegion {
+                                        clade_id: clade_id,
+                                        contig_id: contig_idx,
+                                        start: current_align_start as u32,
+                                        stop: align.stop as u32 - 1,
+                                    })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    return core_genome_regions;
 }
+
+/// Given core regions defined in the reference sequence, return the analogous
+/// regions from the query alignments.
+fn match_query_alignments_to_ref_alignments(
+    clade_id: u32,
+    reference_contig_name_to_id: &BTreeMap<String, usize>,
+    query_fasta_paths: &[&str],
+    ref_alignments: &Vec<CoreGenomicRegion>,
+    all_alignments: &Vec<Vec<nucmer_runner::NucmerDeltaAlignment>>
+) -> Vec<Vec<CoreGenomicRegion>> {
+    let num_reference_contigs = reference_contig_name_to_id.len();
+    let mut ref_contig_tmp: Vec<Vec<&CoreGenomicRegion>> = vec![vec![]; num_reference_contigs];
+    for ref_align in ref_alignments {
+        ref_contig_tmp[ref_align.contig_id].push(ref_align);
+    }
+    let ref_contig_rtrees: Vec<RTree<RefAlignedSection>> = ref_contig_tmp
+        .iter()
+        .map(|aligns| RTree::bulk_load(
+            aligns
+                .iter()
+                .map(|a| RefAlignedSection {
+                    start: a.start as i64,
+                    stop: a.stop as i64,
+                })
+                .collect()
+        ))
+        .collect();
+
+    // Iterate each alignment fro the query
+    return all_alignments
+        .iter()
+        .enumerate()
+        .map( |(query_index, query_genome_alignments)| {
+            let mut aligning_regions = vec![];
+            let query_contig_name_to_idx = read_reference_contig_names(query_fasta_paths[query_index]);
+            for query_align in query_genome_alignments {
+                let ref_contig_id = reference_contig_name_to_id[&query_align.seq1_name];
+                for aligning_ref_region in ref_contig_rtrees[ref_contig_id]
+                    .locate_in_envelope_intersecting(
+                        &rstar::AABB::from_corners(
+                            [query_align.seq1_start as i64,0],
+                            [query_align.seq1_stop as i64,0])) {
+                        // debug!("Adding core genome derived from ref {:#?} and query {:#?}",
+                        //        aligning_ref_region, query_align);
+
+                        aligning_regions.push(CoreGenomicRegion {
+                            clade_id: clade_id,
+                            contig_id: query_contig_name_to_idx[&query_align.seq2_name],
+                            start: query_align.query_coord_at(
+                                std::cmp::max(
+                                    aligning_ref_region.start as u32,
+                                    query_align.seq1_start,
+                                )
+                            ),
+                            stop: query_align.query_coord_at(
+                                std::cmp::min(
+                                    aligning_ref_region.stop as u32,
+                                    query_align.seq1_stop,
+                                )
+                            ),
+                        })
+                    }
+            }
+            aligning_regions
+        })
+        .collect()
+}
+
 
 fn generate_nucmer_suffixes(fasta: &str, prefix: &std::path::Path) {
     let mut cmd = std::process::Command::new("nucmer");
@@ -362,6 +516,51 @@ mod tests {
               ],
             8
         );
+        println!("{:#?}", parsed);
+        assert_eq!(vec![
+            vec![
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 0,
+                    start: 0,
+                    stop: 86,
+                },
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 0,
+                    start: 87,
+                    stop: 199,
+                },
+            ],
+            vec![
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 0,
+                    start: 88,
+                    stop: 200,
+                },
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 0,
+                    start: 1,
+                    stop: 87,
+                },
+            ],
+            vec![
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 1,
+                    start: 0,
+                    stop: 86,
+                },
+                CoreGenomicRegion {
+                    clade_id: 8,
+                    contig_id: 0,
+                    start: 0,
+                    stop: 112,
+                },
+            ]
+        ], parsed);
     }
 
     #[test]
