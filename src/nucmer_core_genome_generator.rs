@@ -89,9 +89,6 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
         // insert the reference coordinates into the tree
         let mut regions_poisoned_by_query = vec![vec![]; reference_contig_name_to_id.len()]; //ref_contig index to position pairs
         for contig_alignments in alignment_chunks.iter() {
-            // if contig_alignments.ref_contig != "73.20120800_S1D.21_contig_8557" {
-            //     continue; //debug
-            // }
             let reference_contig_index = reference_contig_name_to_id[contig_alignments.ref_contig];
             debug!("Determining alignments against contig {:?}", contig_alignments);
             let aligned_sections: Vec<AlignedSection> = contig_alignments
