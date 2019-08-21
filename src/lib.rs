@@ -18,7 +18,6 @@ pub mod screen;
 pub mod core_genome;
 pub mod nucmer_runner;
 pub mod nucmer_core_genome_generator;
-pub mod fastani_clusterer;
 
 extern crate bio;
 #[macro_use]
