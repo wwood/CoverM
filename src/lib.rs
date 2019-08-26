@@ -42,6 +42,7 @@ extern crate bincode;
 extern crate serde;
 extern crate csv;
 extern crate rstar;
+extern crate finch;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;

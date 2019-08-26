@@ -34,6 +34,7 @@ debruijn = { git = "https://github.com/10XGenomics/rust-debruijn", rev = "9c7caf
 snap = "0.2"
 csv = "1.1"
 rstar = "0.5"
+finch = "0.2"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
