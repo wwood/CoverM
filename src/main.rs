@@ -827,6 +827,28 @@ fn main(){
                 index, &output);
             info!("Saving complete");
         },
+        Some("cluster") => {
+            let m = matches.subcommand_matches("cluster").unwrap();
+            set_log_level(m, true);
+
+            let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+            let v2: Vec<&str> = genome_fasta_files.iter().map(|s| &**s).collect();
+            info!("Clustering {} genomes ..", genome_fasta_files.len());
+
+            let clusters = coverm::ani_clustering::minhash_clusterer::minhash_clusters(
+                &v2,
+                value_t!(m.value_of("ani"), f32).unwrap(),
+            );
+            info!("Found {} genome clusters", clusters.len());
+
+            for cluster in clusters {
+                let rep_index = cluster[0];
+                for genome_index in cluster {
+                    println!("{}\t{}", v2[rep_index], v2[genome_index]);
+                }
+            }
+            info!("Finished printing genome clusters");
+        },
         Some("screen") => {
             let m = matches.subcommand_matches("screen").unwrap();
             set_log_level(m, true);
@@ -2255,6 +2277,40 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("quiet")
                      .short("q")
                      .long("quiet")))
+
+        .subcommand(
+            SubCommand::with_name("cluster")
+                .about("Cluster FASTA files by average nucleotide identity")
+                .arg(Arg::with_name("ani")
+                     .long("ani")
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("genome-fasta-files")
+                     .short("f")
+                     .long("genome-fasta-files")
+                     .multiple(true)
+                     .conflicts_with("genome-fasta-directory")
+                     .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["genome-fasta-directory"])
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-directory")
+                     .short("d")
+                     .long("genome-fasta-directory")
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .conflicts_with("single-genome")
+                     .required_unless_one(
+                         &["genome-fasta-files"])
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-extension")
+                     .short("x")
+                     .long("genome-fasta-extension")
+                     // Unsure why, but uncommenting causes test failure (in
+                     // genome mode, not sure about here) - clap bug?
+                     //.requires("genome-fasta-directory")
+                     .default_value("fna")
+                     .takes_value(true)))
 
         .subcommand(
             SubCommand::with_name("screen")
