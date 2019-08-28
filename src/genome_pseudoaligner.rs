@@ -4,15 +4,17 @@ use kmer_coverage::*;
 use genomes_and_contigs::GenomesAndContigs;
 
 use pseudoaligner::*;
+use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
 use debruijn::Kmer;
 use bio::io::fastq;
 use log::Level;
 
-pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
+pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send, T: PseudoalignmentReadMapper + Sync + Send>(
     forward_fastq: &str,
     reverse_fastq: Option<&str>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
+    read_mapper: &T,
     index: &DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs)
 -> Vec<(usize, f64)> {
@@ -26,8 +28,8 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
                 .expect(&format!("Failure to read reverse read file {}", s))),
         None => None
     };
-    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads(
-        reads, reverse_reads, &index.index, num_threads)
+    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads::<K, T>(
+        reads, reverse_reads, &read_mapper, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
 
@@ -198,10 +200,11 @@ fn generate_genome_to_contig_indices_vec(
 }
 
 
-pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync>(
+pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync, T: PseudoalignmentReadMapper + Sync + Send>(
     read_inputs: &Vec<PseudoalignmentReadInput>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
+    read_mapper: &T,
     index: &DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs) {
 
@@ -215,6 +218,7 @@ pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync>(
             },
             num_threads,
             print_zero_coverage_contigs,
+            read_mapper,
             index,
             genomes_and_contigs);
 

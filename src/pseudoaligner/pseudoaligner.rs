@@ -26,6 +26,11 @@ pub struct Pseudoaligner<K: Kmer> {
     pub tx_gene_mapping: HashMap<String, String>,
 }
 
+pub trait PseudoalignmentReadMapper {
+    /// Pseudo-align `read_seq` to determine its the equivalence class.
+    fn map_read(&self, read_seq: &DnaString) -> Option<(Vec<u32>, usize)>;
+}
+
 impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
     pub fn new(
         dbg: DebruijnGraph<K, EqClassIdType>,
@@ -36,9 +41,10 @@ impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
     ) -> Pseudoaligner<K> {
         Pseudoaligner {dbg, eq_classes, dbg_index, tx_names, tx_gene_mapping}
     }
+}
 
-    /// Pseudo-align `read_seq` to determine its the equivalence class.
-    pub fn map_read(&self, read_seq: &DnaString) -> Option<(Vec<u32>, usize)> {
+impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for Pseudoaligner<K> {
+    fn map_read(&self, read_seq: &DnaString) -> Option<(Vec<u32>, usize)> {
         let read_length = read_seq.len();
         let mut read_coverage: usize = 0;
         let mut colors: Vec<u32> = Vec::new();
@@ -315,10 +321,10 @@ fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
 
 // TODO: Generalise this to take gzipping fastq, fasta etc, and use a faster
 // reader.
-pub fn process_reads<K: Kmer + Sync + Send>(
+pub fn process_reads<K: Kmer + Sync + Send, T: PseudoalignmentReadMapper + Sync + Send>(
     forward_or_single_reader: fastq::Reader<File>,
     reverse_reader: Option<fastq::Reader<File>>,
-    index: &Pseudoaligner<K>,
+    index: &T,
     num_threads: usize,
     // Result returned is equivalence class indices mapped to indexes, and
     // counts for each observed index.
@@ -491,9 +497,9 @@ fn get_next_record_pair<R: io::Read>(
     }
 }
 
-fn calculate_fwd_rev<K: Kmer + Sync + Send>(
+fn calculate_fwd_rev<T: PseudoalignmentReadMapper>(
     seq: &str,
-    index: &Pseudoaligner<K>)
+    index: &T)
     -> (Option<(Vec<u32>, usize)>, Option<(Vec<u32>, usize)>) {
 
     let dna_string = DnaString::from_dna_string(seq);
@@ -516,10 +522,10 @@ fn add_coverage(c: &Option<(std::vec::Vec<u32>, usize)>)
 }
 
 
-fn map_read_pair<K: Kmer + Sync + Send>(
+fn map_read_pair<T: PseudoalignmentReadMapper>(
     fwd_record: &fastq::Record,
     rev_record: &fastq::Record,
-    index: &Pseudoaligner<K>)
+    index: &T)
     -> (bool, String, Vec<u32>, usize) {
 
     // Read sequences and do the mapping
@@ -586,9 +592,9 @@ fn map_read_pair<K: Kmer + Sync + Send>(
 
 
 
-fn map_single_reads<K: Kmer + Sync + Send>(
+fn map_single_reads<T: PseudoalignmentReadMapper>(
     record: &fastq::Record,
-    index: &Pseudoaligner<K>)
+    index: &T)
     -> (bool, String, Vec<u32>, usize)  {
 
     let seq = str::from_utf8(record.seq()).unwrap();

@@ -369,12 +369,12 @@ fn main(){
                             &pseudoalign_params.reads,
                             pseudoalign_params.num_threads,
                             !m.is_present("no-zeros"),
+                            &pseudoalign_params.index.index,
                             &pseudoalign_params.index,
                             &genomes_and_contigs,
                         );
                     }
                 }
-
             } else {
 
                 let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(

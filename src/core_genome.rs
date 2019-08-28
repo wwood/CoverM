@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use pseudoaligner::pseudoaligner::Pseudoaligner;
+use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
 use debruijn::{Kmer, Vmer, Mer, Dir};
 use debruijn::dna_string::DnaString;
 
@@ -17,7 +18,7 @@ pub struct CoreGenomicRegion {
 /// Represent a Pseudoaligner that has extra annotations, specifically, some
 /// regions are marked as being 'core' for a given clade, and so it is more
 /// reliable to calculate abundance just based only on these regions.
-pub struct CoreGenomePseudoaligner<K: Kmer> {
+pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
     pub index: Pseudoaligner<K>,
 
     /// Core genome size of each clade
@@ -26,6 +27,13 @@ pub struct CoreGenomePseudoaligner<K: Kmer> {
     /// Map of node_id in graph to list of clades where those nodes are in that
     /// clade's core. Nodes not in any core are not stored.
     pub node_id_to_clade_cores: BTreeMap<usize, Vec<u32>>
+}
+
+impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligner<K> {
+    fn map_read(&self, read_seq: &DnaString) -> Option<(Vec<u32>, usize)> {
+        // TODO: Change below to work out whether the node is in a core genome or not
+        self.index.map_read(read_seq)
+    }
 }
 
 

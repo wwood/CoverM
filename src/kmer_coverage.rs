@@ -95,7 +95,7 @@ pub fn calculate_contig_kmer_coverage<K: Kmer + Sync + Send>(
                 .expect(&format!("Failure to read reverse read file {}", s))),
         None => None
     };
-    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads(
+    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads::<K, pseudoaligner::Pseudoaligner<K>>(
         reads, reverse_reads, &index.index, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
