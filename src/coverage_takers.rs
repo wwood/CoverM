@@ -4,11 +4,11 @@ use std::process;
 
 pub enum CoverageTakerType<'a> {
     SingleFloatCoverageStreamingCoveragePrinter {
-        print_stream: &'a mut std::io::Write,
+        print_stream: &'a mut dyn std::io::Write,
         current_stoit: Option<String>
     },
     PileupCoverageCoveragePrinter {
-        print_stream: &'a mut std::io::Write,
+        print_stream: &'a mut dyn std::io::Write,
         current_stoit: Option<String>,
         current_entry: Option<String>,
     },
@@ -44,14 +44,14 @@ pub struct CoverageEntry {
 
 impl<'a> CoverageTakerType<'a> {
     pub fn new_single_float_coverage_streaming_coverage_printer(
-        print_stream: &mut std::io::Write) -> CoverageTakerType {
+        print_stream: &mut dyn std::io::Write) -> CoverageTakerType {
         CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
             print_stream: print_stream,
             current_stoit: None
         }
     }
     pub fn new_pileup_coverage_coverage_printer(
-        print_stream: &mut std::io::Write) -> CoverageTakerType {
+        print_stream: &mut dyn std::io::Write) -> CoverageTakerType {
         CoverageTakerType::PileupCoverageCoveragePrinter {
             print_stream: print_stream,
             current_stoit: None,
@@ -323,7 +323,7 @@ impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
                             let mut chosen_stoit_entry_id =
                                 self.iter_next_entry_indices[self.iter_current_stoit_index];
                             let potential_next_stoit_list = &coverages[self.iter_current_stoit_index];
-                            let mut struct_to_return;
+                            let struct_to_return;
                             if chosen_stoit_entry_id >= potential_next_stoit_list.len() ||
                                 potential_next_stoit_list[chosen_stoit_entry_id].entry_index != lowest_entry_i {
                                     // There are no more coverages from this stoit,

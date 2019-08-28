@@ -18,7 +18,7 @@ impl CoveragePrinter {
     pub fn finalise_printing<'a>(
         &mut self,
         cached_coverage_taker: &'a CoverageTakerType<'a>,
-        print_stream: &mut std::io::Write,
+        print_stream: &mut dyn std::io::Write,
         reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
         columns_to_normalise: &Vec<usize>) {
         match self {
@@ -95,7 +95,7 @@ impl CoveragePrinter {
         &mut self,
         entry_type_str: &str,
         estimator_headers_vec: Vec<String>,
-        print_stream: &mut std::io::Write) {
+        print_stream: &mut dyn std::io::Write) {
 
         match self {
             CoveragePrinter::StreamedCoveragePrinter |
@@ -124,7 +124,7 @@ impl CoveragePrinter {
 
 pub fn print_sparse_cached_coverage_taker<'a>(
     cached_coverage_taker: &'a CoverageTakerType<'a>,
-    print_stream: &mut std::io::Write,
+    print_stream: &mut dyn std::io::Write,
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>) {
 
@@ -254,7 +254,7 @@ pub fn print_dense_cached_coverage_taker<'a>(
     entry_type: &str,
     estimator_headers: &Vec<String>,
     cached_coverage_taker: &'a CoverageTakerType<'a>,
-    print_stream: &mut std::io::Write,
+    print_stream: &mut dyn std::io::Write,
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>) {
 

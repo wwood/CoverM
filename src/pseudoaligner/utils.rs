@@ -44,7 +44,7 @@ pub fn read_obj<T: DeserializeOwned, P: AsRef<Path> + Debug>(
 }
 
 /// Open a (possibly gzipped) file into a BufReader.
-fn _open_with_gz<P: AsRef<Path>>(p: P) -> Result<Box<BufRead>, Error> {
+fn _open_with_gz<P: AsRef<Path>>(p: P) -> Result<Box<dyn BufRead>, Error> {
     let r = File::open(p.as_ref())?;
 
     if p.as_ref().extension().unwrap() == "gz" {

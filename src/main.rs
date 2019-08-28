@@ -331,7 +331,7 @@ fn main(){
             }
             set_log_level(m, true);
 
-            let mut genome_names_content: Vec<u8>;
+            let genome_names_content: Vec<u8>;
 
             let separator = parse_separator(m);
             let single_genome = m.is_present("single-genome");
@@ -1039,7 +1039,7 @@ impl<'a> EstimatorsAndTaker<'a> {
     pub fn print_headers(
         mut self,
         entry_type: &str,
-        print_stream: &mut std::io::Write) -> Self {
+        print_stream: &mut dyn std::io::Write) -> Self {
 
         let mut headers: Vec<String> = vec!();
         for e in self.estimators.iter() {
