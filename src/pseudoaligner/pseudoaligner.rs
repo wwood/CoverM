@@ -65,6 +65,8 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for Pseudoaligner<K> {
                     Some((nid, offset)) => {
                         let node = self.dbg.get_node(*nid as usize);
                         debug!("kmer hit to node {:?}", node);
+                        // Check that this is a real hit and the kmer is
+                        // actually in the MPHF.
                         let ref_seq_slice = node.sequence();
                         let ref_kmer: K = ref_seq_slice.get_kmer(*offset as usize);
 

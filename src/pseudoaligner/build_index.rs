@@ -100,7 +100,7 @@ fn partition_contigs<'a, K: Kmer>(
     let mut bucket_slices = Vec::new();
 
     if contig.len() >= K::k() {
-        let msps = debruijn::msp::simple_scan::<_, PmerType>(K::k(), contig, &PERM, false);
+        let msps = debruijn::msp::simple_scan::<_, PmerType>(K::k(), contig, &PERM, true);
         for msp in msps {
             let bucket_id = msp.bucket();
             let slice = contig.slice(msp.start(), msp.end());
