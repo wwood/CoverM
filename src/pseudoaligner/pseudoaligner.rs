@@ -292,7 +292,7 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for Pseudoaligner<K> {
 
 /// Compute the intersection of v1 and v2 inplace on top of v1
 /// v1 and v2 must be sorted
-fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
+pub fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
     if v1.is_empty() {
         return;
     }
