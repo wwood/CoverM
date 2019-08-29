@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap,BTreeSet};
 
 use pseudoaligner::pseudoaligner::Pseudoaligner;
 use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
@@ -27,6 +27,9 @@ pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
     /// Core genome size of each clade
     pub core_genome_sizes: Vec<usize>,
 
+    /// List of which clades each genome belongs to
+    pub genome_clade_ids: Vec<usize>,
+
     /// Map of node_id in graph to list of clades where those nodes are in that
     /// clade's core. Nodes not in any core are not stored.
     pub node_id_to_clade_cores: BTreeMap<usize, Vec<u32>>
@@ -43,6 +46,7 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
         let read_length = read_seq.len();
         let mut read_coverage: usize = 0;
         let mut colors: Vec<u32> = Vec::new();
+        let mut visited_nodes: Vec<usize> = Vec::new();
         let left_extend_threshold = (LEFT_EXTEND_FRACTION * read_length as f64) as usize;
 
         let mut kmer_pos: usize = 0;
@@ -179,6 +183,10 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
                 let color = node.data();
                 colors.push(*color);
 
+                // add node_ids to list of found nodes
+                debug!("Adding node_id to list of visited nodes: {:?}", node_id.unwrap());
+                visited_nodes.push(node_id.unwrap());
+
                 // length of remaining read after kmer match
                 let remaining_read = read_length - kmer_pos;
 
@@ -280,7 +288,30 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
                 intersect(&mut eq_class, &self.index.eq_classes[color as usize]);
             }
 
-            Some((eq_class, read_coverage))
+            // Only return colours where visited nodes are marked as core.
+            let mut clade_cores = BTreeSet::new();
+            debug!("Found visited nodes: {:?}", visited_nodes);
+            debug!("Found sequence of first visited node: {:?}",
+                   self.index.dbg.get_node(visited_nodes[0]));
+            debug!("Node id to core genome: {:?}", self.node_id_to_clade_cores);
+            for node_id in visited_nodes {
+                match self.node_id_to_clade_cores.get(&node_id) {
+                    None => {},
+                    Some(clade_ids) => {
+                        for clade_id in clade_ids {
+                            clade_cores.insert(clade_id);
+                        }
+                    }
+                }
+            }
+            let core_eq_classes: Vec<u32> = eq_class.into_iter().filter(
+                |color| {
+                    let clade_id: usize = self.genome_clade_ids[*color as usize];
+                    clade_cores.contains(&(clade_id as u32))
+                }
+            ).collect();
+
+            Some((core_eq_classes, read_coverage))
         }
     }
 }
@@ -297,6 +328,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
 
     let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> =
         BTreeMap::new();
+    let mut genome_clade_ids: Vec<usize> = vec![];
 
     // Function to extract the next tranch of core genome regions for the next
     // contig
@@ -318,6 +350,8 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
 
     for genome_regions in core_genome_regions {
         let clade_id = genome_regions[0].clade_id;
+        genome_clade_ids.push(clade_id as usize);
+
         let (mut region_index_start, mut region_index_stop) =
             indices_of_current_contig(genome_regions, 0);
 
@@ -358,6 +392,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     return CoreGenomePseudoaligner {
         index: aligner,
         core_genome_sizes: vec![], //TODO
+        genome_clade_ids: genome_clade_ids,
         node_id_to_clade_cores: node_id_to_clade_cores,
     }
 }
@@ -543,7 +578,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
             found_kmer = found_kmer.rc();
         }
         if found_kmer != target_kmer {
-            debug!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
+            error!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
                      target_kmer, found_kmer);
             std::process::exit(1);
         }
@@ -815,6 +850,57 @@ mod tests {
         let dna = DnaString::from_acgt_bytes(b"ATCGCCCGTCACCACCCCAATTCATACACCACTAGCGGTTAGCAACGATT");
         let res = core_aligner.map_read(&dna);
         assert_eq!(Some((vec![0u32], 30usize)), res);
+    }
+
+    #[test]
+    fn test_core_genome_pseudoaligner_map_non_core_read() {
+        init();
+        let cores = vec![vec![
+            CoreGenomicRegion {
+                clade_id: 11,
+                contig_id: 0,
+                start: 1,
+                stop: 11
+            },
+            CoreGenomicRegion {
+                clade_id: 11,
+                contig_id: 0,
+                start: 80,
+                stop: 82
+            },
+        ], vec![
+            CoreGenomicRegion {
+                clade_id: 12,
+                contig_id: 1,
+                start: 10,
+                stop: 15
+            },
+        ]];
+
+        // Build index
+        let reference_reader = fasta::Reader::from_file(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
+            .expect("reference reading failed.");
+        info!("Reading reference sequences in ..");
+        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+            .expect("Failure to read contigs file");
+        info!("Building debruijn index ..");
+        let index = build_index::build_index::<config::KmerType>(
+            &seqs, &tx_names, &tx_gene_map, 1
+        );
+        let real_index = index.unwrap();
+
+        let core_aligner = generate_core_genome_pseudoaligner(
+            &cores,
+            &seqs,
+            real_index
+        );
+
+        // non-core read (1 kmer) because the A at the start is an overhang.
+        // It's a non-core (rather than not in any genome).
+        let dna = DnaString::from_acgt_bytes(b"ATCGCCCGTCACCACCCCAATTCA");
+        let res = core_aligner.map_read(&dna);
+        assert_eq!(Some((vec![], 24usize)), res);
     }
 }
 
