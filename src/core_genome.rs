@@ -329,6 +329,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> =
         BTreeMap::new();
     let mut genome_clade_ids: Vec<usize> = vec![];
+    let mut core_genome_sizes: Vec<usize> = vec![];
 
     // Function to extract the next tranch of core genome regions for the next
     // contig
@@ -351,6 +352,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     for genome_regions in core_genome_regions {
         let clade_id = genome_regions[0].clade_id;
         genome_clade_ids.push(clade_id as usize);
+        let mut core_genome_size = 0usize;
 
         let (mut region_index_start, mut region_index_stop) =
             indices_of_current_contig(genome_regions, 0);
@@ -375,6 +377,10 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                         node_id_to_clade_cores.insert(nid, vec![clade_id]);
                     }
                 }
+
+                // Add the total length of the found nodes to the core genome
+                // size
+                core_genome_size += aligner.dbg.get_node(nid).len();
             }
 
             // Update for next iteration
@@ -387,11 +393,12 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                 break;
             }
         }
+        core_genome_sizes.push(core_genome_size);
     }
 
     return CoreGenomePseudoaligner {
         index: aligner,
-        core_genome_sizes: vec![], //TODO
+        core_genome_sizes: core_genome_sizes,
         genome_clade_ids: genome_clade_ids,
         node_id_to_clade_cores: node_id_to_clade_cores,
     }
@@ -745,6 +752,8 @@ mod tests {
         expected.insert(5, vec![11]);
         expected.insert(4, vec![11]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
+        debug!("{} {}", core_aligner.index.dbg.get_node(4).len(),core_aligner.index.dbg.get_node(5).len());
+        assert_eq!(vec![71], core_aligner.core_genome_sizes);
     }
 
 
@@ -801,6 +810,11 @@ mod tests {
         expected.insert(4, vec![11]);
         expected.insert(2, vec![11,12]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
+        debug!("{} {} {}",
+               core_aligner.index.dbg.get_node(2).len(),
+               core_aligner.index.dbg.get_node(4).len(),
+               core_aligner.index.dbg.get_node(5).len());
+        assert_eq!(vec![99+47+24,99], core_aligner.core_genome_sizes);
     }
 
     #[test]
