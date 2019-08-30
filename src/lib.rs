@@ -53,6 +53,14 @@ use std::process;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
+pub fn genome_name_from_path(path: &Path) -> String {
+    String::from(
+        path.file_stem()
+            .expect("Problem while determining file stem")
+            .to_str()
+            .expect("File name string conversion problem"))
+}
+
 
 pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)
     -> GenomesAndContigs {
@@ -63,11 +71,7 @@ pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>)
         let reader = bio::io::fasta::Reader::from_file(path)
             .expect(&format!("Unable to read fasta file {}", file));
 
-        let genome_name = String::from(
-            path.file_stem()
-                .expect("Problem while determining file stem")
-            .to_str()
-                .expect("File name string conversion problem"));
+        let genome_name = genome_name_from_path(&path);
         if contig_to_genome.genome_index(&genome_name).is_some() {
             error!("The genome name {} was derived from >1 file", genome_name);
             process::exit(1);

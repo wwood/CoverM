@@ -1,23 +1,89 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use kmer_coverage::*;
 use genomes_and_contigs::GenomesAndContigs;
+use core_genome::CoreGenomePseudoaligner;
+use genome_name_from_path;
 
 use pseudoaligner::*;
-use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
 use debruijn::Kmer;
 use bio::io::fastq;
 use log::Level;
+use csv;
 
-pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send, T: PseudoalignmentReadMapper + Sync + Send>(
+/// Given a path to a file containing two columns (representative<tab>member),
+/// where representative and member are paths to genome files, return a list of
+/// groups, where the representative is the first in the 2nd dimension list. The
+/// String data is processed the same as in coverm::read_genome_fasta_files i.e.
+/// what is used to generate GenomesAndContigs.
+pub fn read_clade_definition_file(
+    file_path: &str)
+    -> Vec<Vec<String>> {
+
+    // Open file as CSV
+
+    let rdr = csv::ReaderBuilder::new()
+        .delimiter(b'\t')
+        .has_headers(false)
+        .from_path(Path::new(file_path));
+
+    let mut current_rep: Option<String> = None;
+    let mut current_members = vec![];
+    let mut to_return = vec![];
+    for result in rdr
+        .expect(&format!("Failed to read clade definition file {}", file_path))
+        .records() {
+            let res = result.expect(&format!("Failed to read CSV record from clade definition file: {}", file_path));
+            if res.len() != 2 {
+                error!("Unexpectedly found a line in clade definition file with number of elements != 2: {:?}", res);
+                std::process::exit(1);
+            }
+            let rep = &res[0];
+            let member = &res[1];
+
+
+            match current_rep {
+                None => {
+                    if rep != member {
+                        error!("In clade definition file, the representative must be the first member, found {} and {}",
+                               rep, member);
+                        std::process::exit(1);
+                    }
+                    current_rep = Some(rep.to_string());
+                    current_members.push(genome_name_from_path(Path::new(rep)));
+                },
+                Some(ref previous_rep) => {
+                    // Ensure that the first member is the rep
+                    if rep == previous_rep {
+                        current_members.push(genome_name_from_path(Path::new(member)));
+                    } else {
+                        if rep != member {
+                            error!("In clade definition file, the representative must be the first member, found {} and {}",
+                                   rep, member);
+                            std::process::exit(1);
+                        }
+                        to_return.push(current_members);
+                        current_rep = Some(rep.to_string());
+                        current_members = vec![genome_name_from_path(Path::new(rep))];
+                    }
+                }
+            }
+        }
+    to_return.push(current_members);
+
+    return to_return;
+}
+
+pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
     forward_fastq: &str,
     reverse_fastq: Option<&str>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
-    read_mapper: &T,
+    core_genome_aligner: &CoreGenomePseudoaligner<K>,
     index: &DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs)
--> Vec<(usize, f64)> {
+    -> Vec<(usize, f64)> {
 
     // Do the mappings
     let reads = fastq::Reader::from_file(forward_fastq)
@@ -28,8 +94,9 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send, T: PseudoalignmentR
                 .expect(&format!("Failure to read reverse read file {}", s))),
         None => None
     };
-    let (eq_class_indices, eq_class_coverages, _eq_class_counts) = pseudoaligner::process_reads::<K, T>(
-        reads, reverse_reads, &read_mapper, num_threads)
+    let (eq_class_indices, eq_class_coverages, _eq_class_counts) =
+        pseudoaligner::process_reads::<K, CoreGenomePseudoaligner<K>>(
+            reads, reverse_reads, &core_genome_aligner, num_threads)
         .expect("Failure during mapping process");
     info!("Finished mapping reads!");
 
@@ -200,13 +267,22 @@ fn generate_genome_to_contig_indices_vec(
 }
 
 
-pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync, T: PseudoalignmentReadMapper + Sync + Send>(
+pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     read_inputs: &Vec<PseudoalignmentReadInput>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
-    read_mapper: &T,
     index: &DebruijnIndex<K>,
-    genomes_and_contigs: &GenomesAndContigs) {
+    genomes_and_contigs: &GenomesAndContigs,
+    clades: &Vec<Vec<String>>) {
+
+    // Calculate core genomes from FASTA files
+    unimplemented!();
+    let read_mapper: &CoreGenomePseudoaligner<K>;
+
+    // Check core genome sizes / report
+    // Thread genomes recording the core genome nodes
+    // Map / EM
+    // Print
 
     println!("Sample\tGenome\tCoverage");
     for read_input in read_inputs {
@@ -233,4 +309,28 @@ pub fn calculate_and_print_genome_kmer_coverages<K: Kmer + Send + Sync, T: Pseud
               read_input.sample_name);
     }
     info!("Finished printing contig coverages");
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_read_clade_file() {
+        let mut tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+
+        writeln!(tf, "/path/g1.fna\t/path/g1.fna");
+        writeln!(tf, "/path/g1.fna\t/path/g3.fna");
+        writeln!(tf, "/path/g1.fna\t/path/g2.fna");
+        writeln!(tf, "/path/g10.fna\t/path/g10.fna");
+        writeln!(tf, "/path/g10.fna\t/path/g20.fna");
+
+        tf.flush().unwrap();
+        assert_eq!(
+            vec![vec!["g1","g3","g2"], vec!["g10","g20"]],
+            read_clade_definition_file(tf.path().to_str().unwrap()));
+    }
 }

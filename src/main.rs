@@ -365,13 +365,16 @@ fn main(){
                         process::exit(1);
                     },
                     Some(genomes_and_contigs) => {
-                        coverm::genome_pseudoaligner::calculate_and_print_genome_kmer_coverages(
+                        let clade_definitions_file = m.value_of("clades").unwrap();
+                        let clades  = coverm::genome_pseudoaligner::read_clade_definition_file(
+                            clade_definitions_file);
+                        coverm::genome_pseudoaligner::core_genome_coverage_pipeline(
                             &pseudoalign_params.reads,
                             pseudoalign_params.num_threads,
                             !m.is_present("no-zeros"),
-                            &pseudoalign_params.index.index,
                             &pseudoalign_params.index,
                             &genomes_and_contigs,
+                            &clades,
                         );
                     }
                 }
