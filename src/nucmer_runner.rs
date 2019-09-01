@@ -28,6 +28,7 @@ pub fn nucmer_to_deltas(
     return aligns;
 }
 
+#[derive(Debug)]
 enum NucmerDeltaParsingState {
     NextLinePaths,
     NextLineNucmer,
@@ -63,6 +64,7 @@ fn parse_delta<R: Read>(
     for record_res in rdr.records() {
         match record_res {
             Ok(record) => {
+                //debug!("In state {:?}, parsing record {:?}", state, record);
                 match state {
                     NucmerDeltaParsingState::NextLinePaths => {
                         state = NucmerDeltaParsingState::NextLineNucmer;
@@ -122,7 +124,7 @@ pub struct NucmerDeltaAlignment {
     pub seq2_stop: u32,
     pub num_errors: u32,
     pub num_similarity_errors: u32,
-    pub insertions: Vec<i16>,
+    pub insertions: Vec<i32>,
 }
 
 impl NucmerDeltaAlignment {
@@ -144,7 +146,7 @@ impl NucmerDeltaAlignment {
         }
         let mut num_ref_inserts = 0u32;
         let mut num_query_inserts = 0u32;
-        let mut current_ref_offset = 0i16;
+        let mut current_ref_offset = 0i32;
         for insert in self.insertions.iter() {
             // If this insert is to the right of the target, we outta here.
             if current_ref_offset as u32 + self.seq1_start + (insert.abs() as u32) - num_ref_inserts >= target_ref_position+1 {
