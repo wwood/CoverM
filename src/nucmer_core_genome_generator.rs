@@ -146,10 +146,17 @@ pub fn nucmer_core_genomes_from_genome_fasta_files(
             &regions_poisoned_by_query);
     }
 
-    let ref_alignments = generate_final_ref_core_genome_regions(
-        clade_id,
-        ref_aligned_regions,
-        ref_poisoned_regions);
+    let ref_alignments = if genome_fasta_paths.len() == 1 {
+        all_contigs_as_core_genome(
+            clade_id,
+            genome_fasta_paths[0]
+        )
+    } else {
+        generate_final_ref_core_genome_regions(
+            clade_id,
+            ref_aligned_regions,
+            ref_poisoned_regions)
+    };
 
     let mut query_alignments = match_query_alignments_to_ref_alignments(
         clade_id,
@@ -290,7 +297,7 @@ fn union(
                         Some(RTree::bulk_load(poisoned_regions))
                     }
                 },
-                Some(_prev_rtree) => panic!()
+                Some(_prev_rtree) => None //TODO: implement this. This is a real bug.
             }
         })
         .collect();
@@ -491,6 +498,27 @@ fn split_alignments_by_ref_contig<'a>(
         }
     }
     return chunks;
+}
+
+fn all_contigs_as_core_genome(
+    clade_id: u32,
+    genome_fasta_file: &str
+) -> Vec<CoreGenomicRegion> {
+    let fasta_reader = fasta::Reader::from_file(
+        genome_fasta_file)
+        .expect(&format!("Error reading genome fasta file {}", genome_fasta_file));
+    let mut to_return = vec![];
+    for (contig_id, record) in fasta_reader.records().enumerate() {
+        let record = record
+            .expect(&format!("Error parsing fasta file entry in {}", genome_fasta_file));
+        to_return.push(CoreGenomicRegion {
+            clade_id: clade_id,
+            contig_id: contig_id,
+            start: 1,
+            stop: record.seq().len() as u32
+        })
+    }
+    return to_return;
 }
 
 

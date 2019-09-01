@@ -1924,6 +1924,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("genome-fasta-files")
                      .conflicts_with("genome-fasta-directory")
                      .conflicts_with("genome-definition"))
+                .arg(Arg::with_name("clades")
+                     .long("clades")
+                     .takes_value(true))
 
                 .arg(Arg::with_name("min-read-aligned-length")
                      .long("min-read-aligned-length")

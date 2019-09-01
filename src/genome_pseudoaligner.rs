@@ -3,8 +3,8 @@ use std::path::Path;
 
 use kmer_coverage::*;
 use genomes_and_contigs::GenomesAndContigs;
-use core_genome::CoreGenomePseudoaligner;
-use genome_name_from_path;
+use core_genome::{CoreGenomePseudoaligner,CoreGenomicRegion};
+use nucmer_core_genome_generator::nucmer_core_genomes_from_genome_fasta_files;
 
 use pseudoaligner::*;
 use debruijn::Kmer;
@@ -15,8 +15,7 @@ use csv;
 /// Given a path to a file containing two columns (representative<tab>member),
 /// where representative and member are paths to genome files, return a list of
 /// groups, where the representative is the first in the 2nd dimension list. The
-/// String data is processed the same as in coverm::read_genome_fasta_files i.e.
-/// what is used to generate GenomesAndContigs.
+/// String data is not processed.
 pub fn read_clade_definition_file(
     file_path: &str)
     -> Vec<Vec<String>> {
@@ -51,12 +50,12 @@ pub fn read_clade_definition_file(
                         std::process::exit(1);
                     }
                     current_rep = Some(rep.to_string());
-                    current_members.push(genome_name_from_path(Path::new(rep)));
+                    current_members.push(rep.to_string());
                 },
                 Some(ref previous_rep) => {
                     // Ensure that the first member is the rep
                     if rep == previous_rep {
-                        current_members.push(genome_name_from_path(Path::new(member)));
+                        current_members.push(member.to_string());
                     } else {
                         if rep != member {
                             error!("In clade definition file, the representative must be the first member, found {} and {}",
@@ -65,7 +64,7 @@ pub fn read_clade_definition_file(
                         }
                         to_return.push(current_members);
                         current_rep = Some(rep.to_string());
-                        current_members = vec![genome_name_from_path(Path::new(rep))];
+                        current_members = vec![rep.to_string()];
                     }
                 }
             }
@@ -275,12 +274,60 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     genomes_and_contigs: &GenomesAndContigs,
     clades: &Vec<Vec<String>>) {
 
-    // Calculate core genomes from FASTA files
-    unimplemented!();
-    let read_mapper: &CoreGenomePseudoaligner<K>;
+    assert!(clades.len() > 0);
+
+    // For each clade, nucmer against the first genome.
+    info!("Calculating core genomes ..");
+    // TODO: ProgressBar?
+    let nucmer_core_genomes: Vec<Vec<Vec<CoreGenomicRegion>>> = clades
+        .iter()
+        .enumerate()
+        .map(
+            |(i, clade_fastas)|
+            nucmer_core_genomes_from_genome_fasta_files(
+                &clade_fastas.iter().map(|s| &**s).collect::<Vec<&str>>()[..],
+                i as u32)
+        ).collect();
+    info!("Finished calculating core genomes");
 
     // Check core genome sizes / report
+    let mut total_core_genome_size = 0u64;
+    let mut minimum_core_genome_size = None;
+    for (clade_i, core_genomes) in nucmer_core_genomes.iter().enumerate() {
+        // minimum core genome size in the clade
+        let minimum_of_clade = core_genomes
+            .iter()
+            .fold(
+                0,
+                |acc, core_genome_regions|
+                acc + core_genome_regions
+                    .iter()
+                    .fold(0, |acc,c| acc+c.stop-c.start));
+        total_core_genome_size += minimum_of_clade as u64;
+        minimum_core_genome_size = match minimum_core_genome_size {
+            None => Some((clade_i, minimum_of_clade)),
+            Some((prev_i, prev_min)) => {
+                if minimum_of_clade < prev_min {
+                    Some((clade_i, minimum_of_clade))
+                } else {
+                    Some((prev_i,prev_min))
+                }
+            }
+        }
+    }
+    info!("Found minimum core genome size {} from clade {}",
+          minimum_core_genome_size.unwrap().1,
+          clades[minimum_core_genome_size.unwrap().0][0]
+    );
+    info!("Found mean core genome size {}",
+          total_core_genome_size as f64 / nucmer_core_genomes.len() as f64);
+
+
     // Thread genomes recording the core genome nodes
+    
+
+    unimplemented!();
+    let read_mapper: &CoreGenomePseudoaligner<K>;
     // Map / EM
     // Print
 
@@ -330,7 +377,7 @@ mod tests {
 
         tf.flush().unwrap();
         assert_eq!(
-            vec![vec!["g1","g3","g2"], vec!["g10","g20"]],
+            vec![vec!["/path/g1.fna","/path/g3.fna","/path/g2.fna"], vec!["/path/g10.fna","/path/g20.fna"]],
             read_clade_definition_file(tf.path().to_str().unwrap()));
     }
 }
