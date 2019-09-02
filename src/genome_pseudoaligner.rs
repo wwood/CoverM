@@ -8,7 +8,8 @@ use nucmer_core_genome_generator::nucmer_core_genomes_from_genome_fasta_files;
 
 use pseudoaligner::*;
 use debruijn::Kmer;
-use bio::io::fastq;
+use debruijn::dna_string::DnaString;
+use bio::io::{fasta,fastq};
 use log::Level;
 use csv;
 
@@ -265,32 +266,10 @@ fn generate_genome_to_contig_indices_vec(
     return tx_ids_of_genomes
 }
 
-
-pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
-    read_inputs: &Vec<PseudoalignmentReadInput>,
-    num_threads: usize,
-    print_zero_coverage_contigs: bool,
-    index: &DebruijnIndex<K>,
-    genomes_and_contigs: &GenomesAndContigs,
+fn report_core_genome_sizes(
+    nucmer_core_genomes: &Vec<Vec<Vec<CoreGenomicRegion>>>,
     clades: &Vec<Vec<String>>) {
 
-    assert!(clades.len() > 0);
-
-    // For each clade, nucmer against the first genome.
-    info!("Calculating core genomes ..");
-    // TODO: ProgressBar?
-    let nucmer_core_genomes: Vec<Vec<Vec<CoreGenomicRegion>>> = clades
-        .iter()
-        .enumerate()
-        .map(
-            |(i, clade_fastas)|
-            nucmer_core_genomes_from_genome_fasta_files(
-                &clade_fastas.iter().map(|s| &**s).collect::<Vec<&str>>()[..],
-                i as u32)
-        ).collect();
-    info!("Finished calculating core genomes");
-
-    // Check core genome sizes / report
     let mut total_core_genome_size = 0u64;
     let mut minimum_core_genome_size = None;
     for (clade_i, core_genomes) in nucmer_core_genomes.iter().enumerate() {
@@ -321,10 +300,74 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     );
     info!("Found mean core genome size {}",
           total_core_genome_size as f64 / nucmer_core_genomes.len() as f64);
+}
 
+/// Read in each contig from each genome of each clade, given a path to their
+/// fasta files.
+fn read_clade_genome_strings(
+    clades: &Vec<Vec<String>>)
+    -> Vec<Vec<Vec<DnaString>>> {
+
+    clades
+        .iter()
+        .map(
+            |genome_fastas|
+            genome_fastas
+                .iter()
+                .map(
+                |genome_fasta| {
+                    let fasta_reader = fasta::Reader::from_file(genome_fasta)
+                        .expect(&format!("Error reading genome fasta file {}", genome_fasta));
+                    fasta_reader
+                        .records()
+                        .map(
+                            |r| {
+                                let r2 = r.expect(&format!(
+                                    "Error parsing fasta file entry in {}", genome_fasta));
+                                // TODO: This conversion introduces randomness. How to treat N characters?
+                                DnaString::from_bytes(
+                                    r2.seq()
+                                )
+                            }
+                        )
+                        .collect()
+                }
+            ).collect()
+        )
+        .collect()
+}
+
+pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
+    read_inputs: &Vec<PseudoalignmentReadInput>,
+    num_threads: usize,
+    print_zero_coverage_contigs: bool,
+    index: &DebruijnIndex<K>,
+    genomes_and_contigs: &GenomesAndContigs,
+    clades: &Vec<Vec<String>>) {
+
+    assert!(clades.len() > 0);
+
+    // For each clade, nucmer against the first genome.
+    info!("Calculating core genomes ..");
+    // TODO: ProgressBar?
+    let nucmer_core_genomes: Vec<Vec<Vec<CoreGenomicRegion>>> = clades
+        .iter()
+        .enumerate()
+        .map(
+            |(i, clade_fastas)|
+            nucmer_core_genomes_from_genome_fasta_files(
+                &clade_fastas.iter().map(|s| &**s).collect::<Vec<&str>>()[..],
+                i as u32)
+        ).collect();
+    info!("Finished calculating core genomes");
+
+    // Check core genome sizes / report
+    report_core_genome_sizes(&nucmer_core_genomes, clades);
 
     // Thread genomes recording the core genome nodes
-    
+    // TODO: These data are at least sometimes read in repeatedly, when they
+    // maybe should just be cached or something.
+    let dna_strings = read_clade_genome_strings(clades);
 
     unimplemented!();
     let read_mapper: &CoreGenomePseudoaligner<K>;
