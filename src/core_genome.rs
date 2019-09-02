@@ -362,6 +362,9 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
             // While there are more contig tranches, process them
             loop {
                 let contig_id = genome_regions[region_index_start].contig_id;
+                debug!("");
+                debug!("=============================================");
+                debug!("=============================================");
                 debug!("Marking clade {}, genome_id {}, contig {} .. ",
                        clade_id, genome_id, contig_id);
                 debug!("Contig sequence was {}",
@@ -509,6 +512,64 @@ fn get_starting_position<K: Kmer + Send + Sync>(
     }
 }
 
+/// Given a kmer which has been provisionally aligned to an edge (but may not be
+/// correct because of MPHF issues), return true if it actually matches the node
+/// at the given offset, else false.
+fn validate_kmer<K: Kmer + Send + Sync>(
+    aligner: &Pseudoaligner<K>,
+    node_id: &u32,
+    offset: &u32,
+    target_kmer: &K
+) -> bool {
+
+    debug!("Validating kmer {:?}", target_kmer);
+    let ref_seq_slice = aligner.dbg.get_node(*node_id as usize).sequence();
+    let ref_kmer: K = ref_seq_slice.get_kmer(*offset as usize);
+
+    if target_kmer == &ref_kmer {
+        debug!("Kmer validated, all good");
+        true
+    } else {
+        debug!("Kmer did not validate");
+        false
+    }
+}
+
+/// Find a kmer using the aligner. Return Some((node_id,offset)) if it is found
+/// and validates (to avoid MPHF issues), else None.
+fn kmer_to_node_and_offset<K: Kmer + Send + Sync>(
+    aligner: &Pseudoaligner<K>,
+    kmer: &K
+) -> Option<(u32,u32)> {
+
+    debug!("Finding kmer {:?}", kmer);
+
+    // Be careful here. Because of the MPHF, hashing false positives can
+    // occur. So need to check that the first matching kmer really is
+    // that.
+    match aligner.dbg_index.get(kmer) {
+        Some((nid, offset)) => {
+            match validate_kmer(aligner, nid, offset, kmer) {
+                true => {return Some((*nid,*offset))},
+                false => {}
+            }
+        },
+        None => {}
+    };
+
+    // RC or None
+    return match aligner.dbg_index.get(&kmer.rc()) {
+        Some((nid, offset)) => {
+            match validate_kmer(aligner, nid, offset, &kmer.rc()) {
+                true => Some((*nid,*offset)),
+                false => None
+            }
+        },
+        None => None
+    }
+}
+
+
 // Mark nodes as being core genome for a single contig. All core_regions should
 // be from that contig. Return a list of nodes to be marked as core.
 fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
@@ -552,7 +613,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
             // If we are in the range of the next core region, add this node
             current_core_region = &core_regions[current_core_region_idx];
             if current_core_region.start <= current_position.contig_position {
-                debug!("Marking the current node {}", current_position.node_id);
+                debug!("Marking as core the current node {}", current_position.node_id);
                 match last_node_id {
                     Some(nid) => {
                         if current_position.node_id != nid {
@@ -613,50 +674,47 @@ fn next_position<K: Kmer + Send + Sync>(
 
     // If we are in the middle of the node, then just update the offset
     let current_node = aligner.dbg.get_node(position.node_id as usize);
-    if position.is_forward && position.offset as usize+k+1 < current_node.len() {
+    debug!(
+        "Current node {}'s sequence is {:?}",
+        position.node_id, current_node.sequence());
+    if position.is_forward && position.offset as usize+k < current_node.len() {
         debug!("Just going forward on the same node");
         position.offset += 1;
     } else if !position.is_forward && position.offset > 0 {
         debug!("Just going reverse on the same node");
         position.offset -= 1;
     } else {
-        let edges = match position.is_forward {
-            true => current_node.r_edges(),
-            false => current_node.l_edges()
-        };
-        debug!("Found potential edges: {:?}", edges);
-        let correct_edge = edges.iter().find(|edge| {
-            let (target_node_id, incoming_side, _is_flipped) = (edge.0, edge.1, edge.2);
-            let target_node = aligner.dbg.get_node(target_node_id);
-
-            let new_kmer = match incoming_side {
-                Dir::Left => target_node.sequence().get_kmer::<K>(0),
-                Dir::Right => target_node.sequence().get_kmer::<K>(target_node.len()-k).rc()
-            };
-            debug!("Testing new kmer {:?} from entire sequence {:?}", new_kmer, target_node.sequence());
-            new_kmer == *kmer
-        });
-        match correct_edge {
-            Some(edge) => {
-                debug!("Found the right edge: {:?}", edge);
-                position.node_id = edge.0;
-                match edge.1 {
-                    Dir::Left => {
-                        position.offset = 0;
-                        position.is_forward = true;
-                    },
-                    Dir::Right => {
-                        let target_node = aligner.dbg.get_node(position.node_id);
-                        position.offset = (target_node.len()-k) as u32;
-                        position.is_forward = false;
-                    }
-                }
-            },
+        // Since we are at the start or end of a new node, we can just find our
+        // position by finding the kmer. I imagine we can also do this by
+        // following the connections in the graph, but I had trouble coding
+        // that.
+        debug!("Threading contig to a new node ..");
+        match kmer_to_node_and_offset(aligner, kmer) {
             None => {
-                panic!("Did not find the right edge")
+                panic!("Could not thread contig as we should have been able to.")
+            },
+            Some((node_id, offset)) => {
+                debug!("Found starting kmer at node/offset {}/{}", node_id, offset);
+                // TODO: Seem to be flipping back and forth between u32 and
+                // usize. Can we standardise?
+                position.node_id = node_id as usize;
+                position.offset = offset;
+
+                // Work out the direction of the kmer on the node
+                // TODO: Do we know this already when we are searching for the
+                // kmer, so below can be replaced with that knowledge?
+                let node = aligner.dbg.get_node(node_id as usize);
+                debug!("Found node sequence was: {:?}", node.sequence());
+                let ref_kmer: K = node.sequence().get_kmer(offset as usize);
+                if kmer == &ref_kmer {
+                    debug!("setting is_forward true");
+                    position.is_forward = true;
+                } else if kmer.rc() == ref_kmer {
+                    debug!("setting is_forward false");
+                    position.is_forward = false;
+                }
             }
         }
-        debug!("Got as");
     }
     position.contig_position += 1;
 }
@@ -827,6 +885,63 @@ mod tests {
                core_aligner.index.dbg.get_node(4).len(),
                core_aligner.index.dbg.get_node(5).len());
         assert_eq!(vec![99+47+24,99], core_aligner.core_genome_sizes);
+    }
+
+    #[test]
+    fn test_core_genome_2_genomes_diverging() {
+        init();
+        let cores = vec![vec![vec![
+            CoreGenomicRegion {
+                clade_id: 0,
+                contig_id: 0,
+                start: 30,
+                stop: 74
+            },
+        ], vec![
+            CoreGenomicRegion {
+                clade_id: 0,
+                contig_id: 0,
+                start: 30,
+                stop: 74
+            },
+        ]]];
+
+        // Build index
+        let reference_reader = fasta::Reader::from_file(
+            "tests/data/2_single_species_dummy_dataset/two_diverging_genomes.fna")
+            .expect("reference reading failed.");
+        info!("Reading reference sequences in ..");
+        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+            .expect("Failure to read contigs file");
+        info!("Building debruijn index ..");
+        let index = build_index::build_index::<config::KmerType>(
+            &seqs, &tx_names, &tx_gene_map, 1
+        );
+        let real_index = index.unwrap();
+        debug!("Graph was {:?}", &real_index.dbg);
+
+        let s1 = seqs.pop().unwrap();
+        let s0 = seqs.pop().unwrap();
+
+        let core_aligner = generate_core_genome_pseudoaligner(
+            &cores,
+            &vec![vec![
+                vec![s0],
+                vec![s1]]],
+            real_index
+        );
+        debug!("done");
+
+        debug!("core_aligner.node_id_to_clade_cores: {:?}",
+                 core_aligner.node_id_to_clade_cores);
+        let mut expected = BTreeMap::new();
+        expected.insert(0, vec![0]);
+        expected.insert(1, vec![0]);
+        assert_eq!(expected, core_aligner.node_id_to_clade_cores);
+        debug!("{} {}",
+               core_aligner.index.dbg.get_node(0).len(),
+               core_aligner.index.dbg.get_node(1).len());
+        assert_eq!(vec![73,73], core_aligner.core_genome_sizes);
     }
 
     #[test]
