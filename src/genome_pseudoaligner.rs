@@ -3,6 +3,7 @@ use std::path::Path;
 
 use kmer_coverage::*;
 use genomes_and_contigs::GenomesAndContigs;
+use core_genome;
 use core_genome::{CoreGenomePseudoaligner,CoreGenomicRegion};
 use nucmer_core_genome_generator::nucmer_core_genomes_from_genome_fasta_files;
 
@@ -324,8 +325,10 @@ fn read_clade_genome_strings(
                             |r| {
                                 let r2 = r.expect(&format!(
                                     "Error parsing fasta file entry in {}", genome_fasta));
-                                // TODO: This conversion introduces randomness. How to treat N characters?
-                                DnaString::from_bytes(
+                                // TODO: This conversion introduces randomness.
+                                // How to treat N characters? Use
+                                // DnaString#from_acgt_bytes_hashn ?
+                                DnaString::from_acgt_bytes(
                                     r2.seq()
                                 )
                             }
@@ -341,7 +344,7 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     read_inputs: &Vec<PseudoalignmentReadInput>,
     num_threads: usize,
     print_zero_coverage_contigs: bool,
-    index: &DebruijnIndex<K>,
+    index: DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs,
     clades: &Vec<Vec<String>>) {
 
@@ -367,7 +370,14 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     // Thread genomes recording the core genome nodes
     // TODO: These data are at least sometimes read in repeatedly, when they
     // maybe should just be cached or something.
+    info!("Reading in genome FASTA files to thread graph");
     let dna_strings = read_clade_genome_strings(clades);
+    info!("Threading DeBruijn graph");
+    let core_genome_pseudoaligner = core_genome::generate_core_genome_pseudoaligner(
+        &nucmer_core_genomes,
+        &dna_strings,
+        index.index
+    );
 
     unimplemented!();
     let read_mapper: &CoreGenomePseudoaligner<K>;
@@ -385,7 +395,7 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
             num_threads,
             print_zero_coverage_contigs,
             read_mapper,
-            index,
+            &index,
             genomes_and_contigs);
 
         for res in covs {

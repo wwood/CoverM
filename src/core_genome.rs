@@ -321,8 +321,8 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
 /// grouped together. Contig_id in each refers to the index of that contig in
 /// the contig_sequences list.
 pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
-    core_genome_regions: &Vec<Vec<CoreGenomicRegion>>,
-    contig_sequences: &Vec<DnaString>,
+    core_genome_regions: &Vec<Vec<Vec<CoreGenomicRegion>>>,
+    contig_sequences: &Vec<Vec<Vec<DnaString>>>,
     aligner: Pseudoaligner<K>,
 ) -> CoreGenomePseudoaligner<K> {
 
@@ -349,51 +349,57 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
             (starting_index, i)
         };
 
-    for genome_regions in core_genome_regions {
-        let clade_id = genome_regions[0].clade_id;
-        genome_clade_ids.push(clade_id as usize);
-        let mut core_genome_size = 0usize;
+    for (clade_id_usize, clade_core_genomes) in core_genome_regions.iter().enumerate() {
+        let clade_id = clade_id_usize as u32;
+        for (genome_id, genome_regions) in clade_core_genomes.iter().enumerate() {
+            assert_eq!(clade_id_usize, genome_regions[0].clade_id as usize);
+            genome_clade_ids.push(clade_id_usize);
+            let mut core_genome_size = 0usize;
 
-        let (mut region_index_start, mut region_index_stop) =
-            indices_of_current_contig(genome_regions, 0);
+            let (mut region_index_start, mut region_index_stop) =
+                indices_of_current_contig(genome_regions, 0);
 
-        // While there are more contig tranches, process them
-        loop {
-            let contig_id = genome_regions[region_index_start].contig_id;
-            debug!("Marking contig {} .. ", contig_id);
-            let core_node_ids = thread_and_find_core_nodes(
-                &aligner,
-                &contig_sequences[contig_id],
-                contig_id,
-                &genome_regions[region_index_start..region_index_stop]);
-            for nid in core_node_ids {
-                match node_id_to_clade_cores.get_mut(&nid) {
-                    Some(clade_cores) => {
-                        if clade_cores.iter().find(|&r| *r==clade_id).is_none() {
-                            clade_cores.push(clade_id)
-                        };
-                    },
-                    None => {
-                        node_id_to_clade_cores.insert(nid, vec![clade_id]);
+            // While there are more contig tranches, process them
+            loop {
+                let contig_id = genome_regions[region_index_start].contig_id;
+                debug!("Marking clade {}, genome_id {}, contig {} .. ",
+                       clade_id, genome_id, contig_id);
+                debug!("Contig sequence was {}",
+                       &contig_sequences[clade_id_usize][genome_id][contig_id].to_string());
+                let core_node_ids = thread_and_find_core_nodes(
+                    &aligner,
+                    &contig_sequences[clade_id_usize][genome_id][contig_id],
+                    contig_id,
+                    &genome_regions[region_index_start..region_index_stop]);
+                for nid in core_node_ids {
+                    match node_id_to_clade_cores.get_mut(&nid) {
+                        Some(clade_cores) => {
+                            if clade_cores.iter().find(|&r| *r==clade_id).is_none() {
+                                clade_cores.push(clade_id)
+                            };
+                        },
+                        None => {
+                            node_id_to_clade_cores.insert(nid, vec![clade_id]);
+                        }
                     }
+
+                    // Add the total length of the found nodes to the core genome
+                    // size
+                    core_genome_size += aligner.dbg.get_node(nid).len();
                 }
 
-                // Add the total length of the found nodes to the core genome
-                // size
-                core_genome_size += aligner.dbg.get_node(nid).len();
+                // Update for next iteration
+                if region_index_stop < genome_regions.len() {
+                    let nexts = indices_of_current_contig(genome_regions, region_index_stop+1);
+                    region_index_start = nexts.0;
+                    region_index_stop = nexts.1;
+                } else {
+                    // No more tranches
+                    break;
+                }
             }
-
-            // Update for next iteration
-            if region_index_stop < genome_regions.len() {
-                let nexts = indices_of_current_contig(genome_regions, region_index_stop+1);
-                region_index_start = nexts.0;
-                region_index_stop = nexts.1;
-            } else {
-                // No more tranches
-                break;
-            }
+            core_genome_sizes.push(core_genome_size);
         }
-        core_genome_sizes.push(core_genome_size);
     }
 
     return CoreGenomePseudoaligner {
@@ -669,14 +675,14 @@ mod tests {
     fn test_core_genome_hello_world() {
         init();
 
-        let cores = vec![vec![
+        let cores = vec![vec![vec![
             CoreGenomicRegion {
-                clade_id: 7,
+                clade_id: 0,
                 contig_id: 0,
                 start: 10,
                 stop: 100
             }
-        ]];
+        ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
@@ -694,7 +700,7 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &seqs,
+            &vec![vec![seqs]],
             real_index
         );
         debug!("done");
@@ -702,28 +708,28 @@ mod tests {
         debug!("core_aligner.node_id_to_clade_cores: {:?}",
                  core_aligner.node_id_to_clade_cores);
         let mut expected = BTreeMap::new();
-        expected.insert(2, vec![7]);
-        expected.insert(4, vec![7]);
+        expected.insert(2, vec![0]);
+        expected.insert(4, vec![0]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
     }
 
     #[test]
     fn test_core_genome_2_core_regions() {
         init();
-        let cores = vec![vec![
+        let cores = vec![vec![vec![
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 0,
                 stop: 1
             },
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 80,
                 stop: 82
             },
-        ]];
+        ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
@@ -741,7 +747,7 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &seqs,
+            &vec![vec![seqs]],
             real_index
         );
         debug!("done");
@@ -749,8 +755,8 @@ mod tests {
         debug!("core_aligner.node_id_to_clade_cores: {:?}",
                  core_aligner.node_id_to_clade_cores);
         let mut expected = BTreeMap::new();
-        expected.insert(5, vec![11]);
-        expected.insert(4, vec![11]);
+        expected.insert(5, vec![0]);
+        expected.insert(4, vec![0]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
         debug!("{} {}", core_aligner.index.dbg.get_node(4).len(),core_aligner.index.dbg.get_node(5).len());
         assert_eq!(vec![71], core_aligner.core_genome_sizes);
@@ -760,34 +766,34 @@ mod tests {
     #[test]
     fn test_core_genome_2_genomes() {
         init();
-        let cores = vec![vec![
+        let cores = vec![vec![vec![
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 0,
                 stop: 10
             },
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 80,
                 stop: 82
             },
-        ], vec![
+        ]], vec![vec![
             CoreGenomicRegion {
-                clade_id: 12,
-                contig_id: 1,
+                clade_id: 1,
+                contig_id: 0,
                 start: 10,
                 stop: 15
             },
-        ]];
+        ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
             .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
             .expect("Failure to read contigs file");
         info!("Building debruijn index ..");
         let index = build_index::build_index::<config::KmerType>(
@@ -796,9 +802,15 @@ mod tests {
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
+        let _ = seqs.pop().unwrap();
+        let s1 = seqs.pop().unwrap();
+        let s0 = seqs.pop().unwrap();
+
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &seqs,
+            &vec![
+                vec![vec![s0]],
+                vec![vec![s1]]],
             real_index
         );
         debug!("done");
@@ -806,9 +818,9 @@ mod tests {
         debug!("core_aligner.node_id_to_clade_cores: {:?}",
                  core_aligner.node_id_to_clade_cores);
         let mut expected = BTreeMap::new();
-        expected.insert(5, vec![11]);
-        expected.insert(4, vec![11]);
-        expected.insert(2, vec![11,12]);
+        expected.insert(5, vec![0]);
+        expected.insert(4, vec![0]);
+        expected.insert(2, vec![0,1]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
         debug!("{} {} {}",
                core_aligner.index.dbg.get_node(2).len(),
@@ -820,44 +832,51 @@ mod tests {
     #[test]
     fn test_core_genome_pseudoaligner_map_read() {
         init();
-        let cores = vec![vec![
+        let cores = vec![vec![vec![
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 0,
                 stop: 10
             },
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 80,
                 stop: 82
             },
-        ], vec![
+        ]], vec![vec![
             CoreGenomicRegion {
-                clade_id: 12,
-                contig_id: 1,
+                clade_id: 1,
+                contig_id: 0,
                 start: 10,
                 stop: 15
             },
-        ]];
+        ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
             .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
             .expect("Failure to read contigs file");
         info!("Building debruijn index ..");
         let index = build_index::build_index::<config::KmerType>(
             &seqs, &tx_names, &tx_gene_map, 1
         );
         let real_index = index.unwrap();
+        debug!("Graph was {:?}", &real_index.dbg);
+
+        let _ = seqs.pop().unwrap();
+        let s1 = seqs.pop().unwrap();
+        let s0 = seqs.pop().unwrap();
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &seqs,
+            &vec![
+                vec![vec![s0]],
+                vec![vec![s1]]],
             real_index
         );
 
@@ -869,44 +888,51 @@ mod tests {
     #[test]
     fn test_core_genome_pseudoaligner_map_non_core_read() {
         init();
-        let cores = vec![vec![
+        let cores = vec![vec![vec![
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 1,
                 stop: 11
             },
             CoreGenomicRegion {
-                clade_id: 11,
+                clade_id: 0,
                 contig_id: 0,
                 start: 80,
                 stop: 82
             },
-        ], vec![
+        ]], vec![vec![
             CoreGenomicRegion {
-                clade_id: 12,
-                contig_id: 1,
+                clade_id: 1,
+                contig_id: 0,
                 start: 10,
                 stop: 15
             },
-        ]];
+        ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
             .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
+        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
             .expect("Failure to read contigs file");
         info!("Building debruijn index ..");
         let index = build_index::build_index::<config::KmerType>(
             &seqs, &tx_names, &tx_gene_map, 1
         );
         let real_index = index.unwrap();
+        debug!("Graph was {:?}", &real_index.dbg);
+
+        let _ = seqs.pop().unwrap();
+        let s1 = seqs.pop().unwrap();
+        let s0 = seqs.pop().unwrap();
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &seqs,
+            &vec![
+                vec![vec![s0]],
+                vec![vec![s1]]],
             real_index
         );
 
