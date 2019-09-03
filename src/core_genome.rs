@@ -392,7 +392,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                 }
 
                 // Update for next iteration
-                if region_index_stop < genome_regions.len() {
+                if region_index_stop+1 < genome_regions.len() {
                     let nexts = indices_of_current_contig(genome_regions, region_index_stop+1);
                     region_index_start = nexts.0;
                     region_index_stop = nexts.1;
@@ -415,10 +415,15 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
 
 #[derive(Debug)]
 struct GraphPosition {
+    pub graph_position: Option<DBGraphPosition>, // None if we are lost
+    pub contig_position: u32,
+}
+
+#[derive(Debug)]
+struct DBGraphPosition {
     pub node_id: usize,
     pub offset: u32,
     pub is_forward: bool,
-    pub contig_position: u32,
 }
 
 fn get_starting_position<K: Kmer + Send + Sync>(
@@ -449,9 +454,11 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                 contig.get_kmer::<K>(0) {
                 debug!("Found forward node for kmer {:?}", contig.get_kmer::<K>(0));
                 Some(GraphPosition {
-                    node_id: *nid as usize,
-                    offset: *offset,
-                    is_forward: true,
+                    graph_position: Some(DBGraphPosition {
+                        node_id: *nid as usize,
+                        offset: *offset,
+                        is_forward: true,
+                    }),
                     contig_position: 0,
                 })
             } else {
@@ -488,9 +495,11 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                     if found_slice == *first_contig_kmer_rc {
                         debug!("Found rc node {:?}", found_slice);
                         GraphPosition {
-                            node_id: *nid as usize,
-                            offset: *offset,
-                            is_forward: false,
+                            graph_position: Some({DBGraphPosition {
+                                node_id: *nid as usize,
+                                offset: *offset,
+                                is_forward: false,
+                            }}),
                             contig_position: 0,
                         }
                     } else {
@@ -543,6 +552,25 @@ fn kmer_to_node_and_offset<K: Kmer + Send + Sync>(
 ) -> Option<(u32,u32)> {
 
     debug!("Finding kmer {:?}", kmer);
+
+    debug!("Forward hit? {:?}",
+           match aligner.dbg_index.get(kmer) {
+               Some((nid, offset)) =>
+                   match validate_kmer(aligner, nid, offset, kmer) {
+                       true => Some((*nid,*offset)),
+                       false => None
+                   },
+               None => None
+           });
+    debug!("Reverse hit? {:?}",
+           match aligner.dbg_index.get(&kmer.rc()) {
+               Some((nid, offset)) =>
+                   match validate_kmer(aligner, nid, offset, &kmer.rc()) {
+                       true => Some((*nid,*offset)),
+                       false => None
+                   },
+               None => None
+           });
 
     // Be careful here. Because of the MPHF, hashing false positives can
     // occur. So need to check that the first matching kmer really is
@@ -612,18 +640,23 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
 
             // If we are in the range of the next core region, add this node
             current_core_region = &core_regions[current_core_region_idx];
-            if current_core_region.start <= current_position.contig_position {
-                debug!("Marking as core the current node {}", current_position.node_id);
-                match last_node_id {
-                    Some(nid) => {
-                        if current_position.node_id != nid {
-                            last_node_id = Some(current_position.node_id);
-                            marked_nodes.push(current_position.node_id);
+            match &current_position.graph_position {
+                None => {},
+                Some(pos) => {
+                    if current_core_region.start <= current_position.contig_position {
+                        debug!("Marking as core the current node {}", pos.node_id);
+                        match last_node_id {
+                            Some(nid) => {
+                                if pos.node_id != nid {
+                                    last_node_id = Some(pos.node_id);
+                                    marked_nodes.push(pos.node_id);
+                                }
+                            },
+                            None => {
+                                last_node_id = Some(pos.node_id);
+                                marked_nodes.push(pos.node_id);
+                            }
                         }
-                    },
-                    None => {
-                        last_node_id = Some(current_position.node_id);
-                        marked_nodes.push(current_position.node_id);
                     }
                 }
             }
@@ -639,24 +672,34 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
 
         // Double check that the sequence now has the right kmer in that
         // position.
-        let found_sequence = aligner
-            .dbg
-            .get_node(current_position.node_id as usize)
-            .sequence();
-        // Found_kmer is a DnaStringSlice
-        let mut found_kmer = found_sequence
-            .get_kmer::<K>(current_position.offset as usize);
-        debug!("Before potential rc(), forward found was {:?}", found_kmer);
-        if !current_position.is_forward {
-            debug!("not is_forward");
-            found_kmer = found_kmer.rc();
+        let fail = match &current_position.graph_position {
+            Some(pos) => {
+                let found_sequence = aligner
+                    .dbg
+                    .get_node(pos.node_id as usize)
+                    .sequence();
+                // Found_kmer is a DnaStringSlice
+                let mut found_kmer = found_sequence
+                    .get_kmer::<K>(pos.offset as usize);
+                debug!("Before potential rc(), forward found was {:?}", found_kmer);
+                if !pos.is_forward {
+                    debug!("not is_forward");
+                    found_kmer = found_kmer.rc();
+                }
+                if found_kmer != target_kmer {
+                    warn!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
+                          target_kmer, found_kmer);
+                    true
+                } else {
+                    debug!("Found kmer was correct");
+                    false
+                }
+            },
+            None => {true}
+        };
+        if fail {
+            current_position.graph_position = None;
         }
-        if found_kmer != target_kmer {
-            error!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
-                     target_kmer, found_kmer);
-            std::process::exit(1);
-        }
-        debug!("Found kmer was correct");
     }
 
     return marked_nodes;
@@ -672,47 +715,66 @@ fn next_position<K: Kmer + Send + Sync>(
     let k = K::k();
     debug!("Finding kmer {:?}", kmer);
 
-    // If we are in the middle of the node, then just update the offset
-    let current_node = aligner.dbg.get_node(position.node_id as usize);
-    debug!(
-        "Current node {}'s sequence is {:?}",
-        position.node_id, current_node.sequence());
-    if position.is_forward && position.offset as usize+k < current_node.len() {
-        debug!("Just going forward on the same node");
-        position.offset += 1;
-    } else if !position.is_forward && position.offset > 0 {
-        debug!("Just going reverse on the same node");
-        position.offset -= 1;
-    } else {
+    // If we are lost in the graph, then try to find our way by kmer. If still
+    // lost, so be it.
+    let mut updated = false;
+    match position.graph_position {
+        Some(ref mut position) => {
+            // If we are in the middle of the node, then just update the offset
+            let current_node = aligner.dbg.get_node(position.node_id as usize);
+            debug!(
+                "Current node {}'s sequence is {:?}",
+                position.node_id, current_node.sequence());
+            if position.is_forward && position.offset as usize+k < current_node.len() {
+                debug!("Just going forward on the same node");
+                position.offset += 1;
+                updated = true;
+            } else if !position.is_forward && position.offset > 0 {
+                debug!("Just going reverse on the same node");
+                position.offset -= 1;
+                updated = true;
+            }
+        },
+        None => {}
+    }
+
+    if !updated {
         // Since we are at the start or end of a new node, we can just find our
         // position by finding the kmer. I imagine we can also do this by
         // following the connections in the graph, but I had trouble coding
         // that.
         debug!("Threading contig to a new node ..");
+
         match kmer_to_node_and_offset(aligner, kmer) {
             None => {
-                panic!("Could not thread contig as we should have been able to.")
+                debug!("Current kmer could not be threaded: {:?}", kmer);
+                position.graph_position = None;
             },
             Some((node_id, offset)) => {
                 debug!("Found starting kmer at node/offset {}/{}", node_id, offset);
                 // TODO: Seem to be flipping back and forth between u32 and
                 // usize. Can we standardise?
-                position.node_id = node_id as usize;
-                position.offset = offset;
-
-                // Work out the direction of the kmer on the node
-                // TODO: Do we know this already when we are searching for the
-                // kmer, so below can be replaced with that knowledge?
-                let node = aligner.dbg.get_node(node_id as usize);
-                debug!("Found node sequence was: {:?}", node.sequence());
-                let ref_kmer: K = node.sequence().get_kmer(offset as usize);
-                if kmer == &ref_kmer {
-                    debug!("setting is_forward true");
-                    position.is_forward = true;
-                } else if kmer.rc() == ref_kmer {
-                    debug!("setting is_forward false");
-                    position.is_forward = false;
-                }
+                position.graph_position = Some(DBGraphPosition {
+                    node_id: node_id as usize,
+                    offset: offset,
+                    is_forward: {
+                        // Work out the direction of the kmer on the node
+                        // TODO: Do we know this already when we are searching for the
+                        // kmer, so below can be replaced with that knowledge?
+                        let node = aligner.dbg.get_node(node_id as usize);
+                        debug!("Found node sequence was: {:?}", node.sequence());
+                        let ref_kmer: K = node.sequence().get_kmer(offset as usize);
+                        if kmer == &ref_kmer {
+                            debug!("setting is_forward true");
+                            true
+                        } else if kmer.rc() == ref_kmer {
+                            debug!("setting is_forward false");
+                            false
+                        } else {
+                            panic!("Not sure what is going on")
+                        }
+                    }
+                })
             }
         }
     }

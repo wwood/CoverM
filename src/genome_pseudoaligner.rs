@@ -350,6 +350,11 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
 
     assert!(clades.len() > 0);
 
+    // // Write GFA TODO: debug
+    // debug!("Writing GFA file ..");
+    // let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+    // index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+
     // For each clade, nucmer against the first genome.
     info!("Calculating core genomes ..");
     // TODO: ProgressBar?
@@ -380,35 +385,33 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     );
 
     unimplemented!();
-    let read_mapper: &CoreGenomePseudoaligner<K>;
-    // Map / EM
-    // Print
+    // let read_mapper: &CoreGenomePseudoaligner<K>;
+    // // Map / EM / Print
+    // println!("Sample\tGenome\tCoverage");
+    // for read_input in read_inputs {
+    //     let covs = calculate_genome_kmer_coverage(
+    //         &read_input.forward_fastq,
+    //         match read_input.reverse_fastq {
+    //             Some(ref s) => Some(&s),
+    //             None => None
+    //         },
+    //         num_threads,
+    //         print_zero_coverage_contigs,
+    //         &core_genome_pseudoaligner,
+    //         &core_genome_pseudoaligner,
+    //         genomes_and_contigs);
 
-    println!("Sample\tGenome\tCoverage");
-    for read_input in read_inputs {
-        let covs = calculate_genome_kmer_coverage(
-            &read_input.forward_fastq,
-            match read_input.reverse_fastq {
-                Some(ref s) => Some(&s),
-                None => None
-            },
-            num_threads,
-            print_zero_coverage_contigs,
-            read_mapper,
-            &index,
-            genomes_and_contigs);
-
-        for res in covs {
-            println!(
-                "{}\t{}\t{}",
-                read_input.sample_name,
-                genomes_and_contigs.genomes[res.0],
-                res.1);
-        }
-        info!("Finished printing genome coverages for sample {}",
-              read_input.sample_name);
-    }
-    info!("Finished printing contig coverages");
+    //     for res in covs {
+    //         println!(
+    //             "{}\t{}\t{}",
+    //             read_input.sample_name,
+    //             genomes_and_contigs.genomes[res.0],
+    //             res.1);
+    //     }
+    //     info!("Finished printing genome coverages for sample {}",
+    //           read_input.sample_name);
+    // }
+    // info!("Finished printing contig coverages");
 }
 
 
