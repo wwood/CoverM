@@ -346,9 +346,11 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     assert!(clades.len() > 0);
 
     // Write GFA TODO: debug
-    info!("Writing GFA file ..");
-    let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
-    index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+    if log_enabled!(Level::Debug) { 
+        info!("Writing GFA file ..");
+        let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+        index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+    }
 
     // For each clade, nucmer against the first genome.
     info!("Calculating core genomes ..");
