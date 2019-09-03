@@ -365,7 +365,7 @@ fn main(){
                         process::exit(1);
                     },
                     Some(genomes_and_contigs) => {
-                        let clade_definitions_file = m.value_of("clades").unwrap();
+                        let clade_definitions_file = m.value_of("clades").expect("--clades not given");
                         let clades  = coverm::genome_pseudoaligner::read_clade_definition_file(
                             clade_definitions_file);
                         coverm::genome_pseudoaligner::core_genome_coverage_pipeline(

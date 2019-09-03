@@ -82,7 +82,6 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
     num_threads: usize,
     print_zero_coverage_contigs: bool,
     core_genome_aligner: &CoreGenomePseudoaligner<K>,
-    index: &DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs)
     -> Vec<(usize, f64)> {
 
@@ -122,18 +121,13 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
     // process. TODO: Abstract this out so it isn't calculated for each sample.
     let genome_contigs = generate_genome_to_contig_indices_vec(
         &genomes_and_contigs,
-        &index.tx_names
+        &core_genome_aligner.contig_names
     );
-    let contig_idx_to_genome_idx: Vec<usize> = index.tx_names.iter().map(
+    let contig_idx_to_genome_idx: Vec<usize> = core_genome_aligner.contig_names.iter().map(
         |contig_name|
         genomes_and_contigs.contig_to_genome[contig_name]
     ).collect();
-    let mut genome_lengths: Vec<usize> = vec![0; genomes_and_contigs.genomes.len()];
-    for (genome_idx, contig_indices) in genome_contigs.iter().enumerate() {
-        genome_lengths[genome_idx] = contig_indices.iter()
-            .map(|i| index.seq_lengths[*i])
-            .sum();
-    }
+    let genome_lengths: &Vec<usize> = &core_genome_aligner.core_genome_sizes;
     debug!("Genome contigs: {:?}", genome_contigs);
     debug!("contig_idx_to_genome_idx: {:?}", contig_idx_to_genome_idx);
     debug!("genome_lengths: {:?}", genome_lengths);
@@ -201,7 +195,7 @@ pub fn calculate_genome_kmer_coverage<K: Kmer + Sync + Send>(
         //
         // TODO: Maybe doesn't make sense to loop over genomes that have
         // no coverage, can we not do that?
-        let genome_coverages: Vec<f64> = genome_to_read_count.iter().zip(&genome_lengths).map(
+        let genome_coverages: Vec<f64> = genome_to_read_count.iter().zip(genome_lengths.iter()).map(
             |(cov, l)|
             cov / (*l as f64)).collect();
         let total_coverage: f64 = genome_coverages.iter().sum();
@@ -277,12 +271,13 @@ fn report_core_genome_sizes(
         // minimum core genome size in the clade
         let minimum_of_clade = core_genomes
             .iter()
-            .fold(
-                0,
-                |acc, core_genome_regions|
-                acc + core_genome_regions
+            .map(
+                |core_genome_regions|
+                core_genome_regions
                     .iter()
-                    .fold(0, |acc,c| acc+c.stop-c.start));
+                    .fold(0, |acc,c| acc+c.stop-c.start))
+            .min()
+            .unwrap();
         total_core_genome_size += minimum_of_clade as u64;
         minimum_core_genome_size = match minimum_core_genome_size {
             None => Some((clade_i, minimum_of_clade)),
@@ -350,10 +345,10 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
 
     assert!(clades.len() > 0);
 
-    // // Write GFA TODO: debug
-    // debug!("Writing GFA file ..");
-    // let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
-    // index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+    // Write GFA TODO: debug
+    info!("Writing GFA file ..");
+    let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+    index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
 
     // For each clade, nucmer against the first genome.
     info!("Calculating core genomes ..");
@@ -372,6 +367,8 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     // Check core genome sizes / report
     report_core_genome_sizes(&nucmer_core_genomes, clades);
 
+    debug!("Found core genomes: {:#?}", nucmer_core_genomes);
+
     // Thread genomes recording the core genome nodes
     // TODO: These data are at least sometimes read in repeatedly, when they
     // maybe should just be cached or something.
@@ -381,37 +378,46 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     let core_genome_pseudoaligner = core_genome::generate_core_genome_pseudoaligner(
         &nucmer_core_genomes,
         &dna_strings,
-        index.index
+        index
     );
 
-    unimplemented!();
-    // let read_mapper: &CoreGenomePseudoaligner<K>;
-    // // Map / EM / Print
-    // println!("Sample\tGenome\tCoverage");
-    // for read_input in read_inputs {
-    //     let covs = calculate_genome_kmer_coverage(
-    //         &read_input.forward_fastq,
-    //         match read_input.reverse_fastq {
-    //             Some(ref s) => Some(&s),
-    //             None => None
-    //         },
-    //         num_threads,
-    //         print_zero_coverage_contigs,
-    //         &core_genome_pseudoaligner,
-    //         &core_genome_pseudoaligner,
-    //         genomes_and_contigs);
+    debug!("Found node_to_core_genomes: {:#?}",
+           &core_genome_pseudoaligner.node_id_to_clade_cores);
+    if log_enabled!(Level::Debug) {
+        // Write CSV data to be loaded into bandage
+        use std::io::Write;
+        let mut csv_writer = std::fs::File::create("/tmp/my.core_nodes.csv").unwrap();
+        writeln!(csv_writer, "Node,Clades").unwrap();
+        for (node_id, clades) in &core_genome_pseudoaligner.node_id_to_clade_cores {
+            writeln!(csv_writer, "{},\"{:?}\"", node_id, clades).unwrap();
+        }
+    }
 
-    //     for res in covs {
-    //         println!(
-    //             "{}\t{}\t{}",
-    //             read_input.sample_name,
-    //             genomes_and_contigs.genomes[res.0],
-    //             res.1);
-    //     }
-    //     info!("Finished printing genome coverages for sample {}",
-    //           read_input.sample_name);
-    // }
-    // info!("Finished printing contig coverages");
+    // Map / EM / Print
+    println!("Sample\tGenome\tCoverage");
+    for read_input in read_inputs {
+        let covs = calculate_genome_kmer_coverage(
+            &read_input.forward_fastq,
+            match read_input.reverse_fastq {
+                Some(ref s) => Some(&s),
+                None => None
+            },
+            num_threads,
+            print_zero_coverage_contigs,
+            &core_genome_pseudoaligner,
+            genomes_and_contigs);
+
+        for res in covs {
+            println!(
+                "{}\t{}\t{}",
+                read_input.sample_name,
+                genomes_and_contigs.genomes[res.0],
+                res.1);
+        }
+        info!("Finished printing genome coverages for sample {}",
+              read_input.sample_name);
+    }
+    info!("Finished printing contig coverages");
 }
 
 
@@ -423,7 +429,6 @@ mod tests {
     #[test]
     fn test_read_clade_file() {
         let mut tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
-        let t = tf.path().to_str().unwrap();
 
         writeln!(tf, "/path/g1.fna\t/path/g1.fna");
         writeln!(tf, "/path/g1.fna\t/path/g3.fna");

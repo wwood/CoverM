@@ -8,6 +8,8 @@ use debruijn::dna_string::DnaString;
 use pseudoaligner::config::{LEFT_EXTEND_FRACTION};
 use pseudoaligner::pseudoaligner::intersect;
 
+use kmer_coverage::DebruijnIndex;
+
 // A region marked as being core for a clade
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct CoreGenomicRegion {
@@ -23,6 +25,10 @@ pub struct CoreGenomicRegion {
 /// reliable to calculate abundance just based only on these regions.
 pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
     pub index: Pseudoaligner<K>,
+
+    /// Names of all contigs, in the same order as what was used to generate the
+    /// Pseudoaligner.
+    pub contig_names: Vec<String>,
 
     /// Core genome size of each clade
     pub core_genome_sizes: Vec<usize>,
@@ -323,7 +329,7 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
 pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     core_genome_regions: &Vec<Vec<Vec<CoreGenomicRegion>>>,
     contig_sequences: &Vec<Vec<Vec<DnaString>>>,
-    aligner: Pseudoaligner<K>,
+    aligner: DebruijnIndex<K>,
 ) -> CoreGenomePseudoaligner<K> {
 
     let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> =
@@ -370,7 +376,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                 debug!("Contig sequence was {}",
                        &contig_sequences[clade_id_usize][genome_id][contig_id].to_string());
                 let core_node_ids = thread_and_find_core_nodes(
-                    &aligner,
+                    &aligner.index,
                     &contig_sequences[clade_id_usize][genome_id][contig_id],
                     contig_id,
                     &genome_regions[region_index_start..region_index_stop]);
@@ -388,7 +394,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
 
                     // Add the total length of the found nodes to the core genome
                     // size
-                    core_genome_size += aligner.dbg.get_node(nid).len();
+                    core_genome_size += aligner.index.dbg.get_node(nid).len();
                 }
 
                 // Update for next iteration
@@ -406,7 +412,8 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     }
 
     return CoreGenomePseudoaligner {
-        index: aligner,
+        index: aligner.index,
+        contig_names: aligner.tx_names,
         core_genome_sizes: core_genome_sizes,
         genome_clade_ids: genome_clade_ids,
         node_id_to_clade_cores: node_id_to_clade_cores,
@@ -821,7 +828,11 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![seqs]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: vec![], // this is actually unused
+                tx_names: tx_names,
+            }
         );
         debug!("done");
 
@@ -868,7 +879,11 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![seqs]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: vec![], //unused
+                tx_names: tx_names,
+            }
         );
         debug!("done");
 
@@ -931,7 +946,11 @@ mod tests {
             &vec![
                 vec![vec![s0]],
                 vec![vec![s1]]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
+                tx_names: tx_names,
+            }
         );
         debug!("done");
 
@@ -990,7 +1009,11 @@ mod tests {
             &vec![vec![
                 vec![s0],
                 vec![s1]]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
+                tx_names: tx_names,
+            }
         );
         debug!("done");
 
@@ -1054,7 +1077,11 @@ mod tests {
             &vec![
                 vec![vec![s0]],
                 vec![vec![s1]]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
+                tx_names: tx_names,
+            }
         );
 
         let dna = DnaString::from_acgt_bytes(b"ATCGCCCGTCACCACCCCAATTCATACACCACTAGCGGTTAGCAACGATT");
@@ -1110,7 +1137,11 @@ mod tests {
             &vec![
                 vec![vec![s0]],
                 vec![vec![s1]]],
-            real_index
+            DebruijnIndex {
+                index: real_index,
+                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
+                tx_names: tx_names,
+            }
         );
 
         // non-core read (1 kmer) because the A at the start is an overhang.

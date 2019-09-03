@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn test_nucmer_generate_core_hello_world_real() {
         init();
-        let parsed = nucmer_core_genomes_from_genome_fasta_files(
+        let _parsed = nucmer_core_genomes_from_genome_fasta_files(
             &["tests/data/parsnp/1_first_group/73.20120800_S1D.21.fna",
               "tests/data/parsnp/1_first_group/73.20120600_E3D.30.fna"],
             8
