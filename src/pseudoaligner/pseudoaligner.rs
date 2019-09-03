@@ -455,6 +455,8 @@ pub fn process_reads<K: Kmer + Sync + Send, T: PseudoalignmentReadMapper + Sync 
                 } // end-Some
             } // end-match
         } // end-for
+
+        info!("Found {} reads mapped out of {}", mapped_read_counter, read_counter);
     }); //end crossbeam
 
     debug!("Result: {:?}, {:?}, {:?}", eq_class_indices, eq_class_coverages, eq_class_read_counts);
