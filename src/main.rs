@@ -832,6 +832,24 @@ fn main(){
                 index, &output);
             info!("Saving complete");
         },
+        Some("debruijn_index_for_genome") => {
+            let m = matches.subcommand_matches("debruijn_index_for_genome").unwrap();
+            set_log_level(m, true);
+
+            let reference = m.value_of("reference").unwrap();
+            let output = format!("{}.covermdb", reference);
+            let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
+
+            info!("Generating DeBruijn index ..");
+            let index = coverm::pseudoalignment_reference_readers::generate_debruijn_index_grouping_via_separator::
+            <coverm::pseudoaligner::config::KmerType>(
+                reference, parse_separator(m).expect("Failed to find separator") as char, num_threads);
+
+            info!("Saving index ..");
+            coverm::pseudoalignment_reference_readers::save_index(
+                index, &output);
+            info!("Saving complete");
+        },
         Some("cluster") => {
             let m = matches.subcommand_matches("cluster").unwrap();
             set_log_level(m, true);
@@ -2279,6 +2297,31 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .short("-t")
                      .long("threads")
                      .default_value("1")
+                     .takes_value(true))
+                .arg(Arg::with_name("verbose")
+                     .short("v")
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")))
+
+        .subcommand(
+            SubCommand::with_name("debruijn_index_for_genome")
+                .about("Generate a DeBruijn index file")
+                .arg(Arg::with_name("reference")
+                     .short("-r")
+                     .long("reference")
+                     .takes_value(true)
+                     .required(true))
+                .arg(Arg::with_name("threads")
+                     .short("-t")
+                     .long("threads")
+                     .default_value("1")
+                     .takes_value(true))
+                .arg(Arg::with_name("separator")
+                     .short("s")
+                     .long("separator")
+                     .required(true)
                      .takes_value(true))
                 .arg(Arg::with_name("verbose")
                      .short("v")
