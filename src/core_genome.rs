@@ -8,7 +8,7 @@ use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
 use pseudoaligner::config::LEFT_EXTEND_FRACTION;
 use pseudoaligner::pseudoaligner::intersect;
 
-use kmer_coverage::DebruijnIndex;
+use pseudoalignment_reference_readers::DebruijnIndex;
 
 // A region marked as being core for a clade
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
@@ -694,7 +694,6 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
                         "Kmer returned from search was incorrect!, expected {:?}, found {:?}",
                         target_kmer, found_kmer
                     );
-                    panic!();
                     true
                 } else {
                     debug!("Found kmer was correct");
@@ -794,6 +793,7 @@ mod tests {
     use super::*;
     use bio::io::fasta;
     use pseudoaligner::*;
+    use pseudoalignment_reference_readers::*;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -815,22 +815,21 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
         )
         .expect("reference reading failed.");
+
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![seqs]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: vec![], // this is actually unused
-                tx_names: tx_names,
-            },
+            index,
         );
         debug!("done");
 
@@ -867,22 +866,21 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
         )
         .expect("reference reading failed.");
+
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![seqs]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: vec![], //unused
-                tx_names: tx_names,
-            },
+            index,
         );
         debug!("done");
 
@@ -933,13 +931,15 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
         )
         .expect("reference reading failed.");
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (mut seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let _ = seqs.pop().unwrap();
         let s1 = seqs.pop().unwrap();
@@ -948,11 +948,7 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![vec![s0]], vec![vec![s1]]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
-                tx_names: tx_names,
-            },
+            index,
         );
         debug!("done");
 
@@ -997,13 +993,16 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/two_diverging_genomes.fna",
         )
         .expect("reference reading failed.");
+
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/two_diverging_genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (mut seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let s1 = seqs.pop().unwrap();
         let s0 = seqs.pop().unwrap();
@@ -1011,11 +1010,7 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![vec![s0], vec![s1]]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
-                tx_names: tx_names,
-            },
+            index,
         );
         debug!("done");
 
@@ -1095,13 +1090,16 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
         )
         .expect("reference reading failed.");
+
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (mut seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let _ = seqs.pop().unwrap();
         let s1 = seqs.pop().unwrap();
@@ -1110,11 +1108,7 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![vec![s0]], vec![vec![s1]]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
-                tx_names: tx_names,
-            },
+            index,
         );
 
         let dna = DnaString::from_acgt_bytes(b"ATCGCCCGTCACCACCCCAATTCATACACCACTAGCGGTTAGCAACGATT");
@@ -1153,13 +1147,16 @@ mod tests {
             "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
         )
         .expect("reference reading failed.");
+
+        let index = generate_debruijn_index_without_groupings::<debruijn::kmer::Kmer24>(
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+            1);
+
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) =
-            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
-        info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
-        let real_index = index.unwrap();
-        debug!("Graph was {:?}", &real_index.dbg);
+        let (mut seqs, _,_) = utils::read_transcripts(
+            reference_reader,
+            |contig_name| { (contig_name.to_string(), contig_name.to_string()) })
+            .expect("Failure to read contigs file");
 
         let _ = seqs.pop().unwrap();
         let s1 = seqs.pop().unwrap();
@@ -1168,11 +1165,7 @@ mod tests {
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
             &vec![vec![vec![s0]], vec![vec![s1]]],
-            DebruijnIndex {
-                index: real_index,
-                seq_lengths: seqs.iter().map(|s| s.len()).collect(),
-                tx_names: tx_names,
-            },
+            index,
         );
 
         // non-core read (1 kmer) because the A at the start is an overhang.

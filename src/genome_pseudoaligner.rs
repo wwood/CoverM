@@ -6,6 +6,7 @@ use genomes_and_contigs::GenomesAndContigs;
 use core_genome;
 use core_genome::{CoreGenomePseudoaligner,CoreGenomicRegion};
 use nucmer_core_genome_generator::nucmer_core_genomes_from_genome_fasta_files;
+use pseudoalignment_reference_readers::DebruijnIndex;
 
 use pseudoaligner::*;
 use debruijn::Kmer;

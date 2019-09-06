@@ -19,6 +19,7 @@ pub mod core_genome;
 pub mod nucmer_runner;
 pub mod nucmer_core_genome_generator;
 pub mod ani_clustering;
+pub mod pseudoalignment_reference_readers;
 
 extern crate bio;
 #[macro_use]

@@ -814,20 +814,21 @@ fn main(){
                 }
             }
         },
-        Some("debruijn_index") => {
-            let m = matches.subcommand_matches("debruijn_index").unwrap();
+        Some("debruijn_index_for_contig") => {
+            let m = matches.subcommand_matches("debruijn_index_for_contig").unwrap();
             set_log_level(m, true);
 
             let reference = m.value_of("reference").unwrap();
             let output = format!("{}.covermdb", reference);
             let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
 
-            info!("Generating index ..");
-            let index = coverm::kmer_coverage::generate_debruijn_index::<coverm::pseudoaligner::config::KmerType>(
+            info!("Generating DeBruijn index ..");
+            let index = coverm::pseudoalignment_reference_readers::generate_debruijn_index_without_groupings::
+            <coverm::pseudoaligner::config::KmerType>(
                 reference, num_threads);
 
             info!("Saving index ..");
-            coverm::kmer_coverage::save_index(
+            coverm::pseudoalignment_reference_readers::save_index(
                 index, &output);
             info!("Saving complete");
         },
@@ -1560,7 +1561,8 @@ struct PseudoAlignmentParameters {
     pub num_threads: usize,
     pub reference: String,
     pub reads: Vec<coverm::kmer_coverage::PseudoalignmentReadInput>,
-    pub index: coverm::kmer_coverage::DebruijnIndex<debruijn::kmer::VarIntKmer<u64, debruijn::kmer::K24>>
+    pub index: coverm::pseudoalignment_reference_readers::
+        DebruijnIndex<debruijn::kmer::VarIntKmer<u64, debruijn::kmer::K24>>
 }
 
 fn parse_pseudoaligner_parameters(
@@ -1595,14 +1597,12 @@ fn parse_pseudoaligner_parameters(
     let index = match Path::new(&potential_index_file).exists() {
         true => {
             info!("Using pre-existing index {}", potential_index_file);
-            coverm::kmer_coverage::restore_index::<coverm::pseudoaligner::config::KmerType>(
+            coverm::pseudoalignment_reference_readers::restore_index::<coverm::pseudoaligner::config::KmerType>(
                 &potential_index_file)
         },
         false => {
-            info!("No pre-existing index file found, generating one ..");
-            coverm::kmer_coverage::generate_debruijn_index(
-                reference,
-                num_threads)
+            error!("No pre-existing index file found");
+            process::exit(1);
         }
     };
 
@@ -2268,7 +2268,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .requires("reference")))
 
         .subcommand(
-            SubCommand::with_name("debruijn_index")
+            SubCommand::with_name("debruijn_index_for_contig")
                 .about("Generate a DeBruijn index file")
                 .arg(Arg::with_name("reference")
                      .short("-r")

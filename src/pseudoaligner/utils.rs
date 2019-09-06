@@ -59,15 +59,16 @@ fn _open_with_gz<P: AsRef<Path>>(p: P) -> Result<Box<dyn BufRead>, Error> {
 
 /// Read sequences. Dealing with Ns happens in the same way as in
 /// genome_pseudoaligner#read_clade_genome_strings. 
-pub fn read_transcripts(
+pub fn read_transcripts<F>(
     reader: fasta::Reader<File>,
-) -> Result<(Vec<DnaString>, Vec<String>, HashMap<String, String>), Error> {
+    grouping_function: F,
+) 
+-> Result<(Vec<DnaString>, Vec<String>, HashMap<String, String>), Error>
+where F: Fn(&str) -> (String,String) {
     let mut seqs = Vec::new();
     let mut transcript_counter = 0;
     let mut tx_ids = Vec::new();
     let mut tx_to_gene_map = HashMap::new();
-
-    let mut fasta_format: Option<u8> = None;
 
     info!("Starting reading the Fasta file");
     for result in reader.records() {
@@ -78,11 +79,7 @@ pub fn read_transcripts(
         let dna_string = DnaString::from_acgt_bytes_hashn(record.seq(), record.id().as_bytes());
         seqs.push(dna_string);
 
-        if let None = fasta_format {
-            fasta_format = detect_fasta_format(&record);
-        }
-
-        let (tx_id, gene_id) = extract_tx_gene_id(&record, fasta_format)?;
+        let (tx_id, gene_id) = grouping_function(&record.id());
 
         tx_ids.push(tx_id.clone());
         tx_to_gene_map.insert(tx_id, gene_id);
