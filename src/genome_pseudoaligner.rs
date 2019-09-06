@@ -320,11 +320,11 @@ fn read_clade_genome_strings(
                             |r| {
                                 let r2 = r.expect(&format!(
                                     "Error parsing fasta file entry in {}", genome_fasta));
-                                // TODO: This conversion introduces randomness.
-                                // How to treat N characters? Use
-                                // DnaString#from_acgt_bytes_hashn ?
-                                DnaString::from_acgt_bytes(
-                                    r2.seq()
+                                // Use DnaString#from_acgt_bytes_hashn, in the
+                                // same way as utils::read_transcripts
+                                DnaString::from_acgt_bytes_hashn(
+                                    r2.seq(),
+                                    r2.id().as_bytes(),
                                 )
                             }
                         )
@@ -341,16 +341,17 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     print_zero_coverage_contigs: bool,
     index: DebruijnIndex<K>,
     genomes_and_contigs: &GenomesAndContigs,
-    clades: &Vec<Vec<String>>) {
+    clades: &Vec<Vec<String>>,
+    write_gfa: bool,) {
 
     assert!(clades.len() > 0);
 
     // Write GFA TODO: debug
-    // if log_enabled!(Level::Debug) { 
-    //     info!("Writing GFA file ..");
-    //     let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
-    //     index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
-    // }
+    if write_gfa { 
+        info!("Writing GFA file ..");
+        let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+        index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+    }
 
     // For each clade, nucmer against the first genome.
     info!("Calculating core genomes ..");
@@ -385,15 +386,15 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
 
     debug!("Found node_to_core_genomes: {:#?}",
            &core_genome_pseudoaligner.node_id_to_clade_cores);
-    // if log_enabled!(Level::Debug) {
-    //     // Write CSV data to be loaded into bandage
-    //     use std::io::Write;
-    //     let mut csv_writer = std::fs::File::create("/tmp/my.core_nodes.csv").unwrap();
-    //     writeln!(csv_writer, "Node,Clades").unwrap();
-    //     for (node_id, clades) in &core_genome_pseudoaligner.node_id_to_clade_cores {
-    //         writeln!(csv_writer, "{},\"{:?}\"", node_id, clades).unwrap();
-    //     }
-    // }
+    if write_gfa {
+        // Write CSV data to be loaded into bandage
+        use std::io::Write;
+        let mut csv_writer = std::fs::File::create("/tmp/my.core_nodes.csv").unwrap();
+        writeln!(csv_writer, "Node,Clades").unwrap();
+        for (node_id, clades) in &core_genome_pseudoaligner.node_id_to_clade_cores {
+            writeln!(csv_writer, "{},\"{:?}\"", node_id, clades).unwrap();
+        }
+    }
 
     // Map / EM / Print
     println!("Sample\tGenome\tCoverage");

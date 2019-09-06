@@ -694,6 +694,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
                         "Kmer returned from search was incorrect!, expected {:?}, found {:?}",
                         target_kmer, found_kmer
                     );
+                    panic!();
                     true
                 } else {
                     debug!("Found kmer was correct");

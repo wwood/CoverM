@@ -57,6 +57,8 @@ fn _open_with_gz<P: AsRef<Path>>(p: P) -> Result<Box<dyn BufRead>, Error> {
     }
 }
 
+/// Read sequences. Dealing with Ns happens in the same way as in
+/// genome_pseudoaligner#read_clade_genome_strings. 
 pub fn read_transcripts(
     reader: fasta::Reader<File>,
 ) -> Result<(Vec<DnaString>, Vec<String>, HashMap<String, String>), Error> {

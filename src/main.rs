@@ -375,6 +375,7 @@ fn main(){
                             pseudoalign_params.index,
                             &genomes_and_contigs,
                             &clades,
+                            m.is_present("write-gfa"),
                         );
                     }
                 }
@@ -1927,6 +1928,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("clades")
                      .long("clades")
                      .takes_value(true))
+                .arg(Arg::with_name("write-gfa")
+                     .long("write-gfa"))
 
                 .arg(Arg::with_name("min-read-aligned-length")
                      .long("min-read-aligned-length")
