@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap,BTreeSet};
+use std::collections::{BTreeMap, BTreeSet};
 
+use debruijn::dna_string::DnaString;
+use debruijn::{Dir, Kmer, Mer, Vmer};
 use pseudoaligner::pseudoaligner::Pseudoaligner;
 use pseudoaligner::pseudoaligner::PseudoalignmentReadMapper;
-use debruijn::{Kmer, Vmer, Mer, Dir};
-use debruijn::dna_string::DnaString;
 
-use pseudoaligner::config::{LEFT_EXTEND_FRACTION};
+use pseudoaligner::config::LEFT_EXTEND_FRACTION;
 use pseudoaligner::pseudoaligner::intersect;
 
 use kmer_coverage::DebruijnIndex;
@@ -18,7 +18,6 @@ pub struct CoreGenomicRegion {
     pub start: u32,
     pub stop: u32,
 }
-
 
 /// Represent a Pseudoaligner that has extra annotations, specifically, some
 /// regions are marked as being 'core' for a given clade, and so it is more
@@ -38,7 +37,7 @@ pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
 
     /// Map of node_id in graph to list of clades where those nodes are in that
     /// clade's core. Nodes not in any core are not stored.
-    pub node_id_to_clade_cores: BTreeMap<usize, Vec<u32>>
+    pub node_id_to_clade_cores: BTreeMap<usize, Vec<u32>>,
 }
 
 impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligner<K> {
@@ -98,7 +97,11 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
         if kmer_pos >= left_extend_threshold && node_id.is_some() {
             let mut last_pos = kmer_pos - 1;
             let mut prev_node_id = node_id.unwrap();
-            let mut prev_kmer_offset = if kmer_offset.unwrap() > 0 { kmer_offset.unwrap() - 1 } else { 0 };
+            let mut prev_kmer_offset = if kmer_offset.unwrap() > 0 {
+                kmer_offset.unwrap() - 1
+            } else {
+                0
+            };
 
             loop {
                 let node = self.index.dbg.get_node(prev_node_id);
@@ -190,7 +193,10 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
                 colors.push(*color);
 
                 // add node_ids to list of found nodes
-                debug!("Adding node_id to list of visited nodes: {:?}", node_id.unwrap());
+                debug!(
+                    "Adding node_id to list of visited nodes: {:?}",
+                    node_id.unwrap()
+                );
                 visited_nodes.push(node_id.unwrap());
 
                 // length of remaining read after kmer match
@@ -297,12 +303,14 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
             // Only return colours where visited nodes are marked as core.
             let mut clade_cores = BTreeSet::new();
             debug!("Found visited nodes: {:?}", visited_nodes);
-            debug!("Found sequence of first visited node: {:?}",
-                   self.index.dbg.get_node(visited_nodes[0]));
+            debug!(
+                "Found sequence of first visited node: {:?}",
+                self.index.dbg.get_node(visited_nodes[0])
+            );
             debug!("Node id to core genome: {:?}", self.node_id_to_clade_cores);
             for node_id in visited_nodes {
                 match self.node_id_to_clade_cores.get(&node_id) {
-                    None => {},
+                    None => {}
                     Some(clade_ids) => {
                         for clade_id in clade_ids {
                             clade_cores.insert(clade_id);
@@ -310,18 +318,18 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
                     }
                 }
             }
-            let core_eq_classes: Vec<u32> = eq_class.into_iter().filter(
-                |color| {
+            let core_eq_classes: Vec<u32> = eq_class
+                .into_iter()
+                .filter(|color| {
                     let clade_id: usize = self.genome_clade_ids[*color as usize];
                     clade_cores.contains(&(clade_id as u32))
-                }
-            ).collect();
+                })
+                .collect();
 
             Some((core_eq_classes, read_coverage))
         }
     }
 }
-
 
 /// core_genome_regions are Vecs of all the core genome regions in each genome
 /// grouped together. Contig_id in each refers to the index of that contig in
@@ -331,18 +339,14 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
     contig_sequences: &Vec<Vec<Vec<DnaString>>>,
     aligner: DebruijnIndex<K>,
 ) -> CoreGenomePseudoaligner<K> {
-
-    let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> =
-        BTreeMap::new();
+    let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> = BTreeMap::new();
     let mut genome_clade_ids: Vec<usize> = vec![];
     let mut core_genome_sizes: Vec<usize> = vec![];
 
     // Function to extract the next tranch of core genome regions for the next
     // contig
     let indices_of_current_contig =
-        |regions: &Vec<CoreGenomicRegion>, starting_index: usize|
-                       -> (usize, usize) {
-
+        |regions: &Vec<CoreGenomicRegion>, starting_index: usize| -> (usize, usize) {
             let target_contig_id = regions[starting_index].contig_id;
             let mut i = starting_index + 1;
             while i < regions.len() {
@@ -371,22 +375,27 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                 debug!("");
                 debug!("=============================================");
                 debug!("=============================================");
-                debug!("Marking clade {}, genome_id {}, contig {} .. ",
-                       clade_id, genome_id, contig_id);
-                debug!("Contig sequence was {}",
-                       &contig_sequences[clade_id_usize][genome_id][contig_id].to_string());
+                debug!(
+                    "Marking clade {}, genome_id {}, contig {} .. ",
+                    clade_id, genome_id, contig_id
+                );
+                debug!(
+                    "Contig sequence was {}",
+                    &contig_sequences[clade_id_usize][genome_id][contig_id].to_string()
+                );
                 let core_node_ids = thread_and_find_core_nodes(
                     &aligner.index,
                     &contig_sequences[clade_id_usize][genome_id][contig_id],
                     contig_id,
-                    &genome_regions[region_index_start..region_index_stop]);
+                    &genome_regions[region_index_start..region_index_stop],
+                );
                 for nid in core_node_ids {
                     match node_id_to_clade_cores.get_mut(&nid) {
                         Some(clade_cores) => {
-                            if clade_cores.iter().find(|&r| *r==clade_id).is_none() {
+                            if clade_cores.iter().find(|&r| *r == clade_id).is_none() {
                                 clade_cores.push(clade_id)
                             };
-                        },
+                        }
                         None => {
                             node_id_to_clade_cores.insert(nid, vec![clade_id]);
                         }
@@ -398,8 +407,8 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
                 }
 
                 // Update for next iteration
-                if region_index_stop+1 < genome_regions.len() {
-                    let nexts = indices_of_current_contig(genome_regions, region_index_stop+1);
+                if region_index_stop + 1 < genome_regions.len() {
+                    let nexts = indices_of_current_contig(genome_regions, region_index_stop + 1);
                     region_index_start = nexts.0;
                     region_index_stop = nexts.1;
                 } else {
@@ -417,7 +426,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
         core_genome_sizes: core_genome_sizes,
         genome_clade_ids: genome_clade_ids,
         node_id_to_clade_cores: node_id_to_clade_cores,
-    }
+    };
 }
 
 #[derive(Debug)]
@@ -438,7 +447,6 @@ fn get_starting_position<K: Kmer + Send + Sync>(
     contig: &DnaString,
     contig_id: usize,
 ) -> GraphPosition {
-
     let kmer_length = K::k();
 
     // Find the start of the contig in genome space
@@ -446,19 +454,14 @@ fn get_starting_position<K: Kmer + Send + Sync>(
     // Be careful here. Because of the MPHF, hashing false positives can
     // occur. So need to check that the first matching kmer really is that,
     // or whether it should be hashed in rc instead.
-    let fwd_first_node = match aligner.dbg_index.get(
-        &contig.get_kmer::<K>(0)) {
-
+    let fwd_first_node = match aligner.dbg_index.get(&contig.get_kmer::<K>(0)) {
         Some((nid, offset)) => {
-            let found_sequence = aligner
-                .dbg
-                .get_node(*nid as usize)
-                .sequence();
+            let found_sequence = aligner.dbg.get_node(*nid as usize).sequence();
             // Test for len first because the kmer might be wrongly pointing to
             // a shorter node.
-            if found_sequence.len() >= *offset as usize + kmer_length &&
-                found_sequence.get_kmer::<K>(*offset as usize) ==
-                contig.get_kmer::<K>(0) {
+            if found_sequence.len() >= *offset as usize + kmer_length
+                && found_sequence.get_kmer::<K>(*offset as usize) == contig.get_kmer::<K>(0)
+            {
                 debug!("Found forward node for kmer {:?}", contig.get_kmer::<K>(0));
                 Some(GraphPosition {
                     graph_position: Some(DBGraphPosition {
@@ -470,16 +473,17 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                 })
             } else {
                 // Kmer hash mismatch
-                debug!("kmer hash doesn't end up pointing to the correct kmer: \
-                        wanted kmer {:?} and node sequence was {:?}, with offset {}",
-                       &contig.get_kmer::<K>(0),
-                       found_sequence.get_kmer::<K>(*offset as usize),
-                       offset
+                debug!(
+                    "kmer hash doesn't end up pointing to the correct kmer: \
+                     wanted kmer {:?} and node sequence was {:?}, with offset {}",
+                    &contig.get_kmer::<K>(0),
+                    found_sequence.get_kmer::<K>(*offset as usize),
+                    offset
                 );
                 None
             }
-        },
-        None => None
+        }
+        None => None,
     };
     return match fwd_first_node {
         // TODO Possible corner case if the contig starts and ends with the
@@ -489,10 +493,12 @@ fn get_starting_position<K: Kmer + Send + Sync>(
             let first_contig_kmer_rc = &contig.get_kmer::<K>(0).rc();
             match aligner.dbg_index.get(first_contig_kmer_rc) {
                 None => {
-                    error!("Unable to find starting node for contig number {} in the graph",
-                           contig_id);
+                    error!(
+                        "Unable to find starting node for contig number {} in the graph",
+                        contig_id
+                    );
                     std::process::exit(1);
-                },
+                }
                 Some((nid, offset)) => {
                     let found_slice = aligner
                         .dbg
@@ -502,30 +508,31 @@ fn get_starting_position<K: Kmer + Send + Sync>(
                     if found_slice == *first_contig_kmer_rc {
                         debug!("Found rc node {:?}", found_slice);
                         GraphPosition {
-                            graph_position: Some({DBGraphPosition {
-                                node_id: *nid as usize,
-                                offset: *offset,
-                                is_forward: false,
-                            }}),
+                            graph_position: Some({
+                                DBGraphPosition {
+                                    node_id: *nid as usize,
+                                    offset: *offset,
+                                    is_forward: false,
+                                }
+                            }),
                             contig_position: 0,
                         }
                     } else {
                         // Kmer hash mismatch
-                        error!("Unable to find starting node for contig number {} in the graph: \
-                                wanted kmer {:?} and node sequence was {:?}, with offset {}",
-                               contig_id,
-                               &contig.get_kmer::<K>(0),
-                               aligner
-                               .dbg
-                               .get_node(*nid as usize)
-                               .sequence(),
-                               offset);
+                        error!(
+                            "Unable to find starting node for contig number {} in the graph: \
+                             wanted kmer {:?} and node sequence was {:?}, with offset {}",
+                            contig_id,
+                            &contig.get_kmer::<K>(0),
+                            aligner.dbg.get_node(*nid as usize).sequence(),
+                            offset
+                        );
                         std::process::exit(1);
                     }
                 }
             }
         }
-    }
+    };
 }
 
 /// Given a kmer which has been provisionally aligned to an edge (but may not be
@@ -535,9 +542,8 @@ fn validate_kmer<K: Kmer + Send + Sync>(
     aligner: &Pseudoaligner<K>,
     node_id: &u32,
     offset: &u32,
-    target_kmer: &K
+    target_kmer: &K,
 ) -> bool {
-
     debug!("Validating kmer {:?}", target_kmer);
     let ref_seq_slice = aligner.dbg.get_node(*node_id as usize).sequence();
     let ref_kmer: K = ref_seq_slice.get_kmer(*offset as usize);
@@ -555,55 +561,51 @@ fn validate_kmer<K: Kmer + Send + Sync>(
 /// and validates (to avoid MPHF issues), else None.
 fn kmer_to_node_and_offset<K: Kmer + Send + Sync>(
     aligner: &Pseudoaligner<K>,
-    kmer: &K
-) -> Option<(u32,u32)> {
-
+    kmer: &K,
+) -> Option<(u32, u32)> {
     debug!("Finding kmer {:?}", kmer);
 
-    debug!("Forward hit? {:?}",
-           match aligner.dbg_index.get(kmer) {
-               Some((nid, offset)) =>
-                   match validate_kmer(aligner, nid, offset, kmer) {
-                       true => Some((*nid,*offset)),
-                       false => None
-                   },
-               None => None
-           });
-    debug!("Reverse hit? {:?}",
-           match aligner.dbg_index.get(&kmer.rc()) {
-               Some((nid, offset)) =>
-                   match validate_kmer(aligner, nid, offset, &kmer.rc()) {
-                       true => Some((*nid,*offset)),
-                       false => None
-                   },
-               None => None
-           });
+    debug!(
+        "Forward hit? {:?}",
+        match aligner.dbg_index.get(kmer) {
+            Some((nid, offset)) => match validate_kmer(aligner, nid, offset, kmer) {
+                true => Some((*nid, *offset)),
+                false => None,
+            },
+            None => None,
+        }
+    );
+    debug!(
+        "Reverse hit? {:?}",
+        match aligner.dbg_index.get(&kmer.rc()) {
+            Some((nid, offset)) => match validate_kmer(aligner, nid, offset, &kmer.rc()) {
+                true => Some((*nid, *offset)),
+                false => None,
+            },
+            None => None,
+        }
+    );
 
     // Be careful here. Because of the MPHF, hashing false positives can
     // occur. So need to check that the first matching kmer really is
     // that.
     match aligner.dbg_index.get(kmer) {
-        Some((nid, offset)) => {
-            match validate_kmer(aligner, nid, offset, kmer) {
-                true => {return Some((*nid,*offset))},
-                false => {}
-            }
+        Some((nid, offset)) => match validate_kmer(aligner, nid, offset, kmer) {
+            true => return Some((*nid, *offset)),
+            false => {}
         },
         None => {}
     };
 
     // RC or None
     return match aligner.dbg_index.get(&kmer.rc()) {
-        Some((nid, offset)) => {
-            match validate_kmer(aligner, nid, offset, &kmer.rc()) {
-                true => Some((*nid,*offset)),
-                false => None
-            }
+        Some((nid, offset)) => match validate_kmer(aligner, nid, offset, &kmer.rc()) {
+            true => Some((*nid, *offset)),
+            false => None,
         },
-        None => None
-    }
+        None => None,
+    };
 }
-
 
 // Mark nodes as being core genome for a single contig. All core_regions should
 // be from that contig. Return a list of nodes to be marked as core.
@@ -611,11 +613,9 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
     aligner: &Pseudoaligner<K>,
     contig_sequence: &DnaString,
     contig_id: usize,
-    core_regions: &[CoreGenomicRegion])
--> Vec<usize> {
-
-    let mut current_position = get_starting_position(
-        &aligner, contig_sequence, contig_id);
+    core_regions: &[CoreGenomicRegion],
+) -> Vec<usize> {
+    let mut current_position = get_starting_position(&aligner, contig_sequence, contig_id);
     debug!("Starting with position: {:?}", current_position);
 
     let kmer_length = K::k();
@@ -630,7 +630,10 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
 
     for _ in 1..last_kmer_pos {
         debug!("");
-        debug!("===== Finding kmer at contig position {}", current_position.contig_position);
+        debug!(
+            "===== Finding kmer at contig position {}",
+            current_position.contig_position
+        );
         // if position is in core genome, mark it.
         let mut current_core_region = &core_regions[current_core_region_idx];
         if current_core_region.start <= current_position.contig_position {
@@ -648,7 +651,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
             // If we are in the range of the next core region, add this node
             current_core_region = &core_regions[current_core_region_idx];
             match &current_position.graph_position {
-                None => {},
+                None => {}
                 Some(pos) => {
                     if current_core_region.start <= current_position.contig_position {
                         debug!("Marking as core the current node {}", pos.node_id);
@@ -658,7 +661,7 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
                                     last_node_id = Some(pos.node_id);
                                     marked_nodes.push(pos.node_id);
                                 }
-                            },
+                            }
                             None => {
                                 last_node_id = Some(pos.node_id);
                                 marked_nodes.push(pos.node_id);
@@ -670,39 +673,34 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
         }
 
         let current_contig_position = current_position.contig_position as usize;
-        let target_kmer = contig_sequence.get_kmer::<K>(current_contig_position+1);
-        next_position(
-            &mut current_position,
-            &aligner,
-            &target_kmer);
+        let target_kmer = contig_sequence.get_kmer::<K>(current_contig_position + 1);
+        next_position(&mut current_position, &aligner, &target_kmer);
         debug!("next_position: {:?}", current_position);
 
         // Double check that the sequence now has the right kmer in that
         // position.
         let fail = match &current_position.graph_position {
             Some(pos) => {
-                let found_sequence = aligner
-                    .dbg
-                    .get_node(pos.node_id as usize)
-                    .sequence();
+                let found_sequence = aligner.dbg.get_node(pos.node_id as usize).sequence();
                 // Found_kmer is a DnaStringSlice
-                let mut found_kmer = found_sequence
-                    .get_kmer::<K>(pos.offset as usize);
+                let mut found_kmer = found_sequence.get_kmer::<K>(pos.offset as usize);
                 debug!("Before potential rc(), forward found was {:?}", found_kmer);
                 if !pos.is_forward {
                     debug!("not is_forward");
                     found_kmer = found_kmer.rc();
                 }
                 if found_kmer != target_kmer {
-                    warn!("Kmer returned from search was incorrect!, expected {:?}, found {:?}",
-                          target_kmer, found_kmer);
+                    warn!(
+                        "Kmer returned from search was incorrect!, expected {:?}, found {:?}",
+                        target_kmer, found_kmer
+                    );
                     true
                 } else {
                     debug!("Found kmer was correct");
                     false
                 }
-            },
-            None => {true}
+            }
+            None => true,
         };
         if fail {
             current_position.graph_position = None;
@@ -717,8 +715,8 @@ fn thread_and_find_core_nodes<K: Kmer + Send + Sync>(
 fn next_position<K: Kmer + Send + Sync>(
     position: &mut GraphPosition,
     aligner: &Pseudoaligner<K>,
-    kmer: &K) {
-
+    kmer: &K,
+) {
     let k = K::k();
     debug!("Finding kmer {:?}", kmer);
 
@@ -731,8 +729,10 @@ fn next_position<K: Kmer + Send + Sync>(
             let current_node = aligner.dbg.get_node(position.node_id as usize);
             debug!(
                 "Current node {}'s sequence is {:?}",
-                position.node_id, current_node.sequence());
-            if position.is_forward && position.offset as usize+k < current_node.len() {
+                position.node_id,
+                current_node.sequence()
+            );
+            if position.is_forward && position.offset as usize + k < current_node.len() {
                 debug!("Just going forward on the same node");
                 position.offset += 1;
                 updated = true;
@@ -741,7 +741,7 @@ fn next_position<K: Kmer + Send + Sync>(
                 position.offset -= 1;
                 updated = true;
             }
-        },
+        }
         None => {}
     }
 
@@ -756,7 +756,7 @@ fn next_position<K: Kmer + Send + Sync>(
             None => {
                 debug!("Current kmer could not be threaded: {:?}", kmer);
                 position.graph_position = None;
-            },
+            }
             Some((node_id, offset)) => {
                 debug!("Found starting kmer at node/offset {}/{}", node_id, offset);
                 // TODO: Seem to be flipping back and forth between u32 and
@@ -780,7 +780,7 @@ fn next_position<K: Kmer + Send + Sync>(
                         } else {
                             panic!("Not sure what is going on")
                         }
-                    }
+                    },
                 })
             }
         }
@@ -791,8 +791,8 @@ fn next_position<K: Kmer + Send + Sync>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pseudoaligner::*;
     use bio::io::fasta;
+    use pseudoaligner::*;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -802,26 +802,23 @@ mod tests {
     fn test_core_genome_hello_world() {
         init();
 
-        let cores = vec![vec![vec![
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 10,
-                stop: 100
-            }
-        ]]];
+        let cores = vec![vec![vec![CoreGenomicRegion {
+            clade_id: 0,
+            contig_id: 0,
+            start: 10,
+            stop: 100,
+        }]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -832,12 +829,14 @@ mod tests {
                 index: real_index,
                 seq_lengths: vec![], // this is actually unused
                 tx_names: tx_names,
-            }
+            },
         );
         debug!("done");
 
-        debug!("core_aligner.node_id_to_clade_cores: {:?}",
-                 core_aligner.node_id_to_clade_cores);
+        debug!(
+            "core_aligner.node_id_to_clade_cores: {:?}",
+            core_aligner.node_id_to_clade_cores
+        );
         let mut expected = BTreeMap::new();
         expected.insert(2, vec![0]);
         expected.insert(4, vec![0]);
@@ -852,27 +851,26 @@ mod tests {
                 clade_id: 0,
                 contig_id: 0,
                 start: 0,
-                stop: 1
+                stop: 1,
             },
             CoreGenomicRegion {
                 clade_id: 0,
                 contig_id: 0,
                 start: 80,
-                stop: 82
+                stop: 82,
             },
         ]]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -883,57 +881,62 @@ mod tests {
                 index: real_index,
                 seq_lengths: vec![], //unused
                 tx_names: tx_names,
-            }
+            },
         );
         debug!("done");
 
-        debug!("core_aligner.node_id_to_clade_cores: {:?}",
-                 core_aligner.node_id_to_clade_cores);
+        debug!(
+            "core_aligner.node_id_to_clade_cores: {:?}",
+            core_aligner.node_id_to_clade_cores
+        );
         let mut expected = BTreeMap::new();
         expected.insert(5, vec![0]);
         expected.insert(4, vec![0]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
-        debug!("{} {}", core_aligner.index.dbg.get_node(4).len(),core_aligner.index.dbg.get_node(5).len());
+        debug!(
+            "{} {}",
+            core_aligner.index.dbg.get_node(4).len(),
+            core_aligner.index.dbg.get_node(5).len()
+        );
         assert_eq!(vec![71], core_aligner.core_genome_sizes);
     }
-
 
     #[test]
     fn test_core_genome_2_genomes() {
         init();
-        let cores = vec![vec![vec![
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 0,
-                stop: 10
-            },
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 80,
-                stop: 82
-            },
-        ]], vec![vec![
-            CoreGenomicRegion {
+        let cores = vec![
+            vec![vec![
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 0,
+                    stop: 10,
+                },
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 80,
+                    stop: 82,
+                },
+            ]],
+            vec![vec![CoreGenomicRegion {
                 clade_id: 1,
                 contig_id: 0,
                 start: 10,
-                stop: 15
-            },
-        ]]];
+                stop: 15,
+            }]],
+        ];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (mut seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -943,61 +946,61 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &vec![
-                vec![vec![s0]],
-                vec![vec![s1]]],
+            &vec![vec![vec![s0]], vec![vec![s1]]],
             DebruijnIndex {
                 index: real_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-            }
+            },
         );
         debug!("done");
 
-        debug!("core_aligner.node_id_to_clade_cores: {:?}",
-                 core_aligner.node_id_to_clade_cores);
+        debug!(
+            "core_aligner.node_id_to_clade_cores: {:?}",
+            core_aligner.node_id_to_clade_cores
+        );
         let mut expected = BTreeMap::new();
         expected.insert(5, vec![0]);
         expected.insert(4, vec![0]);
-        expected.insert(2, vec![0,1]);
+        expected.insert(2, vec![0, 1]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
-        debug!("{} {} {}",
-               core_aligner.index.dbg.get_node(2).len(),
-               core_aligner.index.dbg.get_node(4).len(),
-               core_aligner.index.dbg.get_node(5).len());
-        assert_eq!(vec![99+47+24,99], core_aligner.core_genome_sizes);
+        debug!(
+            "{} {} {}",
+            core_aligner.index.dbg.get_node(2).len(),
+            core_aligner.index.dbg.get_node(4).len(),
+            core_aligner.index.dbg.get_node(5).len()
+        );
+        assert_eq!(vec![99 + 47 + 24, 99], core_aligner.core_genome_sizes);
     }
 
     #[test]
     fn test_core_genome_2_genomes_diverging() {
         init();
-        let cores = vec![vec![vec![
-            CoreGenomicRegion {
+        let cores = vec![vec![
+            vec![CoreGenomicRegion {
                 clade_id: 0,
                 contig_id: 0,
                 start: 30,
-                stop: 74
-            },
-        ], vec![
-            CoreGenomicRegion {
+                stop: 74,
+            }],
+            vec![CoreGenomicRegion {
                 clade_id: 0,
                 contig_id: 0,
                 start: 30,
-                stop: 74
-            },
-        ]]];
+                stop: 74,
+            }],
+        ]];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/two_diverging_genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/two_diverging_genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (mut seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -1006,65 +1009,96 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &vec![vec![
-                vec![s0],
-                vec![s1]]],
+            &vec![vec![vec![s0], vec![s1]]],
             DebruijnIndex {
                 index: real_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-            }
+            },
         );
         debug!("done");
 
-        debug!("core_aligner.node_id_to_clade_cores: {:?}",
-                 core_aligner.node_id_to_clade_cores);
+        debug!(
+            "core_aligner.node_id_to_clade_cores: {:?}",
+            core_aligner.node_id_to_clade_cores
+        );
         let mut expected = BTreeMap::new();
         expected.insert(0, vec![0]);
         expected.insert(1, vec![0]);
         assert_eq!(expected, core_aligner.node_id_to_clade_cores);
-        debug!("{} {}",
-               core_aligner.index.dbg.get_node(0).len(),
-               core_aligner.index.dbg.get_node(1).len());
-        assert_eq!(vec![73,73], core_aligner.core_genome_sizes);
+        debug!(
+            "{} {}",
+            core_aligner.index.dbg.get_node(0).len(),
+            core_aligner.index.dbg.get_node(1).len()
+        );
+        assert_eq!(vec![73, 73], core_aligner.core_genome_sizes);
+    }
+
+    #[test]
+    fn test_kmer_to_node_and_offset() {
+        init();
+
+        let mut name_to_gene = std::collections::HashMap::new();
+        name_to_gene.insert("seq1".to_string(), "seq1_g".to_string());
+        name_to_gene.insert("seq1_g".to_string(), "seq1_g".to_string());
+
+        // seq1, 30 bp
+        let s0 = DnaString::from_dna_string(&"AGACCGAGGATAGTGGCTGCTCGATGGGGA");
+        // seq1 except G is at position 3, rc()
+        let s1 = DnaString::from_dna_string(&"AGGCCGAGGATAGTGGCTGCTCGATGGGGA").rc();
+
+        let index2 = build_index::build_index::<debruijn::kmer::Kmer24>(
+            &vec![
+                s0.clone(), 
+                s1.clone(), 
+            ],
+            &vec!["seq1".to_string(), "seq1_g".to_string()],
+            &name_to_gene,
+            1,
+        ).unwrap();
+        // The DBG above has 3 nodes, and some of the nodes to query are RC'd in
+        // the kmer index
+
+        assert_eq!(Some((1,0)),kmer_to_node_and_offset(&index2, &s0.get_kmer::<debruijn::kmer::Kmer24>(0)));
+        assert_eq!(Some((1,0)),kmer_to_node_and_offset(&index2, &s0.get_kmer::<debruijn::kmer::Kmer24>(0).rc()));
     }
 
     #[test]
     fn test_core_genome_pseudoaligner_map_read() {
         init();
-        let cores = vec![vec![vec![
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 0,
-                stop: 10
-            },
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 80,
-                stop: 82
-            },
-        ]], vec![vec![
-            CoreGenomicRegion {
+        let cores = vec![
+            vec![vec![
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 0,
+                    stop: 10,
+                },
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 80,
+                    stop: 82,
+                },
+            ]],
+            vec![vec![CoreGenomicRegion {
                 clade_id: 1,
                 contig_id: 0,
                 start: 10,
-                stop: 15
-            },
-        ]]];
+                stop: 15,
+            }]],
+        ];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (mut seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -1074,14 +1108,12 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &vec![
-                vec![vec![s0]],
-                vec![vec![s1]]],
+            &vec![vec![vec![s0]], vec![vec![s1]]],
             DebruijnIndex {
                 index: real_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-            }
+            },
         );
 
         let dna = DnaString::from_acgt_bytes(b"ATCGCCCGTCACCACCCCAATTCATACACCACTAGCGGTTAGCAACGATT");
@@ -1092,39 +1124,39 @@ mod tests {
     #[test]
     fn test_core_genome_pseudoaligner_map_non_core_read() {
         init();
-        let cores = vec![vec![vec![
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 1,
-                stop: 11
-            },
-            CoreGenomicRegion {
-                clade_id: 0,
-                contig_id: 0,
-                start: 80,
-                stop: 82
-            },
-        ]], vec![vec![
-            CoreGenomicRegion {
+        let cores = vec![
+            vec![vec![
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 1,
+                    stop: 11,
+                },
+                CoreGenomicRegion {
+                    clade_id: 0,
+                    contig_id: 0,
+                    start: 80,
+                    stop: 82,
+                },
+            ]],
+            vec![vec![CoreGenomicRegion {
                 clade_id: 1,
                 contig_id: 0,
                 start: 10,
-                stop: 15
-            },
-        ]]];
+                stop: 15,
+            }]],
+        ];
 
         // Build index
         let reference_reader = fasta::Reader::from_file(
-            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna")
-            .expect("reference reading failed.");
+            "tests/data/2_single_species_dummy_dataset/2genomes/genomes.fna",
+        )
+        .expect("reference reading failed.");
         info!("Reading reference sequences in ..");
-        let (mut seqs, tx_names, tx_gene_map) = utils::read_transcripts(reference_reader)
-            .expect("Failure to read contigs file");
+        let (mut seqs, tx_names, tx_gene_map) =
+            utils::read_transcripts(reference_reader).expect("Failure to read contigs file");
         info!("Building debruijn index ..");
-        let index = build_index::build_index::<config::KmerType>(
-            &seqs, &tx_names, &tx_gene_map, 1
-        );
+        let index = build_index::build_index::<config::KmerType>(&seqs, &tx_names, &tx_gene_map, 1);
         let real_index = index.unwrap();
         debug!("Graph was {:?}", &real_index.dbg);
 
@@ -1134,14 +1166,12 @@ mod tests {
 
         let core_aligner = generate_core_genome_pseudoaligner(
             &cores,
-            &vec![
-                vec![vec![s0]],
-                vec![vec![s1]]],
+            &vec![vec![vec![s0]], vec![vec![s1]]],
             DebruijnIndex {
                 index: real_index,
                 seq_lengths: seqs.iter().map(|s| s.len()).collect(),
                 tx_names: tx_names,
-            }
+            },
         );
 
         // non-core read (1 kmer) because the A at the start is an overhang.
@@ -1151,5 +1181,3 @@ mod tests {
         assert_eq!(Some((vec![], 24usize)), res);
     }
 }
-
-

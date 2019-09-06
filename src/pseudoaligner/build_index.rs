@@ -1,16 +1,16 @@
 // Copyright (c) 2018 10x Genomics, Inc. All rights reserved.
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use boomphf::hashmap::{BoomHashMap2, NoKeyBoomHashMap};
-use pseudoaligner::config::{KmerType, MEM_SIZE, REPORT_ALL_KMER, STRANDED};
 use debruijn;
 use debruijn::compression::*;
 use debruijn::dna_string::{DnaString, DnaStringSlice};
 use debruijn::filter::*;
 use debruijn::graph::*;
 use debruijn::*;
+use pseudoaligner::config::{KmerType, MEM_SIZE, REPORT_ALL_KMER, STRANDED};
 
 use boomphf;
 use failure::Error;
@@ -58,7 +58,8 @@ pub fn build_index<K: Kmer + Sync + Send>(
         .into_par_iter()
         .map_with(summarizer.clone(), |s, strings| {
             assemble_shard::<K>(strings, s)
-        }).collect_into_vec(&mut shard_dbgs);
+        })
+        .collect_into_vec(&mut shard_dbgs);
 
     info!("Done separate de Bruijn graph construction");
     info!("Starting merging disjoint graphs");
@@ -73,7 +74,11 @@ pub fn build_index<K: Kmer + Sync + Send>(
     info!("Indexing de Bruijn graph");
     let dbg_index = make_dbg_index(&dbg, num_threads);
     Ok(Pseudoaligner::new(
-        dbg, eq_classes, dbg_index, tx_names.clone(), tx_gene_map.clone()
+        dbg,
+        eq_classes,
+        dbg_index,
+        tx_names.clone(),
+        tx_gene_map.clone(),
     ))
 }
 
@@ -153,7 +158,8 @@ fn make_dbg_index<K: Kmer + Sync + Send>(
 
     info!("Total {:?} kmers to process in dbg", total_kmers);
     info!("Making mphf of kmers");
-    let mphf = boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, num_threads);
+    let mphf =
+        boomphf::Mphf::from_chunked_iterator_parallel(1.7, dbg, None, total_kmers, num_threads);
 
     info!("Assigning offsets to kmers");
     let mut node_and_offsets = Vec::with_capacity(total_kmers);
@@ -192,4 +198,82 @@ fn group_by_slices<T, K: PartialEq, F: Fn(&T) -> K>(
         result.push(&data[slice_start..]);
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    #[test]
+    fn test_dbg_graph_kmers_are_indexed() {
+        // This is really just a method for testing my understanding, not the
+        // code itself.
+        init();
+
+        let mut name_to_gene = HashMap::new();
+        name_to_gene.insert("seq1".to_string(), "seq1_g".to_string());
+        name_to_gene.insert("seq1_g".to_string(), "seq1_g".to_string());
+
+        let index1 = build_index::<debruijn::kmer::Kmer24>(
+            &vec![
+                DnaString::from_dna_string(&"AGACCGAGGATAGTGGCTGCTCGATGGGGA"), // seq1, 30 bp
+                DnaString::from_dna_string(&"AGGCCGAGGATAGTGGCTGCTCGATGGGGA"), // seq1 except G is at position 3
+            ],
+            &vec!["seq1".to_string(), "seq1_g".to_string()],
+            &name_to_gene,
+            1,
+        )
+        .unwrap();
+
+        let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+        index1.dbg.write_gfa(&mut gfa_writer).unwrap();
+
+        let mut name_to_gene = HashMap::new();
+        name_to_gene.insert("seq1".to_string(), "seq1_g".to_string());
+        name_to_gene.insert("seq1_g".to_string(), "seq1_g".to_string());
+
+        let index2 = build_index::<debruijn::kmer::Kmer24>(
+            &vec![
+                DnaString::from_dna_string(&"AGACCGAGGATAGTGGCTGCTCGATGGGGA"), // seq1, 30 bp
+                DnaString::from_dna_string(&"AGGCCGAGGATAGTGGCTGCTCGATGGGGA").rc(), // seq1 except G is at position 3, then rc
+            ],
+            &vec!["seq1".to_string(), "seq1_g".to_string()],
+            &name_to_gene,
+            1,
+        )
+        .unwrap();
+
+        let mut gfa_writer = std::fs::File::create("/tmp/my_rc.gfa").unwrap();
+        index2.dbg.write_gfa(&mut gfa_writer).unwrap();
+
+        // can we query using each of the kmers?
+        let seq1 = DnaString::from_dna_string("AGACCGAGGATAGTGGCTGCTCGATGGGGA");
+        for i in 0..(seq1.len() - 23) {
+            let s: kmer::Kmer24 = seq1.get_kmer(i);
+            debug!("Querying {} {:?}", i, s);
+            debug!("res1: {:?}", index1.dbg_index.get(&s));
+            debug!("res2: {:?}", index2.dbg_index.get(&s));
+        }
+        for i in 0..(seq1.len() - 23) {
+            let s: kmer::Kmer24 = seq1.get_kmer(i);
+            debug!("Querying rc {} {:?}", i, s);
+            debug!("res1: {:?}", index1.dbg_index.get(&s.rc()));
+            debug!("res2: {:?}", index2.dbg_index.get(&s.rc()));
+        }
+
+        // INTERPRETATION: The mphf contains all kmers. However, they may be in
+        // forward or rc, and so to query the mphf set, you might have to test
+        // (and validate) both.
+
+        for k in index1.dbg.into_iter() {
+            let node_id = k.node_id;
+            for j in k.into_iter() {
+                debug!("Iterated to kmer {:#?} on node {}", j, node_id);
+            }
+        }
+    }
 }

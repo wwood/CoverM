@@ -346,11 +346,11 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     assert!(clades.len() > 0);
 
     // Write GFA TODO: debug
-    if log_enabled!(Level::Debug) { 
-        info!("Writing GFA file ..");
-        let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
-        index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
-    }
+    // if log_enabled!(Level::Debug) { 
+    //     info!("Writing GFA file ..");
+    //     let mut gfa_writer = std::fs::File::create("/tmp/my.gfa").unwrap();
+    //     index.index.dbg.write_gfa(&mut gfa_writer).unwrap();
+    // }
 
     // For each clade, nucmer against the first genome.
     info!("Calculating core genomes ..");
@@ -385,15 +385,15 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
 
     debug!("Found node_to_core_genomes: {:#?}",
            &core_genome_pseudoaligner.node_id_to_clade_cores);
-    if log_enabled!(Level::Debug) {
-        // Write CSV data to be loaded into bandage
-        use std::io::Write;
-        let mut csv_writer = std::fs::File::create("/tmp/my.core_nodes.csv").unwrap();
-        writeln!(csv_writer, "Node,Clades").unwrap();
-        for (node_id, clades) in &core_genome_pseudoaligner.node_id_to_clade_cores {
-            writeln!(csv_writer, "{},\"{:?}\"", node_id, clades).unwrap();
-        }
-    }
+    // if log_enabled!(Level::Debug) {
+    //     // Write CSV data to be loaded into bandage
+    //     use std::io::Write;
+    //     let mut csv_writer = std::fs::File::create("/tmp/my.core_nodes.csv").unwrap();
+    //     writeln!(csv_writer, "Node,Clades").unwrap();
+    //     for (node_id, clades) in &core_genome_pseudoaligner.node_id_to_clade_cores {
+    //         writeln!(csv_writer, "{},\"{:?}\"", node_id, clades).unwrap();
+    //     }
+    // }
 
     // Map / EM / Print
     println!("Sample\tGenome\tCoverage");
@@ -432,11 +432,11 @@ mod tests {
     fn test_read_clade_file() {
         let mut tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
 
-        writeln!(tf, "/path/g1.fna\t/path/g1.fna");
-        writeln!(tf, "/path/g1.fna\t/path/g3.fna");
-        writeln!(tf, "/path/g1.fna\t/path/g2.fna");
-        writeln!(tf, "/path/g10.fna\t/path/g10.fna");
-        writeln!(tf, "/path/g10.fna\t/path/g20.fna");
+        writeln!(tf, "/path/g1.fna\t/path/g1.fna").unwrap();
+        writeln!(tf, "/path/g1.fna\t/path/g3.fna").unwrap();
+        writeln!(tf, "/path/g1.fna\t/path/g2.fna").unwrap();
+        writeln!(tf, "/path/g10.fna\t/path/g10.fna").unwrap();
+        writeln!(tf, "/path/g10.fna\t/path/g20.fna").unwrap();
 
         tf.flush().unwrap();
         assert_eq!(
