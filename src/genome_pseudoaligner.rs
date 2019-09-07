@@ -382,7 +382,8 @@ pub fn core_genome_coverage_pipeline<K: Kmer + Send + Sync>(
     let core_genome_pseudoaligner = core_genome::generate_core_genome_pseudoaligner(
         &nucmer_core_genomes,
         &dna_strings,
-        index
+        index,
+        genomes_and_contigs,
     );
 
     debug!("Found node_to_core_genomes: {:#?}",

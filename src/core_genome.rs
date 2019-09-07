@@ -9,6 +9,7 @@ use pseudoaligner::config::LEFT_EXTEND_FRACTION;
 use pseudoaligner::pseudoaligner::intersect;
 
 use pseudoalignment_reference_readers::DebruijnIndex;
+use genomes_and_contigs::GenomesAndContigs;
 
 // A region marked as being core for a clade
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
@@ -22,7 +23,7 @@ pub struct CoreGenomicRegion {
 /// Represent a Pseudoaligner that has extra annotations, specifically, some
 /// regions are marked as being 'core' for a given clade, and so it is more
 /// reliable to calculate abundance just based only on these regions.
-pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
+pub struct CoreGenomePseudoaligner<'a, K: Kmer + Send + Sync> {
     pub index: Pseudoaligner<K>,
 
     /// Names of all contigs, in the same order as what was used to generate the
@@ -38,9 +39,12 @@ pub struct CoreGenomePseudoaligner<K: Kmer + Send + Sync> {
     /// Map of node_id in graph to list of clades where those nodes are in that
     /// clade's core. Nodes not in any core are not stored.
     pub node_id_to_clade_cores: BTreeMap<usize, Vec<u32>>,
+
+    /// TODO: Remove the duplicated info here
+    pub genomes_and_contigs: &'a GenomesAndContigs,
 }
 
-impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligner<K> {
+impl<'a, K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligner<'a, K> {
     fn map_read(&self, read_seq: &DnaString) -> Option<(Vec<u32>, usize)> {
         // TODO: Change below to work out whether the node is in a core genome or not
 
@@ -320,8 +324,11 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
             }
             let core_eq_classes: Vec<u32> = eq_class
                 .into_iter()
-                .filter(|color| {
-                    let clade_id: usize = self.genome_clade_ids[*color as usize];
+                .filter(|contig_id| {
+                    let contig_name = &self.index.tx_names[*contig_id as usize];
+                    let genome_id = self.genomes_and_contigs.genome_index_of_contig(contig_name)
+                        .expect("Genome name / indexing mismath - programming bug?");
+                    let clade_id: usize = self.genome_clade_ids[genome_id];
                     clade_cores.contains(&(clade_id as u32))
                 })
                 .collect();
@@ -334,11 +341,12 @@ impl<K: Kmer + Send + Sync> PseudoalignmentReadMapper for CoreGenomePseudoaligne
 /// core_genome_regions are Vecs of all the core genome regions in each genome
 /// grouped together. Contig_id in each refers to the index of that contig in
 /// the contig_sequences list.
-pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
+pub fn generate_core_genome_pseudoaligner<'a, K: Kmer + Send + Sync>(
     core_genome_regions: &Vec<Vec<Vec<CoreGenomicRegion>>>,
     contig_sequences: &Vec<Vec<Vec<DnaString>>>,
     aligner: DebruijnIndex<K>,
-) -> CoreGenomePseudoaligner<K> {
+    genomes_and_contigs: &'a GenomesAndContigs,
+) -> CoreGenomePseudoaligner<'a, K> {
     let mut node_id_to_clade_cores: BTreeMap<usize, Vec<u32>> = BTreeMap::new();
     let mut genome_clade_ids: Vec<usize> = vec![];
     let mut core_genome_sizes: Vec<usize> = vec![];
@@ -426,6 +434,7 @@ pub fn generate_core_genome_pseudoaligner<K: Kmer + Send + Sync>(
         core_genome_sizes: core_genome_sizes,
         genome_clade_ids: genome_clade_ids,
         node_id_to_clade_cores: node_id_to_clade_cores,
+        genomes_and_contigs: genomes_and_contigs,
     };
 }
 
