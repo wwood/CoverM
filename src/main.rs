@@ -840,16 +840,36 @@ fn main(){
             let output = format!("{}.covermdb", reference);
             let num_threads = value_t!(m.value_of("threads"), usize).unwrap();
 
-            info!("Generating DeBruijn index ..");
-            let index = coverm::pseudoalignment_reference_readers::generate_debruijn_index_grouping_via_separator::
-            <coverm::pseudoaligner::config::KmerType>(
-                reference, parse_separator(m).expect("Failed to find separator") as char, num_threads);
+            let index = match m.is_present("separator") {
+                true => {
+                    info!("Generating DeBruijn index using separator character ..");
+
+                    coverm::pseudoalignment_reference_readers::generate_debruijn_index_grouping_via_separator::
+                    <coverm::pseudoaligner::config::KmerType>(
+                        reference, parse_separator(m).expect("Failed to find separator") as char, num_threads)
+                },
+                false => {
+                    let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
+                    info!("Reading contig names for {} genomes ..", genome_fasta_files.len());
+                    let genomes_and_contigs = coverm::read_genome_fasta_files(
+                        &genome_fasta_files.iter().map(|s| s.as_str()).collect());
+
+                    info!("Generating index based on info from individual genome files ..");
+                    coverm::pseudoalignment_reference_readers::generate_debruijn_index_grouping_via_genomes_and_contigs::
+                    <coverm::pseudoaligner::config::KmerType>(
+                        &genomes_and_contigs,
+                        reference,
+                        num_threads
+                    )
+                }
+            };
 
             info!("Saving index ..");
             coverm::pseudoalignment_reference_readers::save_index(
                 index, &output);
             info!("Saving complete");
         },
+
         Some("cluster") => {
             let m = matches.subcommand_matches("cluster").unwrap();
             set_log_level(m, true);
@@ -2318,11 +2338,38 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .long("threads")
                      .default_value("1")
                      .takes_value(true))
+
+                .arg(Arg::with_name("genome-fasta-files")
+                     .short("f")
+                     .long("genome-fasta-files")
+                     .multiple(true)
+                     .conflicts_with("genome-fasta-directory")
+                     .required_unless_one(
+                         &["genome-fasta-directory","separator"])
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-directory")
+                     .short("d")
+                     .long("genome-fasta-directory")
+                     .conflicts_with("separator")
+                     .conflicts_with("genome-fasta-files")
+                     .required_unless_one(
+                         &["genome-fasta-files","separator"])
+                     .takes_value(true))
+                .arg(Arg::with_name("genome-fasta-extension")
+                     .short("x")
+                     .long("genome-fasta-extension")
+                     // Unsure why, but uncommenting causes test failure (in
+                     // genome mode, not sure about here) - clap bug?
+                     //.requires("genome-fasta-directory")
+                     .default_value("fna")
+                     .takes_value(true))                   
                 .arg(Arg::with_name("separator")
                      .short("s")
                      .long("separator")
-                     .required(true)
+                     .required_unless_one(
+                         &["genome-fasta-directory","genome-fasta-files"])
                      .takes_value(true))
+
                 .arg(Arg::with_name("verbose")
                      .short("v")
                      .long("verbose"))

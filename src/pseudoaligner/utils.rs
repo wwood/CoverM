@@ -86,7 +86,7 @@ where F: Fn(&str) -> (String,String) {
 
         transcript_counter += 1;
         if transcript_counter % 100 == 0 {
-            debug!("\r Done reading {} sequences", transcript_counter);
+            debug!("Done reading {} sequences", transcript_counter);
             io::stdout().flush().expect("Could not flush stdout");
         }
     }

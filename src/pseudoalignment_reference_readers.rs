@@ -3,7 +3,8 @@ use std::io::BufWriter;
 
 use pseudoaligner::*;
 use pseudoaligner::build_index::build_index;
-use bio::io::{fasta};
+use genomes_and_contigs::GenomesAndContigs;
+use bio::io::fasta;
 use bincode;
 use debruijn::dna_string::DnaString;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
@@ -58,6 +59,31 @@ pub fn generate_debruijn_index_grouping_via_separator<K: Kmer + Sync + Send>(
                 &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                         contig_name));
             (contig_name[(0..offset)].to_string(), contig_name.to_string()) })
+        .expect("Failure to read contigs file");
+
+    return generate_debruijn_index(
+        num_threads,
+        &seqs,
+        tx_names,
+        &tx_gene_map);
+}
+
+pub fn generate_debruijn_index_grouping_via_genomes_and_contigs<K: Kmer + Sync + Send>(
+    genomes_and_contigs: &GenomesAndContigs,
+    reference_path: &str,
+    num_threads: usize
+) -> DebruijnIndex<K> {
+
+    let reference_reader = fasta::Reader::from_file(reference_path).expect("reference reading failed.");
+    // TODO: Remove duplication of gene and tax_id here - each contig is its own
+    info!("Reading reference sequences in ..");
+    let (seqs, tx_names, tx_gene_map) = utils::read_transcripts(
+        reference_reader,
+        |contig_name|
+            (contig_name.to_string(), 
+            genomes_and_contigs.genome_of_contig(&contig_name.to_string())
+            .expect(&format!("Contig name {} was not associated with any genome", contig_name))
+            .to_string()))
         .expect("Failure to read contigs file");
 
     return generate_debruijn_index(
