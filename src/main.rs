@@ -1990,10 +1990,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
-                        .conflicts_with("bwa-params")
                         .takes_value(true)
                         .allow_hyphen_values(true)
-                        .requires("reference")
                         .default_value(MINIMAP2_DEFAULT_PARAMETERS),
                 )
                 .arg(
@@ -2301,10 +2299,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
-                        .conflicts_with("bwa-params")
                         .takes_value(true)
                         .allow_hyphen_values(true)
-                        .requires("reference")
                         .default_value(MINIMAP2_DEFAULT_PARAMETERS),
                 )
                 .arg(
@@ -2556,10 +2552,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
-                        .conflicts_with("bwa-params")
                         .takes_value(true)
                         .allow_hyphen_values(true)
-                        .requires("reference")
                         .default_value(MINIMAP2_DEFAULT_PARAMETERS),
                 )
                 .arg(
