@@ -119,7 +119,7 @@ Define mapping(s) (required):
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa\"]
+                                         [default: \"bwa-mem\"]
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
@@ -246,10 +246,18 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   -p, --mapper <NAME>                   Underlying mapping software used
+                                         [default: \"bwa-mem\"]
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         Must include '-x' [default \"-ax sr\"]
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+                                         as a FASTA file.
 
 Sharding i.e. multiple reference sets (optional):
    --sharded (experimental)              If -b/--bam-files was used:
@@ -1970,6 +1978,28 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("threads")
                         .default_value("1")
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("mapper")
+                        .short("p")
+                        .long("mapper")
+                        .possible_values(&["bwa-mem", "minimap2"])
+                        .default_value(DEFAULT_MAPPING_SOFTWARE),
+                )
+                .arg(
+                    Arg::with_name("minimap2-params")
+                        .long("minimap2-params")
+                        .long("minimap2-parameters")
+                        .conflicts_with("bwa-params")
+                        .takes_value(true)
+                        .allow_hyphen_values(true)
+                        .requires("reference")
+                        .default_value(MINIMAP2_DEFAULT_PARAMETERS),
+                )
+                .arg(
+                    Arg::with_name("minimap2-reference-is-index")
+                        .long("minimap2-reference-is-index")
+                        .requires("reference"),
                 )
                 .arg(
                     Arg::with_name("bwa-params")
