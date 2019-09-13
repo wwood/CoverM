@@ -37,6 +37,11 @@ extern crate lazy_static;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
+const DEFAULT_MAPPING_SOFTWARE: &str = "bwa-mem";
+const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::BWA_MEM;
+
+const MINIMAP2_DEFAULT_PARAMETERS: &str = "-ax sr";
+
 fn filter_full_help() -> &'static str {
     "coverm filter: Remove alignments with insufficient identity.
 
@@ -490,7 +495,7 @@ fn main(){
                         &genomes_and_contigs_option);
                 }
             } else {
-                external_command_checker::check_for_bwa();
+                let mapping_program = parse_mapping_program(&m);                
                 external_command_checker::check_for_samtools();
 
                 // Generate a temporary file of concatenated genomes if needed.
@@ -507,7 +512,7 @@ fn main(){
                 if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(
-                        m, &concatenated_genomes, &filter_params);
+                        m, mapping_program, &concatenated_genomes, &filter_params);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -528,6 +533,7 @@ fn main(){
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
+                                    mapping_program,
                                     &concatenated_genomes,
                                     &genome_exclusion_filter_non_type.unwrap()),
                                 m,
@@ -539,6 +545,7 @@ fn main(){
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
+                                    mapping_program,
                                     &concatenated_genomes,
                                     &genome_exclusion_filter_separator_type.unwrap()),
                                 m,
@@ -550,6 +557,7 @@ fn main(){
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
+                                    mapping_program,
                                     &concatenated_genomes,
                                     &genome_exclusion_genomes_and_contigs.unwrap()),
                                 m,
@@ -559,7 +567,8 @@ fn main(){
                         },
                     }
                 } else {
-                    let generator_sets = get_streamed_bam_readers(m, &concatenated_genomes);
+                    let generator_sets = get_streamed_bam_readers(
+                        m, mapping_program, &concatenated_genomes);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -675,12 +684,13 @@ fn main(){
                         filter_params.flag_filters);
                 }
             } else {
-                external_command_checker::check_for_bwa();
+                let mapping_program = parse_mapping_program(&m);
                 external_command_checker::check_for_samtools();
+
                 if filter_params.doing_filtering() {
                     debug!("Filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(
-                        m, &None, &filter_params);
+                        m, mapping_program, &None, &filter_params);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -697,7 +707,7 @@ fn main(){
                         filter_params.flag_filters);
                 } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(
-                        m, &None, &NoExclusionGenomeFilter{});
+                        m, mapping_program, &None, &NoExclusionGenomeFilter{});
                     run_contig(
                         &mut estimators_and_taker,
                         generator_sets,
@@ -705,7 +715,8 @@ fn main(){
                         filter_params.flag_filters);
                 } else {
                     debug!("Not filtering..");
-                    let generator_sets = get_streamed_bam_readers(m, &None);
+                    let generator_sets = get_streamed_bam_readers(
+                        m, mapping_program, &None);
                     let mut all_generators = vec!();
                     let mut indices = vec!(); // Prevent indices from being dropped
                     for set in generator_sets {
@@ -725,24 +736,35 @@ fn main(){
         Some("make") => {
             let m = matches.subcommand_matches("make").unwrap();
             set_log_level(m, true);
-            external_command_checker::check_for_bwa();
+
+            let mapping_program = parse_mapping_program(&m);            
             external_command_checker::check_for_samtools();
 
             let output_directory = m.value_of("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
-            let params = MappingParameters::generate_from_clap(&m, &None);
+            let params = MappingParameters::generate_from_clap(
+                &m, mapping_program, &None);
             let mut generator_sets = vec!();
             let discard_unmapped_reads = m.is_present("discard-unmapped");
 
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
-                let index = coverm::bwa_index_maintenance::generate_bwa_index(
-                    reference_wise_params.reference);
+                let index = match mapping_program {
+                    MappingProgram::BWA_MEM => Some(
+                        coverm::bwa_index_maintenance::generate_bwa_index(
+                            reference_wise_params.reference)),
+                    MappingProgram::MINIMAP2 => None,
+                };
+                let ref_string = reference_wise_params.reference;
 
                 for p in reference_wise_params {
                     bam_readers.push(
                         coverm::bam_generator::generate_bam_maker_generator_from_reads(
-                            index.index_path(),
+                            mapping_program,
+                            match index {
+                                Some(ref index) => index.index_path(),
+                                None => ref_string,
+                            },
                             p.read1,
                             p.read2,
                             p.read_format.clone(),
@@ -750,7 +772,7 @@ fn main(){
                             &generate_cached_bam_file_name(
                                 output_directory, p.reference, p.read1),
                             discard_unmapped_reads,
-                            p.bwa_options));
+                            p.mapping_options));
                 }
 
                 debug!("Finished BAM setup");
@@ -775,6 +797,21 @@ fn main(){
             println!();
         }
     }
+}
+
+fn parse_mapping_program(m: &clap::ArgMatches)
+-> MappingProgram {
+    let mapping_program = match m.value_of("mapper") {
+        Some("bwa-mem") => MappingProgram::BWA_MEM,
+        Some("minimap2") => MappingProgram::MINIMAP2,
+        None => DEFAULT_MAPPING_SOFTWARE_ENUM,
+        _ => panic!("Unexpected definition for --mapper: {:?}", m.value_of("mapper"))
+    };
+    match mapping_program {
+        MappingProgram::BWA_MEM => { external_command_checker::check_for_bwa(); },
+        MappingProgram::MINIMAP2 => { external_command_checker::check_for_minimap2(); },
+    }
+    return mapping_program;
 }
 
 struct EstimatorsAndTaker<'a> {
@@ -1152,6 +1189,7 @@ impl FilterParameters {
 
 fn get_sharded_bam_readers<'a, 'b, T>(
     m: &'a clap::ArgMatches,
+    mapping_program: MappingProgram,
     reference_tempfile: &'a Option<NamedTempFile>,
     genome_exclusion: &'b T)
     -> Vec<ShardedBamReaderGenerator<'b, T>>
@@ -1163,12 +1201,14 @@ where T: GenomeExclusion {
     }
     let discard_unmapped = m.is_present("discard-unmapped");
     let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
-    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(
+        &m, mapping_program, &reference_tempfile);
     let mut bam_readers = vec![];
     let mut concatenated_reference_name: Option<String> = None;
     let mut concatenated_read_names: Option<String> = None;
 
     for reference_wise_params in params {
+        //FIXME
         let index = coverm::bwa_index_maintenance::generate_bwa_index(
             reference_wise_params.reference);
 
@@ -1200,6 +1240,7 @@ where T: GenomeExclusion {
 
         for p in reference_wise_params {
             bam_readers.push(
+                //FIXME
                 coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
                     index.index_path(),
                     p.read1,
@@ -1208,7 +1249,7 @@ where T: GenomeExclusion {
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
                     discard_unmapped,
-                    p.bwa_options));
+                    p.mapping_options));
             let name = &std::path::Path::new(p.read1).file_name()
                 .expect("Unable to convert read1 name to file name").to_str()
                 .expect("Unable to covert file name into str").to_string();
@@ -1234,6 +1275,7 @@ where T: GenomeExclusion {
 
 fn get_streamed_bam_readers<'a>(
     m: &'a clap::ArgMatches,
+    mapping_program: MappingProgram,
     reference_tempfile: &'a Option<NamedTempFile>)
     -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
 
@@ -1243,7 +1285,8 @@ fn get_streamed_bam_readers<'a>(
     }
     let discard_unmapped = m.is_present("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(
+        &m, mapping_program, &reference_tempfile);
     let mut generator_set = vec!();
     for reference_wise_params in params {
         let mut bam_readers = vec![];
@@ -1272,6 +1315,7 @@ fn get_streamed_bam_readers<'a>(
         for p in reference_wise_params {
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_reads(
+                    mapping_program,
                     index.index_path(),
                     p.read1,
                     p.read2,
@@ -1279,14 +1323,14 @@ fn get_streamed_bam_readers<'a>(
                     p.threads,
                     bam_file_cache(p.read1).as_ref().map(String::as_ref),
                     discard_unmapped,
-                    p.bwa_options,
+                    p.mapping_options,
                     reference_tempfile.is_none()));
         }
 
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: index
+            index: Some(index)
         };
         generator_set.push(to_return);
     };
@@ -1363,6 +1407,7 @@ fn setup_bam_cache_directory(cache_directory: &str) {
 
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches,
+    mapping_program: MappingProgram,
     reference_tempfile: &Option<NamedTempFile>,
     filter_params: &FilterParameters)
     -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
@@ -1373,7 +1418,8 @@ fn get_streamed_filtered_bam_readers(
     }
     let discard_unmapped = m.is_present("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(
+        &m, mapping_program, &reference_tempfile);
     let mut generator_set = vec!();
     for reference_wise_params in params {
         let mut bam_readers = vec![];
@@ -1402,6 +1448,7 @@ fn get_streamed_filtered_bam_readers(
         for p in reference_wise_params {
             bam_readers.push(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_reads(
+                    mapping_program,
                     index.index_path(),
                     p.read1,
                     p.read2,
@@ -1415,7 +1462,7 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,
-                    p.bwa_options,
+                    p.mapping_options,
                     discard_unmapped,
                     reference_tempfile.is_none()));
         }
@@ -1423,7 +1470,7 @@ fn get_streamed_filtered_bam_readers(
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: index
+            index: Some(index)
         };
         generator_set.push(to_return);
     }
@@ -1573,12 +1620,14 @@ See coverm filter --full-help for further options and further detail.
     }
 
     let make_help: &'static str =
-        "coverm make: Generate BAM files through mapping.
+        &"coverm make: Generate BAM files through mapping.
 
 Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
 
 Mapping parameters:
+   -p, --mapper <NAME>                   Underlying mapping software used
+                                         [default: \"bwa\"]
    -r, --reference <PATH>                FASTA file(s) of contig(s) or BWA index stem.
                                          If multiple reference FASTA files are provided,
                                          reads will be mapped to each reference separately
@@ -1596,6 +1645,10 @@ Mapping parameters:
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"-ax sr\"]                                         
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
 
 Example usage:
@@ -2095,9 +2148,26 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .takes_value(true))
                 .arg(Arg::with_name("discard-unmapped")
                      .long("discard-unmapped"))
+                .arg(Arg::with_name("mapper")
+                    .short("p")
+                    .long("mapper")
+                    .possible_values(&[
+                        "bwa-mem",
+                        "minimap2",
+                    ])
+                    .default_value(DEFAULT_MAPPING_SOFTWARE))
+                .arg(Arg::with_name("minimap2-params")
+                     .long("minimap2-params")
+                     .long("minimap2-parameters")
+                     .conflicts_with("bwa-params")
+                     .takes_value(true)
+                     .allow_hyphen_values(true)
+                     .requires("reference")
+                     .default_value(MINIMAP2_DEFAULT_PARAMETERS))
                 .arg(Arg::with_name("bwa-params")
                      .long("bwa-params")
                      .long("bwa-parameters")
+                     .conflicts_with("minimap2-params")
                      .takes_value(true)
                      .allow_hyphen_values(true)
                      .requires("reference")));

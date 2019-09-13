@@ -2,6 +2,8 @@ use std::process;
 
 use tempfile::NamedTempFile;
 
+use bam_generator::MappingProgram;
+
 #[derive(Clone)]
 pub enum ReadFormat {
     Coupled,
@@ -17,12 +19,13 @@ pub struct MappingParameters<'a> {
     interleaved: Vec<&'a str>,
     unpaired: Vec<&'a str>,
     iter_reference_index: usize,
-    bwa_options: Option<&'a str>
+    mapping_options: Option<&'a str>
 }
 
 impl<'a> MappingParameters<'a> {
     pub fn generate_from_clap(
         m: &'a clap::ArgMatches,
+        mapping_program: MappingProgram,
         reference_tempfile: &'a Option<NamedTempFile>)
         -> MappingParameters<'a> {
 
@@ -68,14 +71,19 @@ impl<'a> MappingParameters<'a> {
             unpaired = m.values_of("single").unwrap().collect();
         }
 
-        let bwa_options = match m.is_present("bwa-params") {
+        let mapping_parameters_arg = match mapping_program {
+            MappingProgram::BWA_MEM => "bwa-params",
+            MappingProgram::MINIMAP2 => "minimap2-params",
+        };
+        let mapping_options = match m.is_present(mapping_parameters_arg) {
             true => {
-                let params = m.value_of("bwa-params");
+                let params = m.value_of(mapping_parameters_arg);
                 params
             }
             false => None
         };
-        debug!("Setting BWA options as '{:?}'", bwa_options);
+        debug!("Setting mapper {:?} options as '{:?}'", 
+            mapping_program, mapping_options);
 
         return MappingParameters {
             references: match reference_tempfile {
@@ -92,7 +100,7 @@ impl<'a> MappingParameters<'a> {
             interleaved: interleaved,
             unpaired: unpaired,
             iter_reference_index: 0,
-            bwa_options: bwa_options,
+            mapping_options: mapping_options,
         }
     }
 
@@ -118,7 +126,7 @@ pub struct SingleReferenceMappingParameters<'a> {
     read2: Vec<&'a str>,
     interleaved: Vec<&'a str>,
     unpaired: Vec<&'a str>,
-    bwa_options: Option<&'a str>,
+    mapping_options: Option<&'a str>,
 
     iter_read_pair_index: usize,
     iter_interleaved_index: usize,
@@ -139,7 +147,7 @@ impl<'a> Iterator for MappingParameters<'a> {
                 read2: self.read2.clone(),
                 interleaved: self.interleaved.clone(),
                 unpaired: self.unpaired.clone(),
-                bwa_options: self.bwa_options,
+                mapping_options: self.mapping_options,
                 iter_read_pair_index: 0,
                 iter_interleaved_index: 0,
                 iter_unpaired_index: 0,
@@ -163,7 +171,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read1: self.read1[i],
                 read2: Some(self.read2[i]),
                 threads: self.threads,
-                bwa_options: self.bwa_options,
+                mapping_options: self.mapping_options,
             })
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
@@ -174,7 +182,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read1: self.interleaved[i],
                 read2: None,
                 threads: self.threads,
-                bwa_options: self.bwa_options,
+                mapping_options: self.mapping_options,
             })
         } else if self.iter_unpaired_index < self.unpaired.len() {
             let i = self.iter_unpaired_index;
@@ -185,7 +193,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read1: self.unpaired[i],
                 read2: None,
                 threads: self.threads,
-                bwa_options: self.bwa_options,
+                mapping_options: self.mapping_options,
             })
         } else {
             return None
@@ -199,5 +207,5 @@ pub struct OneSampleMappingParameters<'a> {
     pub read1: &'a str,
     pub read2: Option<&'a str>,
     pub threads: u16,
-    pub bwa_options: Option<&'a str>
+    pub mapping_options: Option<&'a str>
 }

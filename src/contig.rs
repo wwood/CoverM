@@ -334,6 +334,7 @@ mod tests {
              7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             vec![
                 generate_named_bam_readers_from_reads(
+                    MappingProgram::BWA_MEM,
                     "tests/data/7seqs.fna",
                     "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                     Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
@@ -518,6 +519,7 @@ mod tests {
              7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0\n",
             vec![
                 generate_named_bam_readers_from_reads(
+                    MappingProgram::BWA_MEM,
                     "tests/data/7seqs.fna",
                     "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                     Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),

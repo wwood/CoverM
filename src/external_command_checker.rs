@@ -6,6 +6,10 @@ pub fn check_for_bwa() {
     self::check_for_external_command_presence("BWA", "which bwa");
 }
 
+pub fn check_for_minimap2() {
+    self::check_for_external_command_presence("minimap2", "which minimap2");
+}
+
 pub fn check_for_samtools() {
     self::check_for_external_command_presence("samtools", "which samtools");
 }

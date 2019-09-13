@@ -36,6 +36,13 @@ pub trait NamedBamReaderGenerator<T> {
     fn start(self) -> T;
 }
 
+#[derive(Debug, Clone, Copy)]
+#[allow(non_camel_case_types)]
+pub enum MappingProgram {
+    BWA_MEM,
+    MINIMAP2
+}
+
 pub struct BamFileNamedReader {
     stoit_name: String,
     bam_reader: bam::Reader,
@@ -201,6 +208,7 @@ pub fn generate_named_bam_readers_from_bam_files(
 }
 
 pub fn generate_named_bam_readers_from_reads(
+    mapping_program: MappingProgram,
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
@@ -208,7 +216,7 @@ pub fn generate_named_bam_readers_from_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     discard_unmapped: bool,
-    bwa_options: Option<&str>,
+    mapping_options: Option<&str>,
     include_reference_in_stoit_name: bool) -> StreamingNamedBamReaderGenerator {
 
     let tmp_dir = TempDir::new("coverm_fifo")
@@ -221,8 +229,8 @@ pub fn generate_named_bam_readers_from_reads(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let bwa_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create BWA log tempfile");
+    let mapping_log = tempfile::NamedTempFile::new()
+        .expect(&format!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -260,16 +268,20 @@ pub fn generate_named_bam_readers_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem {} -t {} {} '{}' {} 2>{} \
+         {} {} -t {} {} '{}' {} 2>{} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          {}",
-        // BWA
-        bwa_options.unwrap_or(""),
+        // Mapping program
+        match mapping_program {
+            MappingProgram::BWA_MEM => "bwa mem",
+            MappingProgram::MINIMAP2 => "minimap2",
+        },
+        mapping_options.unwrap_or(""),
         threads,
         bwa_read_params1,
         reference,
         bwa_read_params2,
-        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -285,9 +297,9 @@ pub fn generate_named_bam_readers_from_reads(
         .stderr(std::process::Stdio::piped());
 
     let mut log_descriptions = vec![
-        "BWA".to_string(),
+        format!("{:?}", mapping_program).to_string(),
         "samtools sort".to_string()];
-    let mut log_files = vec![bwa_log, samtools2_log];
+    let mut log_files = vec![mapping_log, samtools2_log];
     if cached_bam_file.is_some() {
         log_descriptions.push("samtools view for cache".to_string());
         log_files.push(samtools_view_cache_log);
@@ -483,6 +495,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
 
 
 pub fn generate_filtered_named_bam_readers_from_reads(
+    mapping_program: MappingProgram,
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
@@ -502,6 +515,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     -> StreamingFilteredNamedBamReaderGenerator {
 
     let streaming = generate_named_bam_readers_from_reads(
+        mapping_program,
         reference, read1_path, read2_path, read_format, threads,
         cached_bam_file, discard_unmapped, bwa_options,
         include_reference_in_stoit_name);
@@ -528,7 +542,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
 
 pub struct BamGeneratorSet<T> {
     pub generators: Vec<T>,
-    pub index: Box<dyn BwaIndexStruct>,
+    pub index: Option<Box<dyn BwaIndexStruct>>,
 }
 
 
@@ -550,6 +564,7 @@ pub struct NamedBamMakerGenerator {
 }
 
 pub fn generate_bam_maker_generator_from_reads(
+    mapping_program: MappingProgram,
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
@@ -557,10 +572,10 @@ pub fn generate_bam_maker_generator_from_reads(
     threads: u16,
     cached_bam_file: &str,
     discard_unmapped: bool,
-    bwa_options: Option<&str>) -> NamedBamMakerGenerator {
+    mapping_options: Option<&str>) -> NamedBamMakerGenerator {
 
-    let bwa_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create BWA log tempfile");
+    let mapping_log = tempfile::NamedTempFile::new()
+        .expect(&format!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -583,16 +598,20 @@ pub fn generate_bam_maker_generator_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem {} -t {} {} '{}' {} 2>{} \
+         {} {} -t {} {} '{}' {} 2>{} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          | samtools view {} -b -t {} -o '{}' 2>{}",
-        // BWA
-        bwa_options.unwrap_or(""),
+        // Mapping program
+        match mapping_program {
+            MappingProgram::BWA_MEM => "bwa mem",
+            MappingProgram::MINIMAP2 => "minimap2",
+        },
+        mapping_options.unwrap_or(""),
         threads,
         bwa_read_params1,
         reference,
         bwa_read_params2,
-        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -612,11 +631,11 @@ pub fn generate_bam_maker_generator_from_reads(
         .stderr(std::process::Stdio::piped());
 
     let log_descriptions = vec![
-        "BWA".to_string(),
+        format!("{:?}",mapping_program).to_string(),
         "samtools sort".to_string(),
         "samtools view for cache".to_string()];
     let log_files = vec![
-        bwa_log,
+        mapping_log,
         samtools2_log,
         samtools_view_cache_log];
 
