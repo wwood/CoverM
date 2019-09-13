@@ -789,25 +789,7 @@ fn main() {
 
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
-                let index = match mapping_program {
-                    MappingProgram::BWA_MEM => {
-                        Some(coverm::bwa_index_maintenance::generate_bwa_index(
-                            reference_wise_params.reference,
-                        ))
-                    }
-                    MappingProgram::MINIMAP2 => {
-                        if m.is_present("minimap2-reference-is-index")
-                            || reference_wise_params.len() == 1
-                        {
-                            info!("Not pre-generating minimap2 index");
-                            None
-                        } else {
-                            Some(coverm::bwa_index_maintenance::generate_minimap2_index(
-                                reference_wise_params.reference,
-                            ))
-                        }
-                    }
-                };
+                let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
                 let ref_string = reference_wise_params.reference;
 
                 for p in reference_wise_params {
@@ -849,6 +831,28 @@ fn main() {
         _ => {
             app.print_help().unwrap();
             println!();
+        }
+    }
+}
+
+fn setup_mapping_index(
+    reference_wise_params: &SingleReferenceMappingParameters,
+    m: &clap::ArgMatches,
+    mapping_program: MappingProgram,
+) -> Option<Box<dyn coverm::bwa_index_maintenance::BwaIndexStruct>> {
+    match mapping_program {
+        MappingProgram::BWA_MEM => Some(coverm::bwa_index_maintenance::generate_bwa_index(
+            reference_wise_params.reference,
+        )),
+        MappingProgram::MINIMAP2 => {
+            if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
+                info!("Not pre-generating minimap2 index");
+                None
+            } else {
+                Some(coverm::bwa_index_maintenance::generate_minimap2_index(
+                    reference_wise_params.reference,
+                ))
+            }
         }
     }
 }
