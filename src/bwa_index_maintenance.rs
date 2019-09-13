@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::process;
 
 use CONCATENATED_FASTA_FILE_SEPARATOR;
+use bam_generator::MappingProgram;
 
 use tempdir::TempDir;
 use tempfile::NamedTempFile;
@@ -29,14 +30,14 @@ impl BwaIndexStruct for VanillaBwaIndexStuct {
     }
 }
 
-pub struct TemporaryBwaIndexStruct {
+pub struct TemporaryIndexStruct {
     #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
-    index_path_internal: String
+    index_path_internal: String,
 }
 
-impl TemporaryBwaIndexStruct {
-    pub fn new(reference_path: &str) -> TemporaryBwaIndexStruct {
+impl TemporaryIndexStruct {
+    pub fn new(mapping_program: MappingProgram, reference_path: &str) -> TemporaryIndexStruct {
         // Generate a BWA index in a temporary directory, where the temporary
         // directory does not go out of scope until the struct does.
         let td = TempDir::new("coverm-bwa-index")
@@ -45,39 +46,63 @@ impl TemporaryBwaIndexStruct {
             .join(std::path::Path::new(reference_path).file_name()
                   .expect("Failed to glean file stem from reference DB. Strange."));
 
-        info!("Generating BWA index for {} ..", reference_path);
-        let mut cmd = std::process::Command::new("bwa");
-        cmd
-            .arg("index")
-            .arg("-p")
-            .arg(&index_path)
-            .arg(&reference_path)
-            .stdout(std::process::Stdio::piped()) // Some versions output log info to stdout. Ignore this.
-            .stderr(std::process::Stdio::piped());
-        let mut process = cmd.spawn().expect("Failed to start BWA index process");
-        let es = process.wait().expect("Failed to glean exitstatus from failing BWA index process");
+        info!("Generating {:?} index for {} ..", mapping_program, reference_path);
+        let mut cmd = match mapping_program {
+            MappingProgram::BWA_MEM => {
+                std::process::Command::new("bwa")
+            },
+            MappingProgram::MINIMAP2 => {
+                std::process::Command::new("minimap2")
+            }
+        };
+        match mapping_program {
+            MappingProgram::BWA_MEM => {
+                cmd
+                    .arg("index")
+                    .arg("-p")
+                    .arg(&index_path)
+                    .arg(&reference_path);
+            },
+            MappingProgram::MINIMAP2 => {
+                cmd
+                    .arg("-d")
+                    .arg(&index_path)
+                    .arg(&reference_path);
+            }
+        };
+        // Some BWA versions output log info to stdout. Ignore this.
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+        debug!("Running DB indexing command: {:?}", cmd);
+
+        let mut process = cmd.spawn().expect(
+            &format!("Failed to start {:?} index process", mapping_program));
+        let es = process.wait().expect(
+            &format!("Failed to glean exitstatus from failing {:?} index process", mapping_program));
         if !es.success() {
-            error!("Error when running bwa index process.");
+            error!("Error when running {:?} index process.", mapping_program);
             let mut err = String::new();
-            process.stderr.expect("Failed to grab stderr from failed BWA index process")
+            process.stderr.expect(&format!(
+                "Failed to grab stderr from failed {:?} index process", 
+                mapping_program))
                 .read_to_string(&mut err).expect("Failed to read stderr into string");
             error!("The STDERR was: {:?}", err);
-            error!("Cannot continue after BWA index failed.");
+            error!("Cannot continue after {:?} index failed.", mapping_program);
             process::exit(1);
         }
-        info!("Finished generating BWA index.");
-        return TemporaryBwaIndexStruct {
+        info!("Finished generating {:?} index.", mapping_program);
+        return TemporaryIndexStruct {
             index_path_internal: index_path.to_string_lossy().to_string(),
             tempdir: td
         }
     }
 }
-impl BwaIndexStruct for TemporaryBwaIndexStruct {
+impl BwaIndexStruct for TemporaryIndexStruct {
     fn index_path(&self) -> &String {
         return &self.index_path_internal
     }
 }
-impl Drop for TemporaryBwaIndexStruct {
+impl Drop for TemporaryIndexStruct {
     fn drop(&mut self) {
         debug!("Dropping index tempdir ..")
     }
@@ -93,14 +118,21 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
         }
     }
     if num_existing == 0 {
-        return Box::new(TemporaryBwaIndexStruct::new(reference_path));
+        return Box::new(TemporaryIndexStruct::new(
+            MappingProgram::BWA_MEM, reference_path));
     } else if num_existing as usize != num_extensions {
         error!("BWA index appears to be incomplete, cannot continue.");
         process::exit(1);
     } else {
         info!("BWA index appears to be complete, so going ahead and using it.");
-        return Box::new(VanillaBwaIndexStuct::new(reference_path));
+        return Box::new(VanillaBwaIndexStuct::new(
+            reference_path));
     }
+}
+
+pub fn generate_minimap2_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
+    return Box::new(TemporaryIndexStruct::new(
+            MappingProgram::MINIMAP2, reference_path));
 }
 
 pub fn generate_concatenated_fasta_file(

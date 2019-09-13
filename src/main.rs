@@ -747,13 +747,18 @@ fn main(){
             let mut generator_sets = vec!();
             let discard_unmapped_reads = m.is_present("discard-unmapped");
 
+            // TODO: Don't make an index for minimap2 if there is only one set
+            // of reads.
+
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
                 let index = match mapping_program {
                     MappingProgram::BWA_MEM => Some(
                         coverm::bwa_index_maintenance::generate_bwa_index(
                             reference_wise_params.reference)),
-                    MappingProgram::MINIMAP2 => None,
+                    MappingProgram::MINIMAP2 => Some(
+                        coverm::bwa_index_maintenance::generate_minimap2_index(
+                            reference_wise_params.reference)),
                 };
                 let ref_string = reference_wise_params.reference;
 
@@ -2170,5 +2175,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .conflicts_with("minimap2-params")
                      .takes_value(true)
                      .allow_hyphen_values(true)
-                     .requires("reference")));
+                     .requires("reference"))
+
+                .arg(Arg::with_name("verbose")
+                     // .short("v") // Do not use since could be confused with
+                     // inverse (a la grep -v)
+                     .long("verbose"))
+                .arg(Arg::with_name("quiet")
+                     .short("q")
+                     .long("quiet")));
 }
