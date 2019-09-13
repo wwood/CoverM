@@ -118,10 +118,18 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   -p, --mapper <NAME>                   Underlying mapping software used
+                                         [default: \"bwa\"]
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          [default \"\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         Must include '-x' [default \"-ax sr\"]
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+                                         as a FASTA file.
 
 Sharding i.e. multiple reference sets (optional):
    --sharded (experimental)              If -b/--bam-files was used:
@@ -1316,9 +1324,7 @@ where
     let mut concatenated_read_names: Option<String> = None;
 
     for reference_wise_params in params {
-        //FIXME
-        let index =
-            coverm::bwa_index_maintenance::generate_bwa_index(reference_wise_params.reference);
+        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let reference_name = std::path::Path::new(reference)
@@ -1352,9 +1358,11 @@ where
 
         for p in reference_wise_params {
             bam_readers.push(
-                //FIXME
                 coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
-                    index.index_path(),
+                    match index {
+                        Some(ref index) => index.index_path(),
+                        None => reference,
+                    },
                     p.read1,
                     p.read2,
                     p.read_format.clone(),
@@ -1406,8 +1414,7 @@ fn get_streamed_bam_readers<'a>(
     let mut generator_set = vec![];
     for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let index =
-            coverm::bwa_index_maintenance::generate_bwa_index(reference_wise_params.reference);
+        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
@@ -1433,7 +1440,10 @@ fn get_streamed_bam_readers<'a>(
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_reads(
                     mapping_program,
-                    index.index_path(),
+                    match index {
+                        Some(ref index) => index.index_path(),
+                        None => reference,
+                    },
                     p.read1,
                     p.read2,
                     p.read_format.clone(),
@@ -1449,7 +1459,7 @@ fn get_streamed_bam_readers<'a>(
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: Some(index),
+            index: index,
         };
         generator_set.push(to_return);
     }
@@ -1579,8 +1589,7 @@ fn get_streamed_filtered_bam_readers(
     let mut generator_set = vec![];
     for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let index =
-            coverm::bwa_index_maintenance::generate_bwa_index(reference_wise_params.reference);
+        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
@@ -1606,7 +1615,10 @@ fn get_streamed_filtered_bam_readers(
             bam_readers.push(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_reads(
                     mapping_program,
-                    index.index_path(),
+                    match index {
+                        Some(ref index) => index.index_path(),
+                        None => reference,
+                    },
                     p.read1,
                     p.read2,
                     p.read_format.clone(),
@@ -1629,7 +1641,7 @@ fn get_streamed_filtered_bam_readers(
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: Some(index),
+            index: index,
         };
         generator_set.push(to_return);
     }
@@ -1806,7 +1818,7 @@ Mapping parameters:
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
-                                         [default \"-ax sr\"]
+                                         Must include '-x' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
@@ -2247,6 +2259,28 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("threads")
                         .default_value("1")
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("mapper")
+                        .short("p")
+                        .long("mapper")
+                        .possible_values(&["bwa-mem", "minimap2"])
+                        .default_value(DEFAULT_MAPPING_SOFTWARE),
+                )
+                .arg(
+                    Arg::with_name("minimap2-params")
+                        .long("minimap2-params")
+                        .long("minimap2-parameters")
+                        .conflicts_with("bwa-params")
+                        .takes_value(true)
+                        .allow_hyphen_values(true)
+                        .requires("reference")
+                        .default_value(MINIMAP2_DEFAULT_PARAMETERS),
+                )
+                .arg(
+                    Arg::with_name("minimap2-reference-is-index")
+                        .long("minimap2-reference-is-index")
+                        .requires("reference"),
                 )
                 .arg(
                     Arg::with_name("bwa-params")
