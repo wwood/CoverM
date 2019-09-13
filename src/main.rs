@@ -127,7 +127,7 @@ Define mapping(s) (required):
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
-                                         Must include '-x' [default \"-ax sr\"]
+                                         Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
 
@@ -231,6 +231,8 @@ Define mapping(s) (required):
                                          with samtools sort -n).
 
   Or do mapping:
+   -p, --mapper <NAME>                   Underlying mapping software used
+                                         [default: \"bwa-mem\"]
    -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
                                          e.g. concatenated genomes or assembly.
                                          If multiple references FASTA files are
@@ -246,8 +248,6 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa-mem\"]
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
@@ -255,7 +255,7 @@ Define mapping(s) (required):
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
-                                         Must include '-x' [default \"-ax sr\"]
+                                         Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
 
@@ -1805,7 +1805,7 @@ Output (required):
 
 Mapping parameters:
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa\"]
+                                         [default: \"bwa-mem\"]
    -r, --reference <PATH>                FASTA file(s) of contig(s) or BWA index stem.
                                          If multiple reference FASTA files are provided,
                                          reads will be mapped to each reference separately
@@ -1826,7 +1826,7 @@ Mapping parameters:
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
-                                         Must include '-x' [default \"-ax sr\"]
+                                         Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
