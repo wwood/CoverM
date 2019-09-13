@@ -133,6 +133,12 @@ pub struct SingleReferenceMappingParameters<'a> {
     iter_unpaired_index: usize,
 }
 
+impl<'a> SingleReferenceMappingParameters<'a> {
+    pub fn len(&self) -> usize {
+        self.read1.len() + self.interleaved.len() + self.unpaired.len()
+    }
+}
+
 impl<'a> Iterator for MappingParameters<'a> {
     type Item = SingleReferenceMappingParameters<'a>;
 

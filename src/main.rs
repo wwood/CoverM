@@ -747,18 +747,22 @@ fn main(){
             let mut generator_sets = vec!();
             let discard_unmapped_reads = m.is_present("discard-unmapped");
 
-            // TODO: Don't make an index for minimap2 if there is only one set
-            // of reads.
-
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
                 let index = match mapping_program {
                     MappingProgram::BWA_MEM => Some(
                         coverm::bwa_index_maintenance::generate_bwa_index(
                             reference_wise_params.reference)),
-                    MappingProgram::MINIMAP2 => Some(
-                        coverm::bwa_index_maintenance::generate_minimap2_index(
-                            reference_wise_params.reference)),
+                    MappingProgram::MINIMAP2 => 
+                        if m.is_present("minimap2-reference-is-index") ||
+                            reference_wise_params.len() == 1 {
+                                info!("Not pre-generating minimap2 index");
+                                None
+                        } else {
+                            Some(
+                            coverm::bwa_index_maintenance::generate_minimap2_index(
+                            reference_wise_params.reference))
+                        },
                 };
                 let ref_string = reference_wise_params.reference;
 
@@ -1653,7 +1657,9 @@ Mapping parameters:
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
-                                         [default \"-ax sr\"]                                         
+                                         [default \"-ax sr\"]
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+                                         as a FASTA file.
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
 
 Example usage:
@@ -2169,6 +2175,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                      .allow_hyphen_values(true)
                      .requires("reference")
                      .default_value(MINIMAP2_DEFAULT_PARAMETERS))
+                .arg(Arg::with_name("minimap2-reference-is-index")
+                    .long("minimap2-reference-is-index")
+                    .requires("reference"))
                 .arg(Arg::with_name("bwa-params")
                      .long("bwa-params")
                      .long("bwa-parameters")
