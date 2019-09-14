@@ -528,7 +528,7 @@ fn main() {
                         list_of_genome_fasta_files.len()
                     );
                     concatenated_genomes = Some(
-                        coverm::bwa_index_maintenance::generate_concatenated_fasta_file(
+                        coverm::mapping_index_maintenance::generate_concatenated_fasta_file(
                             &list_of_genome_fasta_files,
                         ),
                     );
@@ -855,9 +855,9 @@ fn setup_mapping_index(
     reference_wise_params: &SingleReferenceMappingParameters,
     m: &clap::ArgMatches,
     mapping_program: MappingProgram,
-) -> Option<Box<dyn coverm::bwa_index_maintenance::BwaIndexStruct>> {
+) -> Option<Box<dyn coverm::mapping_index_maintenance::MappingIndex>> {
     match mapping_program {
-        MappingProgram::BWA_MEM => Some(coverm::bwa_index_maintenance::generate_bwa_index(
+        MappingProgram::BWA_MEM => Some(coverm::mapping_index_maintenance::generate_bwa_index(
             reference_wise_params.reference,
         )),
         MappingProgram::MINIMAP2 => {
@@ -865,7 +865,7 @@ fn setup_mapping_index(
                 info!("Not pre-generating minimap2 index");
                 None
             } else {
-                Some(coverm::bwa_index_maintenance::generate_minimap2_index(
+                Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
                 ))
             }

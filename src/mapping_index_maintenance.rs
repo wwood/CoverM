@@ -12,7 +12,7 @@ use tempfile::NamedTempFile;
 
 /// Actually a trait for all kinds of mapping indices, just too lazy to change
 /// the name.
-pub trait BwaIndexStruct {
+pub trait MappingIndex {
     fn index_path(&self) -> &String;
 }
 
@@ -26,7 +26,7 @@ impl VanillaBwaIndexStuct {
         }
     }
 }
-impl BwaIndexStruct for VanillaBwaIndexStuct {
+impl MappingIndex for VanillaBwaIndexStuct {
     fn index_path(&self) -> &String {
         return &self.index_path_internal
     }
@@ -99,7 +99,7 @@ impl TemporaryIndexStruct {
         }
     }
 }
-impl BwaIndexStruct for TemporaryIndexStruct {
+impl MappingIndex for TemporaryIndexStruct {
     fn index_path(&self) -> &String {
         return &self.index_path_internal
     }
@@ -110,7 +110,7 @@ impl Drop for TemporaryIndexStruct {
     }
 }
 
-pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
+pub fn generate_bwa_index(reference_path: &str) -> Box<dyn MappingIndex> {
     let bwa_extensions = vec!("amb","ann","bwt","pac","sa");
     let num_extensions = bwa_extensions.len();
     let mut num_existing: u8 = 0;
@@ -132,7 +132,7 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
     }
 }
 
-pub fn generate_minimap2_index(reference_path: &str) -> Box<dyn BwaIndexStruct> {
+pub fn generate_minimap2_index(reference_path: &str) -> Box<dyn MappingIndex> {
     return Box::new(TemporaryIndexStruct::new(
             MappingProgram::MINIMAP2, reference_path));
 }

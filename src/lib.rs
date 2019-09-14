@@ -5,7 +5,7 @@ pub mod genomes_and_contigs;
 pub mod bam_generator;
 pub mod filter;
 pub mod external_command_checker;
-pub mod bwa_index_maintenance;
+pub mod mapping_index_maintenance;
 pub mod coverage_takers;
 pub mod mapping_parameters;
 pub mod coverage_printer;

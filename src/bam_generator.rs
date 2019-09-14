@@ -3,7 +3,7 @@ use std::io::Read;
 use std::process;
 
 use filter::*;
-use bwa_index_maintenance::BwaIndexStruct;
+use mapping_index_maintenance::MappingIndex;
 use mapping_parameters::ReadFormat;
 use FlagFilter;
 
@@ -542,7 +542,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
 
 pub struct BamGeneratorSet<T> {
     pub generators: Vec<T>,
-    pub index: Option<Box<dyn BwaIndexStruct>>,
+    pub index: Option<Box<dyn MappingIndex>>,
 }
 
 
