@@ -10,6 +10,8 @@ use tempdir::TempDir;
 use tempfile::NamedTempFile;
 
 
+/// Actually a trait for all kinds of mapping indices, just too lazy to change
+/// the name.
 pub trait BwaIndexStruct {
     fn index_path(&self) -> &String;
 }
@@ -40,7 +42,7 @@ impl TemporaryIndexStruct {
     pub fn new(mapping_program: MappingProgram, reference_path: &str) -> TemporaryIndexStruct {
         // Generate a BWA index in a temporary directory, where the temporary
         // directory does not go out of scope until the struct does.
-        let td = TempDir::new("coverm-bwa-index")
+        let td = TempDir::new("coverm-mapping-index")
             .expect("Unable to create temporary directory");
         let index_path = std::path::Path::new(td.path())
             .join(std::path::Path::new(reference_path).file_name()

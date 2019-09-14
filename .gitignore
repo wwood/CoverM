@@ -6,3 +6,4 @@ dist
 validate_metabat.R
 v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam
 v80.public.B06.V06.A.pos.lim.R1stq_filtered.bam.bai
+vscode.*
