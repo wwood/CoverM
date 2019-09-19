@@ -80,7 +80,8 @@ pub fn read_genome_definition_file(definition_file_path: &str)
             .collect();
         if v.len() == 2 {
             let genome = v[0].trim();
-            let contig = v[1].trim();
+            let contig = v[1].split_ascii_whitespace().next()
+                .expect("Failed to split contig name by whitespace in genome definition file");
             if contig_to_genome.contains_key(contig) {
                 if contig_to_genome[contig] != genome {
                     error!(
@@ -178,6 +179,16 @@ mod tests {
     #[test]
     fn test_read_genome_definition_file(){
         let contig_to_genome = read_genome_definition_file("tests/data/7seqs.definition");
+        assert_eq!(
+            Some(&String::from("genome4")),
+            contig_to_genome.genome_of_contig(
+                &String::from("genome4~random_sequence_length_11002")));
+        assert_eq!(6, contig_to_genome.genomes.len());
+    }
+
+    #[test]
+    fn test_read_genome_definition_file_with_comments() {
+        let contig_to_genome = read_genome_definition_file("tests/data/7seqs.definition_with_comments");
         assert_eq!(
             Some(&String::from("genome4")),
             contig_to_genome.genome_of_contig(
