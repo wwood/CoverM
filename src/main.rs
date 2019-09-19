@@ -37,8 +37,8 @@ extern crate lazy_static;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
-const DEFAULT_MAPPING_SOFTWARE: &str = "bwa-mem";
-const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::BWA_MEM;
+const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2";
+const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2;
 
 const MINIMAP2_DEFAULT_PARAMETERS: &str = "-ax sr";
 
@@ -103,12 +103,14 @@ Define mapping(s) (required):
                                          with samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
-                                         e.g. concatenated genomes or assembly.
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+                                         genomes or assembly, or minimap2 index
+                                         (with --minimap2-reference-is-index),
+                                         or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
-                                         separately as sharded BAMs
+                                         separately as sharded BAMs.
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -119,17 +121,18 @@ Define mapping(s) (required):
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa-mem\"]
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
+                                         (\"minimap2\" or \"bwa-mem\").
+                                         [default: \"minimap2\"]
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
    --sharded (experimental)              If -b/--bam-files was used:
@@ -232,13 +235,16 @@ Define mapping(s) (required):
 
   Or do mapping:
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa-mem\"]
-   -r, --reference <PATH> ..             FASTA file of contigs or BWA index stem
-                                         e.g. concatenated genomes or assembly.
+                                         (\"minimap2\" or \"bwa-mem\").
+                                         [default: \"minimap2\"]
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+                                         genomes or assembly, or minimap2 index
+                                         (with --minimap2-reference-is-index),
+                                         or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
-                                         separately as sharded BAMs
+                                         separately as sharded BAMs.
    -t, --threads <INT>                   Number of threads for mapping / sorting
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -248,16 +254,16 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
                                          Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
    --sharded (experimental)              If -b/--bam-files was used:
@@ -1804,12 +1810,14 @@ Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
 
 Mapping parameters:
-   -p, --mapper <NAME>                   Underlying mapping software used
-                                         [default: \"bwa-mem\"]
-   -r, --reference <PATH>                FASTA file(s) of contig(s) or BWA index stem.
-                                         If multiple reference FASTA files are provided,
-                                         reads will be mapped to each reference separately
-                                         and create sharded BAM files.
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+                                         genomes or assembly, or minimap2 index
+                                         (with --minimap2-reference-is-index),
+                                         or BWA index stem (with -p bwa-mem).
+                                         If multiple references FASTA files are
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs.
    -t, --threads <INT>                   Number of threads to use for mapping
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
@@ -1819,10 +1827,10 @@ Mapping parameters:
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
+   
+   -p, --mapper <NAME>                   Underlying mapping software used
+                                         (\"minimap2\" or \"bwa-mem\").
+                                         [default: \"minimap2\"]
    --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
                                          that usage of this parameter has security
                                          implications if untrusted input is specified.
