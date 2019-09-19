@@ -995,6 +995,29 @@ genome6	26.697144
     }
 
     #[test]
+    fn test_make_with_bwa() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--mapper",
+                "bwa-mem",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--output-directory",
+                td.path().to_str().unwrap()
+            ]).succeeds().unwrap();
+        let bam = td.path()
+                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam");
+        assert!(bam.is_file());
+        Assert::command(&["samtools","view","-H",bam.to_str().unwrap()])
+            .stdout().contains("PN:bwa").unwrap();
+    }
+
+    #[test]
     fn test_make_with_minimap2() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
