@@ -1827,7 +1827,7 @@ Mapping parameters:
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   
+
    -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2\" or \"bwa-mem\").
                                          [default: \"minimap2\"]
@@ -1837,6 +1837,10 @@ Mapping parameters:
                                          Must include '-a' [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
    --discard-unmapped                    Exclude unmapped reads from generated BAM files.
 
 Example usage:
