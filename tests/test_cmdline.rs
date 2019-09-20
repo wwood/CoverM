@@ -523,6 +523,8 @@ genome6	0").unwrap();
                 "contig",
                 "--output-format",
                 "sparse",
+                "-p",
+                "bwa-mem",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--bwa-parameters",

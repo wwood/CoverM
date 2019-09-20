@@ -253,34 +253,27 @@ pub fn generate_named_bam_readers_from_reads(
         },
         None => format!("> {:?}", fifo_path)
     };
-    let bwa_read_params1 = match read_format {
-        ReadFormat::Interleaved => "-p",
-        ReadFormat::Coupled | ReadFormat::Single => ""
-    };
-    let bwa_read_params2 = match read_format {
-        ReadFormat::Interleaved => format!("'{}'", read1_path),
-        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
-        ReadFormat::Single => format!("'{}'", read1_path),
-    };
+
+    let mapping_command = build_mapping_command(
+        mapping_program,
+        read_format,
+        threads,
+        read1_path,
+        reference,
+        read2_path,
+        mapping_options
+    );
     let bwa_sort_prefix = tempfile::Builder::new()
         .prefix("coverm-make-samtools-sort")
         .tempfile_in(tmp_dir.path())
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} {} -t {} {} '{}' {} 2>{} \
+         {} 2>{} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping program
-        match mapping_program {
-            MappingProgram::BWA_MEM => "bwa mem",
-            MappingProgram::MINIMAP2 => "minimap2",
-        },
-        mapping_options.unwrap_or(""),
-        threads,
-        bwa_read_params1,
-        reference,
-        bwa_read_params2,
+        mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         bwa_sort_prefix.path().to_str()
@@ -583,34 +576,27 @@ pub fn generate_bam_maker_generator_from_reads(
     let samtools_view_cache_log = tempfile::NamedTempFile::new()
         .expect("Failed to create cache samtools view log tempfile");
 
-    let bwa_read_params1 = match read_format {
-        ReadFormat::Interleaved => "-p",
-        ReadFormat::Coupled | ReadFormat::Single => ""
-    };
-    let bwa_read_params2 = match read_format {
-        ReadFormat::Interleaved => format!("'{}'", read1_path),
-        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
-        ReadFormat::Single => format!("'{}'", read1_path),
-    };
+    let mapping_command = build_mapping_command(
+        mapping_program,
+        read_format,
+        threads,
+        read1_path,
+        reference,
+        read2_path,
+        mapping_options
+    );
+
     let bwa_sort_prefix = tempfile::Builder::new()
         .prefix("coverm-make-samtools-sort")
         .tempfile()
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} {} -t {} {} '{}' {} 2>{} \
+         {} 2>{} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          | samtools view {} -b -t {} -o '{}' 2>{}",
         // Mapping program
-        match mapping_program {
-            MappingProgram::BWA_MEM => "bwa mem",
-            MappingProgram::MINIMAP2 => "minimap2",
-        },
-        mapping_options.unwrap_or(""),
-        threads,
-        bwa_read_params1,
-        reference,
-        bwa_read_params2,
+        mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         bwa_sort_prefix.path().to_str()
@@ -691,3 +677,40 @@ impl NamedBamMaker {
     }
 }
 
+pub fn build_mapping_command(
+    mapping_program: MappingProgram,
+    read_format: ReadFormat,
+    threads: u16,
+    read1_path: &str,
+    reference: &str,
+    read2_path: Option<&str>,
+    mapping_options: Option<&str>
+) -> String {
+
+    let read_params1 = match read_format {
+    ReadFormat::Interleaved => match mapping_program {
+        MappingProgram::BWA_MEM => "-p",
+        // minimap2 auto-detects interleaved based on read names
+        MappingProgram::MINIMAP2 => "",
+    },
+        ReadFormat::Coupled | ReadFormat::Single => ""
+    };
+
+    let read_params2 = match read_format {
+        ReadFormat::Interleaved => format!("'{}'", read1_path),
+        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+        ReadFormat::Single => format!("'{}'", read1_path),
+    };
+
+    return format!(
+        "{} {} -t {} {} '{}' {}",
+        match mapping_program {
+            MappingProgram::BWA_MEM => "bwa mem",
+            MappingProgram::MINIMAP2 => "minimap2",
+        },
+        mapping_options.unwrap_or(""),
+        threads,
+        read_params1,
+        reference,
+        read_params2)
+}
