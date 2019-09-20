@@ -825,6 +825,30 @@ genome2~seq1	0
     }
 
     #[test]
+    fn test_sharding_no_exclusion_bwa_contig() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-p",
+                "bwa-mem",
+                "--sharded",
+                "-b",
+                "tests/data/shard1.bam",
+                "tests/data/shard2.bam",
+            ])
+            .stdout().is("Contig	shard1|shard2 Mean
+genome3~random_sequence_length_11001	0.110588886
+genome4~random_sequence_length_11002	0.11057869
+genome5~seq2	0
+genome6~random_sequence_length_11003	0.11056851
+genome1~random_sequence_length_11000	0.109861754
+genome1~random_sequence_length_11010	0.110497236
+genome2~seq1	0
+")
+            .succeeds().unwrap()
+    }
+
+    #[test]
     fn test_sharding_exclusion_genome_separator() {
         let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         writeln!(tf1, "genome3").unwrap();
