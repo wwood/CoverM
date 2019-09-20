@@ -1373,6 +1373,7 @@ where
         for p in reference_wise_params {
             bam_readers.push(
                 coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
+                    mapping_program,
                     match index {
                         Some(ref index) => index.index_path(),
                         None => reference,

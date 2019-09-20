@@ -193,14 +193,20 @@ where T: GenomeExclusion {
                         if tid < 0 || !self.genome_exclusion.is_excluded(
                             bam_header_target_name(&self.shard_bam_readers[i].header(), tid as usize)) {
                             let mut score: i64 = 0;
-                            score += aln1.aux(b"AS")
-                                .expect(&format!(
-                                    "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
-                                     ranking pairs of alignments", aln1.qname())).integer();
-                            score += second_read_alignments[i].aux(b"AS")
-                                .expect(&format!(
-                                    "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
-                                     ranking pairs of alignments", aln1.qname())).integer();
+                            // Unlike BWA-MEM, Minimap2 does not have AS tags
+                            // when the read is unmapped.
+                            if !aln1.is_unmapped() {
+                                score += aln1.aux(b"AS")
+                                    .expect(&format!(
+                                        "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
+                                        ranking pairs of alignments", aln1.qname())).integer();
+                            }
+                            if !second_read_alignments[i].is_unmapped() {
+                                score += second_read_alignments[i].aux(b"AS")
+                                    .expect(&format!(
+                                        "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
+                                        ranking pairs of alignments", aln1.qname())).integer();
+                            }
                             if max_score.is_none() || score > max_score.unwrap() {
                                 max_score = Some(score);
                                 winning_indices = vec![i]
@@ -481,6 +487,7 @@ where T: GenomeExclusion {
 }
 
 pub fn generate_named_sharded_bam_readers_from_reads(
+    mapping_program: MappingProgram,
     reference: &str,
     read1_path: &str,
     read2_path: Option<&str>,
@@ -488,7 +495,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     threads: u16,
     cached_bam_file: Option<&str>,
     discard_unmapped: bool,
-    bwa_options: Option<&str>) -> bam::Reader {
+    mapping_options: Option<&str>) -> bam::Reader {
 
     let tmp_dir = TempDir::new("coverm_fifo")
         .expect("Unable to create temporary directory");
@@ -501,8 +508,8 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let bwa_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create BWA log tempfile");
+    let mapping_log = tempfile::NamedTempFile::new()
+        .expect(&format!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::NamedTempFile::new()
         .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -528,31 +535,28 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         },
         None => format!("> {:?}", fifo_path)
     };
-    let bwa_read_params1 = match read_format {
-        ReadFormat::Interleaved => "-p",
-        ReadFormat::Coupled | ReadFormat::Single => ""
-    };
-    let bwa_read_params2 = match read_format {
-        ReadFormat::Interleaved => format!("'{}'", read1_path),
-        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
-        ReadFormat::Single => format!("'{}'", read1_path),
-    };
+
+    let mapping_command = build_mapping_command(
+        mapping_program, 
+        read_format,
+        threads,
+        read1_path,
+        reference,
+        read2_path,
+        mapping_options);
+
     let bwa_sort_prefix = tempfile::Builder::new()
         .prefix("coverm-make-samtools-sort")
         .tempfile_in(tmp_dir.path())
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         bwa mem {} -t {} {} '{}' {} 2>{} \
+         {} 2>{} \
          | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
          {}",
-        // BWA
-        bwa_options.unwrap_or(""),
-        threads,
-        bwa_read_params1,
-        reference,
-        bwa_read_params2,
-        bwa_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // Mapping
+        mapping_command,
+        mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -568,9 +572,9 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .stderr(std::process::Stdio::piped());
 
     let mut log_descriptions = vec![
-        "BWA".to_string(),
+        format!("{:?}",mapping_program).to_string(),
         "samtools sort".to_string()];
-    let mut log_files = vec![bwa_log, samtools2_log];
+    let mut log_files = vec![mapping_log, samtools2_log];
     if cached_bam_file.is_some() {
         log_descriptions.push("samtools view for cache".to_string());
         log_files.push(samtools_view_cache_log);
