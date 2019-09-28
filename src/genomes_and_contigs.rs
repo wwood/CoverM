@@ -3,7 +3,7 @@ use std::process;
 
 use find_first;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GenomesAndContigs {
     pub genomes: Vec<String>,
     pub contig_to_genome: HashMap<String, usize>

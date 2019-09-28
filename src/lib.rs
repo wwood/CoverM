@@ -22,6 +22,8 @@ extern crate nix;
 extern crate tempdir;
 extern crate tempfile;
 extern crate rand;
+#[macro_use]
+extern crate serde;
 
 use std::path::Path;
 use genomes_and_contigs::GenomesAndContigs;
