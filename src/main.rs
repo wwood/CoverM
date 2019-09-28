@@ -180,6 +180,7 @@ Other arguments (optional):
                                            count
                                            metabat (\"MetaBAT adjusted coverage\")
                                            reads_per_base
+                                           rpkm
                                          A more thorough description of the different
                                          methods is available at
                                          https://github.com/wwood/CoverM
@@ -316,6 +317,7 @@ Other arguments (optional):
                                               length
                                               count
                                               reads_per_base
+                                              rpkm
                                          A more thorough description of the different
                                          methods is available at
                                          https://github.com/wwood/CoverM
@@ -910,6 +912,7 @@ struct EstimatorsAndTaker<'a> {
     estimators: Vec<CoverageEstimator>,
     taker: CoverageTakerType<'a>,
     columns_to_normalise: Vec<usize>,
+    rpkm_column: Option<usize>,
     printer: CoveragePrinter,
 }
 
@@ -945,6 +948,7 @@ impl<'a> EstimatorsAndTaker<'a> {
         let taker;
         let output_format = m.value_of("output-format").unwrap();
         let printer;
+        let mut rpkm_column = None;
 
         if doing_metabat(&m) {
             estimators.push(CoverageEstimator::new_estimator_length());
@@ -1007,6 +1011,15 @@ impl<'a> EstimatorsAndTaker<'a> {
                             contig_end_exclusion,
                         ));
                     }
+                    &"rpkm" => {
+                        if rpkm_column.is_some() {
+                            error!("The RPKM column cannot be specified more than once");
+                            process::exit(1);
+                        }
+                        rpkm_column = Some(i);
+                        estimators.push(CoverageEstimator::new_estimator_rpkm(
+                            min_fraction_covered, contig_end_exclusion))
+                    }
                     &"variance" => {
                         estimators.push(CoverageEstimator::new_estimator_variance(
                             min_fraction_covered,
@@ -1044,15 +1057,15 @@ impl<'a> EstimatorsAndTaker<'a> {
                     taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                     printer = CoveragePrinter::StreamedCoveragePrinter;
                 }
-            } else if columns_to_normalise.len() == 0 && output_format == "sparse" {
+            } else if columns_to_normalise.len() == 0 && rpkm_column.is_none() && output_format == "sparse" {
                 debug!("Streaming regular coverage output");
                 taker =
                     CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream);
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
-                    "Cached regular coverage taker with columns to normlise: {:?}",
-                    columns_to_normalise
+                    "Cached regular coverage taker with columns to normlise: {:?} and rpkm_column: {:?}",
+                    columns_to_normalise, rpkm_column
                 );
                 taker = CoverageTakerType::new_cached_single_float_coverage_taker(estimators.len());
                 printer = match output_format {
@@ -1093,6 +1106,7 @@ impl<'a> EstimatorsAndTaker<'a> {
             estimators: estimators,
             taker: taker,
             columns_to_normalise: columns_to_normalise,
+            rpkm_column: rpkm_column,
             printer: printer,
         };
     }
@@ -1240,6 +1254,7 @@ fn run_genome<
         &mut std::io::stdout(),
         Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
+        estimators_and_taker.rpkm_column,
     );
 }
 
@@ -1679,7 +1694,7 @@ fn run_contig<
     print_zeros: bool,
     flag_filters: FlagFilter,
 ) {
-    coverm::contig::contig_coverage(
+    let reads_mapped = coverm::contig::contig_coverage(
         bam_readers,
         &mut estimators_and_taker.taker,
         &mut estimators_and_taker.estimators,
@@ -1692,8 +1707,9 @@ fn run_contig<
     estimators_and_taker.printer.finalise_printing(
         &estimators_and_taker.taker,
         &mut std::io::stdout(),
-        None,
+        Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
+        estimators_and_taker.rpkm_column,
     );
 }
 
@@ -2167,6 +2183,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "length",
                             "count",
                             "reads_per_base",
+                            "rpkm",
                         ])
                         .default_value("relative_abundance"),
                 )
@@ -2393,6 +2410,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "count",
                             "metabat",
                             "reads_per_base",
+                            "rpkm",
                         ])
                         .default_value("mean"),
                 )

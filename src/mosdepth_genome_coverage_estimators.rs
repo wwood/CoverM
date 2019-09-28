@@ -619,7 +619,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     } else {
                         // Here we do not know the number of mapped reads total.
                         // Instead we divide by that later.
-                        return (*num_mapped_reads*(10u64.pow(9))) as f32
+                        debug!("RPKM: {} {}", num_mapped_reads, final_total_bases);
+                        return (*num_mapped_reads*(10u64.pow(9))) as f32 / final_total_bases as f32;
                     }
             },
             CoverageEstimator::VarianceGenomeCoverageEstimator {

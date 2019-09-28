@@ -1065,6 +1065,60 @@ genome6	26.697144
         Assert::command(&["samtools","view","-H",bam.to_str().unwrap()])
             .stdout().contains("PN:minimap2").unwrap();
     }
+
+    #[test]
+    fn test_contig_sparse_rpkm() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "reads_per_base",
+                "-b",
+                "tests/data/7seqs.fnaVbad_read.bam",
+                "-m",
+                "length",
+                "count",
+                "--output-format",
+                "sparse"
+            ])
+            .succeeds()
+            .stdout().is("Sample	Contig	RPKM	Reads per base	Length	Read Count\n\
+                7seqs.fnaVbad_read	genome1~random_sequence_length_11000	0	0	11000	0\n\
+                7seqs.fnaVbad_read	genome1~random_sequence_length_11010	0	0	11010	0\n\
+                7seqs.fnaVbad_read	genome2~seq1	588235.3	0.01	1000	10\n\
+                7seqs.fnaVbad_read	genome3~random_sequence_length_11001	0	0	11001	0\n\
+                7seqs.fnaVbad_read	genome4~random_sequence_length_11002	0	0	11002	0\n\
+                7seqs.fnaVbad_read	genome5~seq2	588235.3	0.01	1000	10\n\
+                7seqs.fnaVbad_read	genome6~random_sequence_length_11003	0	0	11003	0\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_dense_rpkm() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "reads_per_base",
+                "length",
+                "count",
+                "-b",
+                "tests/data/7seqs.fnaVbad_read.bam",
+            ])
+            .succeeds()
+            .stdout().is(
+                "Contig	7seqs.fnaVbad_read RPKM	7seqs.fnaVbad_read Reads per base	7seqs.fnaVbad_read Length	7seqs.fnaVbad_read Read Count\n\
+                genome1~random_sequence_length_11000	0	0	11000	0\n\
+                genome1~random_sequence_length_11010	0	0	11010	0\n\
+                genome2~seq1	588235.3	0.01	1000	10\n\
+                genome3~random_sequence_length_11001	0	0	11001	0\n\
+                genome4~random_sequence_length_11002	0	0	11002	0\n\
+                genome5~seq2	588235.3	0.01	1000	10\n\
+                genome6~random_sequence_length_11003	0	0	11003	0\n")
+            .unwrap();
+    }
 }
 
 
