@@ -123,10 +123,12 @@ Define mapping(s) (required):
    -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2\" or \"bwa-mem\").
                                          [default: \"minimap2\"]
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         Must include '-a' [default \"-ax sr\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
+                                         both indexing command (if used) and for
+                                         mapping. Note that usage of this parameter
+                                         has security implications if untrusted input
+                                         is specified. Must include '-a'.
+                                         [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -254,10 +256,12 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         Must include '-a' [default \"-ax sr\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
+                                         both indexing command (if used) and for
+                                         mapping. Note that usage of this parameter
+                                         has security implications if untrusted input
+                                         is specified. Must include '-a'.
+                                         [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -1834,10 +1838,12 @@ Mapping parameters:
    -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2\" or \"bwa-mem\").
                                          [default: \"minimap2\"]
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         Must include '-a' [default \"-ax sr\"]
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
+                                         both indexing command (if used) and for
+                                         mapping. Note that usage of this parameter
+                                         has security implications if untrusted input
+                                         is specified. Must include '-a'.
+                                         [default \"-ax sr\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note

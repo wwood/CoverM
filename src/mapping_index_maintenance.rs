@@ -79,7 +79,9 @@ impl TemporaryIndexStruct {
         };
         match index_creation_options {
             Some(params) => {
-                cmd.arg(params);
+                for s in params.split_whitespace() {
+                    cmd.arg(s);
+                }
             },
             None => {}
         };
