@@ -39,7 +39,12 @@ pub struct TemporaryIndexStruct {
 }
 
 impl TemporaryIndexStruct {
-    pub fn new(mapping_program: MappingProgram, reference_path: &str) -> TemporaryIndexStruct {
+    pub fn new(
+        mapping_program: MappingProgram,
+        reference_path: &str,
+        index_creation_options: Option<&str>)
+        -> TemporaryIndexStruct {
+
         // Generate a BWA index in a temporary directory, where the temporary
         // directory does not go out of scope until the struct does.
         let td = TempDir::new("coverm-mapping-index")
@@ -71,6 +76,12 @@ impl TemporaryIndexStruct {
                     .arg(&index_path)
                     .arg(&reference_path);
             }
+        };
+        match index_creation_options {
+            Some(params) => {
+                cmd.arg(params);
+            },
+            None => {}
         };
         // Some BWA versions output log info to stdout. Ignore this.
         cmd.stdout(std::process::Stdio::piped());
@@ -110,7 +121,9 @@ impl Drop for TemporaryIndexStruct {
     }
 }
 
-pub fn generate_bwa_index(reference_path: &str) -> Box<dyn MappingIndex> {
+pub fn generate_bwa_index(
+    reference_path: &str,
+    index_creation_parameters: Option<&str>) -> Box<dyn MappingIndex> {
     let bwa_extensions = vec!("amb","ann","bwt","pac","sa");
     let num_extensions = bwa_extensions.len();
     let mut num_existing: u8 = 0;
@@ -121,7 +134,7 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn MappingIndex> {
     }
     if num_existing == 0 {
         return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::BWA_MEM, reference_path));
+            MappingProgram::BWA_MEM, reference_path, index_creation_parameters));
     } else if num_existing as usize != num_extensions {
         error!("BWA index appears to be incomplete, cannot continue.");
         process::exit(1);
@@ -132,9 +145,15 @@ pub fn generate_bwa_index(reference_path: &str) -> Box<dyn MappingIndex> {
     }
 }
 
-pub fn generate_minimap2_index(reference_path: &str) -> Box<dyn MappingIndex> {
+pub fn generate_minimap2_index(
+    reference_path: &str,
+    index_creation_parameters: Option<&str>)
+    -> Box<dyn MappingIndex> {
+
     return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::MINIMAP2, reference_path));
+            MappingProgram::MINIMAP2,
+            reference_path,
+            index_creation_parameters));
 }
 
 pub fn generate_concatenated_fasta_file(

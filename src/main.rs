@@ -865,6 +865,7 @@ fn setup_mapping_index(
     match mapping_program {
         MappingProgram::BWA_MEM => Some(coverm::mapping_index_maintenance::generate_bwa_index(
             reference_wise_params.reference,
+            None
         )),
         MappingProgram::MINIMAP2 => {
             if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
@@ -873,6 +874,7 @@ fn setup_mapping_index(
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
+                    Some(m.value_of("minimap2-params").unwrap()), // Includes -a etc but I think that doesn't matter?
                 ))
             }
         }
