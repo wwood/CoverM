@@ -224,10 +224,14 @@ pub fn print_sparse_cached_coverage_taker<'a>(
                             } else if rpkm_column == Some(i) {
                                 debug!("Writing RPKM with coverage {} and reads_mapped_per_sample {:?}",
                                     coverages[i], reads_mapped_per_sample);
+                                let num_mapped_reads = reads_mapped_per_sample
+                                    .unwrap()[current_stoit_index].num_mapped_reads;
                                 write!(
                                     print_stream, "\t{}",
-                                    coverages[i]
-                                        /reads_mapped_per_sample.unwrap()[current_stoit_index].num_mapped_reads as f32).unwrap();
+                                    match num_mapped_reads == 0 {
+                                        true => 0.0,
+                                        false => coverages[i]/num_mapped_reads as f32
+                                    }).unwrap();
                             } else {
                                 write!(print_stream, "\t{}",
                                        coverages[i]).unwrap();
@@ -381,12 +385,16 @@ pub fn print_dense_cached_coverage_taker<'a>(
                                     *100.0
                                     *coverage_multipliers[stoit_i]).unwrap();
                         } else if rpkm_column == Some(i) {
-                                debug!("Writing RPKM with coverage {} and reads_mapped_per_sample {:?}",
-                                    coverages[i], reads_mapped_per_sample);
-                                write!(
-                                    print_stream, "\t{}",
-                                    coverages[i]
-                                        /reads_mapped_per_sample.unwrap()[stoit_i].num_mapped_reads as f32).unwrap();
+                            debug!("Writing RPKM with coverage {} and reads_mapped_per_sample {:?}",
+                                coverages[i], reads_mapped_per_sample);
+                            let num_mapped_reads = reads_mapped_per_sample
+                                .unwrap()[stoit_i].num_mapped_reads;
+                            write!(
+                                print_stream, "\t{}",
+                                match num_mapped_reads == 0 {
+                                    true => 0.0,
+                                    false => coverages[i]/num_mapped_reads as f32
+                                }).unwrap();
                         } else {
                             write!(print_stream, "\t{}", cov).unwrap();
                         }

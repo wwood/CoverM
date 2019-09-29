@@ -402,11 +402,6 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 ref mut num_covered_bases,
                 ref mut num_mapped_reads,
                 contig_end_exclusion, ..
-            } | CoverageEstimator::RPKMCoverageEstimator {
-                ref mut total_bases,
-                ref mut num_covered_bases,
-                ref mut num_mapped_reads, 
-                contig_end_exclusion, .. 
             } => {
                 *num_mapped_reads += num_mapped_reads_in_contig;
                 let len = ups_and_downs.len();
@@ -431,13 +426,31 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     }
                 }
             },
+            CoverageEstimator::RPKMCoverageEstimator {
+                ref mut total_bases,
+                ref mut num_covered_bases,
+                ref mut num_mapped_reads, .. 
+            } => {
+                *num_mapped_reads += num_mapped_reads_in_contig;
+                let len = ups_and_downs.len();
+                *total_bases += len as u32;
+                let mut cumulative_sum: i32 = 0;
+
+                for i in 0..len {
+                    let current = ups_and_downs[i as usize];
+                    cumulative_sum += current;
+                    if cumulative_sum > 0 {
+                        *num_covered_bases += 1
+                    }
+                }
+            },
             CoverageEstimator::ReferenceLengthCalculator {
                 ref mut observed_contig_length,
                 ref mut num_mapped_reads,
             } | CoverageEstimator::ReadsPerBaseCalculator {
                 ref mut observed_contig_length,
                 ref mut num_mapped_reads,
-            } => {
+            }  => {
                 *observed_contig_length += ups_and_downs.len() as u32;
                 *num_mapped_reads += num_mapped_reads_in_contig;
             },
@@ -620,7 +633,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         // Here we do not know the number of mapped reads total.
                         // Instead we divide by that later.
                         debug!("RPKM: {} {}", num_mapped_reads, final_total_bases);
-                        return (*num_mapped_reads*(10u64.pow(9))) as f32 / final_total_bases as f32;
+                        return match final_total_bases == 0 {
+                            true => 0.0,
+                            false => (*num_mapped_reads*(10u64.pow(9))) as f32 / final_total_bases as f32
+                        }
                     }
             },
             CoverageEstimator::VarianceGenomeCoverageEstimator {
