@@ -1117,6 +1117,29 @@ genome6	26.697144
                 genome6~random_sequence_length_11003	0	0	11003	0\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_single_genome_dense_rpkm() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--single-genome",
+                "-m",
+                "rpkm",
+                "reads_per_base",
+                "length",
+                "count",
+                "--min-covered-fraction",
+                "0",
+                "-b",
+                "tests/data/7seqs.fnaVbad_read.bam",
+            ])
+            .succeeds()
+            .stdout().is(
+                "Genome	7seqs.fnaVbad_read RPKM	7seqs.fnaVbad_read Reads per base	7seqs.fnaVbad_read Length	7seqs.fnaVbad_read Read Count\n\
+                genome1	17631.709	0.00035077872	57016	20\n")
+            .unwrap();
+    }
 }
 
 
