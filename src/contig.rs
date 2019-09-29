@@ -58,7 +58,7 @@ pub fn contig_coverage<R: NamedBamReader,
                             total_indels_in_current_contig)
                 }
                 let coverages: Vec<f32> = coverage_estimators.iter_mut()
-                    .map(|estimator| estimator.calculate_coverage(0)).collect();
+                    .map(|estimator| estimator.calculate_coverage(&vec![0])).collect();
                 let has_nonzero_coverage = coverages.iter().any(
                     |&coverage| coverage > 0.0);
                 debug!("Found nonzero coverage?: {}", has_nonzero_coverage);

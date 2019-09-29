@@ -211,10 +211,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             }
 
             // Print the coverages of each genome
-            // Calculate the unobserved length of each genome
-            let mut unobserved_lengths: Vec<u32> = vec!();
+            // Calculate the unobserved lengths of each genome's contigs
+            let mut unobserved_lengths: Vec<Vec<u32>> = vec!();
             for _ in 0..contigs_and_genomes.genomes.len() {
-                unobserved_lengths.push(0)
+                unobserved_lengths.push(vec![])
             }
             for (ref_id, genome_id_option) in reference_number_to_genome_index.iter().enumerate() {
                 let ref_id_u32: u32 = ref_id as u32;
@@ -223,7 +223,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     Some(genome_id) => {
                         if !seen_ref_ids.contains(&ref_id_u32) {
                             debug!("Getting target #{} from header names", ref_id_u32);
-                            unobserved_lengths[*genome_id] += header.target_len(ref_id_u32).unwrap()
+                            unobserved_lengths[*genome_id].push(header.target_len(ref_id_u32).unwrap())
                         }
                     },
                     None => {}
@@ -233,7 +233,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
             for (i, genome) in contigs_and_genomes.genomes.iter().enumerate() {
                 // Determine if any coverages are non-zero.
                 let coverages: Vec<f32> = per_genome_coverage_estimators[i].iter_mut().map( |coverage_estimator|
-                    coverage_estimator.calculate_coverage(unobserved_lengths[i])
+                    coverage_estimator.calculate_coverage(&unobserved_lengths[i])
                 ).collect();
                 let any_nonzero_coverage = coverages.iter().any(|c| *c > 0.0);
                 if any_nonzero_coverage {
@@ -279,9 +279,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
 }
 
 
-
+#[derive(PartialEq, Debug)]
 struct UnobservedLengthAndFirstTid {
-    unobserved_contig_length: u32,
+    unobserved_contig_lengths: Vec<u32>,
     first_tid: usize
 }
 
@@ -314,7 +314,7 @@ fn print_last_genomes<T: CoverageTaker>(
     let coverages: Vec<f32> = coverage_estimators.iter_mut().map(
         |coverage_estimator|
         coverage_estimator.calculate_coverage(
-            unobserved_contig_length_and_first_tid.unobserved_contig_length)
+            &unobserved_contig_length_and_first_tid.unobserved_contig_lengths)
     ).collect();
     let positive_coverage = coverages.iter().any(|c| *c > 0.0);
 
@@ -373,53 +373,57 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
-        let fill_genome_length_forwards = |current_tid, target_genome: Option<&[u8]>| {
+        let fill_genome_length_forwards = 
+            |current_tid, target_genome: Option<&[u8]>| 
+            -> Vec<u32> {
             // Iterating reads skips over contigs with no mapped reads, but the
             // length of these contigs is required to calculate the average
             // across all contigs. This closure returns the number of bases in
             // contigs with tid > current_tid that are part of the current
             // genome.
-            if target_genome.is_none() { return 0; }
-            let mut extra: u32 = 0;
+            if target_genome.is_none() { return vec![]; }
+            let mut extras: Vec<u32> = vec![];
             let total_refs = header.target_count();
             let mut my_tid = current_tid + 1;
             while my_tid < total_refs {
                 if single_genome ||
                     extract_genome(my_tid, &target_names, split_char) == target_genome.unwrap() {
 
-                    extra += header.target_len(my_tid)
-                        .expect("Malformed bam header or programming error encountered");
+                    extras.push(header.target_len(my_tid)
+                        .expect("Malformed bam header or programming error encountered"));
                     my_tid += 1;
                 } else {
                     break;
                 }
             }
-            return extra
+            return extras
         };
 
-        let fill_genome_length_backwards_to_last = |current_tid, last_tid, target_genome| {
-            if current_tid == 0 {return 0};
-            let mut extra: u32 = 0;
+        let fill_genome_length_backwards_to_last = 
+            |current_tid, last_tid, target_genome| 
+            -> Vec<u32> {
+            if current_tid == 0 {return vec![]};
+            let mut extras: Vec<u32> = vec![];
             let mut my_tid = last_tid + 1;
             while my_tid < current_tid {
                 if single_genome ||
                     extract_genome(my_tid, &target_names, split_char) == target_genome {
 
-                    extra += header.target_len(my_tid)
-                        .expect("Malformed bam header or programming error encountered");
+                    extras.push(header.target_len(my_tid)
+                        .expect("Malformed bam header or programming error encountered"));
                     my_tid += 1;
                 } else {
                     break;
                 }
             }
-            return extra
+            return extras
         };
 
         let mut last_tid: u32 = 0;
         let mut doing_first = true;
         let mut last_genome: Option<&[u8]> = None;
         let mut unobserved_contig_length_and_first_tid = UnobservedLengthAndFirstTid {
-            unobserved_contig_length: 0,
+            unobserved_contig_lengths: vec![],
             first_tid: 0
         };
         let mut ups_and_downs: Vec<i32> = Vec::new();
@@ -449,11 +453,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 };
                 if tid != last_tid || doing_first {
                     debug!("Processing a change in tid, from {} to {} (first is {}). Current \
-                           unobserved_and_first: unobserved {}, first {}",
+                           unobserved_and_first: unobserved {:?}, first {}",
                           last_tid,
                           tid,
                           doing_first,
-                          unobserved_contig_length_and_first_tid.unobserved_contig_length,
+                          unobserved_contig_length_and_first_tid.unobserved_contig_lengths,
                           unobserved_contig_length_and_first_tid.first_tid);
                     if doing_first == true {
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
@@ -488,18 +492,18 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         // Collect the length of reference sequences from this
                         // genome that had no hits that were just skipped over.
                         debug!("Filling unobserved from {} to {}", last_tid, tid);
-                        unobserved_contig_length_and_first_tid.unobserved_contig_length +=
-                            fill_genome_length_backwards_to_last(
-                                tid, last_tid as u32, current_genome);
+                        unobserved_contig_length_and_first_tid.unobserved_contig_lengths.append(
+                            &mut fill_genome_length_backwards_to_last(
+                                tid, last_tid as u32, current_genome));
                     } else {
                         debug!("Found {} reads mapped to tid {}",
                                num_mapped_reads_in_current_contig, last_tid);
                         // Collect the length of refs from the end of the last genome that had no hits
                         debug!("Filling unobserved from {} to {} for {}",
                                last_tid, tid, &str::from_utf8(last_genome.unwrap()).unwrap());
-                        unobserved_contig_length_and_first_tid.unobserved_contig_length +=
-                            fill_genome_length_backwards_to_last(
-                                tid, last_tid as u32, last_genome.unwrap());
+                        unobserved_contig_length_and_first_tid.unobserved_contig_lengths.append(
+                            &mut fill_genome_length_backwards_to_last(
+                                tid, last_tid as u32, last_genome.unwrap()));
 
                         let positive_coverage = print_last_genomes(
                             num_mapped_reads_in_current_contig,
@@ -532,8 +536,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                             split_char,
                             &header);
                         debug!(
-                            "Setting unobserved contig length to be {}",
-                            unobserved_contig_length_and_first_tid.unobserved_contig_length);
+                            "Setting unobserved contig length to be {:?}",
+                            unobserved_contig_length_and_first_tid.unobserved_contig_lengths);
                     }
 
                     ups_and_downs = vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
@@ -613,8 +617,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                        None => "No previous genome",
                        Some(g) => str::from_utf8(g).unwrap()
                    });
-            unobserved_contig_length_and_first_tid.unobserved_contig_length +=
-                fill_genome_length_forwards(last_tid, last_genome);
+            unobserved_contig_length_and_first_tid.unobserved_contig_lengths.append(
+                &mut fill_genome_length_forwards(last_tid, last_genome));
 
             let positive_coverage = print_last_genomes(
                 num_mapped_reads_in_current_contig,
@@ -676,30 +680,30 @@ fn fill_genome_length_backwards(
           current_tid, str::from_utf8(target_genome).unwrap());
     if current_tid == 0 {
         return UnobservedLengthAndFirstTid {
-            unobserved_contig_length: 0,
+            unobserved_contig_lengths: vec![],
             first_tid: current_tid as usize
         }
     }
 
-    let mut extra: u32 = 0;
+    let mut extras: Vec<u32> = vec![];
     let mut my_tid = current_tid - 1;
     while single_genome ||
         extract_genome(my_tid, &target_names, split_char) == target_genome {
-            extra += header.target_len(my_tid)
-                .expect("Malformed bam header or programming error encountered");
+            extras.push(header.target_len(my_tid)
+                .expect("Malformed bam header or programming error encountered"));
             if my_tid == 0 {
                 return UnobservedLengthAndFirstTid {
-                    unobserved_contig_length: extra,
+                    unobserved_contig_lengths: extras,
                     first_tid: 0 as usize
                 }
             } else {
                 my_tid -= 1;
             }
         }
-    debug!("Returning UnobservedLengthAndFirstTid length {}, first_tid {}",
-          extra, my_tid+1);
+    debug!("Returning UnobservedLengthAndFirstTid length {:?}, first_tid {}",
+          extras, my_tid+1);
     return UnobservedLengthAndFirstTid {
-        unobserved_contig_length: extra,
+        unobserved_contig_lengths: extras,
         first_tid: (my_tid+1) as usize
     }
 }
@@ -1439,7 +1443,7 @@ mod tests {
             &bam.header().target_names(),
             '~' as u8,
             bam.header());
-        assert_eq!(0, uf.unobserved_contig_length);
+        assert_eq!(vec![0], uf.unobserved_contig_lengths);
         assert_eq!(2, uf.first_tid);
     }
 
@@ -1453,7 +1457,7 @@ mod tests {
             &bam.header().target_names(),
             '~' as u8,
             bam.header());
-        assert_eq!(11000, uf.unobserved_contig_length);
+        assert_eq!(vec![11000], uf.unobserved_contig_lengths);
         assert_eq!(0, uf.first_tid);
     }
 
@@ -1467,7 +1471,12 @@ mod tests {
             &bam.header().target_names(),
             '~' as u8,
             bam.header());
-        assert_eq!(0, uf.unobserved_contig_length);
+        assert_eq!(
+            UnobservedLengthAndFirstTid {
+                unobserved_contig_lengths: vec![],
+                first_tid: 5
+            },
+            uf);
         assert_eq!(5, uf.first_tid);
     }
 
