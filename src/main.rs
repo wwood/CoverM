@@ -1024,7 +1024,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                         }
                         rpkm_column = Some(i);
                         estimators.push(CoverageEstimator::new_estimator_rpkm(
-                            min_fraction_covered, contig_end_exclusion))
+                            min_fraction_covered))
                     }
                     &"variance" => {
                         estimators.push(CoverageEstimator::new_estimator_variance(
