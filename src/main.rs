@@ -1008,13 +1008,11 @@ impl<'a> EstimatorsAndTaker<'a> {
                     &"covered_fraction" => {
                         estimators.push(CoverageEstimator::new_estimator_covered_fraction(
                             min_fraction_covered,
-                            contig_end_exclusion,
                         ));
                     }
                     &"covered_bases" => {
                         estimators.push(CoverageEstimator::new_estimator_covered_bases(
                             min_fraction_covered,
-                            contig_end_exclusion,
                         ));
                     }
                     &"rpkm" => {

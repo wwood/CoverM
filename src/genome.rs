@@ -1190,7 +1190,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0,0)),
+            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0)),
             false,
             false);
     }
@@ -1202,11 +1202,11 @@ mod tests {
         // 669 genome2~seq1
         test_streaming_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t669\n\
-             7seqs.reads_for_seq1_and_seq2\tgenome5\t714\n",
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t849\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             '~' as u8,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0,75)),
+            &mut vec!(CoverageEstimator::new_estimator_covered_bases(0.0)),
             false,
             false);
     }
@@ -1566,16 +1566,16 @@ mod tests {
         // First test with all genomes passing the covered fraction threshold
         let res = test_streaming_with_stream(
             "7seqs.reads_for_seq1\tgenome1\t0\t0\n\
-             7seqs.reads_for_seq1\tgenome2\t12\t0.8011765\n\
+             7seqs.reads_for_seq1\tgenome2\t12\t0.727\n\
              7seqs.reads_for_seq1\tgenome3\t0\t0\n\
              7seqs.reads_for_seq1\tgenome4\t0\t0\n\
              7seqs.reads_for_seq1\tgenome5\t0\t0\n\
              7seqs.reads_for_seq1\tgenome6\t0\t0\n\
              7seqs.reads_for_seq1_and_seq2\tgenome1\t0\t0\n\
-             7seqs.reads_for_seq1_and_seq2\tgenome2\t12\t0.78705883\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome2\t12\t0.669\n\
              7seqs.reads_for_seq1_and_seq2\tgenome3\t0\t0\n\
              7seqs.reads_for_seq1_and_seq2\tgenome4\t0\t0\n\
-             7seqs.reads_for_seq1_and_seq2\tgenome5\t12\t0.84\n\
+             7seqs.reads_for_seq1_and_seq2\tgenome5\t12\t0.849\n\
              7seqs.reads_for_seq1_and_seq2\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec![
@@ -1587,7 +1587,7 @@ mod tests {
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_read_count(),
-                CoverageEstimator::new_estimator_covered_fraction(0.1, 75),
+                CoverageEstimator::new_estimator_covered_fraction(0.1),
             ),
             false,
             false);
@@ -1625,7 +1625,7 @@ mod tests {
             true,
             &mut vec!(
                 // All genomes do not pass the min covered fraction threshold.
-                CoverageEstimator::new_estimator_covered_fraction(0.99, 75),
+                CoverageEstimator::new_estimator_covered_fraction(0.99),
             ),
             false,
             false);
