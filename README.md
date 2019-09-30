@@ -88,7 +88,7 @@ The difference coverage measures would be:
 | reads_per_base | 0.002 | 2/1000 | 2 reads are mapped over 1000bp. |
 | metabat | contigLen 1000, totalAvgDepth 0.02235294, bam depth 0.02235294, variance 0.01961962 | | Reproduction of the [MetaBAT](https://bitbucket.org/berkeleylab/metabat) 'jgi_summarize_bam_contig_depths' tool output, producing [identical output](https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage). |
 | coverage_histogram | 20 bases with coverage 1, 980 bases with coverage 0 | | The number of positions with each different coverage are tallied. |
-| rpkm | 1176471 | 2 * 10^9 / (1000-2*75) / 2 | Calculation here assumes no other reads map to other contigs. |
+| rpkm | 1000000 | 2 * 10^9 / 1000 / 2 | Calculation here assumes no other reads map to other contigs. |
 
 Calculation of genome-wise coverage (`genome` mode) is similar to calculating
 contig-wise (`contig` mode) coverage, except that the unit of reporting is
