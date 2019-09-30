@@ -8,6 +8,7 @@ use FlagFilter;
 use rust_htslib::bam;
 use rust_htslib::bam::Read;
 use rust_htslib::bam::record::Cigar;
+use rust_htslib::bam::errors::Result as HtslibResult;
 
 pub struct ReferenceSortedBamFilter {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
@@ -69,16 +70,19 @@ impl ReferenceSortedBamFilter {
 }
 
 impl ReferenceSortedBamFilter {
-    pub fn read(&mut self, mut record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
+    pub fn read(&mut self, mut record: &mut bam::record::Record) -> HtslibResult<bool> {
         // if doing only singles, remove filter them and return
         if self.filter_single_reads && !self.filter_pairs {
             loop {
-                self.reader.read(&mut record)?;
+                let res = self.reader.read(&mut record).expect("Failed to read BAM record");
+                if res == false {
+                    return Ok(false)
+                }
                 if !record.is_supplementary() && !record.is_secondary() {
                     self.num_detected_primary_alignments += 1;
                 }
                 if record.is_unmapped() && !self.filter_out {
-                    return Ok(())
+                    return Ok(true)
                 }
                 let passes_filter1 = !record.is_unmapped() &&
                     (self.flag_filters.include_supplementary || !record.is_supplementary()) &&
@@ -91,7 +95,7 @@ impl ReferenceSortedBamFilter {
                         self.min_aligned_percent_single);
                     if (passes_filter2 && self.filter_out) ||
                         (!passes_filter2 && !self.filter_out) {
-                            return Ok(())
+                            return Ok(true)
                         }
                     }
                 // else this read shall not pass, try another
@@ -101,7 +105,9 @@ impl ReferenceSortedBamFilter {
         // else doing pairs, so do as before except maybe filter out single reads too
         else {
             if self.known_next_read.is_none() {
-                while self.reader.read(&mut record).is_ok() {
+                while self.reader
+                    .read(&mut record)
+                    .expect("Failure to read BAM record") == true {
                     debug!("record: {:?}", record);
 
                     debug!("passed flags, {} {} {}",
@@ -114,7 +120,7 @@ impl ReferenceSortedBamFilter {
                     }
 
                     if record.is_unmapped() && !self.filter_out {
-                        return Ok(())
+                        return Ok(true)
                     }
 
                     // TODO: make usage ensure flag_filtering when mapping
@@ -126,7 +132,7 @@ impl ReferenceSortedBamFilter {
                         if self.filter_out {
                             continue
                         } else {
-                            return Ok(())
+                            return Ok(true)
                         }
                     }
 
@@ -191,7 +197,7 @@ impl ReferenceSortedBamFilter {
                                     record.clone_from(
                                         &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"));
                                     debug!("Returning..");
-                                    return Ok(())
+                                    return Ok(true)
                                 } else {
                                     debug!("Read pair did not pass QC");
                                 }
@@ -200,14 +206,14 @@ impl ReferenceSortedBamFilter {
                 }
 
                 // No more records, we are finished.
-                return Err(bam::ReadError::NoMoreRecord)
+                return Ok(false)
             }
 
 
             else {
                 record.clone_from(self.known_next_read.as_ref().unwrap());
                 self.known_next_read = None;
-                return Ok(())
+                return Ok(true)
             }
         }
     }
@@ -359,7 +365,7 @@ mod tests {
             sorted.read(&mut record).expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record).is_err())
+        assert!(sorted.read(&mut record) == Ok(false))
     }
 
     #[test]
@@ -381,7 +387,7 @@ mod tests {
             sorted.read(&mut record).expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record).is_err())
+        assert!(sorted.read(&mut record) == Ok(false))
     }
 
     #[test]
@@ -669,7 +675,7 @@ mod tests {
         assert_eq!(true, sorted.filter_pairs);
         let mut num_passing: u64 = 0;
         let mut record = bam::record::Record::new();
-        while sorted.read(&mut record).is_ok() {
+        while sorted.read(&mut record) == Ok(true) {
             num_passing += 1;
         }
         assert_eq!(11192, num_passing);

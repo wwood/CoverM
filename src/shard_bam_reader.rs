@@ -8,6 +8,7 @@ use rust_htslib::bam;
 use rust_htslib::bam::Record;
 use rust_htslib::bam::record::CigarString;
 use rust_htslib::bam::Read as BamRead;
+use rust_htslib::bam::errors::Result as HtslibResult;
 
 use mapping_parameters::ReadFormat;
 
@@ -61,7 +62,7 @@ where T: GenomeExclusion {
                 {
                     current_alignment = bam::Record::new();
                     res = reader.read(&mut current_alignment);
-                    if res.is_err() {
+                    if res.expect("Failure to read from a shard BAM file") == false {
                         debug!("BAM reader #{} appears to be finished", i);
                         some_finished = true;
                         break;
@@ -72,7 +73,9 @@ where T: GenomeExclusion {
                     record = current_alignment.clone();
                     if !record.is_paired() {
                         error!("This code can only handle paired-end \
-                                input (at the moment), sorry.");
+                                input (at the moment), sorry. Found \
+                                record {:?}",
+                                record);
                         process::exit(1);
                     }
                     if !record.is_secondary() && !record.is_supplementary() {
@@ -137,9 +140,7 @@ where T: GenomeExclusion {
         to.set_tid(from.tid());
         match &from.aux("NM".as_bytes()) {
             Some(aux) => {
-                to.push_aux("NM".as_bytes(), aux)
-                    .expect(&format!(
-                        "Error writing AUX record from{:?} to {:?}", from, to));
+                to.push_aux("NM".as_bytes(), aux);
             },
             None => {
                 if from.tid() >= 0 && from.cigar_len() != 0 {
@@ -155,7 +156,7 @@ where T: GenomeExclusion {
 
 impl<'a, T> ReadSortedShardedBamReader<'a, T>
 where T: GenomeExclusion {
-    fn read(&mut self, to_return: &mut bam::Record) -> Result<(), bam::ReadError> {
+    fn read(&mut self, to_return: &mut bam::Record) -> HtslibResult<bool> {
         if self.next_record_to_return.is_some() {
             {
                 let record = self.next_record_to_return.as_ref().unwrap();
@@ -164,13 +165,13 @@ where T: GenomeExclusion {
             self.next_record_to_return = None;
             let tid_now = to_return.tid();
             to_return.set_tid(tid_now + self.tid_offsets[self.winning_index.unwrap()]);
-            return Ok(());
+            return Ok(true);
         } else {
             if self.previous_read_records.is_none() {
                 self.previous_read_records = self.read_a_record_set();
                 if self.previous_read_records.is_none() {
                     // All finished all the input files.
-                    return Err(bam::ReadError::NoMoreRecord);
+                    return Ok(false);
                 }
             }
             // Read the second set
@@ -256,7 +257,7 @@ where T: GenomeExclusion {
             self.previous_read_records = None;
 
             // Return the first of the pair
-            return Ok(());
+            return Ok(true);
         }
     }
 }
@@ -379,11 +380,14 @@ where T: GenomeExclusion {
         {
             // Write in a scope so writer drops before we start reading from the sort.
             debug!("Opening BAM writer to {}", &sort_input_fifo_path.to_str().unwrap());
-            let mut writer = bam::Writer::from_path(&sort_input_fifo_path, &new_header)
+            let mut writer = bam::Writer::from_path(
+                &sort_input_fifo_path, 
+                &new_header,
+                rust_htslib::bam::Format::BAM)
                 .expect("Failed to open BAM to write to samtools sort process");
             debug!("Writing records to samtools sort input FIFO..");
             let mut record = bam::Record::new();
-            while demux.read(&mut record).is_ok() {
+            while demux.read(&mut record) == Ok(true) {
                 debug!("Writing tid {} for qname {}", record.tid(), str::from_utf8(record.qname()).unwrap());
                 writer.write(&record)
                     .expect("Failed to write BAM record to samtools sort input fifo");
@@ -422,9 +426,9 @@ impl NamedBamReader for ShardedBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, record: &mut bam::record::Record) -> Result<(), bam::ReadError> {
+    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
         let res = self.bam_reader.read(record);
-        if res.is_ok() && !record.is_secondary() && !record.is_supplementary() {
+        if res == Ok(true) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
         return res;

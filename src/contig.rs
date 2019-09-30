@@ -88,7 +88,10 @@ pub fn contig_coverage<R: NamedBamReader,
 
 
         // for record in records
-        while bam_generated.read(&mut record).is_ok() {
+        while bam_generated
+            .read(&mut record)
+            .expect("Error while reading BAM record") == true {
+
             debug!("Starting with a new read.. {:?}", record);
             if (!flag_filters.include_supplementary && record.is_supplementary()) ||
                 (!flag_filters.include_secondary && record.is_secondary()) ||

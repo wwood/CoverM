@@ -93,7 +93,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
-        while bam_generated.read(&mut record).is_ok() {
+        while bam_generated
+            .read(&mut record)
+            .expect("Failure to read BAM record") == true {
+
             if record.is_secondary() || record.is_supplementary() {
                 continue;
             }
@@ -426,7 +429,10 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let mut num_mapped_reads_in_current_genome: u64 = 0;
         let mut total_edit_distance_in_current_contig: u32 = 0;
         let mut total_indels_in_current_contig: u32 = 0;
-        while bam_generated.read(&mut record).is_ok() {
+        while bam_generated
+            .read(&mut record)
+            .expect("Failure to read BAM record") == true {
+
             if record.is_secondary() || record.is_supplementary() {
                 continue;
             }
@@ -601,8 +607,12 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             debug!("Found {} reads mapped to tid {}",
                    num_mapped_reads_in_current_contig, last_tid);
             // Collect the length of refs from the end of the last genome that had no hits
-            debug!("Filling unobserved from {} to end for {}",
-                   last_tid, &str::from_utf8(last_genome.unwrap()).unwrap());
+            debug!("Filling unobserved from {} to end for {:?}",
+                   last_tid, 
+                   match last_genome {
+                       None => "No previous genome",
+                       Some(g) => str::from_utf8(g).unwrap()
+                   });
             unobserved_contig_length_and_first_tid.unobserved_contig_length +=
                 fill_genome_length_forwards(last_tid, last_genome);
 
@@ -778,10 +788,10 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use rust_htslib::prelude::*;
     use shard_bam_reader::*;
     use genome_exclusion::*;
     use std::collections::HashSet;
+    use rust_htslib::bam::Read;
 
     fn test_streaming_with_stream<R: NamedBamReader,
                                   G: NamedBamReaderGenerator<R>>(

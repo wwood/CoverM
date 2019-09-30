@@ -13,17 +13,17 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 ]
 
 [dependencies]
-bio = "0.27.*"
-rust-htslib = "0.24.*"
+bio = "0.29.*"
+rust-htslib = "0.26.*"
 clap = "2.*"
 log = "0.4.*"
-env_logger = "0.6.*"
-nix = "0.14.*"
+env_logger = "0.7.*"
+nix = "0.15.*"
 tempdir = "0.3.*"
-tempfile = "3.0.*"
+tempfile = "3.*"
 ansi_term = "0.11"
 lazy_static = "1.3.0"
-rand = "0.6.*"
+rand = "0.7.*"
 serde = "1.0"
 
 [dev-dependencies]

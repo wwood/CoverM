@@ -658,7 +658,10 @@ fn main() {
                 let reader =
                     bam::Reader::from_path(bam).expect(&format!("Unable to find BAM file {}", bam));
                 let header = bam::header::Header::from_template(reader.header());
-                let mut writer = bam::Writer::from_path(output, &header)
+                let mut writer = bam::Writer::from_path(
+                    output,
+                    &header,
+                    rust_htslib::bam::Format::BAM)
                     .expect(&format!("Failed to write BAM file {}", output));
                 writer
                     .set_threads(num_threads as usize)
@@ -676,7 +679,10 @@ fn main() {
                 );
 
                 let mut record = bam::record::Record::new();
-                while filtered.read(&mut record).is_ok() {
+                while filtered
+                    .read(&mut record)
+                    .expect("Failure to read filtered BAM record") == true {
+                        
                     debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
                 }

@@ -932,8 +932,6 @@ genome6	26.697144
 
     #[test]
     fn test_correct_number_of_reads_total_with_filtering_single() {
-        let mut tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
-        writeln!(tf1, "genome3").unwrap();
         Assert::main_binary()
             .with_args(&[
                 "contig",
