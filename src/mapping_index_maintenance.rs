@@ -58,11 +58,14 @@ impl TemporaryIndexStruct {
             MappingProgram::BWA_MEM => {
                 std::process::Command::new("bwa")
             },
-            MappingProgram::MINIMAP2_SR => {
+            MappingProgram::MINIMAP2_SR |
+            MappingProgram::MINIMAP2_ONT |
+            MappingProgram::MINIMAP2_PB |
+            MappingProgram::MINIMAP2_NO_PRESET => {
                 std::process::Command::new("minimap2")
             }
         };
-        match mapping_program {
+        match &mapping_program {
             MappingProgram::BWA_MEM => {
                 cmd
                     .arg("index")
@@ -70,10 +73,18 @@ impl TemporaryIndexStruct {
                     .arg(&index_path)
                     .arg(&reference_path);
             },
-            MappingProgram::MINIMAP2_SR => {
+            MappingProgram::MINIMAP2_SR |
+            MappingProgram::MINIMAP2_ONT |
+            MappingProgram::MINIMAP2_PB |
+            MappingProgram::MINIMAP2_NO_PRESET => {
+                match &mapping_program {
+                    MappingProgram::MINIMAP2_SR =>  { cmd.arg("-x").arg("sr"); }
+                    MappingProgram::MINIMAP2_ONT => { cmd.arg("-x").arg("map-ont"); }
+                    MappingProgram::MINIMAP2_PB =>  { cmd.arg("-x").arg("map-pb"); }
+                    MappingProgram::MINIMAP2_NO_PRESET |
+                    MappingProgram::BWA_MEM => { }
+                };
                 cmd
-                    .arg("-x")
-                    .arg("sr")
                     .arg("-d")
                     .arg(&index_path)
                     .arg(&reference_path);

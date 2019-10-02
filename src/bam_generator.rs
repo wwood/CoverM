@@ -43,6 +43,9 @@ pub trait NamedBamReaderGenerator<T> {
 pub enum MappingProgram {
     BWA_MEM,
     MINIMAP2_SR,
+    MINIMAP2_ONT,
+    MINIMAP2_PB,
+    MINIMAP2_NO_PRESET,
 }
 
 pub struct BamFileNamedReader {
@@ -691,7 +694,10 @@ pub fn build_mapping_command(
 
     let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
-        MappingProgram::MINIMAP2_SR => "",
+        MappingProgram::MINIMAP2_SR |
+        MappingProgram::MINIMAP2_ONT |
+        MappingProgram::MINIMAP2_PB |
+        MappingProgram::MINIMAP2_NO_PRESET => "",
         MappingProgram::BWA_MEM => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => ""
@@ -709,6 +715,9 @@ pub fn build_mapping_command(
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem",
             MappingProgram::MINIMAP2_SR => "minimap2 -x sr",
+            MappingProgram::MINIMAP2_ONT => "minimap2 -x ont",
+            MappingProgram::MINIMAP2_PB => "minimap2 -x pb",
+            MappingProgram::MINIMAP2_NO_PRESET => "minimap2",
         },
         mapping_options.unwrap_or(""),
         threads,

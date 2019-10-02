@@ -37,10 +37,19 @@ extern crate lazy_static;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
-const MAPPING_SOFTWARE_LIST: &[&str] = &["bwa-mem", "minimap2-sr"];
+const MAPPING_SOFTWARE_LIST: &[&str] = &["bwa-mem", "minimap2-sr", "minimap2-ont", "minimap2-pb","minimap2-no-preset"];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 const MINIMAP2_DEFAULT_PARAMETERS: &str = "-a";
+
+const MAPPER_HELP: &'static str = 
+"   -p, --mapper <NAME>                   Underlying mapping software used
+                                         (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
+                                         \"minimap2-pb\", or \"minimap2-no-preset\").
+                                         minimap2 -sr, -ont, -pb, -no-preset specify
+                                         '-x' preset of minimap2 to be used
+                                         (with map-ont, map-pb for -ont, -pb).
+                                         [default: \"minimap2-sr\"]";
 
 fn filter_full_help() -> &'static str {
     "coverm filter: Remove alignments with insufficient identity.
@@ -92,7 +101,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>"
 }
 
 fn contig_full_help() -> &'static str {
-    "coverm contig: Calculate read coverage per-contig
+    lazy_static! {
+        static ref CONTIG_HELP: String = format!(
+        "coverm contig: Calculate read coverage per-contig
 
 Define mapping(s) (required):
   Either define BAM:
@@ -120,9 +131,7 @@ Define mapping(s) (required):
                                          <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2-sr\" or \"bwa-mem\").
-                                         [default: \"minimap2-sr\"]
+{}
    --minimap2-params PARAMS              Extra parameters to provide to minimap2,
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
@@ -207,11 +216,16 @@ Other arguments (optional):
    -q, --quiet                           Unless there is an error, do not print
                                          log messages
 
-Ben J. Woodcroft <benjwoodcroft near gmail.com>"
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+", MAPPER_HELP);
+    }
+    &CONTIG_HELP
 }
 
 fn genome_full_help() -> &'static str {
-    "coverm genome: Calculate read coverage per-genome
+    lazy_static! {
+        static ref GENOME_HELP: String = format!(
+        "coverm genome: Calculate read coverage per-genome
 
 Define the contigs in each genome (exactly one of the following is required):
    -s, --separator <CHARACTER>           This character separates genome names
@@ -237,9 +251,7 @@ Define mapping(s) (required):
                                          with samtools sort -n).
 
   Or do mapping:
-   -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2-sr\" or \"bwa-mem\").
-                                         [default: \"minimap2-sr\"]
+{}
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
                                          genomes or assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
@@ -345,7 +357,9 @@ Other arguments (optional):
                                          log messages
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
-"
+", MAPPER_HELP);
+    }
+    &GENOME_HELP
 }
 
 fn main() {
@@ -879,7 +893,10 @@ fn setup_mapping_index(
             reference_wise_params.reference,
             None
         )),
-        MappingProgram::MINIMAP2_SR => {
+        MappingProgram::MINIMAP2_SR |
+        MappingProgram::MINIMAP2_ONT |
+        MappingProgram::MINIMAP2_PB |
+        MappingProgram::MINIMAP2_NO_PRESET => {
             if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
                 None
@@ -907,7 +924,10 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
         }
-        MappingProgram::MINIMAP2_SR => {
+        MappingProgram::MINIMAP2_SR |
+        MappingProgram::MINIMAP2_ONT |
+        MappingProgram::MINIMAP2_PB |
+        MappingProgram::MINIMAP2_NO_PRESET => {
             external_command_checker::check_for_minimap2();
         }
     }
@@ -1831,7 +1851,9 @@ See coverm filter --full-help for further options and further detail.
         .to_string();
     }
 
-    let make_help: &'static str = &"coverm make: Generate BAM files through mapping.
+    lazy_static! {
+        static ref MAKE_HELP: String = format!(
+            "coverm make: Generate BAM files through mapping.
 
 Output (required):
    -o, --output-directory <DIR>          Where generated BAM files will go
@@ -1855,9 +1877,7 @@ Mapping parameters:
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
-   -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2-sr\" or \"bwa-mem\").
-                                         [default: \"minimap2-sr\"]
+{}
    --minimap2-params PARAMS              Extra parameters to provide to minimap2,
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
@@ -1876,7 +1896,9 @@ Example usage:
 
   coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq
 
-Ben J. Woodcroft <benjwoodcroft near gmail.com>";
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+", MAPPER_HELP);
+    };
 
     return App::new("coverm")
         .version(crate_version!())
@@ -2522,7 +2544,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         .subcommand(
             SubCommand::with_name("make")
                 .about("Generate BAM files through mapping")
-                .help(make_help)
+                .help(MAKE_HELP.as_str())
                 .arg(
                     Arg::with_name("output-directory")
                         .short("-o")
