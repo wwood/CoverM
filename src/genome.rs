@@ -1443,7 +1443,7 @@ mod tests {
             &bam.header().target_names(),
             '~' as u8,
             bam.header());
-        assert_eq!(vec![0], uf.unobserved_contig_lengths);
+        assert_eq!(vec![0; 0], uf.unobserved_contig_lengths);
         assert_eq!(2, uf.first_tid);
     }
 
