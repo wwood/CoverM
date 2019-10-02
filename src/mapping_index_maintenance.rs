@@ -45,8 +45,8 @@ impl TemporaryIndexStruct {
         index_creation_options: Option<&str>)
         -> TemporaryIndexStruct {
 
-        // Generate a BWA index in a temporary directory, where the temporary
-        // directory does not go out of scope until the struct does.
+        // Generate a BWA/minimap index in a temporary directory, where the
+        // temporary directory does not go out of scope until the struct does.
         let td = TempDir::new("coverm-mapping-index")
             .expect("Unable to create temporary directory");
         let index_path = std::path::Path::new(td.path())
@@ -58,7 +58,7 @@ impl TemporaryIndexStruct {
             MappingProgram::BWA_MEM => {
                 std::process::Command::new("bwa")
             },
-            MappingProgram::MINIMAP2 => {
+            MappingProgram::MINIMAP2_SR => {
                 std::process::Command::new("minimap2")
             }
         };
@@ -70,8 +70,10 @@ impl TemporaryIndexStruct {
                     .arg(&index_path)
                     .arg(&reference_path);
             },
-            MappingProgram::MINIMAP2 => {
+            MappingProgram::MINIMAP2_SR => {
                 cmd
+                    .arg("-x")
+                    .arg("sr")
                     .arg("-d")
                     .arg(&index_path)
                     .arg(&reference_path);
@@ -153,7 +155,7 @@ pub fn generate_minimap2_index(
     -> Box<dyn MappingIndex> {
 
     return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::MINIMAP2,
+            MappingProgram::MINIMAP2_SR,
             reference_path,
             index_creation_parameters));
 }

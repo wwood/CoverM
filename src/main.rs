@@ -37,10 +37,10 @@ extern crate lazy_static;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 
-const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2";
-const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2;
-
-const MINIMAP2_DEFAULT_PARAMETERS: &str = "-ax sr";
+const MAPPING_SOFTWARE_LIST: &[&str] = &["bwa-mem", "minimap2-sr"];
+const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
+const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
+const MINIMAP2_DEFAULT_PARAMETERS: &str = "-a";
 
 fn filter_full_help() -> &'static str {
     "coverm filter: Remove alignments with insufficient identity.
@@ -121,14 +121,14 @@ Define mapping(s) (required):
    --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2\" or \"bwa-mem\").
-                                         [default: \"minimap2\"]
+                                         (\"minimap2-sr\" or \"bwa-mem\").
+                                         [default: \"minimap2-sr\"]
    --minimap2-params PARAMS              Extra parameters to provide to minimap2,
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
                                          is specified. Must include '-a'.
-                                         [default \"-ax sr\"]
+                                         [default \"-a\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -238,8 +238,8 @@ Define mapping(s) (required):
 
   Or do mapping:
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2\" or \"bwa-mem\").
-                                         [default: \"minimap2\"]
+                                         (\"minimap2-sr\" or \"bwa-mem\").
+                                         [default: \"minimap2-sr\"]
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
                                          genomes or assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
@@ -262,7 +262,7 @@ Define mapping(s) (required):
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
                                          is specified. Must include '-a'.
-                                         [default \"-ax sr\"]
+                                         [default \"-a\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -879,14 +879,14 @@ fn setup_mapping_index(
             reference_wise_params.reference,
             None
         )),
-        MappingProgram::MINIMAP2 => {
+        MappingProgram::MINIMAP2_SR => {
             if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
                 None
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
-                    Some(m.value_of("minimap2-params").unwrap()), // Includes -a etc but I think that doesn't matter?
+                    Some(m.value_of("minimap2-params").unwrap()),
                 ))
             }
         }
@@ -896,7 +896,7 @@ fn setup_mapping_index(
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     let mapping_program = match m.value_of("mapper") {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
-        Some("minimap2") => MappingProgram::MINIMAP2,
+        Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -907,7 +907,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
         }
-        MappingProgram::MINIMAP2 => {
+        MappingProgram::MINIMAP2_SR => {
             external_command_checker::check_for_minimap2();
         }
     }
@@ -1856,14 +1856,14 @@ Mapping parameters:
    --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
 
    -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2\" or \"bwa-mem\").
-                                         [default: \"minimap2\"]
+                                         (\"minimap2-sr\" or \"bwa-mem\").
+                                         [default: \"minimap2-sr\"]
    --minimap2-params PARAMS              Extra parameters to provide to minimap2,
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
                                          is specified. Must include '-a'.
-                                         [default \"-ax sr\"]
+                                         [default \"-a\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -2024,7 +2024,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("mapper")
                         .short("p")
                         .long("mapper")
-                        .possible_values(&["bwa-mem", "minimap2"])
+                        .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
@@ -2334,7 +2334,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("mapper")
                         .short("p")
                         .long("mapper")
-                        .possible_values(&["bwa-mem", "minimap2"])
+                        .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
@@ -2588,7 +2588,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::with_name("mapper")
                         .short("p")
                         .long("mapper")
-                        .possible_values(&["bwa-mem", "minimap2"])
+                        .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(

@@ -1048,7 +1048,7 @@ genome6	26.697144
             .with_args(&[
                 "make",
                 "--mapper",
-                "minimap2",
+                "minimap2-sr",
                 "--coupled",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",

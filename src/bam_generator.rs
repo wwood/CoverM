@@ -42,7 +42,7 @@ pub trait NamedBamReaderGenerator<T> {
 #[allow(non_camel_case_types)]
 pub enum MappingProgram {
     BWA_MEM,
-    MINIMAP2
+    MINIMAP2_SR,
 }
 
 pub struct BamFileNamedReader {
@@ -689,13 +689,13 @@ pub fn build_mapping_command(
     mapping_options: Option<&str>
 ) -> String {
 
-    let read_params1 = match read_format {
-    ReadFormat::Interleaved => match mapping_program {
-        MappingProgram::BWA_MEM => "-p",
+    let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
-        MappingProgram::MINIMAP2 => "",
-    },
-        ReadFormat::Coupled | ReadFormat::Single => ""
+        MappingProgram::MINIMAP2_SR => "",
+        MappingProgram::BWA_MEM => match read_format {
+            ReadFormat::Interleaved => "-p",
+            ReadFormat::Coupled | ReadFormat::Single => ""
+        }
     };
 
     let read_params2 = match read_format {
@@ -708,7 +708,7 @@ pub fn build_mapping_command(
         "{} {} -t {} {} '{}' {}",
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem",
-            MappingProgram::MINIMAP2 => "minimap2",
+            MappingProgram::MINIMAP2_SR => "minimap2 -x sr",
         },
         mapping_options.unwrap_or(""),
         threads,

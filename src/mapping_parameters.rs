@@ -73,7 +73,7 @@ impl<'a> MappingParameters<'a> {
 
         let mapping_parameters_arg = match mapping_program {
             MappingProgram::BWA_MEM => "bwa-params",
-            MappingProgram::MINIMAP2 => "minimap2-params",
+            MappingProgram::MINIMAP2_SR => "minimap2-params",
         };
         let mapping_options = match m.is_present(mapping_parameters_arg) {
             true => {
