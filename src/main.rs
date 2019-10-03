@@ -914,6 +914,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     let mapping_program = match m.value_of("mapper") {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
         Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
+        Some("minimap2-ont") => MappingProgram::MINIMAP2_ONT,
+        Some("minimap2-pb") => MappingProgram::MINIMAP2_PB,
+        Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",

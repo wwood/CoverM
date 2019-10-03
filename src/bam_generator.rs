@@ -715,8 +715,8 @@ pub fn build_mapping_command(
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem",
             MappingProgram::MINIMAP2_SR => "minimap2 -x sr",
-            MappingProgram::MINIMAP2_ONT => "minimap2 -x ont",
-            MappingProgram::MINIMAP2_PB => "minimap2 -x pb",
+            MappingProgram::MINIMAP2_ONT => "minimap2 -x map-ont",
+            MappingProgram::MINIMAP2_PB => "minimap2 -x map-pb",
             MappingProgram::MINIMAP2_NO_PRESET => "minimap2",
         },
         mapping_options.unwrap_or(""),
