@@ -1158,6 +1158,124 @@ genome6	26.697144
                 genome1	0\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_ont_single_sample() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "-p",
+                "minimap2-ont",
+                "--single",
+                "tests/data/ont.reads.fq.gz",
+                "-r",
+                "tests/data/ont.ref.fna",
+            ])
+            .succeeds()
+            .stdout().is(
+                "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
+                ctg4	1887.6234	0.02457587	6\n\
+                ctg5	717.27264	0.0041760243	3\n\
+                ctg6	126.346375	0.0021053297	1\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_ont_two_samples() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "-p",
+                "minimap2-ont",
+                "--single",
+                "tests/data/ont.reads.fq.gz",
+                "tests/data/ont.reads.fq.gz",
+                "-r",
+                "tests/data/ont.ref.fna",
+                "-v",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
+                ctg4	1887.6234	0.02457587	6	1887.6234	0.02457587	6\n\
+                ctg5	717.27264	0.0041760243	3	717.27264	0.0041760243	3\n\
+                ctg6	126.346375	0.0021053297	1	126.346375	0.0021053297	1\n")
+            .stderr()
+            .contains(
+                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-ont\" \"-d\"")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_pb_two_samples() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "-p",
+                "minimap2-pb",
+                "--single",
+                "tests/data/ont.reads.fq.gz",
+                "tests/data/ont.reads.fq.gz",
+                "-r",
+                "tests/data/ont.ref.fna",
+                "-v",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
+                ctg4	1797.7366	0.02386453	4	1797.7366	0.02386453	4\n\
+                ctg5	683.11676	0.0035182887	2	683.11676	0.0035182887	2\n\
+                ctg6	180.49483	0.0021053297	1	180.49483	0.0021053297	1\n")
+            .stderr()
+            .contains(
+                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-pb\" \"-d\"")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_minimap2_no_preset_with_params() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "-p",
+                "minimap2-no-preset",
+                "--single",
+                "tests/data/ont.reads.fq.gz",
+                "-r",
+                "tests/data/ont.ref.fna",
+                "-v",
+                "--minimap2-parameters",
+                "-A 20"
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
+                ctg4	2202.2273	0.081332035	7\n\
+                ctg5	478.18173	0.010246328	2\n\
+                ctg6	126.346375	0.0021596688	1\n")
+            .stderr()
+            .contains("minimap2 -a -A 20")
+            .unwrap();
+    }
 }
 
 

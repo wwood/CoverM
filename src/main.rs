@@ -40,7 +40,6 @@ const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const MAPPING_SOFTWARE_LIST: &[&str] = &["bwa-mem", "minimap2-sr", "minimap2-ont", "minimap2-pb","minimap2-no-preset"];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
-const MINIMAP2_DEFAULT_PARAMETERS: &str = "-a";
 
 const MAPPER_HELP: &'static str = 
 "   -p, --mapper <NAME>                   Underlying mapping software used
@@ -136,8 +135,8 @@ Define mapping(s) (required):
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
-                                         is specified. Must include '-a'.
-                                         [default \"-a\"]
+                                         is specified. '-a' is always specified.
+                                         [default \"\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -273,8 +272,8 @@ Define mapping(s) (required):
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
-                                         is specified. Must include '-a'.
-                                         [default \"-a\"]
+                                         is specified. '-a' is always specified.
+                                         [default \"\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -903,7 +902,8 @@ fn setup_mapping_index(
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
-                    Some(m.value_of("minimap2-params").unwrap()),
+                    Some(m.value_of("minimap2-params").unwrap_or("")),
+                    mapping_program,
                 ))
             }
         }
@@ -1885,8 +1885,8 @@ Mapping parameters:
                                          both indexing command (if used) and for
                                          mapping. Note that usage of this parameter
                                          has security implications if untrusted input
-                                         is specified. Must include '-a'.
-                                         [default \"-a\"]
+                                         is specified. '-a' is always specified.
+                                         [default \"\"]
    --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
@@ -2057,8 +2057,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
-                        .allow_hyphen_values(true)
-                        .default_value(MINIMAP2_DEFAULT_PARAMETERS),
+                        .allow_hyphen_values(true),
                 )
                 .arg(
                     Arg::with_name("minimap2-reference-is-index")
@@ -2367,8 +2366,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
-                        .allow_hyphen_values(true)
-                        .default_value(MINIMAP2_DEFAULT_PARAMETERS),
+                        .allow_hyphen_values(true),
                 )
                 .arg(
                     Arg::with_name("minimap2-reference-is-index")
@@ -2621,8 +2619,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
-                        .allow_hyphen_values(true)
-                        .default_value(MINIMAP2_DEFAULT_PARAMETERS),
+                        .allow_hyphen_values(true),
                 )
                 .arg(
                     Arg::with_name("minimap2-reference-is-index")

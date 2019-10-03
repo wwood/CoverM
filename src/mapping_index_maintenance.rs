@@ -162,11 +162,12 @@ pub fn generate_bwa_index(
 
 pub fn generate_minimap2_index(
     reference_path: &str,
-    index_creation_parameters: Option<&str>)
+    index_creation_parameters: Option<&str>,
+    mapping_program: MappingProgram)
     -> Box<dyn MappingIndex> {
 
     return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::MINIMAP2_SR,
+            mapping_program,
             reference_path,
             index_creation_parameters));
 }
