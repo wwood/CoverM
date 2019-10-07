@@ -71,6 +71,20 @@ impl<'a> MappingParameters<'a> {
             unpaired = m.values_of("single").unwrap().collect();
         }
 
+        match mapping_program {
+            MappingProgram::MINIMAP2_ONT | MappingProgram::MINIMAP2_PB => {
+                if !read1.is_empty() || !interleaved.is_empty(){
+                    error!("Paired-end read input specified to be mapped \
+                        with minimap2-ont or minimap2-pb, which is presumably \
+                        incorrect. Mapping paired reads can be run via \
+                        minimap2-no-params if -ont or -pb mapping \
+                        is desired.");
+                    process::exit(1);
+                }
+            },
+            _ => {}
+        }
+
         let mapping_parameters_arg = match mapping_program {
             MappingProgram::BWA_MEM => "bwa-params",
             MappingProgram::MINIMAP2_SR |
