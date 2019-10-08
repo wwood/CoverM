@@ -385,6 +385,10 @@ where T: GenomeExclusion {
                 &new_header,
                 rust_htslib::bam::Format::BAM)
                 .expect("Failed to open BAM to write to samtools sort process");
+            // Do not compress since these records are just read back in again -
+            // compression would be wasteful of CPU (and IO with samtools sort)
+            writer.set_compression_level(bam::CompressionLevel::Uncompressed)
+                .expect("Failure to set BAM writer compression level - programming bug?");
             debug!("Writing records to samtools sort input FIFO..");
             let mut record = bam::Record::new();
             while demux.read(&mut record) == Ok(true) {
