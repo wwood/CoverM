@@ -898,6 +898,11 @@ fn setup_mapping_index(
         MappingProgram::MINIMAP2_NO_PRESET => {
             if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
+                if m.is_present("minimap2-reference-is-index") {
+                    warn!("Minimap2 uses mapping parameters defined when the index was created, \
+                    not parameters defined when mapping. Proceeding on the assumption that you \
+                    passed the correct parameters when creating the minimap2 index.");
+                }
                 None
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(

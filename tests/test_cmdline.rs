@@ -1276,6 +1276,41 @@ genome6	26.697144
             .contains("minimap2 -a -A 20")
             .unwrap();
     }
+
+    #[test]
+    fn test_pregenerated_minimap2_index() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "--coupled",
+                "tests/data/bad_read.1.fq",
+                "tests/data/bad_read.2.fq",
+                "-r",
+                "tests/data/7seqs.fna.mmi",
+                "-v",
+                "--minimap2-reference-is-index",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig	7seqs.fna.mmi/bad_read.1.fq RPKM	7seqs.fna.mmi/bad_read.1.fq Mean	7seqs.fna.mmi/bad_read.1.fq Read Count
+genome1~random_sequence_length_11000	0	0	0
+genome1~random_sequence_length_11010	0	0	0
+genome2~seq1	500000	1.6764706	10
+genome3~random_sequence_length_11001	0	0	0
+genome4~random_sequence_length_11002	0	0	0
+genome5~seq2	500000	1.6764706	10
+genome6~random_sequence_length_11003	0	0	0
+")
+            .stderr()
+            .contains(
+                    "Minimap2 uses mapping parameters defined when the index was created, not parameters defined when mapping")
+            .unwrap();
+    }
 }
 
 
