@@ -121,7 +121,7 @@ Define mapping(s) (required):
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
                                          separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping / sorting
+   -t, --threads <INT>                   Number of threads for mapping / sorting / reading
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
@@ -259,7 +259,7 @@ Define mapping(s) (required):
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
                                          separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping / sorting
+   -t, --threads <INT>                   Number of threads for mapping / sorting / reading
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
@@ -710,6 +710,7 @@ fn main() {
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
+            let threads = m.value_of("threads").unwrap().parse().unwrap();
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
@@ -735,6 +736,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
@@ -750,6 +752,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else {
                     let bam_readers =
@@ -759,6 +762,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 }
             } else {
@@ -787,6 +791,7 @@ fn main() {
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(
@@ -800,6 +805,7 @@ fn main() {
                         generator_sets,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else {
                     debug!("Not filtering..");
@@ -817,6 +823,7 @@ fn main() {
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters.clone(),
+                        threads,
                     );
                 }
             }
@@ -1256,6 +1263,7 @@ fn run_genome<
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
     let single_genome = m.is_present("single-genome");
+    let threads = m.value_of("threads").unwrap().parse().unwrap();
     let reads_mapped = match separator.is_some() || single_genome {
         true => coverm::genome::mosdepth_genome_coverage(
             bam_generators,
@@ -1265,6 +1273,7 @@ fn run_genome<
             &mut estimators_and_taker.estimators,
             proper_pairs_only,
             single_genome,
+            threads,
         ),
 
         false => match genomes_and_contigs_option {
@@ -1275,6 +1284,7 @@ fn run_genome<
                 print_zeros,
                 proper_pairs_only,
                 &mut estimators_and_taker.estimators,
+                threads,
             ),
             None => unreachable!(),
         },
@@ -1725,6 +1735,7 @@ fn run_contig<
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filters: FlagFilter,
+    threads: usize
 ) {
     let reads_mapped = coverm::contig::contig_coverage(
         bam_readers,
@@ -1732,6 +1743,7 @@ fn run_contig<
         &mut estimators_and_taker.estimators,
         print_zeros,
         flag_filters,
+        threads
     );
 
     debug!("Finalising printing ..");
