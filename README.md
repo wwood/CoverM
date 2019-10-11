@@ -64,7 +64,7 @@ For more detailed usage see `coverm <command> -h` or `coverm <command> --full-he
 
 ## Calculation methods
 
-The `-m/--methods` flag specified the specific kind(s) of coverage that is 
+The `-m/--methods` flag specified the specific kind(s) of coverage that are
 to be calculated.
 
 To illustrate, imagine a set of 3 pairs of reads, where only 1 aligns to a
