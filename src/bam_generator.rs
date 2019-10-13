@@ -29,6 +29,9 @@ pub trait NamedBamReader {
 
     fn finish(self);
 
+    //set the number of threads for Bam reading
+    fn set_threads(&mut self, n_threads: usize);
+
     // Number of reads that were detected
     fn num_detected_primary_alignments(&self) -> u64;
 }
@@ -69,6 +72,11 @@ impl NamedBamReader for BamFileNamedReader {
         self.bam_reader.header()
     }
     fn finish(self) {;}
+
+    fn set_threads(&mut self, n_threads: usize) {
+        self.bam_reader.set_threads(n_threads).unwrap();
+    }
+
 
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.num_detected_primary_alignments
@@ -191,6 +199,12 @@ impl NamedBamReader for StreamingNamedBamReader {
             self.log_files,
             Some(self.tempdir))
     }
+
+    fn set_threads(&mut self, n_threads: usize) {
+        self.bam_reader.set_threads(n_threads).unwrap();
+    }
+
+
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.num_detected_primary_alignments
     }
@@ -340,6 +354,9 @@ impl NamedBamReader for FilteredBamReader {
         &self.filtered_stream.reader.header()
     }
     fn finish(self) {;}
+    fn set_threads(&mut self, n_threads: usize) {
+        self.filtered_stream.reader.set_threads(n_threads).unwrap();
+    }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments
     }
@@ -485,6 +502,10 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
             self.log_file_descriptions,
             self.log_files,
             Some(self.tempdir))
+    }
+
+    fn set_threads(&mut self, n_threads: usize) {
+        self.filtered_stream.reader.set_threads(n_threads).unwrap();
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments

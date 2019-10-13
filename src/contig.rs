@@ -17,13 +17,16 @@ pub fn contig_coverage<R: NamedBamReader,
     coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
-    flag_filters: FlagFilter)
+    flag_filters: FlagFilter,
+    threads: usize)
     -> Vec<ReadsMapped> {
 
     let mut reads_mapped_vector = vec!();
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-
+        if threads > 1 {
+            bam_generated.set_threads(threads-1);
+        }
         let stoit_name = &(bam_generated.name().to_string());
         coverage_taker.start_stoit(stoit_name);
         let mut record: bam::record::Record = bam::record::Record::new();
@@ -261,7 +264,8 @@ mod tests {
                 &mut coverage_taker,
                 coverage_estimators,
                 print_zero_coverage_contigs,
-                flag_filters);
+                flag_filters,
+                1);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
         return reads_mapped_vec;

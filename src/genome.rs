@@ -21,13 +21,17 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     proper_pairs_only: bool,
-    coverage_estimators: &mut Vec<CoverageEstimator>)
+    coverage_estimators: &mut Vec<CoverageEstimator>,
+    threads: usize)
     -> Vec<ReadsMapped> {
 
     let mut reads_mapped_vector = vec!();
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
 
+        if threads > 1 {
+            bam_generated.set_threads(threads-1);
+        }
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
         coverage_taker.start_stoit(&stoit_name);
@@ -361,11 +365,15 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     print_zero_coverage_genomes: bool,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     proper_pairs_only: bool,
-    single_genome: bool)
+    single_genome: bool,
+    threads: usize)
     -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec!();
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
+        if threads > 1 {
+            bam_generated.set_threads(threads-1);
+        }
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
@@ -818,7 +826,8 @@ mod tests {
                 print_zero_coverage_contigs,
                 coverage_estimators,
                 proper_pairs_only,
-                single_genome);
+                single_genome,
+                1);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
         return res;
@@ -845,7 +854,8 @@ mod tests {
                 print_zero_coverage_contigs,
                 coverage_estimators,
                 proper_pairs_only,
-                single_genome);
+                single_genome,
+                1);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
         return res;
@@ -871,7 +881,8 @@ mod tests {
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 proper_pairs_only,
-                coverage_estimators);
+                coverage_estimators,
+                1);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
         return res;
@@ -897,7 +908,8 @@ mod tests {
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 proper_pairs_only,
-                coverage_estimators);
+                coverage_estimators,
+                1);
         }
         assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
         return res;
