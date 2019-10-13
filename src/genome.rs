@@ -29,6 +29,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
         bam_generated.set_threads(threads);
+
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
         coverage_taker.start_stoit(&stoit_name);
@@ -369,6 +370,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
         bam_generated.set_threads(threads);
+
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);

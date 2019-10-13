@@ -145,7 +145,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded (experimental)              If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -282,7 +282,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded (experimental)              If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -1819,24 +1819,36 @@ the unfiltered BAM files in the saved_bam_files folder:"
 
 {}
 
+  coverm genome --bam-files my.bam --genome-fasta-directory genomes_directory/
+
+{}
+
   coverm genome --coupled read1.fastq.gz read2.fastq.gz
     --reference assembly.fna --separator '~'
 
 {}
 
-  coverm genome --bam-files my.bam --genome-fasta-directory genomes_directory/
+  coverm genome --single nanopore_reads.fastq.gz --mapper minimap2-ont
+    --reference assembly.fna --separator '~' --methods trimmed_mean rpkm
 
 See coverm genome --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm genome"),
             ansi_term::Colour::Green.paint("Calculate coverage of individual genomes"),
             ansi_term::Colour::Purple.paint(
-                "Example: Map paired reads to a reference where the FASTA header separates
-the genome name from the contig name with '~' e.g. >genome10~contig15"
+                "Example: Calculate relative abundance of genomes defined as .fna files\n\
+                in genomes_directory/ from a reference-sorted BAM file:"
             ),
             ansi_term::Colour::Purple.paint(
-                "Example: Calculate coverage of genomes defined as .fna files in
-genomes_directory/ from a sorted BAM file:"
+                "Example: Map Illumina paired reads to a reference where the\n\
+                FASTA header separates the genome name from the contig name\n\
+                with '~' e.g. '>genome10~contig15' and determine relative abundance.\n\
+                of each genome."
+            ),
+            ansi_term::Colour::Purple.paint(
+                "Example: Map Nanopore reads to a reference using the minimap2\n\
+                'map-ont' parameter set, and determine trimmed_mean and RPKM coverage\n\
+                of each genome."
             ),
         )
         .to_string();

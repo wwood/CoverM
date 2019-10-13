@@ -222,6 +222,7 @@ impl ReferenceSortedBamFilter {
         if n_threads > 1 {
             self.reader.set_threads(n_threads-1).unwrap();
         }
+
     }
 }
 
