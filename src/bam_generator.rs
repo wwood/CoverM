@@ -74,7 +74,9 @@ impl NamedBamReader for BamFileNamedReader {
     fn finish(self) {;}
 
     fn set_threads(&mut self, n_threads: usize) {
-        self.bam_reader.set_threads(n_threads).unwrap();
+        if n_threads > 1 {
+            self.bam_reader.set_threads(n_threads-1).unwrap();
+        }
     }
 
 
@@ -201,7 +203,9 @@ impl NamedBamReader for StreamingNamedBamReader {
     }
 
     fn set_threads(&mut self, n_threads: usize) {
-        self.bam_reader.set_threads(n_threads).unwrap();
+        if n_threads > 1 {
+            self.bam_reader.set_threads(n_threads-1).unwrap();
+        }
     }
 
 
@@ -355,7 +359,9 @@ impl NamedBamReader for FilteredBamReader {
     }
     fn finish(self) {;}
     fn set_threads(&mut self, n_threads: usize) {
-        self.filtered_stream.reader.set_threads(n_threads).unwrap();
+        if n_threads > 1 {
+            self.filtered_stream.reader.set_threads(n_threads-1).unwrap();
+        }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments
@@ -505,7 +511,9 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
     }
 
     fn set_threads(&mut self, n_threads: usize) {
-        self.filtered_stream.reader.set_threads(n_threads).unwrap();
+        if n_threads > 1 {
+            self.filtered_stream.reader.set_threads(n_threads-1).unwrap();
+        }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.filtered_stream.num_detected_primary_alignments

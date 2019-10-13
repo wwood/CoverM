@@ -24,9 +24,8 @@ pub fn contig_coverage<R: NamedBamReader,
     let mut reads_mapped_vector = vec!();
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-        if threads > 1 {
-            bam_generated.set_threads(threads-1);
-        }
+        bam_generated.set_threads(threads);
+
         let stoit_name = &(bam_generated.name().to_string());
         coverage_taker.start_stoit(stoit_name);
         let mut record: bam::record::Record = bam::record::Record::new();

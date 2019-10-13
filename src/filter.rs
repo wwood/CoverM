@@ -219,7 +219,9 @@ impl ReferenceSortedBamFilter {
     }
 
     pub fn set_threads(&mut self, n_threads: usize) {
-        self.reader.set_threads(n_threads).unwrap();
+        if n_threads > 1 {
+            self.reader.set_threads(n_threads-1).unwrap();
+        }
     }
 }
 
