@@ -40,6 +40,326 @@ extern crate lazy_static;
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 
+const MAPPER_HELP: &'static str = 
+"   -p, --mapper <NAME>                   Underlying mapping software used
+                                         (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
+                                         \"minimap2-pb\", or \"minimap2-no-preset\").
+                                         minimap2 -sr, -ont, -pb, -no-preset specify
+                                         '-x' preset of minimap2 to be used
+                                         (with map-ont, map-pb for -ont, -pb).
+                                         [default: \"minimap2-sr\"]";
+
+fn filter_full_help() -> &'static str {
+    "coverm filter: Remove alignments with insufficient identity.
+
+Only primary, non-supplementary alignments are considered, and output files
+are grouped by reference, but not sorted by position.
+
+Files (both required):
+   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
+   -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
+
+Thresholds:
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95%. [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases.
+                                         Implies --proper-pairs-only. [default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+
+Other:
+   -t, --threads <INT>                   Number of threads for output compression
+                                         [default 1]
+   --inverse                             Only keep reads which are unmapped or
+                                         align below thresholds. Note that output
+                                         records may still be marked as mapped
+                                         if they do not meet the thresholds.
+                                         [default false]
+   --verbose                             Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Example usage:
+
+  coverm filter -b in.bam -o out.bam --min-read-aligned-length 75
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>"
+}
+
+fn contig_full_help() -> &'static str {
+    lazy_static! {
+        static ref CONTIG_HELP: String = format!(
+        "coverm contig: Calculate read coverage per-contig
+
+Define mapping(s) (required):
+  Either define BAM:
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
+
+  Or do mapping:
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+                                         genomes or assembly, or minimap2 index
+                                         (with --minimap2-reference-is-index),
+                                         or BWA index stem (with -p bwa-mem).
+                                         If multiple references FASTA files are
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs.
+   -t, --threads <INT>                   Number of threads for mapping / sorting / reading
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
+   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+{}
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
+                                         both indexing command (if used) and for
+                                         mapping. Note that usage of this parameter
+                                         has security implications if untrusted input
+                                         is specified. '-a' is always specified.
+                                         [default \"\"]
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+                                         as a FASTA file.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
+
+Sharding i.e. multiple reference sets (optional):
+   --sharded                             If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
+
+Alignment filtering (optional):
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95%. [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases.
+                                         Implies --proper-pairs-only. [default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+
+Other arguments (optional):
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One or more (space separated) of:
+                                           mean (default)
+                                           trimmed_mean
+                                           coverage_histogram
+                                           covered_fraction
+                                           covered_bases
+                                           variance
+                                           length
+                                           count
+                                           metabat (\"MetaBAT adjusted coverage\")
+                                           reads_per_base
+                                           rpkm
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: dense]
+   --min-covered-fraction FRACTION       Contigs with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+", MAPPER_HELP);
+    }
+    &CONTIG_HELP
+}
+
+fn genome_full_help() -> &'static str {
+    lazy_static! {
+        static ref GENOME_HELP: String = format!(
+        "coverm genome: Calculate read coverage per-genome
+
+Define the contigs in each genome (exactly one of the following is required):
+   -s, --separator <CHARACTER>           This character separates genome names
+                                         from contig names
+   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome e.g.
+                                         'pathA/genome1.fna pathB/genome2.fa'
+   -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
+                                         genome
+   -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
+                                         specified with -d/--genome-fasta-directory
+                                         [default \"fna\"]
+   --genome-definition <FILE>            File containing list of
+                                         genome_name<tab>contig
+                                         lines to define the genome of each contig
+   --single-genome                       All contigs are from the same genome
+
+Define mapping(s) (required):
+  Either define BAM:
+   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
+                                         reference sorted (e.g. with samtools sort)
+                                         unless --sharded is specified, in which
+                                         case they must be read name sorted (e.g.
+                                         with samtools sort -n).
+
+  Or do mapping:
+{}
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+                                         genomes or assembly, or minimap2 index
+                                         (with --minimap2-reference-is-index),
+                                         or BWA index stem (with -p bwa-mem).
+                                         If multiple references FASTA files are
+                                         provided and --sharded is specified,
+                                         then reads will be mapped to references
+                                         separately as sharded BAMs.
+   -t, --threads <INT>                   Number of threads for mapping / sorting / reading
+   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
+   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
+   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
+                                         FASTA/Q files for mapping in order
+                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
+                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
+   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
+   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
+                                         both indexing command (if used) and for
+                                         mapping. Note that usage of this parameter
+                                         has security implications if untrusted input
+                                         is specified. '-a' is always specified.
+                                         [default \"\"]
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+                                         as a FASTA file.
+   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
+                                         that usage of this parameter has security
+                                         implications if untrusted input is specified.
+                                         [default \"\"]
+
+Sharding i.e. multiple reference sets (optional):
+   --sharded                             If -b/--bam-files was used:
+                                           Input BAM files are read-sorted alignments
+                                           of a set of reads mapped to multiple
+                                           reference contig sets. Choose the best
+                                           hit for each read pair.
+
+                                         Otherwise if mapping was carried out:
+                                           Map reads to each reference, choosing the
+                                           best hit for each pair.
+   --exclude-genomes-from-deshard <FILE> Ignore genomes whose name appears in this
+                                         newline-separated file when combining shards.
+
+
+Alignment filtering (optional):
+   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
+                                         aligned bases [default: 0]
+   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
+                                         identity e.g. 0.95 for 95%. [default 0.0]
+   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned. [default 0.0]
+   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
+                                         aligned bases.
+                                         Implies --proper-pairs-only. [default: 0]
+   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
+                                         identity e.g. 0.95 for 95%.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
+                                         bases e.g. 0.95 means 95% of the read's
+                                         bases must be aligned.
+                                         Implies --proper-pairs-only. [default 0.0]
+   --proper-pairs-only                   Require reads to be mapped as proper pairs
+
+Other arguments (optional):
+   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
+                                         One or more (space separated) of:
+                                              relative_abundance (default)
+                                              mean
+                                              trimmed_mean
+                                              coverage_histogram
+                                              covered_fraction
+                                              covered_bases
+                                              variance
+                                              length
+                                              count
+                                              reads_per_base
+                                              rpkm
+                                         A more thorough description of the different
+                                         methods is available at
+                                         https://github.com/wwood/CoverM
+
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: dense]
+   --min-covered-fraction FRACTION       Genomes with less coverage than this
+                                         reported as having zero coverage.
+                                         [default: 0.10]
+   --contig-end-exclusion                Exclude bases at the ends of reference
+                                         sequences from calculation [default: 75]
+   --trim-min FRACTION                   Remove this smallest fraction of positions
+                                         when calculating trimmed_mean
+                                         [default: 0.05]
+   --trim-max FRACTION                   Maximum fraction for trimmed_mean
+                                         calculations [default: 0.95]
+   --no-zeros                            Omit printing of genomes that have zero
+                                         coverage
+   --bam-file-cache-directory            Output BAM files generated during
+                                         alignment to this directory
+   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
+   -v, --verbose                         Print extra debugging information
+   -q, --quiet                           Unless there is an error, do not print
+                                         log messages
+
+Ben J. Woodcroft <benjwoodcroft near gmail.com>
+", MAPPER_HELP);
+    }
+    &GENOME_HELP
+}
+
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -389,6 +709,7 @@ fn main() {
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
+            let threads = m.value_of("threads").unwrap().parse().unwrap();
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
@@ -414,6 +735,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
@@ -429,6 +751,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else {
                     let bam_readers =
@@ -438,6 +761,7 @@ fn main() {
                         bam_readers,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 }
             } else {
@@ -466,6 +790,7 @@ fn main() {
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(
@@ -479,6 +804,7 @@ fn main() {
                         generator_sets,
                         print_zeros,
                         filter_params.flag_filters,
+                        threads,
                     );
                 } else {
                     debug!("Not filtering..");
@@ -496,6 +822,7 @@ fn main() {
                         all_generators,
                         print_zeros,
                         filter_params.flag_filters.clone(),
+                        threads,
                     );
                 }
             }
@@ -948,6 +1275,7 @@ fn run_genome<
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
     let single_genome = m.is_present("single-genome");
+    let threads = m.value_of("threads").unwrap().parse().unwrap();
     let reads_mapped = match separator.is_some() || single_genome {
         true => coverm::genome::mosdepth_genome_coverage(
             bam_generators,
@@ -957,6 +1285,7 @@ fn run_genome<
             &mut estimators_and_taker.estimators,
             proper_pairs_only,
             single_genome,
+            threads,
         ),
 
         false => match genomes_and_contigs_option {
@@ -967,6 +1296,7 @@ fn run_genome<
                 print_zeros,
                 proper_pairs_only,
                 &mut estimators_and_taker.estimators,
+                threads,
             ),
             None => unreachable!(),
         },
@@ -1417,6 +1747,7 @@ fn run_contig<
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filters: FlagFilter,
+    threads: usize
 ) {
     let reads_mapped = coverm::contig::contig_coverage(
         bam_readers,
@@ -1424,6 +1755,7 @@ fn run_contig<
         &mut estimators_and_taker.estimators,
         print_zeros,
         flag_filters,
+        threads
     );
 
     debug!("Finalising printing ..");

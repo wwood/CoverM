@@ -83,7 +83,8 @@ Define mapping(s) (required):
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
                                          separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping / sorting
+   -t, --threads <INT>                   Number of threads for mapping, sorting
+                                         and reading.
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
@@ -213,7 +214,7 @@ Define mapping(s) (required):
 
   Or do mapping:
 {}
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated
                                          genomes or assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
@@ -221,7 +222,8 @@ Define mapping(s) (required):
                                          provided and --sharded is specified,
                                          then reads will be mapped to references
                                          separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping / sorting
+   -t, --threads <INT>                   Number of threads for mapping, sorting
+                                         and reading.
    -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
    -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
    -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse

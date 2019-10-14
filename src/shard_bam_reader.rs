@@ -448,6 +448,12 @@ impl NamedBamReader for ShardedBamReader {
             vec![self.sort_log_file],
             Some(self.tempdir));
     }
+
+    fn set_threads(&mut self, n_threads: usize) {
+        if n_threads > 1 {
+            self.bam_reader.set_threads(n_threads-1).unwrap();
+        }
+    }
     fn num_detected_primary_alignments(&self) -> u64 {
         return self.num_detected_primary_alignments
     }

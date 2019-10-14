@@ -217,6 +217,13 @@ impl ReferenceSortedBamFilter {
             }
         }
     }
+
+    pub fn set_threads(&mut self, n_threads: usize) {
+        if n_threads > 1 {
+            self.reader.set_threads(n_threads-1).unwrap();
+        }
+
+    }
 }
 
 fn single_read_passes_filter(
