@@ -45,6 +45,15 @@ and some mapping software:
 * [minimap2](https://github.com/lh3/minimap2)
 * [bwa](https://github.com/lh3/bwa)
 
+### Shell completion
+Completion scripts for various shells e.g. BASH can be generated. For example, to install the bash completion script
+
+```
+coverm shell-completion --output-file coverm --shell bash
+mv coverm /etc/bash_completion.d/
+```
+The second step will probably require root privileges. To take effect, the terminal will likely need to be restarted.
+
 
 ## Usage
 ```
@@ -55,6 +64,8 @@ Main subcommands:
 Less used utility subcommands:
 	make	Generate BAM files through alignment
 	filter	Remove (or only keep) alignments with insufficient identity
+	shell-completion
+		Generate shell completion scripts
 
 Other options:
 	-V, --version	Print version information
