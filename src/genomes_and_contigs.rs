@@ -1,7 +1,23 @@
+//// NOTE: This file is shared as a direct copy of code between cockatoo and coverm
+
+
 use std::collections::HashMap;
 use std::process;
 
-use find_first;
+/// Finds the first occurence of element in a slice
+pub fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
+where T: std::cmp::PartialEq<T> {
+
+    let mut index: usize = 0;
+    for el in slice {
+        if *el == element {
+            return Ok(index)
+        }
+        index += 1;
+    }
+    return Err("Element not found in slice")
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenomesAndContigs {

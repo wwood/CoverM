@@ -11,7 +11,7 @@ use genomes_and_contigs::GenomesAndContigs;
 use bam_generator::*;
 use coverage_takers::*;
 use ReadsMapped;
-use find_first;
+use genomes_and_contigs::find_first;
 
 pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                                   G: NamedBamReaderGenerator<R>,

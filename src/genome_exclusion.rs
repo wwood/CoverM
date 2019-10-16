@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::str;
 
 use genomes_and_contigs::GenomesAndContigs;
-use find_first;
+use genomes_and_contigs::find_first;
 
 pub enum GenomeExcluders<'a> {
     SeparatorGenomeExclusionFilter {

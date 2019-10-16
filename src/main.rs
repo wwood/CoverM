@@ -387,7 +387,7 @@ fn main() {
             let genomes_and_contigs_option = match separator.is_some() || single_genome {
                 true => None,
                 false => match m.is_present("genome-definition") {
-                    true => Some(coverm::read_genome_definition_file(
+                    true => Some(coverm::genome_parsing::read_genome_definition_file(
                         m.value_of("genome-definition").unwrap(),
                     )),
                     false => {
@@ -396,7 +396,7 @@ fn main() {
                             "Reading contig names for {} genomes ..",
                             genome_fasta_files.len()
                         );
-                        Some(coverm::read_genome_fasta_files(
+                        Some(coverm::genome_parsing::read_genome_fasta_files(
                             &genome_fasta_files.iter().map(|s| s.as_str()).collect(),
                         ))
                     }
