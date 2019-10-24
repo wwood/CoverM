@@ -534,7 +534,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
             format!(
-                "|tee {:?} |samtools view {} -t {} -b -o '{}' 2>{}",
+                "|tee {:?} |samtools view {} -@ {} -b -o '{}' 2>{}",
                 // tee
                 fifo_path,
                 // samtools view
@@ -542,7 +542,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
                 match discard_unmapped {
                     _ => "",
                 },
-                threads,
+                threads-1,
                 path,
                 samtools_view_cache_log.path().to_str()
                     .expect("Failed to convert tempfile path to str"))

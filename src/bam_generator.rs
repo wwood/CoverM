@@ -264,12 +264,12 @@ pub fn generate_named_bam_readers_from_reads(
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
             format!(
-                "|tee {:?} |samtools view {} -t {} -b -o '{}' 2>{}",
+                "|tee {:?} |samtools view {} -@ {} -b -o '{}' 2>{}",
                 // tee
                 fifo_path,
                 // samtools view
                 match discard_unmapped { true => "-F4", false => "" },
-                threads,
+                threads-1,
                 path,
                 samtools_view_cache_log.path().to_str()
                     .expect("Failed to convert tempfile path to str"))
@@ -628,7 +628,7 @@ pub fn generate_bam_maker_generator_from_reads(
         "set -e -o pipefail; \
          {} 2>{} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
-         | samtools view {} -b -t {} -o '{}' 2>{}",
+         | samtools view {} -b -@ {} -o '{}' 2>{}",
         // Mapping program
         mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
@@ -639,7 +639,7 @@ pub fn generate_bam_maker_generator_from_reads(
         samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
         // samtools view
         match discard_unmapped { true => "-F4", false => ""},
-        threads,
+        threads-1,
         cached_bam_file,
         samtools_view_cache_log.path().to_str()
             .expect("Failed to convert tempfile path to str"));
