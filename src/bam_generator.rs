@@ -742,11 +742,22 @@ pub fn build_mapping_command(
     return format!(
         "{} {} -t {} {} '{}' {}",
         match mapping_program {
-            MappingProgram::BWA_MEM => "bwa mem",
-            MappingProgram::MINIMAP2_SR => "minimap2 -a -x sr",
-            MappingProgram::MINIMAP2_ONT => "minimap2 -a -x map-ont",
-            MappingProgram::MINIMAP2_PB => "minimap2 -a -x map-pb",
-            MappingProgram::MINIMAP2_NO_PRESET => "minimap2 -a",
+            MappingProgram::BWA_MEM => "bwa mem".to_string(),
+            _ => {
+                let split_prefix = tempfile::NamedTempFile::new()
+                    .expect(&format!("Failed to create {:?} minimap2 split_prefix file",
+                            mapping_program));
+                format!("minimap2 --split-prefix {} -a {}",
+                    split_prefix.path().to_str()
+                        .expect("Failed to convert split prefix tempfile path to str"),
+                    match mapping_program {
+                        MappingProgram::BWA_MEM => unreachable!(),
+                        MappingProgram::MINIMAP2_SR => "-x sr",
+                        MappingProgram::MINIMAP2_ONT => "-x map-ont",
+                        MappingProgram::MINIMAP2_PB => "-x map-pb",
+                        MappingProgram::MINIMAP2_NO_PRESET => "",
+                    })
+                }
         },
         mapping_options.unwrap_or(""),
         threads,

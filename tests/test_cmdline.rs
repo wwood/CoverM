@@ -1273,7 +1273,7 @@ genome6	26.697144
                 ctg5	478.18173	0.010246328	2\n\
                 ctg6	126.346375	0.0021596688	1\n")
             .stderr()
-            .contains("minimap2 -a -A 20")
+            .contains("-A 20 -t 1")
             .unwrap();
     }
 
