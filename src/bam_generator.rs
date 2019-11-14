@@ -71,7 +71,7 @@ impl NamedBamReader for BamFileNamedReader {
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
     }
-    fn finish(self) {;}
+    fn finish(self) {}
 
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
@@ -357,7 +357,7 @@ impl NamedBamReader for FilteredBamReader {
     fn header(&self) -> &bam::HeaderView {
         &self.filtered_stream.reader.header()
     }
-    fn finish(self) {;}
+    fn finish(self) {}
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
             self.filtered_stream.reader.set_threads(n_threads-1).unwrap();
