@@ -13,7 +13,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 ]
 
 [dependencies]
-bio = "0.29.*"
+bio = "0.30.*"
 rust-htslib = "0.26.*"
 clap = "2.*"
 log = "0.4.*"
