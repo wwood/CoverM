@@ -3,7 +3,7 @@ use coverage_takers::CoverageTaker;
 #[derive(Clone, Debug)]
 pub enum CoverageEstimator {
     MeanGenomeCoverageEstimator{
-        total_count: u32,
+        total_count: u64,
         total_bases: u32,
         num_covered_bases: u32,
         num_mapped_reads: u64,
@@ -341,7 +341,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         if cumulative_sum > 0 {
                             *num_covered_bases += 1
                         }
-                        *total_count += cumulative_sum as u32;
+                        *total_count += cumulative_sum as u64;
                     }
                 }
                 debug!("After adding contig, have total_count {}, total_bases {}, \
@@ -468,7 +468,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     return 0.0
                 } else {
                         return match exclude_mismatches {
-                            true => (*total_count - *total_mismatches) as f32,
+                            true => (*total_count - (*total_mismatches as u64)) as f32,
                             false => *total_count as f32
                         } / final_total_bases as f32
                 }
