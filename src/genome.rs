@@ -666,7 +666,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
 
 fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) -> &'a [u8] {
     let target_name = target_names[tid as usize];
-    debug!("target name {:?}, separator {:?}", target_name, split_char);
+    trace!("target name {:?}, separator {:?}", target_name, split_char);
     let offset = find_first(target_name, split_char).expect(
         &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                  str::from_utf8(target_name).unwrap()));
