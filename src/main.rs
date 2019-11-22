@@ -113,7 +113,7 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
-                                         genomes or assembly, or minimap2 index
+                                         genomes or metagenome assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are
@@ -251,7 +251,7 @@ Define mapping(s) (required):
   Or do mapping:
 {}
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
-                                         genomes or assembly, or minimap2 index
+                                         genomes or metagenome assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are

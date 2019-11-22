@@ -145,14 +145,14 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     Some(genome_index) => {
                         reads_mapped_in_each_genome[genome_index] += 1;
                         num_mapped_reads_in_current_contig += 1;
-                        debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                        trace!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
                         let mut cursor: usize = record.pos() as usize;
                         for cig in record.cigar().iter() {
-                            debug!("Found cigar {:} from {}", cig, cursor);
+                            trace!("Found cigar {:} from {}", cig, cursor);
                             match cig {
                                 Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                                     // if M, X, or =, increment start and decrement end index
-                                    debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
+                                    trace!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                                     ups_and_downs[cursor] += 1;
                                     let final_pos = cursor + cig.len() as usize;
                                     if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
@@ -554,16 +554,16 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
 
                 // Add coverage info for the current record
                 // for each chunk of the cigar string
-                debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                trace!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
                 num_mapped_reads_in_current_contig += 1;
                 num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
-                    debug!("Found cigar {:} from {}", cig, cursor);
+                    trace!("Found cigar {:} from {}", cig, cursor);
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
-                            debug!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
+                            trace!("Adding M, X, or =, at {} and {}", cursor, cursor + cig.len() as usize);
                             ups_and_downs[cursor] += 1;
                             let final_pos = cursor + cig.len() as usize;
                             if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.

@@ -94,11 +94,11 @@ pub fn contig_coverage<R: NamedBamReader,
             .read(&mut record)
             .expect("Error while reading BAM record") == true {
 
-            debug!("Starting with a new read.. {:?}", record);
+            trace!("Starting with a new read.. {:?}", record);
             if (!flag_filters.include_supplementary && record.is_supplementary()) ||
                 (!flag_filters.include_secondary && record.is_secondary()) ||
                 (!flag_filters.include_improper_pairs && !record.is_proper_pair()){
-                    debug!("Skipping read based on flag filtering");
+                    trace!("Skipping read based on flag filtering");
                     continue;
                 }
             // if reference has changed, print the last record
@@ -127,14 +127,14 @@ pub fn contig_coverage<R: NamedBamReader,
                 num_mapped_reads_in_current_contig += 1;
 
                 // for each chunk of the cigar string
-                debug!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
+                trace!("read name {:?}", std::str::from_utf8(record.qname()).unwrap());
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
-                    debug!("Found cigar {:} from {}", cig, cursor);
+                    trace!("Found cigar {:} from {}", cig, cursor);
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or = increment start and decrement end index
-                            debug!("Adding M, X, or = at {} and {}", cursor, cursor + cig.len() as usize);
+                            trace!("Adding M, X, or = at {} and {}", cursor, cursor + cig.len() as usize);
                             ups_and_downs[cursor] += 1;
                             let final_pos = cursor + cig.len() as usize;
                             if final_pos < ups_and_downs.len() { // True unless the read hits the contig end.
@@ -172,7 +172,7 @@ pub fn contig_coverage<R: NamedBamReader,
                         }
                     };
 
-                debug!("At end of loop")
+                trace!("At end of loop")
             }
         }
 

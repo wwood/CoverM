@@ -384,8 +384,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let end_at = len1 - *contig_end_exclusion as usize - 1;
                 for (i, current) in ups_and_downs.iter().enumerate() {
                     if *current != 0 {
-                        debug!("cumulative sum {} and current {}", cumulative_sum, current);
-                        debug!("At i some, ups and downs {:?}", ups_and_downs);
+                        trace!("cumulative sum {} and current {}", cumulative_sum, current);
+                        trace!("At i {}, ups and downs {:?}", i, ups_and_downs);
                     }
                     cumulative_sum += current;
                     if i >= start_from && i <= end_at {
