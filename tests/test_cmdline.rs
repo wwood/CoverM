@@ -1328,10 +1328,11 @@ genome6~random_sequence_length_11003	0	0	0
                 "-r",
                 "tests/data/2seqs.fasta",
             ]).succeeds().unwrap();
-            
+
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "-v",
                 "-t",
                 "20",
                 "--coupled",
