@@ -132,7 +132,7 @@ impl MappingIndex for TemporaryIndexStruct {
 }
 impl Drop for TemporaryIndexStruct {
     fn drop(&mut self) {
-        debug!("Dropping index tempdir ..")
+        debug!("Dropping index tempdir {}", self.tempdir.path().to_string_lossy())
     }
 }
 
