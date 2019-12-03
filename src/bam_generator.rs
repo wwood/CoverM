@@ -335,7 +335,7 @@ pub fn generate_named_bam_readers_from_reads(
         tempdir: tmp_dir,
         fifo_path: fifo_path,
         pre_processes: vec![cmd],
-        command_strings: vec![format!("bash -c {}", cmd_string)],
+        command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files: log_files,
     }
