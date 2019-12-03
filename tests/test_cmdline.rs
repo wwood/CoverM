@@ -1311,6 +1311,50 @@ genome6~random_sequence_length_11003	0	0	0
                     "Minimap2 uses mapping parameters defined when the index was created, not parameters defined when mapping")
             .unwrap();
     }
+
+    #[test]
+    fn test_genome_narrowing_rochelles_bug() {
+        // Just seraching around here for a panic. No luck finding it as of writing.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/bad_read.1.fq",
+                "tests/data/bad_read.2.fq",
+                "tests/data/bad_read.1.fq",
+                "tests/data/bad_read.2.fq",
+                "-d",
+                "tests/data/genomes_dir",
+                "-r",
+                "tests/data/2seqs.fasta",
+            ]).succeeds().unwrap();
+            
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-t",
+                "20",
+                "--coupled",
+                "tests/data/bad_read.1.fq",
+                "tests/data/bad_read.2.fq",
+                "tests/data/bad_read.1.fq",
+                "tests/data/bad_read.2.fq",
+                "-s",
+                "q",
+                "--min-read-aligned-length",
+                "70",
+                "--min-read-percent-identity",
+                "0.97",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "count",
+                "--bam-file-cache-directory",
+                "/tmp/bam_files",
+                "-r",
+                "tests/data/2seqs.fasta",
+            ]).succeeds().unwrap();
+    }
 }
 
 
