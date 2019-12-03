@@ -98,6 +98,7 @@ impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReader {
 pub struct StreamingNamedBamReader {
     stoit_name: String,
     bam_reader: bam::Reader,
+    #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
@@ -147,8 +148,7 @@ pub fn complete_processes(
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
-    log_files: Vec<tempfile::NamedTempFile>,
-    tempdir: Option<TempDir>) {
+    log_files: Vec<tempfile::NamedTempFile>) {
 
     for mut process in processes {
         let es = process.wait().expect("Failed to glean exitstatus from mapping process");
@@ -169,13 +169,6 @@ pub fn complete_processes(
             error!("Cannot continue since mapping failed.");
             process::exit(1);
         }
-    }
-    // Close tempdir explicitly. Maybe not needed.
-    match tempdir {
-        Some(td) => {
-            td.close().expect("Failed to close tempdir");
-        },
-        None => {}
     }
 }
 
@@ -198,8 +191,7 @@ impl NamedBamReader for StreamingNamedBamReader {
             self.processes,
             self.command_strings,
             self.log_file_descriptions,
-            self.log_files,
-            Some(self.tempdir))
+            self.log_files)
     }
 
     fn set_threads(&mut self, n_threads: usize) {
@@ -434,6 +426,7 @@ pub fn generate_filtered_bam_readers_from_bam_files(
 pub struct StreamingFilteredNamedBamReader {
     stoit_name: String,
     filtered_stream: ReferenceSortedBamFilter,
+    #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
@@ -506,8 +499,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
             self.processes,
             self.command_strings,
             self.log_file_descriptions,
-            self.log_files,
-            Some(self.tempdir))
+            self.log_files)
     }
 
     fn set_threads(&mut self, n_threads: usize) {
@@ -706,8 +698,7 @@ impl NamedBamMaker {
             self.processes,
             self.command_strings,
             self.log_file_descriptions,
-            self.log_files,
-            None)
+            self.log_files)
     }
 }
 

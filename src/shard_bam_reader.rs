@@ -418,6 +418,7 @@ where T: GenomeExclusion {
 pub struct ShardedBamReader {
     stoit_name: String,
     bam_reader: bam::Reader,
+    #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
     sort_process: std::process::Child,
     sort_command_string: String,
@@ -445,8 +446,7 @@ impl NamedBamReader for ShardedBamReader {
             vec![self.sort_process],
             vec![self.sort_command_string],
             vec![self.sort_log_file_description],
-            vec![self.sort_log_file],
-            Some(self.tempdir));
+            vec![self.sort_log_file]);
     }
 
     fn set_threads(&mut self, n_threads: usize) {
