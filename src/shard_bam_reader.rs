@@ -596,7 +596,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
 
     debug!("Starting mapping processes");
     let pre_processes = vec![cmd];
-    let command_strings = vec![format!("bash -c {}", cmd_string)];
+    let command_strings = vec![format!("bash -c \"{}\"", cmd_string)];
     let mut processes = vec![];
     let mut i = 0;
     for mut preprocess in pre_processes {

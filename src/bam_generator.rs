@@ -667,7 +667,7 @@ pub fn generate_bam_maker_generator_from_reads(
             .expect("Unable to convert read1 name to file name").to_str()
             .expect("Unable to covert file name into str").to_string(),
         pre_processes: vec![cmd],
-        command_strings: vec![format!("bash -c {}", cmd_string)],
+        command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files: log_files,
     }
