@@ -42,6 +42,7 @@ impl TemporaryIndexStruct {
     pub fn new(
         mapping_program: MappingProgram,
         reference_path: &str,
+        num_threads: Option<usize>,
         index_creation_options: Option<&str>)
         -> TemporaryIndexStruct {
 
@@ -84,6 +85,14 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_NO_PRESET |
                     MappingProgram::BWA_MEM => { }
                 };
+                match num_threads {
+                    Some(t) => {
+                        cmd
+                            .arg("-t")
+                            .arg(&format!("{}", t));
+                    },
+                    None => {}
+                }
                 cmd
                     .arg("-d")
                     .arg(&index_path)
@@ -149,7 +158,7 @@ pub fn generate_bwa_index(
     }
     if num_existing == 0 {
         return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::BWA_MEM, reference_path, index_creation_parameters));
+            MappingProgram::BWA_MEM, reference_path, None, index_creation_parameters));
     } else if num_existing as usize != num_extensions {
         error!("BWA index appears to be incomplete, cannot continue.");
         process::exit(1);
@@ -162,6 +171,7 @@ pub fn generate_bwa_index(
 
 pub fn generate_minimap2_index(
     reference_path: &str,
+    num_threads: Option<usize>,
     index_creation_parameters: Option<&str>,
     mapping_program: MappingProgram)
     -> Box<dyn MappingIndex> {
@@ -169,6 +179,7 @@ pub fn generate_minimap2_index(
     return Box::new(TemporaryIndexStruct::new(
             mapping_program,
             reference_path,
+            num_threads,
             index_creation_parameters));
 }
 

@@ -926,6 +926,7 @@ fn setup_mapping_index(
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
+                    Some(m.value_of("threads").unwrap().parse::<usize>().unwrap()),
                     Some(m.value_of("minimap2-params").unwrap_or("")),
                     mapping_program,
                 ))

@@ -1186,6 +1186,7 @@ genome6	26.697144
 
     #[test]
     fn test_ont_two_samples() {
+        // Also tests that -t is being set when minimap2 indexing
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -1200,6 +1201,8 @@ genome6	26.697144
                 "tests/data/ont.reads.fq.gz",
                 "-r",
                 "tests/data/ont.ref.fna",
+                "-t",
+                "2",
                 "-v",
             ])
             .succeeds()
@@ -1211,7 +1214,7 @@ genome6	26.697144
                 ctg6	126.346375	0.0021053297	1	126.346375	0.0021053297	1\n")
             .stderr()
             .contains(
-                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-ont\" \"-d\"")
+                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-ont\" \"-t\" \"2\" \"-d\"")
             .unwrap();
     }
 
@@ -1242,7 +1245,7 @@ genome6	26.697144
                 ctg6	180.49483	0.0021053297	1	180.49483	0.0021053297	1\n")
             .stderr()
             .contains(
-                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-pb\" \"-d\"")
+                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-pb\" \"-t\" \"1\" \"-d\"")
             .unwrap();
     }
 
