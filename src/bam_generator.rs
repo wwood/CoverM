@@ -151,27 +151,45 @@ pub fn complete_processes(
     log_files: Vec<tempfile::NamedTempFile>,
     tempdir: Option<TempDir>) {
 
+    let mut failed_any = false;
+    let mut overall_stderrs = vec![];
     for mut process in processes {
         let es = process.wait().expect("Failed to glean exitstatus from mapping process");
-        if !es.success() {
-            error!("Error when running mapping process: {:?}", command_strings);
+        let failed = !es.success();
+        if failed || log_enabled!(log::Level::Debug) {
+            if failed {
+                failed_any = true;
+                error!("Error when running mapping process: {:?}", command_strings);
+            } else {
+                debug!("Successfully finished process {:?}", process);
+            }
             let mut err = String::new();
             process.stderr.expect("Failed to grab stderr from failed mapping process")
                 .read_to_string(&mut err).expect("Failed to read stderr into string");
-            error!("The overall STDERR was: {:?}", err);
-            for (description, tf) in log_file_descriptions.into_iter().zip(
-                log_files.into_iter()) {
-                let mut contents = String::new();
-                tf.into_file().read_to_string(&mut contents)
-                    .expect(&format!("Failed to read log file for {}", description));
-                error!("The STDERR for the {:} part was: {}",
-                       description, contents);
-            }
-            error!("Cannot continue since mapping failed.");
-            process::exit(1);
+            debug!("The overall STDERR was: {:?}", err);
+            overall_stderrs.push(err);
         }
-        debug!("Finished process {:?}", process);
     }
+    if failed_any || log_enabled!(log::Level::Debug) {
+        for (description, tf) in log_file_descriptions.iter().zip(
+            log_files.into_iter()) {
+            let mut contents = String::new();
+            tf.into_file().read_to_string(&mut contents)
+                .expect(&format!("Failed to read log file for {}", description));
+            if failed_any {
+                error!("The STDERR for the {:} part was: {}",
+                    description, contents);
+            } else {
+                debug!("The STDERR for the {:} part was: {}",
+                    description, contents);
+            }
+        }
+    }
+    if failed_any {
+        error!("Cannot continue since mapping failed.");
+        process::exit(1);
+    }
+
 
     // There's a (difficult to reproduce) single-thread issue where the tempdir
     // gets dropped before the process is finished. Hopefully putting a compiler
@@ -181,7 +199,7 @@ pub fn complete_processes(
     
     match tempdir {
         Some(td) => {
-            debug!("Dropping tempdir in 'complete_processes'");
+            debug!("Dropping tempdir {:?} in 'complete_processes'", td.path());
             td.close().expect("Failed to close tempdir");
         },
         None => {}
@@ -511,6 +529,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         self.filtered_stream.reader.header()
     }
     fn finish(self) {
+        debug!("Finishing StreamingFilteredNamedBamReader. Tempdir is {:?}", self.tempdir.path());
         complete_processes(
             self.processes,
             self.command_strings,
