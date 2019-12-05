@@ -6,7 +6,7 @@ use rand::prelude::*;
 
 use rust_htslib::bam;
 use rust_htslib::bam::Record;
-use rust_htslib::bam::record::CigarString;
+use rust_htslib::bam::record::{Cigar,CigarString};
 use rust_htslib::bam::Read as BamRead;
 use rust_htslib::bam::errors::Result as HtslibResult;
 
@@ -127,7 +127,7 @@ where T: GenomeExclusion {
     fn clone_record_into(from: &Record, to: &mut Record) {
         //Clone record using set() also add cigar and push aux tags NM
         to.set(from.qname(),
-               Some(&CigarString::from_str(from.cigar().to_string().as_str()).unwrap()),
+               Some(&CigarString(from.cigar().iter().map(|a| *a).collect::<Vec<Cigar>>())),
                from.seq().as_bytes().as_slice(),
                from.qual());
         to.set_pos(from.pos());
