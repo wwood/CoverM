@@ -1,6 +1,7 @@
 use std;
 use std::io::Read;
 use std::process;
+use std::sync::atomic::{compiler_fence, Ordering};
 
 use filter::*;
 use mapping_index_maintenance::MappingIndex;
@@ -169,10 +170,18 @@ pub fn complete_processes(
             error!("Cannot continue since mapping failed.");
             process::exit(1);
         }
+        debug!("Finished process {:?}", process);
     }
-    // Close tempdir explicitly. Maybe not needed.
+
+    // There's a (difficult to reproduce) single-thread issue where the tempdir
+    // gets dropped before the process is finished. Hopefully putting a compiler
+    // fence here stops this.
+    compiler_fence(Ordering::SeqCst);
+    debug!("After fence");
+    
     match tempdir {
         Some(td) => {
+            debug!("Dropping tempdir in 'complete_processes'");
             td.close().expect("Failed to close tempdir");
         },
         None => {}
