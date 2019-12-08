@@ -1317,47 +1317,37 @@ genome6~random_sequence_length_11003	0	0	0
 
     #[test]
     fn test_genome_narrowing_rochelles_bug() {
-        // Just seraching around here for a panic. No luck finding it as of writing.
-        Assert::main_binary()
-            .with_args(&[
-                "genome",
-                "--coupled",
-                "tests/data/bad_read.1.fq",
-                "tests/data/bad_read.2.fq",
-                "tests/data/bad_read.1.fq",
-                "tests/data/bad_read.2.fq",
-                "-d",
-                "tests/data/genomes_dir",
-                "-r",
-                "tests/data/2seqs.fasta",
-            ]).succeeds().unwrap();
+        // This was an issue where samtools sort was running out of memory, so
+        // starting to read the BAM failed, but coverm failed ungracefully.
+        // Fixed in 4d02762a8b9f830c0b081c86b44a642ce9617c48. Test commented out
+        // for posterity.
 
-        Assert::main_binary()
-            .with_args(&[
-                "genome",
-                "-v",
-                "-t",
-                "20",
-                "--coupled",
-                "tests/data/bad_read.1.fq",
-                "tests/data/bad_read.2.fq",
-                "tests/data/bad_read.1.fq",
-                "tests/data/bad_read.2.fq",
-                "-s",
-                "q",
-                "--min-read-aligned-length",
-                "70",
-                "--min-read-percent-identity",
-                "0.97",
-                "--min-covered-fraction",
-                "0",
-                "-m",
-                "count",
-                "--bam-file-cache-directory",
-                "/tmp/bam_files",
-                "-r",
-                "tests/data/2seqs.fasta",
-            ]).succeeds().unwrap();
+        // Assert::main_binary()
+        //     .with_args(&[
+        //         "genome",
+        //         "-v",
+        //         "-t",
+        //         "2000", // many threads means sort asks for too much mem
+        //         "--coupled",
+        //         "tests/data/bad_read.1.fq",
+        //         "tests/data/bad_read.2.fq",
+        //         "tests/data/bad_read.1.fq",
+        //         "tests/data/bad_read.2.fq",
+        //         "-s",
+        //         "q",
+        //         "--min-read-aligned-length",
+        //         "70",
+        //         "--min-read-percent-identity",
+        //         "0.97",
+        //         "--min-covered-fraction",
+        //         "0",
+        //         "-m",
+        //         "count",
+        //         "--bam-file-cache-directory",
+        //         "/tmp/bam_files",
+        //         "-r",
+        //         "tests/data/2seqs.fasta",
+        //     ]).succeeds().unwrap();
     }
 }
 
