@@ -129,8 +129,22 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
                 .spawn()
                 .expect("Unable to execute bash"));
         }
-        let bam_reader = bam::Reader::from_path(&self.fifo_path)
-            .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
+        let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
+            Ok(reader) => reader,
+            Err(upstream_error) => {
+                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
+                    self.fifo_path,
+                    upstream_error);
+                complete_processes(
+                    processes, 
+                    self.command_strings, 
+                    self.log_file_descriptions,
+                    self.log_files,
+                    Some(self.tempdir)
+                );
+                panic!("Failure to find or parse BAM file, cannot continue");
+            }
+        };
         return StreamingNamedBamReader {
             stoit_name: self.stoit_name,
             bam_reader: bam_reader,
@@ -494,8 +508,23 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
                            .spawn()
                            .expect("Unable to execute bash"));
         }
-        let bam_reader = bam::Reader::from_path(&self.fifo_path)
-            .expect(&format!("Unable to find BAM file {:?}", self.fifo_path));
+        let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
+            Ok(reader) => reader,
+            Err(upstream_error) => {
+                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
+                    self.fifo_path,
+                    upstream_error);
+                complete_processes(
+                    processes, 
+                    self.command_strings, 
+                    self.log_file_descriptions,
+                    self.log_files,
+                    Some(self.tempdir)
+                );
+                panic!("Failure to find or parse BAM file, cannot continue");
+            }
+        };
+
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
             self.flag_filters,
