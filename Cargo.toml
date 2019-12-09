@@ -11,6 +11,7 @@ readme = "README.md"
 exclude = [ # Max upload is 10MB, as of writing test data was 15MB
   "tests/*",
 ]
+default-run = "coverm"
 
 [dependencies]
 bio = "0.30.*"

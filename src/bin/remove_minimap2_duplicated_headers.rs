@@ -1,5 +1,4 @@
-
-
+use std::io::prelude::*;
 
 fn main() {
     // When minimap2 indices are too big, --split-prefix is required so that @SQ
@@ -13,5 +12,28 @@ fn main() {
     // @SQ lines before the @PG line are removed. Other lines are printed to
     // STDOUT.
 
-    // 
+    let mut is_before_pg = true;
+
+    let stdin = std::io::stdin();
+    for line_res in stdin.lock().lines() {
+        match line_res {
+            Ok(line) => {
+                if is_before_pg {
+                    if &line[0..3] == "@PG" {
+                        is_before_pg = false;
+                        println!("{}", line);
+                    } else {
+                        if &line[0..3] != "@SQ" {
+                            println!("{}", line);
+                        }
+                    }
+                } else {
+                    println!("{}", line);
+                }
+            },
+            Err(e) => {
+                panic!("{}",e);
+            }
+        }
+    }
 }

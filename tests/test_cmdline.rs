@@ -1349,6 +1349,36 @@ genome6~random_sequence_length_11003	0	0	0
         //         "tests/data/2seqs.fasta",
         //     ]).succeeds().unwrap();
     }
+
+    #[test]
+    fn test_remove_minimap2_duplicated_headers_normal_sam() {
+        Assert::cargo_binary("remove_minimap2_duplicated_headers")
+            .stdin("@PG yes OK\n\
+                @SQ 1\n\
+                @SQ 2\n")
+            .succeeds()
+            .stdout()
+            .is("@PG yes OK\n\
+                @SQ 1\n\
+                @SQ 2\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_remove_minimap2_duplicated_headers_duplicated_sam() {
+        Assert::cargo_binary("remove_minimap2_duplicated_headers")
+            .stdin("@SQ 1\n\
+                @SQ 2\n\
+                @PG yes OK\n\
+                @SQ 1\n\
+                @SQ 2\n")
+            .succeeds()
+            .stdout()
+            .is("@PG yes OK\n\
+                @SQ 1\n\
+                @SQ 2\n")
+            .unwrap();
+    }
 }
 
 
