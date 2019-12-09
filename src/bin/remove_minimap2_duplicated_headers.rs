@@ -12,6 +12,8 @@ fn main() {
     // @SQ lines before the @PG line are removed. Other lines are printed to
     // STDOUT.
 
+    // See https://github.com/lh3/minimap2/issues/527
+
     let mut is_before_pg = true;
 
     let stdin = std::io::stdin();

@@ -797,7 +797,7 @@ pub fn build_mapping_command(
     };
 
     return format!(
-        "{} {} -t {} {} '{}' {}",
+        "{} {} -t {} {} '{}' {}{}",
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             _ => {
@@ -820,5 +820,11 @@ pub fn build_mapping_command(
         threads,
         read_params1,
         reference,
-        read_params2)
+        read_params2,
+        match mapping_program {
+            MappingProgram::BWA_MEM => {""},
+            // Required because of https://github.com/lh3/minimap2/issues/527
+            _ => " | remove_minimap2_duplicated_headers"
+        }
+    )
 }
