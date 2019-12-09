@@ -26,6 +26,8 @@ install:
   - source activate test-environment
   - cargo build --verbose
 
+  - export PATH=target/debug:$PATH
+
 cache: cargo
 
 os:
@@ -37,5 +39,6 @@ env:
 build: false
 
 test_script:
-- PATH=target/debug:$PATH cargo test
+  - export PATH=target/debug:$PATH
+  - cargo test
 
