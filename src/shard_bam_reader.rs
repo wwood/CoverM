@@ -565,12 +565,18 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} 2>{} \
+         {} 2>{} {}\
          | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping
         mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // remove extraneous @SQ lines
+        match mapping_program {
+            MappingProgram::BWA_MEM => {""},
+            // Required because of https://github.com/lh3/minimap2/issues/527
+            _ => " | remove_minimap2_duplicated_headers"
+        },
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -606,8 +612,23 @@ pub fn generate_named_sharded_bam_readers_from_reads(
             .spawn()
             .expect("Unable to execute bash"));
     }
-    return bam::Reader::from_path(&fifo_path)
-        .expect(&format!("Unable to open bam file {:?}", &fifo_path))
+    return match bam::Reader::from_path(&fifo_path) {
+        Ok(reader) => reader,
+        Err(upstream_error) => {
+            error!("Failed to correctly find or parse BAM file at {:?}: {}", 
+                fifo_path,
+                upstream_error);
+            complete_processes(
+                processes, 
+                command_strings, 
+                log_descriptions,
+                log_files,
+                Some(tmp_dir)
+            );
+            panic!("Failure to find or parse BAM file, cannot continue");
+        }
+    };
+        
 }
 
 

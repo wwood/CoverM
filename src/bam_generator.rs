@@ -333,12 +333,18 @@ pub fn generate_named_bam_readers_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} 2>{} \
+         {} 2>{} {}\
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping program
         mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // remove extraneous @SQ lines
+        match mapping_program {
+            MappingProgram::BWA_MEM => {""},
+            // Required because of https://github.com/lh3/minimap2/issues/527
+            _ => " | remove_minimap2_duplicated_headers"
+        },
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -683,12 +689,18 @@ pub fn generate_bam_maker_generator_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} 2>{} \
+         {} 2>{} {} \
          | samtools sort -T '{}' -l0 -@ {} 2>{} \
          | samtools view {} -b -@ {} -o '{}' 2>{}",
         // Mapping program
         mapping_command,
         mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        // remove extraneous @SQ lines
+        match mapping_program {
+            MappingProgram::BWA_MEM => {""},
+            // Required because of https://github.com/lh3/minimap2/issues/527
+            _ => " | remove_minimap2_duplicated_headers"
+        },
         // samtools
         bwa_sort_prefix.path().to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
@@ -797,7 +809,7 @@ pub fn build_mapping_command(
     };
 
     return format!(
-        "{} {} -t {} {} '{}' {}{}",
+        "{} {} -t {} {} '{}' {}",
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             _ => {
@@ -820,11 +832,6 @@ pub fn build_mapping_command(
         threads,
         read_params1,
         reference,
-        read_params2,
-        match mapping_program {
-            MappingProgram::BWA_MEM => {""},
-            // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers"
-        }
+        read_params2
     )
 }
