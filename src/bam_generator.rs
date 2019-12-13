@@ -204,20 +204,11 @@ pub fn complete_processes(
         process::exit(1);
     }
 
-
-    // There's a (difficult to reproduce) single-thread issue where the tempdir
-    // gets dropped before the process is finished. Hopefully putting a compiler
-    // fence here stops this.
+    // There's (maybe) a (difficult to reproduce) single-thread issue where the
+    // tempdir gets dropped before the process is finished. Hopefully putting a
+    // compiler fence here stops this.
     compiler_fence(Ordering::SeqCst);
-    debug!("After fence");
-    
-    match tempdir {
-        Some(td) => {
-            debug!("Dropping tempdir {:?} in 'complete_processes'", td.path());
-            td.close().expect("Failed to close tempdir");
-        },
-        None => {}
-    }
+    debug!("After fence, for tempdir {:?}", tempdir);
 }
 
 impl NamedBamReader for StreamingNamedBamReader {
