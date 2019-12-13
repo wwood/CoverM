@@ -26,6 +26,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
     -> Vec<ReadsMapped> {
 
     let mut reads_mapped_vector = vec!();
+    let mut is_first_bam = true;
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
         bam_generated.set_threads(threads);
@@ -63,10 +64,13 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                 }
             }
         }
-        info!("Of {} reference IDs, {} were assigned to a genome and {} were not",
-              num_refs_in_genomes + num_refs_not_in_genomes,
-              num_refs_in_genomes, num_refs_not_in_genomes);
-        debug!("Reference number to genomes: {:?}", reference_number_to_genome_index);
+        if is_first_bam {
+            is_first_bam = false;
+            info!("Of {} reference IDs, {} were assigned to a genome and {} were not",
+                num_refs_in_genomes + num_refs_not_in_genomes,
+                num_refs_in_genomes, num_refs_not_in_genomes);
+        }
+        trace!("Reference number to genomes: {:?}", reference_number_to_genome_index);
         if num_refs_in_genomes == 0 {
             error!("Error: There are no found reference sequences that are a part of a genome");
             process::exit(1);
