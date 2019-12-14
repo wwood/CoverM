@@ -6,6 +6,9 @@ export LIBCLANG_PATH=~/.guix-profile/lib
 
 export VERSION=`cargo run -- --version |awk '{print $2}'`
 
+# For minimap header fix binary
+export PATH=target/debug:$PATH
+
 echo "Found version $VERSION .."
 
 echo "Building normally .."

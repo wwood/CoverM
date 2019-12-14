@@ -1,6 +1,6 @@
 [package]
 name = "coverm"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
 license = "GPL-3.0"
 description = "Read coverage calculator for metagenomics"
