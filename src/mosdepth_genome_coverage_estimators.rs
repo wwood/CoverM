@@ -641,6 +641,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             0.0
                         } else if total_bases < 3 {
                             0.0
+                        } else if counts.len() == 0 {
+                            0.0 // no mapped reads
                         } else {
                             counts[0] += unobserved_contig_length;
                             // Calculate variance using the shifted method

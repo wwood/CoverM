@@ -1379,6 +1379,33 @@ genome6~random_sequence_length_11003	0	0	0
                 @SQ 2\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_genome_all_methods() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "-b",
+                "tests/data/7seqs.fnaVbad_read.bam",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir_7seqs/",
+                "--genome-fasta-extension", "fasta",
+                "-t", "5",
+                "--methods", "covered_bases", "covered_fraction", "mean", "variance", "trimmed_mean", "rpkm", "relative_abundance", "length", 
+                "--min-covered-fraction", "0"
+            ]).succeeds().stdout().is(
+                "Sample	Genome	Covered Bases	Covered Fraction	Mean	Variance	Trimmed Mean	RPKM	Relative Abundance (%)	Length\n\
+                7seqs.fnaVbad_read	unmapped	NA	NA	NA	NA	NA	NA	0	NA\n\
+                7seqs.fnaVbad_read	genome2	899	0.899	1.6764706	0.51357985	1.6788511	500000	50	1000\n\
+                7seqs.fnaVbad_read	genome6	0	0	0	0	0	0	0	11003\n\
+                7seqs.fnaVbad_read	genome4	0	0	0	0	0	0	0	11002\n\
+                7seqs.fnaVbad_read	genome3	0	0	0	0	0	0	0	11001\n\
+                7seqs.fnaVbad_read	genome5	900	0.9	1.6764706	0.51357985	1.6788511	500000	50	1000\n\
+                7seqs.fnaVbad_read	genome1	0	0	0	0	0	0	0	22010\n"
+            ).unwrap()
+    }
 }
 
 
