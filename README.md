@@ -34,6 +34,23 @@ installing [Rust](https://www.rust-lang.org/).
 cargo install coverm
 ```
 
+### Development version
+To run an unreleased version of CoverM, after
+installing [Rust](https://www.rust-lang.org/):
+
+```
+git clone https://github.com/wwood/CoverM
+cd CoverM
+cargo run -- genome ...etc...
+```
+
+To run tests, the `$PATH` variable must be set:
+
+```
+cargo build
+PATH=target/debug:$PATH cargo test
+```
+
 ### Dependencies
 For the full suite of options, these additional programs must be installed:
 
