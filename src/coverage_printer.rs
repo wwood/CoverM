@@ -78,10 +78,15 @@ impl CoveragePrinter {
                             write!(print_stream, "{}\t{}\t{}",
                                    entry_names[entry_i].as_ref().unwrap(),
                                    stoit_by_entry_by_coverage[0][entry_i].coverages[0],
-                                   total_depth / coverages.len() as f32).unwrap();
+                                   // Not sure how to not have trailing zeroes with the formating specification
+                                   (total_depth as f64 * 10000.0 / coverages.len() as f64).round()/10000.0).unwrap();
                             for stoit_i in 0..coverages.len() {
                                 let c = &stoit_by_entry_by_coverage[stoit_i][entry_i].coverages;
-                                write!(print_stream, "\t{}\t{}", c[1], c[2]).unwrap();
+                                write!(
+                                    print_stream, 
+                                    "\t{}\t{}", 
+                                    (c[1] as f64 * 10000.0).round() / 10000.0,
+                                    (c[2] as f64 * 10000.0).round() / 10000.0).unwrap();
                             }
                             writeln!(print_stream).unwrap();
                         }
