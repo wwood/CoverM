@@ -8,6 +8,22 @@ mod tests {
     use std;
     use std::io::Write;
 
+    fn assert_equal_table(expected: &str, observed: &str) -> bool {
+        // assert the first lines are the same
+        let mut expected_lines = expected.lines();
+        let mut observed_lines = observed.lines();
+        assert_eq!(expected_lines.next(), observed_lines.next());
+
+        // assert the rest of the lines are equal after sorting
+        let mut expected_contents: Vec<_> = expected_lines.collect();
+        let mut observed_contents: Vec<_> = observed_lines.collect();
+        expected_contents.sort();
+        observed_contents.sort();
+        assert_eq!(expected_contents.join("\n"), observed_contents.join("\n"));
+
+        true
+    }
+
     #[test]
     fn test_filter_all_reads(){
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
@@ -1395,7 +1411,10 @@ genome6~random_sequence_length_11003	0	0	0
                 "-t", "5",
                 "--methods", "covered_bases", "covered_fraction", "mean", "variance", "trimmed_mean", "rpkm", "relative_abundance", "length", 
                 "--min-covered-fraction", "0"
-            ]).succeeds().stdout().is(
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(|observed| assert_equal_table(
                 "Sample	Genome	Covered Bases	Covered Fraction	Mean	Variance	Trimmed Mean	RPKM	Relative Abundance (%)	Length\n\
                 7seqs.fnaVbad_read	unmapped	NA	NA	NA	NA	NA	NA	0	NA\n\
                 7seqs.fnaVbad_read	genome2	899	0.899	1.6764706	0.51357985	1.6788511	500000	50	1000\n\
@@ -1403,8 +1422,10 @@ genome6~random_sequence_length_11003	0	0	0
                 7seqs.fnaVbad_read	genome4	0	0	0	0	0	0	0	11002\n\
                 7seqs.fnaVbad_read	genome3	0	0	0	0	0	0	0	11001\n\
                 7seqs.fnaVbad_read	genome5	900	0.9	1.6764706	0.51357985	1.6788511	500000	50	1000\n\
-                7seqs.fnaVbad_read	genome1	0	0	0	0	0	0	0	22010\n"
-            ).unwrap()
+                7seqs.fnaVbad_read	genome1	0	0	0	0	0	0	0	22010\n",
+                observed
+            ), "table incorrect")
+            .unwrap();
     }
 }
 
