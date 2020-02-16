@@ -1,3 +1,15 @@
+- [CoverM](#coverm)
+	- [Installation](#installation)
+		- [Pre-compiled binary](#pre-compiled-binary)
+		- [Install through the bioconda package](#install-through-the-bioconda-package)
+		- [Compiling from source](#compiling-from-source)
+		- [Development version](#development-version)
+		- [Dependencies](#dependencies)
+		- [Shell completion](#shell-completion)
+	- [Usage](#usage)
+	- [Calculation methods](#calculation-methods)
+	- [License](#license)
+  
 # CoverM
 
 [![Travis](https://img.shields.io/travis/wwood/CoverM.svg?style=flat-square)](https://travis-ci.org/wwood/CoverM)
