@@ -76,7 +76,8 @@ Define mapping(s) (required):
 
   Or do mapping:
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
-                                         genomes or assembly, or minimap2 index
+                                         genomes or metagenome assembly, or minimap2
+                                         index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are
@@ -108,7 +109,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded (experimental)              If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -215,7 +216,8 @@ Define mapping(s) (required):
   Or do mapping:
 {}
    -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated
-                                         genomes or assembly, or minimap2 index
+                                         genomes or metagenome assembly, or minimap2
+                                         index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
                                          If multiple references FASTA files are
@@ -246,7 +248,7 @@ Define mapping(s) (required):
                                          [default \"\"]
 
 Sharding i.e. multiple reference sets (optional):
-   --sharded (experimental)              If -b/--bam-files was used:
+   --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
                                            of a set of reads mapped to multiple
                                            reference contig sets. Choose the best
@@ -285,10 +287,10 @@ Dereplication (optional):
                                          all within a small distance, using Dashing for
                                          preclustering and FastANI for final ANI 
                                          calculation.
-   --output-dereplication-clusters <PATH>  Output clustered genome information to this
-                                         file as 'representative<TAB>member'
    --dereplication-ani <FLOAT>           Overall ANI level to dereplicate at with
                                          FastANI.
+   --output-dereplication-clusters <PATH>  Output clustered genome information to this
+                                         file as 'representative<TAB>member'
    --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
                                          for preclustering and to avoid FastANI on
                                          distant lineages within preclusters.
