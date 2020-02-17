@@ -384,6 +384,11 @@ the unfiltered BAM files in the saved_bam_files folder:"
 
   coverm genome --bam-files my.bam --genome-fasta-directory genomes_directory/
 
+{}
+
+  coverm genome --genome-fasta-directory genomes/ --dereplicate
+    --single single_reads.fq.gz
+
 See coverm genome --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm genome"),
@@ -395,6 +400,9 @@ the genome name from the contig name with '~' e.g. >genome10~contig15"
             ansi_term::Colour::Purple.paint(
                 "Example: Calculate coverage of genomes defined as .fna files in
 genomes_directory/ from a sorted BAM file:"
+            ),
+            ansi_term::Colour::Purple.paint(
+                "Example: Dereplicate genomes at 99% ANI before mapping unpaired reads:"
             ),
         )
         .to_string();
