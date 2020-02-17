@@ -462,7 +462,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ", MAPPER_HELP);
     };
 
-    return App::new("coverm")
+    let mut app = App::new("coverm")
         .version(crate_version!())
         .author("Ben J. Woodcroft <benjwoodcroft near gmail.com>")
         .about("Mapping coverage analysis for metagenomics")
@@ -483,6 +483,7 @@ Main subcommands:
 Less used utility subcommands:
 \tmake\tGenerate BAM files through alignment
 \tfilter\tRemove (or only keep) alignments with insufficient identity
+\tcluster\tDereplicate and cluster genomes
 \tshell-completion
 \t\tGenerate shell completion scripts
 
@@ -1229,4 +1230,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 )
                 .arg(Arg::with_name("quiet").short("q").long("quiet")),
             );
+
+    app = galah::cluster_argument_parsing::add_cluster_subcommand(app);
+    return app;
 }

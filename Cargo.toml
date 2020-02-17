@@ -28,6 +28,7 @@ rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"
 bird_tool_utils = "0.1.0"
+galah = { path="../galah" }
 
 [dev-dependencies]
 assert_cli = "0.6.*"

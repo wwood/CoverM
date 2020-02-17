@@ -385,10 +385,22 @@ fn main() {
 
             let single_genome = m.is_present("single-genome");
             let genomes_and_contigs_option = match separator.is_some() || single_genome {
-                true => None,
+                true => {
+                    if doing_dereplication(&m) {
+                        error!("Dereplication is not supported when using a separator or mapping against a single genome");
+                        process::exit(1);
+                    }
+                    None
+                },
                 false => match m.is_present("genome-definition") {
-                    true => Some(coverm::genome_parsing::read_genome_definition_file(
-                        m.value_of("genome-definition").unwrap(),
+                    true => {
+                        if doing_dereplication(&m) {
+                            error!("Dereplication is not currently supported when using a genome definition, each genome must be its own FASTA file");
+                            process::exit(1);
+                        }
+                        Some(coverm::genome_parsing::read_genome_definition_file(
+                            m.value_of("genome-definition").unwrap()
+                        },
                     )),
                     false => {
                         let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
@@ -396,8 +408,12 @@ fn main() {
                             "Reading contig names for {} genomes ..",
                             genome_fasta_files.len()
                         );
+                        let genome_fasta_files = genome_fasta_files.iter().map(|s| s.as_str()).collect();
+                        if doing_dereplication(&m) {
+                            galah::minhash_clustering::
+                        }
                         Some(coverm::genome_parsing::read_genome_fasta_files(
-                            &genome_fasta_files.iter().map(|s| s.as_str()).collect(),
+                            &genome_fasta_files,
                         ))
                     }
                 },
@@ -893,7 +909,10 @@ fn main() {
                 "coverm",           // We specify the bin name manually
                 shell, // Which shell to build completions for
                 &mut file); // Where write the completions to
-        }
+        },
+        Some("cluster") => {
+            galah::cluster_argument_parsing::run_cluster_subcommand(&matches);
+        },
         _ => {
             app.print_help().unwrap();
             println!();
