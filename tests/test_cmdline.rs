@@ -1427,6 +1427,28 @@ genome6~random_sequence_length_11003	0	0	0
             ), "table incorrect")
             .unwrap();
     }
+
+    #[test]
+    fn test_dereplicate() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/1mbp.fna",
+                "tests/data/set1/500kb.fna",
+                "-t", "5",
+                "--methods", "covered_fraction",
+                "--min-covered-fraction", "0",
+                "--dereplicate",
+                "--single", "tests/data/set1/1read.actually_fasta.fq"
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+                1mbp	0.00232\n")
+            .unwrap();
+    }
 }
 
 

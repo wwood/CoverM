@@ -40,7 +40,7 @@ extern crate lazy_static;
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 
-const MAPPER_HELP: &'static str = 
+const MAPPER_HELP: &'static str =
 "   -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
                                          \"minimap2-pb\", or \"minimap2-no-preset\").
@@ -112,7 +112,7 @@ Define mapping(s) (required):
                                          with samtools sort -n).
 
   Or do mapping:
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated
                                          genomes or metagenome assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
@@ -136,7 +136,7 @@ Define mapping(s) (required):
                                          has security implications if untrusted input
                                          is specified. '-a' is always specified.
                                          [default \"\"]
-   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
@@ -250,7 +250,7 @@ Define mapping(s) (required):
 
   Or do mapping:
 {}
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
+   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated
                                          genomes or metagenome assembly, or minimap2 index
                                          (with --minimap2-reference-is-index),
                                          or BWA index stem (with -p bwa-mem).
@@ -273,7 +273,7 @@ Define mapping(s) (required):
                                          has security implications if untrusted input
                                          is specified. '-a' is always specified.
                                          [default \"\"]
-   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
+   --minimap2-reference-is-index         Treat reference as a minimap2 database, not
                                          as a FASTA file.
    --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
                                          that usage of this parameter has security
@@ -383,59 +383,12 @@ fn main() {
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
-            let single_genome = m.is_present("single-genome");
-            let doing_dereplication = m.is_present("dereplicate");
-            let genomes_and_contigs_option = match m.is_present("separator") || single_genome {
-                true => {
-                    if doing_dereplication {
-                        if separator.is_some() {
-                            error!("Dereplication is not supported when using a separator: {:?}", separator);
-                        } else {
-                            error!("Dereplication is not supported when mapping against a single genome");
-                        }
-                        process::exit(1);
-                    }
+            let genomes_and_contigs_option_predereplication = if !m.is_present("separator") &&
+                !m.is_present("dereplicate") && !m.is_present("single-genome") {
+                    parse_all_genome_definitions(&m)
+                } else {
                     None
-                },
-                false => match m.is_present("genome-definition") {
-                    true => {
-                        if doing_dereplication {
-                            error!("Dereplication is not currently supported when using a genome definition, each genome must be its own FASTA file");
-                            process::exit(1);
-                        }
-                        Some(coverm::genome_parsing::read_genome_definition_file(
-                            m.value_of("genome-definition").unwrap()))
-                    },
-                    false => {
-                        let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
-                        info!(
-                            "Found {} genomes specified",
-                            genome_fasta_files.len()
-                        );
-                        let genome_fasta_files1: Vec<&str> = genome_fasta_files.iter().map(|s| s.as_str()).collect();
-                        let genome_fasta_files2 = if doing_dereplication {
-                            let clusterer = galah::cluster_argument_parsing::GalahClusterer {
-                                genome_fasta_paths: genome_fasta_files1.clone(),
-                                ani: parse_percentage(&m, "dereplication-ani"),
-                                distance_method: galah::cluster_argument_parsing::ClusteringDistanceMethod::DashingFastani  {
-                                    prethreshold_ani: parse_percentage(m, "dereplication-prethreshold-ani")
-                                },
-                                threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
-                            };
-                            galah::external_command_checker::check_for_dependencies();
-                            info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
-                            let cluster_indices = clusterer.cluster();
-                            info!("Finished dereplication, finding {} representative genomes.", cluster_indices.len());
-                            cluster_indices.iter().map(|cluster| genome_fasta_files1[cluster[0]]).collect::<Vec<_>>()
-                        } else {
-                            genome_fasta_files1
-                        };
-                        Some(coverm::genome_parsing::read_genome_fasta_files(
-                            &genome_fasta_files2,
-                        ))
-                    }
-                },
-            };
+                };
 
             // This would be better as a separate function to make this function
             // smaller, but I find this hard because functions cannot return a
@@ -481,7 +434,7 @@ fn main() {
                                     });
                                 GenomeExclusionTypes::SeparatorType
                             } else {
-                                match genomes_and_contigs_option {
+                                match genomes_and_contigs_option_predereplication {
                                     Some(ref gc) => {
                                         genome_exclusion_genomes_and_contigs =
                                             Some(GenomesAndContigsExclusionFilter {
@@ -507,6 +460,10 @@ fn main() {
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+
+                // Associate genomes and contig names, if required
+                let genomes_and_contigs_option = parse_all_genome_definitions(&m);
+
                 if filter_params.doing_filtering() {
                     run_genome(
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
@@ -577,20 +534,66 @@ fn main() {
                 let mapping_program = parse_mapping_program(&m);
                 external_command_checker::check_for_samtools();
 
-                // Generate a temporary file of concatenated genomes if needed.
-                let mut concatenated_genomes: Option<NamedTempFile> = None;
-                if !m.is_present("reference") && !m.is_present("bam-files") {
-                    let list_of_genome_fasta_files = parse_list_of_genome_fasta_files(m);
-                    info!(
-                        "Generating concatenated reference FASTA file of {} genomes ..",
-                        list_of_genome_fasta_files.len()
-                    );
-                    concatenated_genomes = Some(
-                        coverm::mapping_index_maintenance::generate_concatenated_fasta_file(
-                            &list_of_genome_fasta_files,
-                        ),
-                    );
-                }
+                // If genomes defined by file, then potentially dereplicate. If
+                // no reference is specified, make a new concatenated one.
+
+                // Get the GenomesAndContigs from the dereplicated genomes or
+                // list of genome fasta files.
+
+                let genome_fasta_files_opt = {
+                    match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, false) {
+                        Ok(paths) => {
+                            if paths.len() == 0 {
+                                error!("Genome paths were described, but ultimately none were found");
+                                process::exit(1);
+                            }
+                            Some(paths)
+                        },
+                        Err(_) => None
+                    }
+                };
+
+                let (concatenated_genomes, genomes_and_contigs_option) =
+                match m.is_present("reference") {
+                    true => {
+                        match genome_fasta_files_opt {
+                            Some(genome_paths) => {
+                                (
+                                    None,
+                                    extract_genomes_and_contigs_option(&m, &genome_paths.iter().map(|s| s.as_str()).collect())
+                                )
+                            },
+                            None => {
+                                (None, None)
+                            }
+                        }
+                    },
+                    false => {
+                        // Dereplicate if required
+                        let dereplicated_genomes: Vec<String> = if m.is_present("dereplicate") {
+                            dereplicate(&m, &genome_fasta_files_opt.unwrap())
+                        } else {
+                            genome_fasta_files_opt.unwrap()
+                        };
+                        info!("Profiling {} genomes", dereplicated_genomes.len());
+
+                        let list_of_genome_fasta_files = &dereplicated_genomes;
+                        info!(
+                            "Generating concatenated reference FASTA file of {} genomes ..",
+                            list_of_genome_fasta_files.len()
+                        );
+
+                        (
+                            Some(
+                                coverm::mapping_index_maintenance::generate_concatenated_fasta_file(
+                                    list_of_genome_fasta_files,
+                                ),
+                            ),
+                            extract_genomes_and_contigs_option(
+                                &m, &dereplicated_genomes.clone().iter().map(|s| s.as_str()).collect())
+                        )
+                    }
+                };
 
                 if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
@@ -728,7 +731,7 @@ fn main() {
                 while filtered
                     .read(&mut record)
                     .expect("Failure to read filtered BAM record") == true {
-                        
+
                     debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
                 }
@@ -972,6 +975,29 @@ fn setup_mapping_index(
     }
 }
 
+fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<String> {
+    info!(
+        "Found {} genomes specified before dereplication",
+        genome_fasta_files.len()
+    );
+    let clusterer = galah::cluster_argument_parsing::GalahClusterer {
+        genome_fasta_paths: genome_fasta_files.iter().map(|s| s.as_str()).collect(),
+        ani: parse_percentage(&m, "dereplication-ani"),
+        distance_method: galah::cluster_argument_parsing::ClusteringDistanceMethod::DashingFastani  {
+            prethreshold_ani: parse_percentage(m, "dereplication-prethreshold-ani")
+        },
+        threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
+    };
+    galah::external_command_checker::check_for_dependencies();
+    info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
+    let cluster_indices = clusterer.cluster();
+    info!("Finished dereplication, finding {} representative genomes.", cluster_indices.len());
+    debug!("Found cluster indices: {:?}", cluster_indices);
+    let reps = cluster_indices.iter().map(|cluster| genome_fasta_files[cluster[0]].clone()).collect::<Vec<_>>();
+    debug!("Found cluster representatives: {:?}", reps);
+    reps
+}
+
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     let mapping_program = match m.value_of("mapper") {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
@@ -1005,6 +1031,38 @@ struct EstimatorsAndTaker<'a> {
     columns_to_normalise: Vec<usize>,
     rpkm_column: Option<usize>,
     printer: CoveragePrinter,
+}
+
+fn extract_genomes_and_contigs_option(
+    m: &clap::ArgMatches,
+    genome_fasta_files: &Vec<&str>) -> Option<GenomesAndContigs> {
+    match m.is_present("genome-definition") {
+        true => {
+            Some(coverm::genome_parsing::read_genome_definition_file(
+                m.value_of("genome-definition").unwrap()))
+        },
+        false => {
+            Some(coverm::genome_parsing::read_genome_fasta_files(
+                &genome_fasta_files,
+            ))
+        }
+    }
+}
+
+fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContigs> {
+    if m.is_present("single-genome") || m.is_present("separator") {
+        None
+    } else if m.is_present("genome-definition") {
+        Some(coverm::genome_parsing::read_genome_definition_file(
+            m.value_of("genome-definition").unwrap()))
+    } else {
+        extract_genomes_and_contigs_option(
+            m,
+            &bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, true)
+                .expect("Failed to parse genome paths")
+                .iter().map(|s| s.as_str()).collect()
+        )
+    }
 }
 
 fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
@@ -1243,59 +1301,6 @@ fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
         // Separator is set by CoverM and written into the generated reference
         // fasta file.
         Some(CONCATENATED_FASTA_FILE_SEPARATOR.as_bytes()[0])
-    }
-}
-
-fn parse_list_of_genome_fasta_files(m: &clap::ArgMatches) -> Vec<String> {
-    match m.is_present("genome-fasta-files") {
-        true => m
-            .values_of("genome-fasta-files")
-            .unwrap()
-            .map(|s| s.to_string())
-            .collect(),
-        false => {
-            if m.is_present("genome-fasta-directory") {
-                let dir = m.value_of("genome-fasta-directory").unwrap();
-                let paths = std::fs::read_dir(dir).unwrap();
-                let mut genome_fasta_files: Vec<String> = vec![];
-                let extension = m.value_of("genome-fasta-extension").unwrap();
-                for path in paths {
-                    let file = path.unwrap().path();
-                    match file.extension() {
-                        Some(ext) => {
-                            if ext == extension {
-                                let s = String::from(file.to_string_lossy());
-                                genome_fasta_files.push(s);
-                            } else {
-                                info!(
-                                    "Not using directory entry '{}' as a genome FASTA file, as \
-                                     it does not end with the extension '{}'",
-                                    file.to_str().expect("UTF8 error in filename"),
-                                    extension
-                                );
-                            }
-                        }
-                        None => {
-                            info!(
-                                "Not using directory entry '{}' as a genome FASTA file",
-                                file.to_str().expect("UTF8 error in filename")
-                            );
-                        }
-                    }
-                }
-                if genome_fasta_files.len() == 0 {
-                    error!("Found 0 genomes from the genome-fasta-directory, cannot continue.");
-                    process::exit(1);
-                }
-                genome_fasta_files // return
-            } else {
-                error!(
-                    "Either a separator (-s) or path(s) to genome FASTA files \
-                     (with -d or -f) must be given"
-                );
-                process::exit(1);
-            }
-        }
     }
 }
 

@@ -22,7 +22,7 @@ install:
   - conda config --add channels bioconda
   - conda config --add channels conda-forge
 
-  - conda create -q -n test-environment bwa samtools minimap2
+  - conda create -q -n test-environment bwa samtools minimap2 dashing fastani
   - source activate test-environment
   - cargo build --verbose
 

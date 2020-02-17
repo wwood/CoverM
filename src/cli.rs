@@ -819,7 +819,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 )
 
                 .arg(Arg::with_name("dereplicate")
-                    .long("dereplicate"))
+                    .long("dereplicate")
+                    .conflicts_with("reference")
+                    .conflicts_with("bam-files"))
                 .arg(Arg::with_name("dereplication-ani")
                     .long("dereplication-ani")
                     .takes_value(true)
