@@ -285,11 +285,13 @@ Dereplication (optional):
                                          all within a small distance, using Dashing for
                                          preclustering and FastANI for final ANI 
                                          calculation.
-   --dereplication-ani                   Overall ANI level to dereplicate at with
+   --output-dereplication-clusters <PATH>  Output clustered genome information to this
+                                         file as 'representative<TAB>member'
+   --dereplication-ani <FLOAT>           Overall ANI level to dereplicate at with
                                          FastANI.
-   --dereplication-prethreshold-ani      Require at least this dashing-derived ANI for
-                                         preclustering and to avoid FastANI on distant 
-                                         lineages within preclusters.
+   --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
+                                         for preclustering and to avoid FastANI on
+                                         distant lineages within preclusters.
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -832,6 +834,9 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     .takes_value(true)
                     .default_value("95")
                 )
+                .arg(Arg::with_name("output-dereplication-clusters")
+                    .long("output-dereplication-clusters")
+                    .takes_value(true))
 
                 .arg(Arg::with_name("verbose").short("v").long("verbose"))
                 .arg(Arg::with_name("quiet").short("q").long("quiet")),

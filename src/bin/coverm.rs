@@ -21,6 +21,7 @@ use std::collections::HashSet;
 use std::env;
 use std::process;
 use std::str;
+use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -995,6 +996,20 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     debug!("Found cluster indices: {:?}", cluster_indices);
     let reps = cluster_indices.iter().map(|cluster| genome_fasta_files[cluster[0]].clone()).collect::<Vec<_>>();
     debug!("Found cluster representatives: {:?}", reps);
+
+    if m.is_present("output-dereplication-clusters") {
+        let path = m.value_of("output-dereplication-clusters").unwrap();
+        info!("Writing dereplication cluster memberships to {}", path);
+        let mut f = std::fs::File::create(path)
+            .expect("Error creating dereplication cluster output file");
+        for cluster in cluster_indices.iter() {
+            let rep = cluster[0];
+            for member in cluster {
+                writeln!(f, "{}\t{}", genome_fasta_files[rep], genome_fasta_files[*member])
+                    .expect("Failed to write a specific line to dereplication cluster file");
+            }
+        }
+    }
     reps
 }
 

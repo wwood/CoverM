@@ -7,6 +7,7 @@ mod tests {
     extern crate tempfile;
     use std;
     use std::io::Write;
+    use std::io::Read;
 
     fn assert_equal_table(expected: &str, observed: &str) -> bool {
         // assert the first lines are the same
@@ -1448,6 +1449,39 @@ genome6~random_sequence_length_11003	0	0	0
                 "Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
+    }
+
+    #[test]
+    fn test_dereplicate_output_clusters() {
+
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/1mbp.fna",
+                "tests/data/set1/500kb.fna",
+                "-t", "5",
+                "--methods", "covered_fraction",
+                "--min-covered-fraction", "0",
+                "--dereplicate",
+                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "--output-dereplication-clusters", t
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+                1mbp	0.00232\n")
+            .unwrap();
+        let mut s: String = "".to_string();
+        std::fs::File::open(t).unwrap().read_to_string(&mut s).unwrap();
+        assert_eq!(
+            "tests/data/set1/1mbp.fna	tests/data/set1/1mbp.fna\n\
+            tests/data/set1/1mbp.fna	tests/data/set1/500kb.fna\n",
+            s)
     }
 }
 
