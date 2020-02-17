@@ -279,6 +279,18 @@ Alignment filtering (optional):
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
 
+Dereplication (optional):
+   --dereplicate                         Do genome dereplication via average nucleotide
+                                         identity (ANI) - choose a genome to represent
+                                         all within a small distance, using Dashing for
+                                         preclustering and FastANI for final ANI 
+                                         calculation.
+   --dereplication-ani                   Overall ANI level to dereplicate at with
+                                         FastANI.
+   --dereplication-prethreshold-ani      Require at least this dashing-derived ANI for
+                                         preclustering and to avoid FastANI on distant 
+                                         lineages within preclusters.
+
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
                                          One or more (space separated) of:
@@ -805,6 +817,20 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .possible_values(&["sparse", "dense"])
                         .default_value("dense"),
                 )
+
+                .arg(Arg::with_name("dereplicate")
+                    .long("dereplicate"))
+                .arg(Arg::with_name("dereplication-ani")
+                    .long("dereplication-ani")
+                    .takes_value(true)
+                    .default_value("99")
+                )
+                .arg(Arg::with_name("dereplication-prethreshold-ani")
+                    .long("dereplication-prethreshold-ani")
+                    .takes_value(true)
+                    .default_value("95")
+                )
+
                 .arg(Arg::with_name("verbose").short("v").long("verbose"))
                 .arg(Arg::with_name("quiet").short("q").long("quiet")),
         )

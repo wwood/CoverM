@@ -384,36 +384,54 @@ fn main() {
             let separator = parse_separator(m);
 
             let single_genome = m.is_present("single-genome");
-            let genomes_and_contigs_option = match separator.is_some() || single_genome {
+            let doing_dereplication = m.is_present("dereplicate");
+            let genomes_and_contigs_option = match m.is_present("separator") || single_genome {
                 true => {
-                    if doing_dereplication(&m) {
-                        error!("Dereplication is not supported when using a separator or mapping against a single genome");
+                    if doing_dereplication {
+                        if separator.is_some() {
+                            error!("Dereplication is not supported when using a separator: {:?}", separator);
+                        } else {
+                            error!("Dereplication is not supported when mapping against a single genome");
+                        }
                         process::exit(1);
                     }
                     None
                 },
                 false => match m.is_present("genome-definition") {
                     true => {
-                        if doing_dereplication(&m) {
+                        if doing_dereplication {
                             error!("Dereplication is not currently supported when using a genome definition, each genome must be its own FASTA file");
                             process::exit(1);
                         }
                         Some(coverm::genome_parsing::read_genome_definition_file(
-                            m.value_of("genome-definition").unwrap()
-                        },
-                    )),
+                            m.value_of("genome-definition").unwrap()))
+                    },
                     false => {
                         let genome_fasta_files: Vec<String> = parse_list_of_genome_fasta_files(m);
                         info!(
-                            "Reading contig names for {} genomes ..",
+                            "Found {} genomes specified",
                             genome_fasta_files.len()
                         );
-                        let genome_fasta_files = genome_fasta_files.iter().map(|s| s.as_str()).collect();
-                        if doing_dereplication(&m) {
-                            galah::minhash_clustering::
-                        }
+                        let genome_fasta_files1: Vec<&str> = genome_fasta_files.iter().map(|s| s.as_str()).collect();
+                        let genome_fasta_files2 = if doing_dereplication {
+                            let clusterer = galah::cluster_argument_parsing::GalahClusterer {
+                                genome_fasta_paths: genome_fasta_files1.clone(),
+                                ani: parse_percentage(&m, "dereplication-ani"),
+                                distance_method: galah::cluster_argument_parsing::ClusteringDistanceMethod::DashingFastani  {
+                                    prethreshold_ani: parse_percentage(m, "dereplication-prethreshold-ani")
+                                },
+                                threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
+                            };
+                            galah::external_command_checker::check_for_dependencies();
+                            info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
+                            let cluster_indices = clusterer.cluster();
+                            info!("Finished dereplication, finding {} representative genomes.", cluster_indices.len());
+                            cluster_indices.iter().map(|cluster| genome_fasta_files1[cluster[0]]).collect::<Vec<_>>()
+                        } else {
+                            genome_fasta_files1
+                        };
                         Some(coverm::genome_parsing::read_genome_fasta_files(
-                            &genome_fasta_files,
+                            &genome_fasta_files2,
                         ))
                     }
                 },
