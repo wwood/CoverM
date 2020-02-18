@@ -9,7 +9,7 @@
 	- [Usage](#usage)
 	- [Calculation methods](#calculation-methods)
 	- [License](#license)
-  
+
 # CoverM
 
 [![Travis](https://img.shields.io/travis/wwood/CoverM.svg?style=flat-square)](https://travis-ci.org/wwood/CoverM)
@@ -73,6 +73,10 @@ For the full suite of options, these additional programs must be installed:
 and some mapping software:
 * [minimap2](https://github.com/lh3/minimap2)
 * [bwa](https://github.com/lh3/bwa)
+
+For dereplication:
+* [Dashing](https://github.com/dnbaker/dashing) v0.4.0
+* [FastANI](https://github.com/ParBLiSS/FastANI) v1.3
 
 ### Shell completion
 Completion scripts for various shells e.g. BASH can be generated. For example, to install the bash completion script
