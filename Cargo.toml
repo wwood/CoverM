@@ -28,7 +28,7 @@ rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"
 bird_tool_utils = "0.1.0"
-galah = { path="../galah" }
+galah = { git="https://github.com/wwood/galah", rev="139ff75c4c57e87ed984240b251f31a948962a13" }
 
 [dev-dependencies]
 assert_cli = "0.6.*"
