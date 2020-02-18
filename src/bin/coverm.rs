@@ -225,7 +225,19 @@ fn main() {
                                 error!("Genome paths were described, but ultimately none were found");
                                 process::exit(1);
                             }
-                            Some(paths)
+                            if m.is_present("checkm-tab-table") {
+                                let genomes_after_filtering = galah::cluster_argument_parsing::filter_genomes_through_checkm(
+                                    &paths, &m)
+                                    .expect("Error parsing CheckM-related options");
+                                info!("After filtering by CheckM, {} genomes remained", genomes_after_filtering.len());
+                                if genomes_after_filtering.len() == 0 {
+                                    error!("All genomes were filtered out, so none remain to be mapped to");
+                                    process::exit(1);
+                                }
+                                Some(genomes_after_filtering.iter().map(|s| s.to_string()).collect())
+                            } else {
+                                Some(paths)
+                            }
                         },
                         Err(_) => None
                     }
