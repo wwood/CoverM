@@ -1,6 +1,6 @@
 [package]
 name = "coverm"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
 license = "GPL-3.0"
 description = "Read coverage calculator for metagenomics"
@@ -28,7 +28,7 @@ rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"
 bird_tool_utils = "0.1.0"
-galah = { git="https://github.com/wwood/galah", rev="32f15399ed4adb5cdda985796592bc9782bb2388" }
+galah = "0.1.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
