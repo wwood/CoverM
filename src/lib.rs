@@ -13,6 +13,7 @@ pub mod shard_bam_reader;
 pub mod genome_exclusion;
 pub mod cli;
 pub mod genome_parsing;
+pub mod expectation_maximisation_genome;
 
 extern crate bio;
 #[macro_use]
