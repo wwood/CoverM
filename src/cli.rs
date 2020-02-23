@@ -291,6 +291,10 @@ Dereplication (optional):
                                          FastANI.
    --output-dereplication-clusters <PATH>  Output clustered genome information to this
                                          file as 'representative<TAB>member'
+   --checkm-tab-table                   CheckM tab table for defining genome quality,
+                                        which is in turn used during clustering. 
+                                        Genomes are scored as 
+                                        completeness-4*contamination.
    --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
                                          for preclustering and to avoid FastANI on
                                          distant lineages within preclusters.
