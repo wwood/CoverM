@@ -200,6 +200,8 @@ Define the contigs in each genome (exactly one of the following is required):
    -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
                                          specified with -d/--genome-fasta-directory
                                          [default \"fna\"]
+   -d, --genome-fasta-list <PATH>        File containing FASTA file paths, one per 
+                                         line
    --genome-definition <FILE>            File containing list of
                                          genome_name<tab>contig
                                          lines to define the genome of each contig
@@ -683,6 +685,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .required_unless_one(&[
                             "genome-fasta-files",
                             "genome-fasta-directory",
+                            "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
                             "full-help",
@@ -700,6 +703,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .required_unless_one(&[
                             "separator",
                             "genome-fasta-directory",
+                            "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
                             "full-help",
@@ -715,6 +719,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("single-genome")
                         .required_unless_one(&[
                             "genome-fasta-files",
+                            "genome-fasta-list",
+                            "separator",
+                            "single-genome",
+                            "genome-definition",
+                            "full-help",
+                        ])
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("genome-fasta-list")
+                        .long("genome-fasta-list")
+                        .conflicts_with("separator")
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-directory")
+                        .conflicts_with("single-genome")
+                        .required_unless_one(&[
+                            "genome-fasta-files",
+                            "genome-fasta-directory",
                             "separator",
                             "single-genome",
                             "genome-definition",
@@ -741,6 +763,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("single-genome")
                         .required_unless_one(&[
                             "genome-fasta-files",
+                            "genome-fasta-list",
                             "separator",
                             "single-genome",
                             "genome-fasta-directory",

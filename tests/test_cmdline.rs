@@ -1578,7 +1578,34 @@ genome6~random_sequence_length_11003	0	0	0
             .unwrap();
     }
 
+    #[test]
+    fn test_genome_fasta_list() {
+        let mut tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
 
+        writeln!(tf,"tests/data/set1/500kb.fna").unwrap();
+        writeln!(tf,"tests/data/set1/1mbp.fna").unwrap();
+        tf.flush().unwrap();
+        let t = tf.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-list",
+                t,
+                "-t", "5",
+                "--methods", "covered_fraction",
+                "--min-covered-fraction", "0",
+                "--single", "tests/data/set1/1read.actually_fasta.fq",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(|observed| assert_equal_table(
+                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+                500kb	0\n\
+                1mbp	0.00232\n",
+                observed), "table incorrect")
+            .unwrap();
+    }
 }
 
 
