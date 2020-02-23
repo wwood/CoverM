@@ -225,7 +225,7 @@ fn main() {
                                 error!("Genome paths were described, but ultimately none were found");
                                 process::exit(1);
                             }
-                            if m.is_present("checkm-tab-table") {
+                            if m.is_present("checkm-tab-table") || m.is_present("genome-info") {
                                 let genomes_after_filtering = galah::cluster_argument_parsing::filter_genomes_through_checkm(
                                     &paths, &m)
                                     .expect("Error parsing CheckM-related options");

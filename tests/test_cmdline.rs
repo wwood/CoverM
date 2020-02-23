@@ -1531,6 +1531,54 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
 
+
+
+    #[test]
+    fn test_dereplicate_genome_info_ordering() {
+        // 500kb specified first, should show up
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/500kb.fna",
+                "tests/data/set1/1mbp.fna",
+                "-t", "5",
+                "--methods", "covered_fraction",
+                "--min-covered-fraction", "0",
+                "--dereplicate",
+                "--single", "tests/data/set1/1read.actually_fasta.fq",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+                500kb	0.00464\n")
+            .unwrap();
+
+
+        // 500kb specified first, but checkm specified so should be second
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/500kb.fna",
+                "tests/data/set1/1mbp.fna",
+                "-t", "5",
+                "--methods", "covered_fraction",
+                "--min-covered-fraction", "0",
+                "--dereplicate",
+                "--genome-info", "tests/data/set1/genomeInfo.csv",
+                "--single", "tests/data/set1/1read.actually_fasta.fq",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+                1mbp	0.00232\n")
+            .unwrap();
+    }
+
+
 }
 
 

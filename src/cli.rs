@@ -289,12 +289,14 @@ Dereplication (optional):
                                          calculation.
    --dereplication-ani <FLOAT>           Overall ANI level to dereplicate at with
                                          FastANI.
+   --checkm-tab-table                    CheckM tab table for defining genome quality,
+                                         which is in turn used during clustering. 
+                                         Genomes are scored as 
+                                         completeness-4*contamination.
+   --genome-info                         dRep style genome info tabl for defining
+                                         quality. Used like --checkm-tab-table.
    --output-dereplication-clusters <PATH>  Output clustered genome information to this
                                          file as 'representative<TAB>member'
-   --checkm-tab-table                   CheckM tab table for defining genome quality,
-                                        which is in turn used during clustering. 
-                                        Genomes are scored as 
-                                        completeness-4*contamination.
    --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
                                          for preclustering and to avoid FastANI on
                                          distant lineages within preclusters.
@@ -859,6 +861,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     .conflicts_with("bam-file")
                     .conflicts_with("separator")
                     .conflicts_with("single-genome")
+                    .takes_value(true))
+                .arg(Arg::with_name("genome-info")
+                    .long("genome-info")
+                    .conflicts_with("reference")
+                    .conflicts_with("bam-file")
+                    .conflicts_with("separator")
+                    .conflicts_with("single-genome")
+                    .conflicts_with("checkm-tab-table")
                     .takes_value(true))
                 .arg(Arg::with_name("min-completeness")
                     .long("min-completeness")
