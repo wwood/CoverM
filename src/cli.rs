@@ -295,6 +295,10 @@ Dereplication (optional):
                                          completeness-4*contamination.
    --genome-info                         dRep style genome info tabl for defining
                                          quality. Used like --checkm-tab-table.
+   --min-completeness <FLOAT>            Ignore genomes with less completeness than 
+                                         this percentage.
+   --max-contamination <FLOAT>           Ignore genomes with more contamination than
+                                         this percentage.
    --output-dereplication-clusters <PATH>  Output clustered genome information to this
                                          file as 'representative<TAB>member'
    --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
