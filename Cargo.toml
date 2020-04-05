@@ -15,7 +15,7 @@ default-run = "coverm"
 
 [dependencies]
 bio = "0.30.*"
-rust-htslib = "0.26.*"
+rust-htslib = "0.29.*"
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.7.*"

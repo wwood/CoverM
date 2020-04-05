@@ -673,10 +673,10 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     let clusterer = galah::cluster_argument_parsing::GalahClusterer {
         genome_fasta_paths: genome_fasta_files.iter().map(|s| s.as_str()).collect(),
         ani: parse_percentage(&m, "dereplication-ani"),
-        distance_method: galah::cluster_argument_parsing::ClusteringDistanceMethod::DashingFastani  {
-            prethreshold_ani: parse_percentage(m, "dereplication-prethreshold-ani")
+        preclusterer: galah::cluster_argument_parsing::Preclusterer::Dashing  {
+            min_ani: parse_percentage(m, "dereplication-prethreshold-ani"),
+            threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
         },
-        threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
     };
     galah::external_command_checker::check_for_dependencies();
     info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
@@ -793,7 +793,7 @@ impl<'a> EstimatorsAndTaker<'a> {
     ) -> EstimatorsAndTaker<'a> {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
-        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
+        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u64).unwrap();
 
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
         let mut columns_to_normalise: Vec<usize> = vec![];
