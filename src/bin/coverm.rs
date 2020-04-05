@@ -800,7 +800,7 @@ impl<'a> EstimatorsAndTaker<'a> {
     ) -> EstimatorsAndTaker<'a> {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
-        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u32).unwrap();
+        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u64).unwrap();
 
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
         let mut columns_to_normalise: Vec<usize> = vec![];

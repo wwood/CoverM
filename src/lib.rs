@@ -34,7 +34,7 @@ extern crate bird_tool_utils;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct ReadsMapped {
     num_mapped_reads: u64,
     num_reads: u64

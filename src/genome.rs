@@ -97,8 +97,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut seen_ref_ids = BTreeSet::new();
         let mut num_mapped_reads_in_current_contig: u64 = 0;
-        let mut total_edit_distance_in_current_contig: u32 = 0;
-        let mut total_indels_in_current_contig: u32 = 0;
+        let mut total_edit_distance_in_current_contig: u64 = 0;
+        let mut total_indels_in_current_contig: u64 = 0;
         while bam_generated
             .read(&mut record)
             .expect("Failure to read BAM record") == true {
@@ -170,13 +170,13 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                                 },
                                 Cigar::Del(_) => {
                                     cursor += cig.len() as usize;
-                                    total_indels_in_current_contig += cig.len() as u32;
+                                    total_indels_in_current_contig += cig.len() as u64;
                                 },
                                 Cigar::RefSkip(_) => {
                                     cursor += cig.len() as usize;
                                 },
                                 Cigar::Ins(_) => {
-                                    total_indels_in_current_contig += cig.len() as u32;
+                                    total_indels_in_current_contig += cig.len() as u64;
                                 },
                                 Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                             }
@@ -187,7 +187,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                         total_edit_distance_in_current_contig += match
                             record.aux("NM".as_bytes()) {
                                 Some(aux) => {
-                                    aux.integer() as u32
+                                    aux.integer() as u64
                                 },
                                 None => {
                                     error!("Mapping record encountered that does not have an 'NM' \
@@ -222,7 +222,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
 
             // Print the coverages of each genome
             // Calculate the unobserved lengths of each genome's contigs
-            let mut unobserved_lengths: Vec<Vec<u32>> = vec!();
+            let mut unobserved_lengths: Vec<Vec<u64>> = vec!();
             for _ in 0..contigs_and_genomes.genomes.len() {
                 unobserved_lengths.push(vec![])
             }
@@ -291,7 +291,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
 
 #[derive(PartialEq, Debug)]
 struct UnobservedLengthAndFirstTid {
-    unobserved_contig_lengths: Vec<u32>,
+    unobserved_contig_lengths: Vec<u64>,
     first_tid: usize
 }
 
@@ -300,8 +300,8 @@ fn print_last_genomes<T: CoverageTaker>(
     last_genome: Option<&[u8]>,
     unobserved_contig_length_and_first_tid: &mut UnobservedLengthAndFirstTid,
     ups_and_downs: &Vec<i32>,
-    total_edit_distance_in_current_contig: u32,
-    total_indels_in_current_contig: u32,
+    total_edit_distance_in_current_contig: u64,
+    total_indels_in_current_contig: u64,
     current_genome: &[u8],
     coverage_estimators: &mut Vec<CoverageEstimator>,
     coverage_taker: &mut T,
@@ -386,16 +386,16 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
-        let fill_genome_length_forwards = 
-            |current_tid, target_genome: Option<&[u8]>| 
-            -> Vec<u32> {
+        let fill_genome_length_forwards =
+            |current_tid, target_genome: Option<&[u8]>|
+            -> Vec<u64> {
             // Iterating reads skips over contigs with no mapped reads, but the
             // length of these contigs is required to calculate the average
             // across all contigs. This closure returns the number of bases in
             // contigs with tid > current_tid that are part of the current
             // genome.
             if target_genome.is_none() { return vec![]; }
-            let mut extras: Vec<u32> = vec![];
+            let mut extras: Vec<u64> = vec![];
             let total_refs = header.target_count();
             let mut my_tid = current_tid + 1;
             while my_tid < total_refs {
@@ -412,11 +412,11 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
             return extras
         };
 
-        let fill_genome_length_backwards_to_last = 
-            |current_tid, last_tid, target_genome| 
-            -> Vec<u32> {
+        let fill_genome_length_backwards_to_last =
+            |current_tid, last_tid, target_genome|
+            -> Vec<u64> {
             if current_tid == 0 {return vec![]};
-            let mut extras: Vec<u32> = vec![];
+            let mut extras: Vec<u64> = vec![];
             let mut my_tid = last_tid + 1;
             while my_tid < current_tid {
                 if single_genome ||
@@ -444,8 +444,8 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
         let mut num_mapped_reads_total: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut num_mapped_reads_in_current_genome: u64 = 0;
-        let mut total_edit_distance_in_current_contig: u32 = 0;
-        let mut total_indels_in_current_contig: u32 = 0;
+        let mut total_edit_distance_in_current_contig: u64 = 0;
+        let mut total_indels_in_current_contig: u64 = 0;
         while bam_generated
             .read(&mut record)
             .expect("Failure to read BAM record") == true {
@@ -585,13 +585,13 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                         },
                         Cigar::Del(_) => {
                             cursor += cig.len() as usize;
-                            total_indels_in_current_contig += cig.len() as u32;
+                            total_indels_in_current_contig += cig.len() as u64;
                         },
                         Cigar::RefSkip(_) => {
                             cursor += cig.len() as usize;
                         },
                         Cigar::Ins(_) => {
-                            total_indels_in_current_contig += cig.len() as u32;
+                            total_indels_in_current_contig += cig.len() as u64;
                         },
                         Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
@@ -602,7 +602,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                 total_edit_distance_in_current_contig += match
                     record.aux("NM".as_bytes()) {
                         Some(aux) => {
-                            aux.integer() as u32
+                            aux.integer() as u64
                         },
                         None => {
                             error!("Mapping record encountered that does not have an 'NM' \
@@ -629,7 +629,7 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                    num_mapped_reads_in_current_contig, last_tid);
             // Collect the length of refs from the end of the last genome that had no hits
             debug!("Filling unobserved from {} to end for {:?}",
-                   last_tid, 
+                   last_tid,
                    match last_genome {
                        None => "No previous genome",
                        Some(g) => str::from_utf8(g).unwrap()
@@ -702,7 +702,7 @@ fn fill_genome_length_backwards(
         }
     }
 
-    let mut extras: Vec<u32> = vec![];
+    let mut extras: Vec<u64> = vec![];
     let mut my_tid = current_tid - 1;
     while single_genome ||
         extract_genome(my_tid, &target_names, split_char) == target_genome {
@@ -743,7 +743,7 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     let mut tid = current_tid;
     let mut genomes_to_print: Vec<&[u8]> = vec![];
     let mut genome_first_tids: Vec<usize> = vec![];
-    let mut genomes_unobserved_length: Vec<u32> = vec![];
+    let mut genomes_unobserved_length: Vec<u64> = vec![];
     let mut unobserved_length = 0;
     // Need to record the first TID from each genome, but we are iterating down.
     // Gah.

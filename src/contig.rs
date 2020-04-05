@@ -36,8 +36,8 @@ pub fn contig_coverage<R: NamedBamReader,
 
         let mut num_mapped_reads_total: u64 = 0;
         let mut num_mapped_reads_in_current_contig: u64 = 0;
-        let mut total_indels_in_current_contig: u32 = 0;
-        let mut total_edit_distance_in_current_contig: u32 = 0;
+        let mut total_indels_in_current_contig: u64 = 0;
+        let mut total_edit_distance_in_current_contig: u64 = 0;
 
         let mut process_previous_contigs = |last_tid, tid,
         coverage_estimators: &mut Vec<CoverageEstimator>,
@@ -148,14 +148,14 @@ pub fn contig_coverage<R: NamedBamReader,
                         },
                         Cigar::Del(_) => {
                             cursor += cig.len() as usize;
-                            total_indels_in_current_contig += cig.len() as u32;
+                            total_indels_in_current_contig += cig.len() as u64;
                         },
                         Cigar::RefSkip(_) => {
                             // if D or N, move the cursor
                             cursor += cig.len() as usize;
                         },
                         Cigar::Ins(_) => {
-                            total_indels_in_current_contig += cig.len() as u32;
+                            total_indels_in_current_contig += cig.len() as u64;
                         },
                         Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
@@ -166,7 +166,7 @@ pub fn contig_coverage<R: NamedBamReader,
                 total_edit_distance_in_current_contig += match
                     record.aux("NM".as_bytes()) {
                         Some(aux) => {
-                            aux.integer() as u32
+                            aux.integer() as u64
                         },
                         None => {
                             error!("Mapping record encountered that does not have an 'NM' \

@@ -32,7 +32,7 @@ pub trait CoverageTaker {
     // This function is only used with
     // CoverageEstimator::PileupCountsGenomeCoverageEstimator, and is a bit of a
     // hack to have it in this generalised trait, really.
-    fn add_coverage_entry(&mut self, num_reads: usize, num_bases: u32);
+    fn add_coverage_entry(&mut self, num_reads: usize, num_bases: u64);
     fn finish_entry(&mut self);
 }
 
@@ -188,7 +188,7 @@ impl<'a> CoverageTaker for CoverageTakerType<'a> {
     // This function is only used with
     // CoverageEstimator::PileupCountsGenomeCoverageEstimator, and is a bit of a
     // hack, really.
-    fn add_coverage_entry(&mut self, num_reads: usize, num_bases: u32) {
+    fn add_coverage_entry(&mut self, num_reads: usize, num_bases: u64) {
         match self {
             CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter{..} |
             CoverageTakerType::CachedSingleFloatCoverageTaker{..} => {
