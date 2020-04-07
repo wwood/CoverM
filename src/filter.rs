@@ -1,8 +1,7 @@
-use std::rc::Rc;
 use std::str;
 use std::collections::BTreeMap;
 use std::process;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use FlagFilter;
 
