@@ -132,12 +132,12 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
         let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
             Ok(reader) => reader,
             Err(upstream_error) => {
-                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
+                error!("Failed to correctly find or parse BAM file at {:?}: {}",
                     self.fifo_path,
                     upstream_error);
                 complete_processes(
-                    processes, 
-                    self.command_strings, 
+                    processes,
+                    self.command_strings,
                     self.log_file_descriptions,
                     self.log_files,
                     Some(self.tempdir)
@@ -508,12 +508,12 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
         let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
             Ok(reader) => reader,
             Err(upstream_error) => {
-                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
+                error!("Failed to correctly find or parse BAM file at {:?}: {}",
                     self.fifo_path,
                     upstream_error);
                 complete_processes(
-                    processes, 
-                    self.command_strings, 
+                    processes,
+                    self.command_strings,
                     self.log_file_descriptions,
                     self.log_files,
                     Some(self.tempdir)
