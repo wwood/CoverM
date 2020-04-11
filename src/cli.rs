@@ -1,10 +1,16 @@
 use clap::*;
 
-const MAPPING_SOFTWARE_LIST: &[&str] = &["bwa-mem", "minimap2-sr", "minimap2-ont", "minimap2-pb","minimap2-no-preset"];
+const MAPPING_SOFTWARE_LIST: &[&str] = &[
+    "bwa-mem",
+    "minimap2-sr",
+    "minimap2-ont",
+    "minimap2-pb",
+    "minimap2-no-preset",
+];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
-const MAPPER_HELP: &'static str = 
-"   -p, --mapper <NAME>                   Underlying mapping software used
+const MAPPER_HELP: &'static str =
+    "   -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
                                          \"minimap2-pb\", or \"minimap2-no-preset\").
                                          minimap2 -sr, -ont, -pb, -no-preset specify
@@ -64,7 +70,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>"
 pub fn contig_full_help() -> &'static str {
     lazy_static! {
         static ref CONTIG_HELP: String = format!(
-        "coverm contig: Calculate read coverage per-contig
+            "coverm contig: Calculate read coverage per-contig
 
 Define mapping(s) (required):
   Either define BAM:
@@ -180,7 +186,9 @@ Other arguments (optional):
                                          log messages
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
-", MAPPER_HELP);
+",
+            MAPPER_HELP
+        );
     }
     &CONTIG_HELP
 }
@@ -188,7 +196,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 pub fn genome_full_help() -> &'static str {
     lazy_static! {
         static ref GENOME_HELP: String = format!(
-        "coverm genome: Calculate read coverage per-genome
+            "coverm genome: Calculate read coverage per-genome
 
 Define the contigs in each genome (exactly one of the following is required):
    -s, --separator <CHARACTER>           This character separates genome names
@@ -353,7 +361,9 @@ Other arguments (optional):
                                          log messages
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
-", MAPPER_HELP);
+",
+            MAPPER_HELP
+        );
     }
     &GENOME_HELP
 }
@@ -418,9 +428,8 @@ the genome name from the contig name with '~' e.g. >genome10~contig15"
                 "Example: Calculate coverage of genomes defined as .fna files in
 genomes_directory/ from a sorted BAM file:"
             ),
-            ansi_term::Colour::Purple.paint(
-                "Example: Dereplicate genomes at 99% ANI before mapping unpaired reads:"
-            ),
+            ansi_term::Colour::Purple
+                .paint("Example: Dereplicate genomes at 99% ANI before mapping unpaired reads:"),
         )
         .to_string();
         static ref FILTER_HELP: String = format!(
@@ -500,7 +509,9 @@ Example usage:
   coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq
 
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
-", MAPPER_HELP);
+",
+            MAPPER_HELP
+        );
     };
 
     let mut app = App::new("coverm")

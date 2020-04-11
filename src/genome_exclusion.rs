@@ -1,15 +1,15 @@
 use std::collections::HashSet;
 use std::str;
 
-use genomes_and_contigs::GenomesAndContigs;
 use genomes_and_contigs::find_first;
+use genomes_and_contigs::GenomesAndContigs;
 
 pub enum GenomeExcluders<'a> {
     SeparatorGenomeExclusionFilter {
         split_char: u8,
-        excluded_genomes: HashSet<&'a [u8]>
+        excluded_genomes: HashSet<&'a [u8]>,
     },
-    NoExclusionGenomeFilter{}
+    NoExclusionGenomeFilter {},
 }
 
 pub trait GenomeExclusion {
@@ -27,14 +27,17 @@ impl<'a> GenomeExclusion for GenomesAndContigsExclusionFilter<'a> {
         match self.genomes_and_contigs.genome_of_contig(&contig_str) {
             Some(g) => {
                 if self.excluded_genomes.contains(&g.as_bytes()) {
-                    debug!("Excluding contig '{}' as it is part of excluded genome '{}'",
-                           str::from_utf8(contig_name).unwrap(), g);
+                    debug!(
+                        "Excluding contig '{}' as it is part of excluded genome '{}'",
+                        str::from_utf8(contig_name).unwrap(),
+                        g
+                    );
                     true
                 } else {
                     false
                 }
             }
-            None => false
+            None => false,
         }
     }
 }
@@ -46,7 +49,10 @@ pub struct SeparatorGenomeExclusionFilter<'a> {
 
 impl<'a> GenomeExclusion for SeparatorGenomeExclusionFilter<'a> {
     fn is_excluded(&self, contig_name: &[u8]) -> bool {
-        debug!("contig name {:?}, separator {:?}", contig_name, self.split_char);
+        debug!(
+            "contig name {:?}, separator {:?}",
+            contig_name, self.split_char
+        );
         let offset = find_first(contig_name, self.split_char).expect(
             &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                      self.split_char));
@@ -57,7 +63,9 @@ impl<'a> GenomeExclusion for SeparatorGenomeExclusionFilter<'a> {
 
 pub struct NoExclusionGenomeFilter {}
 impl GenomeExclusion for NoExclusionGenomeFilter {
-    fn is_excluded(&self, _contig_name: &[u8]) -> bool { false }
+    fn is_excluded(&self, _contig_name: &[u8]) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]
@@ -91,7 +99,7 @@ mod tests {
         hashset.insert(b"genomeYes");
         let ex = SeparatorGenomeExclusionFilter {
             split_char: b"="[0],
-            excluded_genomes: hashset
+            excluded_genomes: hashset,
         };
         assert_eq!(true, ex.is_excluded(b"genomeYes=contig1"));
         assert_eq!(false, ex.is_excluded(b"genomeNo=contig1"));

@@ -11,8 +11,8 @@ use FlagFilter;
 use rust_htslib::bam;
 use rust_htslib::bam::Read as BamRead;
 
-use nix::unistd;
 use nix::sys::stat;
+use nix::unistd;
 use tempdir::TempDir;
 use tempfile;
 
@@ -76,13 +76,12 @@ impl NamedBamReader for BamFileNamedReader {
 
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
-            self.bam_reader.set_threads(n_threads-1).unwrap();
+            self.bam_reader.set_threads(n_threads - 1).unwrap();
         }
     }
 
-
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.num_detected_primary_alignments
+        return self.num_detected_primary_alignments;
     }
 }
 
@@ -125,22 +124,21 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
         for mut preprocess in self.pre_processes {
             debug!("Running mapping command: {}", self.command_strings[i]);
             i += 1;
-            processes.push(preprocess
-                .spawn()
-                .expect("Unable to execute bash"));
+            processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
         let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
             Ok(reader) => reader,
             Err(upstream_error) => {
-                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
-                    self.fifo_path,
-                    upstream_error);
+                error!(
+                    "Failed to correctly find or parse BAM file at {:?}: {}",
+                    self.fifo_path, upstream_error
+                );
                 complete_processes(
-                    processes, 
-                    self.command_strings, 
+                    processes,
+                    self.command_strings,
                     self.log_file_descriptions,
                     self.log_files,
-                    Some(self.tempdir)
+                    Some(self.tempdir),
                 );
                 panic!("Failure to find or parse BAM file, cannot continue");
             }
@@ -154,7 +152,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
             num_detected_primary_alignments: 0,
-        }
+        };
     }
 }
 
@@ -163,12 +161,14 @@ pub fn complete_processes(
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
-    tempdir: Option<TempDir>) {
-
+    tempdir: Option<TempDir>,
+) {
     let mut failed_any = false;
     let mut overall_stderrs = vec![];
     for mut process in processes {
-        let es = process.wait().expect("Failed to glean exitstatus from mapping process");
+        let es = process
+            .wait()
+            .expect("Failed to glean exitstatus from mapping process");
         let failed = !es.success();
         if failed || log_enabled!(log::Level::Debug) {
             if failed {
@@ -178,24 +178,25 @@ pub fn complete_processes(
                 debug!("Successfully finished process {:?}", process);
             }
             let mut err = String::new();
-            process.stderr.expect("Failed to grab stderr from failed mapping process")
-                .read_to_string(&mut err).expect("Failed to read stderr into string");
+            process
+                .stderr
+                .expect("Failed to grab stderr from failed mapping process")
+                .read_to_string(&mut err)
+                .expect("Failed to read stderr into string");
             debug!("The overall STDERR was: {:?}", err);
             overall_stderrs.push(err);
         }
     }
     if failed_any || log_enabled!(log::Level::Debug) {
-        for (description, tf) in log_file_descriptions.iter().zip(
-            log_files.into_iter()) {
+        for (description, tf) in log_file_descriptions.iter().zip(log_files.into_iter()) {
             let mut contents = String::new();
-            tf.into_file().read_to_string(&mut contents)
+            tf.into_file()
+                .read_to_string(&mut contents)
                 .expect(&format!("Failed to read log file for {}", description));
             if failed_any {
-                error!("The STDERR for the {:} part was: {}",
-                    description, contents);
+                error!("The STDERR for the {:} part was: {}", description, contents);
             } else {
-                debug!("The STDERR for the {:} part was: {}",
-                    description, contents);
+                debug!("The STDERR for the {:} part was: {}", description, contents);
             }
         }
     }
@@ -231,35 +232,36 @@ impl NamedBamReader for StreamingNamedBamReader {
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
-            Some(self.tempdir))
+            Some(self.tempdir),
+        )
     }
 
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
-            self.bam_reader.set_threads(n_threads-1).unwrap();
+            self.bam_reader.set_threads(n_threads - 1).unwrap();
         }
     }
 
-
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.num_detected_primary_alignments
+        return self.num_detected_primary_alignments;
     }
 }
 
-pub fn generate_named_bam_readers_from_bam_files(
-    bam_paths: Vec<&str>) -> Vec<BamFileNamedReader>{
-
-    bam_paths.iter().map(
-        |path|
-
-       BamFileNamedReader {
-           stoit_name: std::path::Path::new(path).file_stem().unwrap().to_str().expect(
-               "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string(),
-           bam_reader: bam::Reader::from_path(path).expect(
-               &format!("Unable to find BAM file {}", path)),
-           num_detected_primary_alignments: 0,
-       }
-    ).collect()
+pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<BamFileNamedReader> {
+    bam_paths
+        .iter()
+        .map(|path| BamFileNamedReader {
+            stoit_name: std::path::Path::new(path)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
+                .to_string(),
+            bam_reader: bam::Reader::from_path(path)
+                .expect(&format!("Unable to find BAM file {}", path)),
+            num_detected_primary_alignments: 0,
+        })
+        .collect()
 }
 
 pub fn generate_named_bam_readers_from_reads(
@@ -272,10 +274,9 @@ pub fn generate_named_bam_readers_from_reads(
     cached_bam_file: Option<&str>,
     discard_unmapped: bool,
     mapping_options: Option<&str>,
-    include_reference_in_stoit_name: bool) -> StreamingNamedBamReaderGenerator {
-
-    let tmp_dir = TempDir::new("coverm_fifo")
-        .expect("Unable to create temporary directory");
+    include_reference_in_stoit_name: bool,
+) -> StreamingNamedBamReaderGenerator {
+    let tmp_dir = TempDir::new("coverm_fifo").expect("Unable to create temporary directory");
     let fifo_path = tmp_dir.path().join("foo.pipe");
 
     // create new fifo and give read, write and execute rights to the owner.
@@ -284,14 +285,16 @@ pub fn generate_named_bam_readers_from_reads(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let mapping_log = tempfile::NamedTempFile::new()
-        .expect(&format!("Failed to create {:?} log tempfile", mapping_program));
-    let samtools2_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create second samtools log tempfile");
+    let mapping_log = tempfile::NamedTempFile::new().expect(&format!(
+        "Failed to create {:?} log tempfile",
+        mapping_program
+    ));
+    let samtools2_log =
+        tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
     // borrow checker.
-    let samtools_view_cache_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create cache samtools view log tempfile");
+    let samtools_view_cache_log =
+        tempfile::NamedTempFile::new().expect("Failed to create cache samtools view log tempfile");
 
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
@@ -300,13 +303,19 @@ pub fn generate_named_bam_readers_from_reads(
                 // tee
                 fifo_path,
                 // samtools view
-                match discard_unmapped { true => "-F4", false => "" },
-                threads-1,
+                match discard_unmapped {
+                    true => "-F4",
+                    false => "",
+                },
+                threads - 1,
                 path,
-                samtools_view_cache_log.path().to_str()
-                    .expect("Failed to convert tempfile path to str"))
-        },
-        None => format!("> {:?}", fifo_path)
+                samtools_view_cache_log
+                    .path()
+                    .to_str()
+                    .expect("Failed to convert tempfile path to str")
+            )
+        }
+        None => format!("> {:?}", fifo_path),
     };
 
     let mapping_command = build_mapping_command(
@@ -316,7 +325,7 @@ pub fn generate_named_bam_readers_from_reads(
         read1_path,
         reference,
         read2_path,
-        mapping_options
+        mapping_options,
     );
     let bwa_sort_prefix = tempfile::Builder::new()
         .prefix("coverm-make-samtools-sort")
@@ -329,30 +338,41 @@ pub fn generate_named_bam_readers_from_reads(
          {}",
         // Mapping program
         mapping_command,
-        mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        mapping_log
+            .path()
+            .to_str()
+            .expect("Failed to convert tempfile path to str"),
         // remove extraneous @SQ lines
         match mapping_program {
-            MappingProgram::BWA_MEM => {""},
+            MappingProgram::BWA_MEM => {
+                ""
+            }
             // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers"
+            _ => " | remove_minimap2_duplicated_headers",
         },
         // samtools
-        bwa_sort_prefix.path().to_str()
+        bwa_sort_prefix
+            .path()
+            .to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
-        threads-1,
-        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        threads - 1,
+        samtools2_log
+            .path()
+            .to_str()
+            .expect("Failed to convert tempfile path to str"),
         // Caching (or not)
-        cached_bam_file_args);
+        cached_bam_file_args
+    );
     debug!("Queuing cmd_string: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
-    cmd
-        .arg("-c")
+    cmd.arg("-c")
         .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
 
     let mut log_descriptions = vec![
         format!("{:?}", mapping_program).to_string(),
-        "samtools sort".to_string()];
+        "samtools sort".to_string(),
+    ];
     let mut log_files = vec![mapping_log, samtools2_log];
     if cached_bam_file.is_some() {
         log_descriptions.push("samtools view for cache".to_string());
@@ -360,13 +380,22 @@ pub fn generate_named_bam_readers_from_reads(
     }
 
     let stoit_name = match include_reference_in_stoit_name {
-        true => std::path::Path::new(reference).file_name()
-            .expect("Unable to convert reference to file name").to_str()
-            .expect("Unable to covert file name into str").to_string()+"/",
-        false => "".to_string()
-    } + &std::path::Path::new(read1_path).file_name()
-        .expect("Unable to convert read1 name to file name").to_str()
-        .expect("Unable to covert file name into str").to_string();
+        true => {
+            std::path::Path::new(reference)
+                .file_name()
+                .expect("Unable to convert reference to file name")
+                .to_str()
+                .expect("Unable to covert file name into str")
+                .to_string()
+                + "/"
+        }
+        false => "".to_string(),
+    } + &std::path::Path::new(read1_path)
+        .file_name()
+        .expect("Unable to convert read1 name to file name")
+        .to_str()
+        .expect("Unable to covert file name into str")
+        .to_string();
 
     return StreamingNamedBamReaderGenerator {
         stoit_name: stoit_name,
@@ -376,9 +405,8 @@ pub fn generate_named_bam_readers_from_reads(
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files: log_files,
-    }
+    };
 }
-
 
 pub struct FilteredBamReader {
     stoit_name: String,
@@ -398,11 +426,14 @@ impl NamedBamReader for FilteredBamReader {
     fn finish(self) {}
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
-            self.filtered_stream.reader.set_threads(n_threads-1).unwrap();
+            self.filtered_stream
+                .reader
+                .set_threads(n_threads - 1)
+                .unwrap();
         }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.filtered_stream.num_detected_primary_alignments
+        return self.filtered_stream.num_detected_primary_alignments;
     }
 }
 
@@ -423,16 +454,20 @@ pub fn generate_filtered_bam_readers_from_bam_files(
     min_aligned_percent_single: f32,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
-    min_aligned_percent_pair: f32) -> Vec<FilteredBamReader>{
-
+    min_aligned_percent_pair: f32,
+) -> Vec<FilteredBamReader> {
     let mut generators: Vec<FilteredBamReader> = vec![];
 
     for path in bam_paths {
         let filtered: FilteredBamReader;
-        let stoit_name = std::path::Path::new(path).file_stem().unwrap().to_str().expect(
-            "failure to convert bam file name to stoit name - UTF8 error maybe?").to_string();
-        let reader = bam::Reader::from_path(path).expect(
-            &format!("Unable to find BAM file {}", path));
+        let stoit_name = std::path::Path::new(path)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
+            .to_string();
+        let reader =
+            bam::Reader::from_path(path).expect(&format!("Unable to find BAM file {}", path));
 
         filtered = FilteredBamReader {
             stoit_name: stoit_name,
@@ -445,29 +480,15 @@ pub fn generate_filtered_bam_readers_from_bam_files(
                 min_aligned_length_pair,
                 min_percent_identity_pair,
                 min_aligned_percent_pair,
-                true),
+                true,
+            ),
         };
 
-        generators.push(
-            filtered
-        )
+        generators.push(filtered)
     }
 
     return generators;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 pub struct StreamingFilteredNamedBamReader {
     stoit_name: String,
@@ -496,27 +517,28 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     log_files: Vec<tempfile::NamedTempFile>,
 }
 
-impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilteredNamedBamReaderGenerator {
+impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader>
+    for StreamingFilteredNamedBamReaderGenerator
+{
     fn start(self) -> StreamingFilteredNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
         for mut preprocess in self.pre_processes {
-            processes.push(preprocess
-                           .spawn()
-                           .expect("Unable to execute bash"));
+            processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
         let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
             Ok(reader) => reader,
             Err(upstream_error) => {
-                error!("Failed to correctly find or parse BAM file at {:?}: {}", 
-                    self.fifo_path,
-                    upstream_error);
+                error!(
+                    "Failed to correctly find or parse BAM file at {:?}: {}",
+                    self.fifo_path, upstream_error
+                );
                 complete_processes(
-                    processes, 
-                    self.command_strings, 
+                    processes,
+                    self.command_strings,
                     self.log_file_descriptions,
                     self.log_files,
-                    Some(self.tempdir)
+                    Some(self.tempdir),
                 );
                 panic!("Failure to find or parse BAM file, cannot continue");
             }
@@ -531,7 +553,8 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             self.min_aligned_length_pair,
             self.min_percent_identity_pair,
             self.min_aligned_percent_pair,
-            true);
+            true,
+        );
         return StreamingFilteredNamedBamReader {
             stoit_name: self.stoit_name,
             filtered_stream: filtered_stream,
@@ -540,7 +563,7 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader> for StreamingFilte
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
-        }
+        };
     }
 }
 
@@ -555,25 +578,31 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         self.filtered_stream.reader.header()
     }
     fn finish(self) {
-        debug!("Finishing StreamingFilteredNamedBamReader. Tempdir is {:?}", self.tempdir.path());
+        debug!(
+            "Finishing StreamingFilteredNamedBamReader. Tempdir is {:?}",
+            self.tempdir.path()
+        );
         complete_processes(
             self.processes,
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
-            Some(self.tempdir))
+            Some(self.tempdir),
+        )
     }
 
     fn set_threads(&mut self, n_threads: usize) {
         if n_threads > 1 {
-            self.filtered_stream.reader.set_threads(n_threads-1).unwrap();
+            self.filtered_stream
+                .reader
+                .set_threads(n_threads - 1)
+                .unwrap();
         }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.filtered_stream.num_detected_primary_alignments
+        return self.filtered_stream.num_detected_primary_alignments;
     }
 }
-
 
 pub fn generate_filtered_named_bam_readers_from_reads(
     mapping_program: MappingProgram,
@@ -592,14 +621,20 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     min_aligned_percent_pair: f32,
     bwa_options: Option<&str>,
     discard_unmapped: bool,
-    include_reference_in_stoit_name: bool)
-    -> StreamingFilteredNamedBamReaderGenerator {
-
+    include_reference_in_stoit_name: bool,
+) -> StreamingFilteredNamedBamReaderGenerator {
     let streaming = generate_named_bam_readers_from_reads(
         mapping_program,
-        reference, read1_path, read2_path, read_format, threads,
-        cached_bam_file, discard_unmapped, bwa_options,
-        include_reference_in_stoit_name);
+        reference,
+        read1_path,
+        read2_path,
+        read_format,
+        threads,
+        cached_bam_file,
+        discard_unmapped,
+        bwa_options,
+        include_reference_in_stoit_name,
+    );
     return StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,
@@ -615,18 +650,13 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         min_aligned_length_pair: min_aligned_length_pair,
         min_percent_identity_pair: min_percent_identity_pair,
         min_aligned_percent_pair: min_aligned_percent_pair,
-    }
+    };
 }
-
-
-
 
 pub struct BamGeneratorSet<T> {
     pub generators: Vec<T>,
     pub index: Option<Box<dyn MappingIndex>>,
 }
-
-
 
 pub struct NamedBamMaker {
     stoit_name: String,
@@ -653,16 +683,18 @@ pub fn generate_bam_maker_generator_from_reads(
     threads: u16,
     cached_bam_file: &str,
     discard_unmapped: bool,
-    mapping_options: Option<&str>) -> NamedBamMakerGenerator {
-
-    let mapping_log = tempfile::NamedTempFile::new()
-        .expect(&format!("Failed to create {:?} log tempfile", mapping_program));
-    let samtools2_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create second samtools log tempfile");
+    mapping_options: Option<&str>,
+) -> NamedBamMakerGenerator {
+    let mapping_log = tempfile::NamedTempFile::new().expect(&format!(
+        "Failed to create {:?} log tempfile",
+        mapping_program
+    ));
+    let samtools2_log =
+        tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
     // borrow checker.
-    let samtools_view_cache_log = tempfile::NamedTempFile::new()
-        .expect("Failed to create cache samtools view log tempfile");
+    let samtools_view_cache_log =
+        tempfile::NamedTempFile::new().expect("Failed to create cache samtools view log tempfile");
 
     let mapping_command = build_mapping_command(
         mapping_program,
@@ -671,7 +703,7 @@ pub fn generate_bam_maker_generator_from_reads(
         read1_path,
         reference,
         read2_path,
-        mapping_options
+        mapping_options,
     );
 
     let bwa_sort_prefix = tempfile::Builder::new()
@@ -685,52 +717,72 @@ pub fn generate_bam_maker_generator_from_reads(
          | samtools view {} -b -@ {} -o '{}' 2>{}",
         // Mapping program
         mapping_command,
-        mapping_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        mapping_log
+            .path()
+            .to_str()
+            .expect("Failed to convert tempfile path to str"),
         // remove extraneous @SQ lines
         match mapping_program {
-            MappingProgram::BWA_MEM => {""},
+            MappingProgram::BWA_MEM => {
+                ""
+            }
             // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers"
+            _ => " | remove_minimap2_duplicated_headers",
         },
         // samtools
-        bwa_sort_prefix.path().to_str()
+        bwa_sort_prefix
+            .path()
+            .to_str()
             .expect("Failed to convert bwa_sort_prefix tempfile to str"),
-        threads-1,
-        samtools2_log.path().to_str().expect("Failed to convert tempfile path to str"),
+        threads - 1,
+        samtools2_log
+            .path()
+            .to_str()
+            .expect("Failed to convert tempfile path to str"),
         // samtools view
-        match discard_unmapped { true => "-F4", false => ""},
-        threads-1,
+        match discard_unmapped {
+            true => "-F4",
+            false => "",
+        },
+        threads - 1,
         cached_bam_file,
-        samtools_view_cache_log.path().to_str()
-            .expect("Failed to convert tempfile path to str"));
+        samtools_view_cache_log
+            .path()
+            .to_str()
+            .expect("Failed to convert tempfile path to str")
+    );
     debug!("Queuing cmd_string: {}", cmd_string);
     let mut cmd = std::process::Command::new("bash");
-    cmd
-        .arg("-c")
+    cmd.arg("-c")
         .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
 
     let log_descriptions = vec![
-        format!("{:?}",mapping_program).to_string(),
+        format!("{:?}", mapping_program).to_string(),
         "samtools sort".to_string(),
-        "samtools view for cache".to_string()];
-    let log_files = vec![
-        mapping_log,
-        samtools2_log,
-        samtools_view_cache_log];
+        "samtools view for cache".to_string(),
+    ];
+    let log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
 
     return NamedBamMakerGenerator {
-        stoit_name: std::path::Path::new(reference).file_name()
-            .expect("Unable to convert reference to file name").to_str()
-            .expect("Unable to covert file name into str").to_string()+"/"+
-            &std::path::Path::new(read1_path).file_name()
-            .expect("Unable to convert read1 name to file name").to_str()
-            .expect("Unable to covert file name into str").to_string(),
+        stoit_name: std::path::Path::new(reference)
+            .file_name()
+            .expect("Unable to convert reference to file name")
+            .to_str()
+            .expect("Unable to covert file name into str")
+            .to_string()
+            + "/"
+            + &std::path::Path::new(read1_path)
+                .file_name()
+                .expect("Unable to convert read1 name to file name")
+                .to_str()
+                .expect("Unable to covert file name into str")
+                .to_string(),
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files: log_files,
-    }
+    };
 }
 
 impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
@@ -741,9 +793,7 @@ impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
         for mut preprocess in self.pre_processes {
             debug!("Running mapping command: {}", self.command_strings[i]);
             i += 1;
-            processes.push(preprocess
-                           .spawn()
-                           .expect("Unable to execute bash"));
+            processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
         return NamedBamMaker {
             stoit_name: self.stoit_name,
@@ -751,11 +801,9 @@ impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
-        }
+        };
     }
 }
-
-
 
 impl NamedBamMaker {
     pub fn name(&self) -> &str {
@@ -767,7 +815,8 @@ impl NamedBamMaker {
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
-            None)
+            None,
+        )
     }
 }
 
@@ -778,19 +827,18 @@ pub fn build_mapping_command(
     read1_path: &str,
     reference: &str,
     read2_path: Option<&str>,
-    mapping_options: Option<&str>
+    mapping_options: Option<&str>,
 ) -> String {
-
     let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
-        MappingProgram::MINIMAP2_SR |
-        MappingProgram::MINIMAP2_ONT |
-        MappingProgram::MINIMAP2_PB |
-        MappingProgram::MINIMAP2_NO_PRESET => "",
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => "",
         MappingProgram::BWA_MEM => match read_format {
             ReadFormat::Interleaved => "-p",
-            ReadFormat::Coupled | ReadFormat::Single => ""
-        }
+            ReadFormat::Coupled | ReadFormat::Single => "",
+        },
     };
 
     let read_params2 = match read_format {
@@ -804,11 +852,15 @@ pub fn build_mapping_command(
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             _ => {
-                let split_prefix = tempfile::NamedTempFile::new()
-                    .expect(&format!("Failed to create {:?} minimap2 split_prefix file",
-                            mapping_program));
-                format!("minimap2 --split-prefix {} -a {}",
-                    split_prefix.path().to_str()
+                let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
+                    "Failed to create {:?} minimap2 split_prefix file",
+                    mapping_program
+                ));
+                format!(
+                    "minimap2 --split-prefix {} -a {}",
+                    split_prefix
+                        .path()
+                        .to_str()
                         .expect("Failed to convert split prefix tempfile path to str"),
                     match mapping_program {
                         MappingProgram::BWA_MEM => unreachable!(),
@@ -816,13 +868,14 @@ pub fn build_mapping_command(
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_PB => "-x map-pb",
                         MappingProgram::MINIMAP2_NO_PRESET => "",
-                    })
-                }
+                    }
+                )
+            }
         },
         mapping_options.unwrap_or(""),
         threads,
         read_params1,
         reference,
         read_params2
-    )
+    );
 }
