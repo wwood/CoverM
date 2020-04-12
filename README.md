@@ -12,7 +12,7 @@
 
 # CoverM
 
-[![Travis](https://img.shields.io/travis/wwood/CoverM.svg?style=flat-square)](https://travis-ci.org/wwood/CoverM)
+[![Travis](https://api.travis-ci.org/wwood/CoverM.svg?branch=master)](https://travis-ci.org/wwood/CoverM)
 
 CoverM aims to be a configurable, easy to use and fast DNA read coverage and
 relative abundance calculator focused on metagenomics applications.
