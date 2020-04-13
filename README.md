@@ -1,7 +1,7 @@
 - [CoverM](#coverm)
 	- [Installation](#installation)
-		- [Pre-compiled binary](#pre-compiled-binary)
 		- [Install through the bioconda package](#install-through-the-bioconda-package)
+		- [Pre-compiled binary](#pre-compiled-binary)
 		- [Compiling from source](#compiling-from-source)
 		- [Development version](#development-version)
 		- [Dependencies](#dependencies)
