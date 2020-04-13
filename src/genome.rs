@@ -117,6 +117,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<R: NamedBamReader,
                     if doing_first == true {
                         doing_first = false;
                     } else {
+                        if tid < last_tid {
+                            error!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                            panic!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                        }
                         match reference_number_to_genome_index[last_tid as usize] {
                             Some(genome_index) => {
                                 debug!("Found {} reads mapped to tid {}",
@@ -468,6 +472,10 @@ pub fn mosdepth_genome_coverage<R: NamedBamReader,
                           doing_first,
                           unobserved_contig_length_and_first_tid.unobserved_contig_lengths,
                           unobserved_contig_length_and_first_tid.first_tid);
+                    if !doing_first && tid < last_tid {
+                        error!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                        panic!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                    }
                     if doing_first == true {
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
                             coverage_estimator.setup()

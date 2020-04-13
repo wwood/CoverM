@@ -1619,6 +1619,36 @@ genome6~random_sequence_length_11003	0	0	0
             .stderr().contains("BAM file appears to be unsorted")
             .unwrap();
     }
+
+    #[test]
+    fn test_genome_separator_mode_unsorted_bam_file() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-s",
+                "e",
+                "-b",
+                "tests/data/2seqs.bad_read.1.unsorted.bam",
+            ])
+            .fails()
+            .stderr().contains("BAM file appears to be unsorted")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_named_contigs_mode_unsorted_bam_file() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir",
+                "-b",
+                "tests/data/2seqs.bad_read.1.unsorted.bam",
+            ])
+            .fails()
+            .stderr().contains("BAM file appears to be unsorted")
+            .unwrap();
+    }
 }
 
 
