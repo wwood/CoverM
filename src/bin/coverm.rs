@@ -38,6 +38,15 @@ use tempfile::NamedTempFile;
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 
+fn galah_command_line_definition() -> galah::cluster_argument_parsing::GalahClustererCommandDefinition {
+    galah::cluster_argument_parsing::GalahClustererCommandDefinition {
+        dereplication_ani_argument: "dereplication-ani".to_string(),
+        dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
+        dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
+        dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
+    }
+}
+
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -227,7 +236,7 @@ fn main() {
                             }
                             if m.is_present("checkm-tab-table") || m.is_present("genome-info") {
                                 let genomes_after_filtering = galah::cluster_argument_parsing::filter_genomes_through_checkm(
-                                    &paths, &m)
+                                    &paths, &m, &galah_command_line_definition())
                                     .expect("Error parsing CheckM-related options");
                                 info!("After filtering by CheckM, {} genomes remained", genomes_after_filtering.len());
                                 if genomes_after_filtering.len() == 0 {
@@ -670,15 +679,13 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         "Found {} genomes specified before dereplication",
         genome_fasta_files.len()
     );
-    let clusterer = galah::cluster_argument_parsing::GalahClusterer {
-        genome_fasta_paths: genome_fasta_files.iter().map(|s| s.as_str()).collect(),
-        ani: parse_percentage(&m, "dereplication-ani"),
-        distance_method: galah::cluster_argument_parsing::ClusteringDistanceMethod::DashingFastani  {
-            prethreshold_ani: parse_percentage(m, "dereplication-prethreshold-ani")
-        },
-        threads: value_t!(m.value_of("threads"), usize).expect("Failed to parse --threads argument"),
-    };
-    galah::external_command_checker::check_for_dependencies();
+    // Generate clusterer and check for dependencies
+    let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
+        genome_fasta_files,
+        &m,
+        &galah_command_line_definition()
+    ).expect("Failed to parse galah clustering arguments correctly");
+
     info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
     let cluster_indices = clusterer.cluster();
     info!("Finished dereplication, finding {} representative genomes.", cluster_indices.len());

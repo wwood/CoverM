@@ -306,6 +306,11 @@ Dereplication (optional):
    --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
                                          for preclustering and to avoid FastANI on
                                          distant lineages within preclusters.
+   --dereplication-quality-formula <NAME>  Scoring function for genome quality. See
+                                         `coverm dereplicate -h`.
+   --dereplication-precluster-method <NAME>  method of calculating rough ANI for 
+                                         dereplication. 'dashing' for HyperLogLog, 
+                                         'finch' for finch MinHash.
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -877,8 +882,22 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("dereplication-prethreshold-ani")
                     .long("dereplication-prethreshold-ani")
                     .takes_value(true)
-                    .default_value("95")
-                )
+                    .default_value("95"))
+                .arg(Arg::with_name("dereplication-quality-formula")
+                    .long("dereplication-quality-formula")
+                    .possible_values(&[
+                        "completeness-4contamination",
+                        "completeness-5contamination",
+                        "Parks2020_reduced",
+                        "dRep"])
+                    .default_value("Parks2020_reduced")
+                    .takes_value(true))
+                .arg(Arg::with_name("dereplication-precluster-method")
+                    .long("dereplication-precluster-method")
+                    .help("method of calculating rough ANI. 'dashing' for HyperLogLog, 'finch' for finch MinHash")
+                    .possible_values(&["dashing","finch"])
+                    .default_value("dashing")
+                    .takes_value(true))
                 .arg(Arg::with_name("output-dereplication-clusters")
                     .long("output-dereplication-clusters")
                     .takes_value(true))

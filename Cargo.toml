@@ -15,7 +15,7 @@ default-run = "coverm"
 
 [dependencies]
 bio = "0.30.*"
-rust-htslib = "0.26.*"
+rust-htslib = { version="0.26.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.7.*"
@@ -28,7 +28,7 @@ rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"
 bird_tool_utils = "0.1.0"
-galah = {git = "https://github.com/wwood/galah" }
+galah = {git = "https://github.com/wwood/galah", rev = "64cb41a07d917c1af5d90a0b5f983a68b07543a9"}
 
 [dev-dependencies]
 assert_cli = "0.6.*"
