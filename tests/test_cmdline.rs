@@ -1606,6 +1606,19 @@ genome6~random_sequence_length_11003	0	0	0
                 observed), "table incorrect")
             .unwrap();
     }
+
+    #[test]
+    fn test_contig_unsorted_bam_file() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/2seqs.bad_read.1.unsorted.bam",
+            ])
+            .fails()
+            .stderr().contains("BAM file appears to be unsorted")
+            .unwrap();
+    }
 }
 
 

@@ -106,6 +106,10 @@ pub fn contig_coverage<R: NamedBamReader,
             if !record.is_unmapped() { // if mapped
                 // if reference has changed, print the last record
                 if tid != last_tid {
+                    if tid < last_tid {
+                        error!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                        panic!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
+                    }
                     process_previous_contigs(
                         last_tid,
                         tid,
