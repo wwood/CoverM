@@ -24,11 +24,6 @@ sequences.
 
 ## Installation
 
-### Pre-compiled binary
-
-To install CoverM, the most straightforward way is to download the statically
-compiled binaries available on the [releases page](https://github.com/wwood/CoverM/releases).
-
 ### Install through the bioconda package
 
 CoverM can be installed through the [bioconda](https://bioconda.github.io/user/install.html) conda channel. After initial setup of conda and the bioconda channel, it can be installed with
@@ -36,6 +31,11 @@ CoverM can be installed through the [bioconda](https://bioconda.github.io/user/i
 ```
 conda install coverm
 ```
+
+### Pre-compiled binary
+
+Statically compiled CoverM binaries available on the [releases page](https://github.com/wwood/CoverM/releases).
+This installation method requires non-Rust dependencies to be installed separately - see the [dependencies section](#Dependencies).
 
 ### Compiling from source
 
