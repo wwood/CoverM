@@ -12,7 +12,7 @@
 
 # CoverM
 
-[![Travis](https://api.travis-ci.org/wwood/CoverM.svg?branch=master)](https://travis-ci.org/wwood/CoverM)
+[![Travis](https://api.travis-ci.org/wwood/CoverM.svg?branch=master)](https://travis-ci.org/wwood/CoverM) [![Anaconda-Server Badge](https://anaconda.org/bioconda/coverm/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
 CoverM aims to be a configurable, easy to use and fast DNA read coverage and
 relative abundance calculator focused on metagenomics applications.
