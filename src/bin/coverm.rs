@@ -1,5 +1,6 @@
 extern crate coverm;
 use coverm::bam_generator::*;
+use coverm::cli::*;
 use coverm::coverage_printer::*;
 use coverm::coverage_takers::*;
 use coverm::external_command_checker;
@@ -11,7 +12,6 @@ use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
-use coverm::cli::*;
 
 extern crate rust_htslib;
 use rust_htslib::bam;
@@ -19,9 +19,9 @@ use rust_htslib::bam::Read;
 
 use std::collections::HashSet;
 use std::env;
+use std::io::Write;
 use std::process;
 use std::str;
-use std::io::Write;
 
 extern crate clap;
 use clap::*;
@@ -38,7 +38,8 @@ use tempfile::NamedTempFile;
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 
-fn galah_command_line_definition() -> galah::cluster_argument_parsing::GalahClustererCommandDefinition {
+fn galah_command_line_definition(
+) -> galah::cluster_argument_parsing::GalahClustererCommandDefinition {
     galah::cluster_argument_parsing::GalahClustererCommandDefinition {
         dereplication_ani_argument: "dereplication-ani".to_string(),
         dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
@@ -70,12 +71,14 @@ fn main() {
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
-            let genomes_and_contigs_option_predereplication = if !m.is_present("separator") &&
-                !m.is_present("dereplicate") && !m.is_present("single-genome") {
-                    parse_all_genome_definitions(&m)
-                } else {
-                    None
-                };
+            let genomes_and_contigs_option_predereplication = if !m.is_present("separator")
+                && !m.is_present("dereplicate")
+                && !m.is_present("single-genome")
+            {
+                parse_all_genome_definitions(&m)
+            } else {
+                None
+            };
 
             // This would be better as a separate function to make this function
             // smaller, but I find this hard because functions cannot return a
@@ -231,41 +234,53 @@ fn main() {
                     match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, false) {
                         Ok(paths) => {
                             if paths.len() == 0 {
-                                error!("Genome paths were described, but ultimately none were found");
+                                error!(
+                                    "Genome paths were described, but ultimately none were found"
+                                );
                                 process::exit(1);
                             }
                             if m.is_present("checkm-tab-table") || m.is_present("genome-info") {
-                                let genomes_after_filtering = galah::cluster_argument_parsing::filter_genomes_through_checkm(
-                                    &paths, &m, &galah_command_line_definition())
+                                let genomes_after_filtering =
+                                    galah::cluster_argument_parsing::filter_genomes_through_checkm(
+                                        &paths,
+                                        &m,
+                                        &galah_command_line_definition(),
+                                    )
                                     .expect("Error parsing CheckM-related options");
-                                info!("After filtering by CheckM, {} genomes remained", genomes_after_filtering.len());
+                                info!(
+                                    "After filtering by CheckM, {} genomes remained",
+                                    genomes_after_filtering.len()
+                                );
                                 if genomes_after_filtering.len() == 0 {
                                     error!("All genomes were filtered out, so none remain to be mapped to");
                                     process::exit(1);
                                 }
-                                Some(genomes_after_filtering.iter().map(|s| s.to_string()).collect())
+                                Some(
+                                    genomes_after_filtering
+                                        .iter()
+                                        .map(|s| s.to_string())
+                                        .collect(),
+                                )
                             } else {
                                 Some(paths)
                             }
-                        },
-                        Err(_) => None
+                        }
+                        Err(_) => None,
                     }
                 };
 
-                let (concatenated_genomes, genomes_and_contigs_option) =
-                match m.is_present("reference") {
-                    true => {
-                        match genome_fasta_files_opt {
-                            Some(genome_paths) => {
-                                (
-                                    None,
-                                    extract_genomes_and_contigs_option(&m, &genome_paths.iter().map(|s| s.as_str()).collect())
-                                )
-                            },
-                            None => {
-                                (None, None)
-                            }
-                        }
+                let (concatenated_genomes, genomes_and_contigs_option) = match m
+                    .is_present("reference")
+                {
+                    true => match genome_fasta_files_opt {
+                        Some(genome_paths) => (
+                            None,
+                            extract_genomes_and_contigs_option(
+                                &m,
+                                &genome_paths.iter().map(|s| s.as_str()).collect(),
+                            ),
+                        ),
+                        None => (None, None),
                     },
                     false => {
                         // Dereplicate if required
@@ -289,7 +304,13 @@ fn main() {
                                 ),
                             ),
                             extract_genomes_and_contigs_option(
-                                &m, &dereplicated_genomes.clone().iter().map(|s| s.as_str()).collect())
+                                &m,
+                                &dereplicated_genomes
+                                    .clone()
+                                    .iter()
+                                    .map(|s| s.as_str())
+                                    .collect(),
+                            ),
                         )
                     }
                 };
@@ -406,11 +427,9 @@ fn main() {
                 let reader =
                     bam::Reader::from_path(bam).expect(&format!("Unable to find BAM file {}", bam));
                 let header = bam::header::Header::from_template(reader.header());
-                let mut writer = bam::Writer::from_path(
-                    output,
-                    &header,
-                    rust_htslib::bam::Format::BAM)
-                    .expect(&format!("Failed to write BAM file {}", output));
+                let mut writer =
+                    bam::Writer::from_path(output, &header, rust_htslib::bam::Format::BAM)
+                        .expect(&format!("Failed to write BAM file {}", output));
                 writer
                     .set_threads(num_threads as usize)
                     .expect("Failed to set num threads in writer");
@@ -429,8 +448,9 @@ fn main() {
                 let mut record = bam::record::Record::new();
                 while filtered
                     .read(&mut record)
-                    .expect("Failure to read filtered BAM record") == true {
-
+                    .expect("Failure to read filtered BAM record")
+                    == true
+                {
                     debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
                 }
@@ -620,19 +640,19 @@ fn main() {
         Some("shell-completion") => {
             let m = matches.subcommand_matches("shell-completion").unwrap();
             set_log_level(m, true);
-            let mut file = std::fs::File::create(
-                m.value_of("output-file").unwrap())
+            let mut file = std::fs::File::create(m.value_of("output-file").unwrap())
                 .expect("failed to open file");
             let shell = m.value_of("shell").unwrap().parse::<Shell>().unwrap();
             info!("Generating completion script for shell {}", shell);
             app.gen_completions_to(
-                "coverm",           // We specify the bin name manually
-                shell, // Which shell to build completions for
-                &mut file); // Where write the completions to
-        },
+                "coverm", // We specify the bin name manually
+                shell,    // Which shell to build completions for
+                &mut file,
+            ); // Where write the completions to
+        }
         Some("cluster") => {
             galah::cluster_argument_parsing::run_cluster_subcommand(&matches);
-        },
+        }
         _ => {
             app.print_help().unwrap();
             println!();
@@ -648,18 +668,20 @@ fn setup_mapping_index(
     match mapping_program {
         MappingProgram::BWA_MEM => Some(coverm::mapping_index_maintenance::generate_bwa_index(
             reference_wise_params.reference,
-            None
+            None,
         )),
-        MappingProgram::MINIMAP2_SR |
-        MappingProgram::MINIMAP2_ONT |
-        MappingProgram::MINIMAP2_PB |
-        MappingProgram::MINIMAP2_NO_PRESET => {
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => {
             if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
                 if m.is_present("minimap2-reference-is-index") {
-                    warn!("Minimap2 uses mapping parameters defined when the index was created, \
+                    warn!(
+                        "Minimap2 uses mapping parameters defined when the index was created, \
                     not parameters defined when mapping. Proceeding on the assumption that you \
-                    passed the correct parameters when creating the minimap2 index.");
+                    passed the correct parameters when creating the minimap2 index."
+                    );
                 }
                 None
             } else {
@@ -683,26 +705,37 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
         genome_fasta_files,
         &m,
-        &galah_command_line_definition()
-    ).expect("Failed to parse galah clustering arguments correctly");
+        &galah_command_line_definition(),
+    )
+    .expect("Failed to parse galah clustering arguments correctly");
 
-    info!("Dereplicating genome at {}% ANI ..", clusterer.ani*100.);
+    info!("Dereplicating genome at {}% ANI ..", clusterer.ani * 100.);
     let cluster_indices = clusterer.cluster();
-    info!("Finished dereplication, finding {} representative genomes.", cluster_indices.len());
+    info!(
+        "Finished dereplication, finding {} representative genomes.",
+        cluster_indices.len()
+    );
     debug!("Found cluster indices: {:?}", cluster_indices);
-    let reps = cluster_indices.iter().map(|cluster| genome_fasta_files[cluster[0]].clone()).collect::<Vec<_>>();
+    let reps = cluster_indices
+        .iter()
+        .map(|cluster| genome_fasta_files[cluster[0]].clone())
+        .collect::<Vec<_>>();
     debug!("Found cluster representatives: {:?}", reps);
 
     if m.is_present("output-dereplication-clusters") {
         let path = m.value_of("output-dereplication-clusters").unwrap();
         info!("Writing dereplication cluster memberships to {}", path);
-        let mut f = std::fs::File::create(path)
-            .expect("Error creating dereplication cluster output file");
+        let mut f =
+            std::fs::File::create(path).expect("Error creating dereplication cluster output file");
         for cluster in cluster_indices.iter() {
             let rep = cluster[0];
             for member in cluster {
-                writeln!(f, "{}\t{}", genome_fasta_files[rep], genome_fasta_files[*member])
-                    .expect("Failed to write a specific line to dereplication cluster file");
+                writeln!(
+                    f,
+                    "{}\t{}",
+                    genome_fasta_files[rep], genome_fasta_files[*member]
+                )
+                .expect("Failed to write a specific line to dereplication cluster file");
             }
         }
     }
@@ -726,10 +759,10 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
         }
-        MappingProgram::MINIMAP2_SR |
-        MappingProgram::MINIMAP2_ONT |
-        MappingProgram::MINIMAP2_PB |
-        MappingProgram::MINIMAP2_NO_PRESET => {
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => {
             external_command_checker::check_for_minimap2();
         }
     }
@@ -746,17 +779,15 @@ struct EstimatorsAndTaker<'a> {
 
 fn extract_genomes_and_contigs_option(
     m: &clap::ArgMatches,
-    genome_fasta_files: &Vec<&str>) -> Option<GenomesAndContigs> {
+    genome_fasta_files: &Vec<&str>,
+) -> Option<GenomesAndContigs> {
     match m.is_present("genome-definition") {
-        true => {
-            Some(coverm::genome_parsing::read_genome_definition_file(
-                m.value_of("genome-definition").unwrap()))
-        },
-        false => {
-            Some(coverm::genome_parsing::read_genome_fasta_files(
-                &genome_fasta_files,
-            ))
-        }
+        true => Some(coverm::genome_parsing::read_genome_definition_file(
+            m.value_of("genome-definition").unwrap(),
+        )),
+        false => Some(coverm::genome_parsing::read_genome_fasta_files(
+            &genome_fasta_files,
+        )),
     }
 }
 
@@ -765,13 +796,16 @@ fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContig
         None
     } else if m.is_present("genome-definition") {
         Some(coverm::genome_parsing::read_genome_definition_file(
-            m.value_of("genome-definition").unwrap()))
+            m.value_of("genome-definition").unwrap(),
+        ))
     } else {
         extract_genomes_and_contigs_option(
             m,
             &bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, true)
                 .expect("Failed to parse genome paths")
-                .iter().map(|s| s.as_str()).collect()
+                .iter()
+                .map(|s| s.as_str())
+                .collect(),
         )
     }
 }
@@ -875,8 +909,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                             process::exit(1);
                         }
                         rpkm_column = Some(i);
-                        estimators.push(CoverageEstimator::new_estimator_rpkm(
-                            min_fraction_covered))
+                        estimators.push(CoverageEstimator::new_estimator_rpkm(min_fraction_covered))
                     }
                     &"variance" => {
                         estimators.push(CoverageEstimator::new_estimator_variance(
@@ -915,7 +948,10 @@ impl<'a> EstimatorsAndTaker<'a> {
                     taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                     printer = CoveragePrinter::StreamedCoveragePrinter;
                 }
-            } else if columns_to_normalise.len() == 0 && rpkm_column.is_none() && output_format == "sparse" {
+            } else if columns_to_normalise.len() == 0
+                && rpkm_column.is_none()
+                && output_format == "sparse"
+            {
                 debug!("Streaming regular coverage output");
                 taker =
                     CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream);
@@ -1501,7 +1537,7 @@ fn run_contig<
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filters: FlagFilter,
-    threads: usize
+    threads: usize,
 ) {
     let reads_mapped = coverm::contig::contig_coverage(
         bam_readers,
@@ -1509,7 +1545,7 @@ fn run_contig<
         &mut estimators_and_taker.estimators,
         print_zeros,
         flag_filters,
-        threads
+        threads,
     );
 
     debug!("Finalising printing ..");

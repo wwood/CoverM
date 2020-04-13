@@ -19,28 +19,31 @@ pub struct MappingParameters<'a> {
     interleaved: Vec<&'a str>,
     unpaired: Vec<&'a str>,
     iter_reference_index: usize,
-    mapping_options: Option<&'a str>
+    mapping_options: Option<&'a str>,
 }
 
 impl<'a> MappingParameters<'a> {
     pub fn generate_from_clap(
         m: &'a clap::ArgMatches,
         mapping_program: MappingProgram,
-        reference_tempfile: &'a Option<NamedTempFile>)
-        -> MappingParameters<'a> {
-
-        let mut read1: Vec<&str> = vec!();
-        let mut read2: Vec<&str> = vec!();
-        let mut interleaved: Vec<&str> = vec!();
-        let mut unpaired: Vec<&str> = vec!();
+        reference_tempfile: &'a Option<NamedTempFile>,
+    ) -> MappingParameters<'a> {
+        let mut read1: Vec<&str> = vec![];
+        let mut read2: Vec<&str> = vec![];
+        let mut interleaved: Vec<&str> = vec![];
+        let mut unpaired: Vec<&str> = vec![];
 
         if m.is_present("read1") {
             read1 = m.values_of("read1").unwrap().collect();
             read2 = m.values_of("read2").unwrap().collect();
             if read1.len() != read2.len() {
-                error!("When specifying paired reads with the -1 and -2 flags, \
+                error!(
+                    "When specifying paired reads with the -1 and -2 flags, \
                         there must be equal numbers specified. Instead found \
-                        {} and {} respectively", read1.len(), read2.len());
+                        {} and {} respectively",
+                    read1.len(),
+                    read2.len()
+                );
                 process::exit(1);
             }
         }
@@ -59,7 +62,7 @@ impl<'a> MappingParameters<'a> {
             let mut i = 0;
             while i < coupled.len() {
                 read1.push(coupled[i]);
-                read2.push(coupled[i+1]);
+                read2.push(coupled[i + 1]);
                 i += 2;
             }
         }
@@ -73,44 +76,51 @@ impl<'a> MappingParameters<'a> {
 
         match mapping_program {
             MappingProgram::MINIMAP2_ONT | MappingProgram::MINIMAP2_PB => {
-                if !read1.is_empty() || !interleaved.is_empty(){
-                    error!("Paired-end read input specified to be mapped \
+                if !read1.is_empty() || !interleaved.is_empty() {
+                    error!(
+                        "Paired-end read input specified to be mapped \
                         with minimap2-ont or minimap2-pb, which is presumably \
                         incorrect. Mapping paired reads can be run via \
                         minimap2-no-params if -ont or -pb mapping \
-                        is desired.");
+                        is desired."
+                    );
                     process::exit(1);
                 }
-            },
+            }
             _ => {}
         }
 
         let mapping_parameters_arg = match mapping_program {
             MappingProgram::BWA_MEM => "bwa-params",
-            MappingProgram::MINIMAP2_SR |
-            MappingProgram::MINIMAP2_ONT |
-            MappingProgram::MINIMAP2_PB |
-            MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
+            MappingProgram::MINIMAP2_SR
+            | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
         };
         let mapping_options = match m.is_present(mapping_parameters_arg) {
             true => {
                 let params = m.value_of(mapping_parameters_arg);
                 params
             }
-            false => None
+            false => None,
         };
-        debug!("Setting mapper {:?} options as '{:?}'", 
-            mapping_program, mapping_options);
+        debug!(
+            "Setting mapper {:?} options as '{:?}'",
+            mapping_program, mapping_options
+        );
 
         return MappingParameters {
             references: match reference_tempfile {
-                Some(r) => vec!(r.path().to_str().unwrap()),
+                Some(r) => vec![r.path().to_str().unwrap()],
                 None => match m.values_of("reference") {
                     Some(refs) => refs.collect(),
-                    None => vec![]
-                }
+                    None => vec![],
+                },
             },
-            threads: m.value_of("threads").unwrap().parse::<u16>()
+            threads: m
+                .value_of("threads")
+                .unwrap()
+                .parse::<u16>()
                 .expect("Failed to convert threads argument into integer"),
             read1: read1,
             read2: read2,
@@ -118,13 +128,13 @@ impl<'a> MappingParameters<'a> {
             unpaired: unpaired,
             iter_reference_index: 0,
             mapping_options: mapping_options,
-        }
+        };
     }
 
     // Return a Vec of str + Option<str> where each entry is a read pair or
     // single with None.
     pub fn readsets(&self) -> Vec<(&str, Option<&str>)> {
-        let mut to_return: Vec<(&str, Option<&str>)> = vec!();
+        let mut to_return: Vec<(&str, Option<&str>)> = vec![];
 
         for (ref r1, ref r2) in self.read1.iter().zip(self.read2.iter()) {
             to_return.push((r1, Some(r2)))
@@ -132,7 +142,7 @@ impl<'a> MappingParameters<'a> {
         for ref s in self.unpaired.iter() {
             to_return.push((&s, None))
         }
-        return to_return
+        return to_return;
     }
 }
 
@@ -174,9 +184,9 @@ impl<'a> Iterator for MappingParameters<'a> {
                 iter_read_pair_index: 0,
                 iter_interleaved_index: 0,
                 iter_unpaired_index: 0,
-            })
+            });
         } else {
-            return None
+            return None;
         }
     }
 }
@@ -195,7 +205,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read2: Some(self.read2[i]),
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            })
+            });
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
             self.iter_interleaved_index += 1;
@@ -206,7 +216,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            })
+            });
         } else if self.iter_unpaired_index < self.unpaired.len() {
             let i = self.iter_unpaired_index;
             self.iter_unpaired_index += 1;
@@ -217,9 +227,9 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            })
+            });
         } else {
-            return None
+            return None;
         }
     }
 }
@@ -230,5 +240,5 @@ pub struct OneSampleMappingParameters<'a> {
     pub read1: &'a str,
     pub read2: Option<&'a str>,
     pub threads: u16,
-    pub mapping_options: Option<&'a str>
+    pub mapping_options: Option<&'a str>,
 }

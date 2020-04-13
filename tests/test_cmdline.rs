@@ -6,8 +6,8 @@ mod tests {
     use assert_cli::Assert;
     extern crate tempfile;
     use std;
-    use std::io::Write;
     use std::io::Read;
+    use std::io::Write;
 
     fn assert_equal_table(expected: &str, observed: &str) -> bool {
         // assert the first lines are the same
@@ -26,22 +26,21 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_all_reads(){
+    fn test_filter_all_reads() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t = tf.path().to_str().unwrap();
         Assert::main_binary()
-            .with_args(&[
-                "filter",
-                "-b",
-                "tests/data/2seqs.bad_read.1.bam",
-                "-o",
-                t]).succeeds().unwrap();
-        Assert::command(&["samtools","view",t])
-            .stdout().contains("1\t99\tseq1").unwrap();
+            .with_args(&["filter", "-b", "tests/data/2seqs.bad_read.1.bam", "-o", t])
+            .succeeds()
+            .unwrap();
+        Assert::command(&["samtools", "view", t])
+            .stdout()
+            .contains("1\t99\tseq1")
+            .unwrap();
     }
 
     #[test]
-    fn test_filter_filter_out(){
+    fn test_filter_filter_out() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t = tf.path().to_str().unwrap();
         Assert::main_binary()
@@ -53,13 +52,18 @@ mod tests {
                 "tests/data/2seqs.bad_read.1.bam",
                 "-o",
                 t,
-                "--proper-pairs-only"]).succeeds().unwrap();
-        Assert::command(&["samtools","view",t])
-            .stdout().doesnt_contain("1\t99\tseq1").unwrap();
+                "--proper-pairs-only",
+            ])
+            .succeeds()
+            .unwrap();
+        Assert::command(&["samtools", "view", t])
+            .stdout()
+            .doesnt_contain("1\t99\tseq1")
+            .unwrap();
     }
 
     #[test]
-    fn test_contig_tempdir_index_creation(){
+    fn test_contig_tempdir_index_creation() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t_full = tf.path().to_str().unwrap();
         std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
@@ -82,20 +86,26 @@ mod tests {
                 "--proper-pairs-only",
             ])
             .succeeds()
-            .stdout().contains(format!(
-                "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+            .stdout()
+            .contains(
+                format!(
+                    "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
 {}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0",
-                t, t, t, t, t, t, t).as_str()).unwrap();
+                    t, t, t, t, t, t, t
+                )
+                .as_str(),
+            )
+            .unwrap();
     }
 
     #[test]
     #[ignore] // known failure, cannot currently take multiple references
-    fn test_contig_multiple_references(){
+    fn test_contig_multiple_references() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -114,7 +124,9 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
             ])
             .succeeds()
-            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+            .stdout()
+            .contains(
+                "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
@@ -122,12 +134,14 @@ mod tests {
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
-2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2").unwrap();
+2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2",
+            )
+            .unwrap();
     }
 
     #[test]
     #[ignore] // cannot currently take multiple references
-    fn test_coupled_reads_input(){
+    fn test_coupled_reads_input() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -147,7 +161,9 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
             ])
             .succeeds()
-            .stdout().contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+            .stdout()
+            .contains(
+                "7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
@@ -164,11 +180,13 @@ mod tests {
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2
 2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq1\t1.2
-2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2").unwrap();
+2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz\tseq2\t1.2",
+            )
+            .unwrap();
     }
 
     #[test]
-    fn test_unfiltered_interleaved_input(){
+    fn test_unfiltered_interleaved_input() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -182,14 +200,16 @@ mod tests {
                 "tests/data/bad_reads.interleaved.fq",
             ])
             .succeeds()
-            .stdout().contains(
+            .stdout()
+            .contains(
                 "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
-                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
-            ).unwrap();
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0",
+            )
+            .unwrap();
     }
 
     #[test]
-    fn test_filtered_interleaved_input(){
+    fn test_filtered_interleaved_input() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -206,12 +226,16 @@ mod tests {
                 "sparse",
             ])
             .succeeds()
-            .stdout().contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
-2seqs.fasta/bad_reads.all.interleaved.fa\tseq2\t1.5").unwrap();
+            .stdout()
+            .contains(
+                "2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t1.2
+2seqs.fasta/bad_reads.all.interleaved.fa\tseq2\t1.5",
+            )
+            .unwrap();
     }
 
     #[test]
-    fn test_single_reads_input(){
+    fn test_single_reads_input() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -225,14 +249,16 @@ mod tests {
                 "0",
             ])
             .succeeds()
-            .stdout().contains(
+            .stdout()
+            .contains(
                 "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
-                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0"
-            ).unwrap();
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0",
+            )
+            .unwrap();
     }
 
     #[test]
-    fn test_genome_coupled_read_input_argparsing(){
+    fn test_genome_coupled_read_input_argparsing() {
         // Had trouble (because of a bug in clap? with this previously)
         Assert::main_binary()
             .with_args(&[
@@ -244,11 +270,15 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "-s","~"]).succeeds().unwrap();
+                "-s",
+                "~",
+            ])
+            .succeeds()
+            .unwrap();
     }
 
     #[test]
-    fn test_contig_coupled_read_input_argparsing(){
+    fn test_contig_coupled_read_input_argparsing() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -256,11 +286,14 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
-                "tests/data/7seqs.fna"]).succeeds().unwrap();
+                "tests/data/7seqs.fna",
+            ])
+            .succeeds()
+            .unwrap();
     }
 
     #[test]
-    fn test_cache_bam_files(){
+    fn test_cache_bam_files() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
             .with_args(&[
@@ -273,8 +306,11 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
-                td.path().to_str().unwrap()
-            ]).succeeds().stdout().contains(
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Contig	Mean
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11000	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11010	0
@@ -282,14 +318,17 @@ mod tests {
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3~random_sequence_length_11001	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome4~random_sequence_length_11002	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome5~seq2	1.2435294
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6~random_sequence_length_11003	0").unwrap();
-        assert!(td.path()
-                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
-                .is_file());
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6~random_sequence_length_11003	0",
+            )
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
     }
 
     #[test]
-    fn test_non_existant_cache_bam_files(){
+    fn test_non_existant_cache_bam_files() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -299,12 +338,14 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
-                "/no/no/no/165"
-            ]).fails().unwrap();
+                "/no/no/no/165",
+            ])
+            .fails()
+            .unwrap();
     }
 
     #[test]
-    fn test_unwriteable_cache_bam_files(){
+    fn test_unwriteable_cache_bam_files() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -314,12 +355,14 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
-                "/"
-            ]).fails().unwrap();
+                "/",
+            ])
+            .fails()
+            .unwrap();
     }
 
     #[test]
-    fn test_make(){
+    fn test_make() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
             .with_args(&[
@@ -330,15 +373,18 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--output-directory",
-                td.path().to_str().unwrap()
-            ]).succeeds().unwrap();
-        assert!(td.path()
-                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
-                .is_file());
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
     }
 
     #[test]
-    fn test_make_with_mkdir(){
+    fn test_make_with_mkdir() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
             .with_args(&[
@@ -349,12 +395,15 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--output-directory",
-                format!("{}/unmade_directory",td.path().to_str().unwrap()).as_str()
-            ]).succeeds().unwrap();
-        assert!(td.path()
-                .join("unmade_directory")
-                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
-                .is_file());
+                format!("{}/unmade_directory", td.path().to_str().unwrap()).as_str(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("unmade_directory")
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
     }
 
     #[test]
@@ -369,7 +418,12 @@ mod tests {
                 "sparse",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "-s","~"]).succeeds().stdout().contains(
+                "-s",
+                "~",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Genome	Relative Abundance (%)
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	unmapped	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1	0
@@ -377,8 +431,9 @@ mod tests {
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome3	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome4	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome5	46.832077
-7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6	0"
-            ).unwrap();
+7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome6	0",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -394,7 +449,11 @@ mod tests {
                 "--output-format",
                 "sparse",
                 "-s",
-                "~"]).succeeds().stdout().contains(
+                "~",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Genome	Relative Abundance (%)	Mean
 7seqs.reads_for_seq1_and_seq2	unmapped	0	NA
 7seqs.reads_for_seq1_and_seq2	genome1	0	0
@@ -402,7 +461,9 @@ mod tests {
 7seqs.reads_for_seq1_and_seq2	genome3	0	0
 7seqs.reads_for_seq1_and_seq2	genome4	0	0
 7seqs.reads_for_seq1_and_seq2	genome5	46.832077	1.2435294
-7seqs.reads_for_seq1_and_seq2	genome6	0	0").unwrap();
+7seqs.reads_for_seq1_and_seq2	genome6	0	0",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -413,7 +474,11 @@ mod tests {
                 "-b",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
                 "--output-format",
-                "dense"]).succeeds().stdout().contains(
+                "dense",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Contig	7seqs.reads_for_seq1_and_seq2 Mean
 genome1~random_sequence_length_11000	0
 genome1~random_sequence_length_11010	0
@@ -421,7 +486,9 @@ genome2~seq1	1.4117647
 genome3~random_sequence_length_11001	0
 genome4~random_sequence_length_11002	0
 genome5~seq2	1.2435294
-genome6~random_sequence_length_11003	0").unwrap();
+genome6~random_sequence_length_11003	0",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -436,7 +503,11 @@ genome6~random_sequence_length_11003	0").unwrap();
                 "-s",
                 "~",
                 "--output-format",
-                "dense"]).succeeds().stdout().contains(
+                "dense",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)
 unmapped	0
 genome1	0
@@ -444,7 +515,9 @@ genome2	53.167923
 genome3	0
 genome4	0
 genome5	46.832077
-genome6	0").unwrap();
+genome6	0",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -466,7 +539,11 @@ genome6	0").unwrap();
                 "--single",
                 "tests/data/reads_for_seq1_and_seq2.fna",
                 "-s",
-                "~"]).succeeds().stdout().contains(
+                "~",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Genome	Relative Abundance (%)	Mean	Variance
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	unmapped	0	NA	NA
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1	0	0	0
@@ -482,7 +559,9 @@ genome6	0").unwrap();
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome4	0	0	0
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome5	46.832077	1.2435294	0.6862065
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome6	0	0	0
-").unwrap();
+",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -501,7 +580,11 @@ genome6	0").unwrap();
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--single",
-                "tests/data/reads_for_seq1_and_seq2.fna"]).succeeds().stdout().contains(
+                "tests/data/reads_for_seq1_and_seq2.fna",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Contig	Mean	Variance
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11000	0	0
 7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz	genome1~random_sequence_length_11010	0	0
@@ -517,7 +600,9 @@ genome6	0").unwrap();
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome4~random_sequence_length_11002	0	0
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome5~seq2	1.2435294	0.6862065
 7seqs.fna/reads_for_seq1_and_seq2.fna	genome6~random_sequence_length_11003	0	0
-").unwrap();
+",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -530,10 +615,16 @@ genome6	0").unwrap();
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--single",
-                "tests/data/2seqs.fasta"]).succeeds().stdout().contains(
+                "tests/data/2seqs.fasta",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Contig	Mean\n\
                  2seqs.fasta/2seqs.fasta	seq1	1\n\
-                 2seqs.fasta/2seqs.fasta	seq2	1\n").unwrap();
+                 2seqs.fasta/2seqs.fasta	seq2	1\n",
+            )
+            .unwrap();
 
         Assert::main_binary()
             .with_args(&[
@@ -547,10 +638,16 @@ genome6	0").unwrap();
                 "--bwa-parameters",
                 "'-k 5000'", // seed length longer than both sequences
                 "--single",
-                "tests/data/2seqs.fasta"]).succeeds().stdout().contains(
+                "tests/data/2seqs.fasta",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "Sample	Contig	Mean\n\
                  2seqs.fasta/2seqs.fasta	seq1	0\n\
-                 2seqs.fasta/2seqs.fasta	seq2	0\n").unwrap();
+                 2seqs.fasta/2seqs.fasta	seq2	0\n",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -562,11 +659,15 @@ genome6	0").unwrap();
                 "metabat",
                 "-b",
                 "tests/data/k141_7.reheadered.bam", // includes a supplementary alignment
-            ]).succeeds().stdout().contains(
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "contigName	contigLen	totalAvgDepth	k141_7.reheadered.bam	k141_7.reheadered.bam-var
-k141_7	350	0.69	0.69	2.0843").unwrap();
+k141_7	350	0.69	0.69	2.0843",
+            )
+            .unwrap();
     }
-
 
     #[test]
     fn test_metabat_97_of_100_bases_should_fail() {
@@ -578,9 +679,14 @@ k141_7	350	0.69	0.69	2.0843").unwrap();
                 "metabat",
                 "-b",
                 "tests/data/k141_2005182.head11.bam", // includes a supplementary alignment
-            ]).succeeds().stdout().contains(
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "contigName	contigLen	totalAvgDepth	k141_2005182.head11.bam	k141_2005182.head11.bam-var
-k141_2005182	225	1.9333	1.9333	0.0631").unwrap();
+k141_2005182	225	1.9333	1.9333	0.0631",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -620,11 +726,15 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "--trim-max",
                 "0.01",
                 "--trim-min",
-                "0.009"
-            ]).succeeds().stdout().contains(
+                "0.009",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669
-2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849"
-            ).unwrap();
+2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -649,10 +759,12 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "--trim-max",
                 "0.01",
                 "--trim-min",
-                "0.009"
-            ]).succeeds().stdout().contains(
-                "2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	se	0	1.3276471	0.759"
-            ).unwrap();
+                "0.009",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	se	0	1.3276471	0.759")
+            .unwrap();
     }
 
     #[test]
@@ -676,11 +788,15 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "--trim-max",
                 "0.01",
                 "--trim-min",
-                "0.009"
-            ]).succeeds().stdout().contains(
+                "0.009",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
                 "reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669\n\
-                 reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849\n"
-            ).unwrap();
+                 reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849\n",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -695,12 +811,17 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "tests/data/dense_interleaved_single_genome_bug/reads_interleaved.fna",
                 "tests/data/dense_interleaved_single_genome_bug/reads_interleaved2.fna",
                 "--output-format",
-                "dense"
-            ]).succeeds().stdout().is(
+                "dense",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
                 "Genome\tref.fna/reads_interleaved.fna Relative Abundance (%)\t\
                  ref.fna/reads_interleaved2.fna Relative Abundance (%)\n\
                  unmapped\t25\t33.333332\n\
-                 genome1\t75\t66.66667\n").unwrap();
+                 genome1\t75\t66.66667\n",
+            )
+            .unwrap();
     }
 
     #[test]
@@ -719,17 +840,26 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "tests/data/dense_interleaved_single_genome_bug/ref.fna.reads_interleaved2.fna.bam",
                 "-o",
                 t1,
-                t2]).succeeds().unwrap();
-        Assert::command(&["samtools","view",t1])
-            .stdout().contains("random_sequence_length_1000")
-            .stdout().doesnt_contain("random_sequence_length_100\t").unwrap();
-        Assert::command(&["samtools","view",t2])
-            .stdout().contains("random_sequence_length_1000")
-            .stdout().doesnt_contain("random_sequence_length_100\t").unwrap();
+                t2,
+            ])
+            .succeeds()
+            .unwrap();
+        Assert::command(&["samtools", "view", t1])
+            .stdout()
+            .contains("random_sequence_length_1000")
+            .stdout()
+            .doesnt_contain("random_sequence_length_100\t")
+            .unwrap();
+        Assert::command(&["samtools", "view", t2])
+            .stdout()
+            .contains("random_sequence_length_1000")
+            .stdout()
+            .doesnt_contain("random_sequence_length_100\t")
+            .unwrap();
     }
 
     #[test]
-    fn test_filter_unmapped_inverse(){
+    fn test_filter_unmapped_inverse() {
         let tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t1 = tf1.path().to_str().unwrap();
         Assert::main_binary()
@@ -739,16 +869,22 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "-b",
                 "tests/data/dense_interleaved_single_genome_bug/ref.fna.r1.fna.bam",
                 "-o",
-                t1]).succeeds().unwrap();
-        Assert::command(&["samtools","view",t1])
-            .stdout().doesnt_contain("random_sequence_length_1000")
-            .stdout().contains("seq4\t77")
-            .stdout().contains("seq4\t141")
+                t1,
+            ])
+            .succeeds()
+            .unwrap();
+        Assert::command(&["samtools", "view", t1])
+            .stdout()
+            .doesnt_contain("random_sequence_length_1000")
+            .stdout()
+            .contains("seq4\t77")
+            .stdout()
+            .contains("seq4\t141")
             .unwrap();
     }
 
     #[test]
-    fn test_filter_unmapped_inverse_improper_pairs(){
+    fn test_filter_unmapped_inverse_improper_pairs() {
         let tf1: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t1 = tf1.path().to_str().unwrap();
         let tf2: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
@@ -763,18 +899,27 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "tests/data/dense_interleaved_single_genome_bug/ref.fna.reads_interleaved2.fna.bam",
                 "-o",
                 t1,
-                t2]).succeeds().unwrap();
-        Assert::command(&["samtools","view",t1])
-            .stdout().contains("random_sequence_length_1000")
-            .stdout().contains("random_sequence_length_100\t77")
-            .stdout().contains("random_sequence_length_100\t141")
+                t2,
+            ])
+            .succeeds()
             .unwrap();
-        Assert::command(&["samtools","view",t2])
-            .stdout().contains("random_sequence_length_1000")
-            .stdout().contains("random_sequence_length_100\t77")
-            .stdout().contains("random_sequence_length_100\t141")
+        Assert::command(&["samtools", "view", t1])
+            .stdout()
+            .contains("random_sequence_length_1000")
+            .stdout()
+            .contains("random_sequence_length_100\t77")
+            .stdout()
+            .contains("random_sequence_length_100\t141")
             .unwrap();
-     }
+        Assert::command(&["samtools", "view", t2])
+            .stdout()
+            .contains("random_sequence_length_1000")
+            .stdout()
+            .contains("random_sequence_length_100\t77")
+            .stdout()
+            .contains("random_sequence_length_100\t141")
+            .unwrap();
+    }
 
     #[test]
     fn test_caches_when_reference_not_specified() {
@@ -788,11 +933,14 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "--genome-fasta-directory",
                 "tests/data/genomes_dir/",
                 "--bam-file-cache-directory",
-                td.path().to_str().unwrap()
-            ]).succeeds().unwrap();
-        assert!(td.path()
-                .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
-                .is_file());
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
     }
 
     #[test]
@@ -807,7 +955,8 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "-s",
                 "~",
             ])
-            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
+            .stdout()
+            .is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	0
 genome3	25.024881
 genome4	25.022575
@@ -816,7 +965,8 @@ genome6	25.020271
 genome1	24.932274
 genome2	0
 ")
-            .succeeds().unwrap()
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -829,7 +979,8 @@ genome2	0
                 "tests/data/shard1.bam",
                 "tests/data/shard2.bam",
             ])
-            .stdout().is("Contig	shard1|shard2 Mean
+            .stdout()
+            .is("Contig	shard1|shard2 Mean
 genome3~random_sequence_length_11001	0.110588886
 genome4~random_sequence_length_11002	0.11057869
 genome5~seq2	0
@@ -838,7 +989,8 @@ genome1~random_sequence_length_11000	0.109861754
 genome1~random_sequence_length_11010	0.110497236
 genome2~seq1	0
 ")
-            .succeeds().unwrap()
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -853,7 +1005,8 @@ genome2~seq1	0
                 "tests/data/shard1.bam",
                 "tests/data/shard2.bam",
             ])
-            .stdout().is("Contig	shard1|shard2 Mean
+            .stdout()
+            .is("Contig	shard1|shard2 Mean
 genome3~random_sequence_length_11001	0.110588886
 genome4~random_sequence_length_11002	0.11057869
 genome5~seq2	0
@@ -862,7 +1015,8 @@ genome1~random_sequence_length_11000	0.109861754
 genome1~random_sequence_length_11010	0.110497236
 genome2~seq1	0
 ")
-            .succeeds().unwrap()
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -879,9 +1033,10 @@ genome2~seq1	0
                 "-s",
                 "~",
                 "--exclude-genomes-from-deshard",
-                tf1.path().to_str().unwrap()
+                tf1.path().to_str().unwrap(),
             ])
-            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
+            .stdout()
+            .is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	19.999998
 genome3	0
 genome4	26.699606
@@ -890,7 +1045,8 @@ genome6	26.697144
 genome1	26.60325
 genome2	0
 ")
-            .succeeds().unwrap()
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -912,9 +1068,10 @@ genome2	0
                 "tests/data/genomes_dir_7seqs/genome5.fasta",
                 "tests/data/genomes_dir_7seqs/genome6.fasta",
                 "--exclude-genomes-from-deshard",
-                tf1.path().to_str().unwrap()
+                tf1.path().to_str().unwrap(),
             ])
-            .stdout().is("Genome	shard1|shard2 Relative Abundance (%)
+            .stdout()
+            .is("Genome	shard1|shard2 Relative Abundance (%)
 unmapped	19.999998
 genome1	26.60325
 genome2	0
@@ -923,7 +1080,8 @@ genome4	26.699606
 genome5	0
 genome6	26.697144
 ")
-            .succeeds().unwrap()
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -940,11 +1098,15 @@ genome6	26.697144
                 "tests/data/7seqs.fna",
                 "--proper-pairs-only",
                 "--min-read-aligned-length-pair",
-                "50"])
-            .stderr().contains(
+                "50",
+            ])
+            .stderr()
+            .contains(
                 "coverm::contig] In sample '7seqs.fna/7seqs.reads_for_7_plus5random.1.fa', \
-                 found 40 reads mapped out of 50 total (80.00%)")
-            .succeeds().unwrap()
+                 found 40 reads mapped out of 50 total (80.00%)",
+            )
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -958,11 +1120,15 @@ genome6	26.697144
                 "-r",
                 "tests/data/7seqs.fna",
                 "--min-read-aligned-length",
-                "50"])
-            .stderr().contains(
+                "50",
+            ])
+            .stderr()
+            .contains(
                 "coverm::contig] In sample '7seqs.fna/7seqs.reads_for_7_plus5random.1.fa', \
-                 found 40 reads mapped out of 50 total (80.00%)")
-            .succeeds().unwrap()
+                 found 40 reads mapped out of 50 total (80.00%)",
+            )
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -978,7 +1144,8 @@ genome6	26.697144
                 "tests/data/shard2.fna",
                 "--sharded",
             ])
-            .stdout().is(
+            .stdout()
+            .is(
                 "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
                  genome3~random_sequence_length_11001	0.110588886\n\
                  genome4~random_sequence_length_11002	0.11057869\n\
@@ -986,8 +1153,10 @@ genome6	26.697144
                  genome6~random_sequence_length_11003	0.11056851\n\
                  genome1~random_sequence_length_11000	0.109861754\n\
                  genome1~random_sequence_length_11010	0.110497236\n\
-                 genome2~seq1	0\n")
-            .succeeds().unwrap()
+                 genome2~seq1	0\n",
+            )
+            .succeeds()
+            .unwrap()
     }
 
     #[test]
@@ -998,12 +1167,15 @@ genome6	26.697144
                 "--genome-definition",
                 "tests/data/7seqs.definition",
                 "-b",
-                "tests/data/7seqs.reads_for_seq1_and_seq2.bam"])
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+            ])
             .succeeds()
-            .stdout().contains(
-                "Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n")
-            .stdout().contains("genome2	53.167923\n")
-            .stdout().contains("genome5	46.832077\n")
+            .stdout()
+            .contains("Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n")
+            .stdout()
+            .contains("genome2	53.167923\n")
+            .stdout()
+            .contains("genome5	46.832077\n")
             .unwrap();
     }
 
@@ -1021,9 +1193,12 @@ genome6	26.697144
                 "tests/data/random.fq",
                 "-2",
                 "tests/data/7seqs.reads_for_7.2.fq",
-                "tests/data/random.fq"])
+                "tests/data/random.fq",
+            ])
             .succeeds()
-            .stdout().is("Genome	7seqs.fna/7seqs.reads_for_7.1.fq Relative Abundance (%)\t\
+            .stdout()
+            .is(
+                "Genome	7seqs.fna/7seqs.reads_for_7.1.fq Relative Abundance (%)\t\
                           7seqs.fna/random.fq Relative Abundance (%)\n\
                           unmapped	0	100\n\
                           genome1	24.932272	NaN\n\
@@ -1031,7 +1206,8 @@ genome6	26.697144
                           genome3	25.02488	NaN\n\
                           genome4	25.022572	NaN\n\
                           genome5	0	NaN\n\
-                          genome6	25.02027	NaN\n")
+                          genome6	25.02027	NaN\n",
+            )
             .unwrap();
     }
 
@@ -1049,13 +1225,18 @@ genome6	26.697144
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--output-directory",
-                td.path().to_str().unwrap()
-            ]).succeeds().unwrap();
-        let bam = td.path()
-                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam");
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let bam = td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam");
         assert!(bam.is_file());
-        Assert::command(&["samtools","view","-H",bam.to_str().unwrap()])
-            .stdout().contains("PN:bwa").unwrap();
+        Assert::command(&["samtools", "view", "-H", bam.to_str().unwrap()])
+            .stdout()
+            .contains("PN:bwa")
+            .unwrap();
     }
 
     #[test]
@@ -1072,13 +1253,18 @@ genome6	26.697144
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--output-directory",
-                td.path().to_str().unwrap()
-            ]).succeeds().unwrap();
-        let bam = td.path()
-                .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam");
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let bam = td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam");
         assert!(bam.is_file());
-        Assert::command(&["samtools","view","-H",bam.to_str().unwrap()])
-            .stdout().contains("PN:minimap2").unwrap();
+        Assert::command(&["samtools", "view", "-H", bam.to_str().unwrap()])
+            .stdout()
+            .contains("PN:minimap2")
+            .unwrap();
     }
 
     #[test]
@@ -1095,10 +1281,11 @@ genome6	26.697144
                 "length",
                 "count",
                 "--output-format",
-                "sparse"
+                "sparse",
             ])
             .succeeds()
-            .stdout().is("Sample	Contig	RPKM	Reads per base	Length	Read Count\n\
+            .stdout()
+            .is("Sample	Contig	RPKM	Reads per base	Length	Read Count\n\
                 7seqs.fnaVbad_read	genome1~random_sequence_length_11000	0	0	11000	0\n\
                 7seqs.fnaVbad_read	genome1~random_sequence_length_11010	0	0	11010	0\n\
                 7seqs.fnaVbad_read	genome2~seq1	500000	0.01	1000	10\n\
@@ -1170,8 +1357,8 @@ genome6	26.697144
                 "tests/data/7seqs.fnaVbad_read.bam",
             ])
             .succeeds()
-            .stdout().is(
-                "Genome	7seqs.fnaVbad_read RPKM\n\
+            .stdout()
+            .is("Genome	7seqs.fnaVbad_read RPKM\n\
                 genome1	0\n")
             .unwrap();
     }
@@ -1370,9 +1557,11 @@ genome6~random_sequence_length_11003	0	0	0
     #[test]
     fn test_remove_minimap2_duplicated_headers_normal_sam() {
         Assert::cargo_binary("remove_minimap2_duplicated_headers")
-            .stdin("@PG yes OK\n\
+            .stdin(
+                "@PG yes OK\n\
                 @SQ 1\n\
-                @SQ 2\n")
+                @SQ 2\n",
+            )
             .succeeds()
             .stdout()
             .is("@PG yes OK\n\
@@ -1384,11 +1573,13 @@ genome6~random_sequence_length_11003	0	0	0
     #[test]
     fn test_remove_minimap2_duplicated_headers_duplicated_sam() {
         Assert::cargo_binary("remove_minimap2_duplicated_headers")
-            .stdin("@SQ 1\n\
+            .stdin(
+                "@SQ 1\n\
                 @SQ 2\n\
                 @PG yes OK\n\
                 @SQ 1\n\
-                @SQ 2\n")
+                @SQ 2\n",
+            )
             .succeeds()
             .stdout()
             .is("@PG yes OK\n\
@@ -1437,23 +1628,25 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/1mbp.fna",
                 "tests/data/set1/500kb.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--single", "tests/data/set1/1read.actually_fasta.fq"
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
     }
 
     #[test]
     fn test_dereplicate_output_clusters() {
-
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t = tf.path().to_str().unwrap();
 
@@ -1463,27 +1656,34 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/1mbp.fna",
                 "tests/data/set1/500kb.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
-                "--output-dereplication-clusters", t
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
+                "--output-dereplication-clusters",
+                t,
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
         let mut s: String = "".to_string();
-        std::fs::File::open(t).unwrap().read_to_string(&mut s).unwrap();
+        std::fs::File::open(t)
+            .unwrap()
+            .read_to_string(&mut s)
+            .unwrap();
         assert_eq!(
             "tests/data/set1/1mbp.fna	tests/data/set1/1mbp.fna\n\
             tests/data/set1/1mbp.fna	tests/data/set1/500kb.fna\n",
-            s)
+            s
+        )
     }
-
 
     #[test]
     fn test_dereplicate_checkm_ordering() {
@@ -1494,19 +1694,21 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/500kb.fna",
                 "tests/data/set1/1mbp.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 500kb	0.00464\n")
             .unwrap();
-
 
         // 500kb specified first, but checkm specified so should be second
         Assert::main_binary()
@@ -1515,23 +1717,24 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/500kb.fna",
                 "tests/data/set1/1mbp.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--checkm-tab-table", "tests/data/set1/checkm.tsv",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "--checkm-tab-table",
+                "tests/data/set1/checkm.tsv",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
     }
-
-
-
 
     #[test]
     fn test_dereplicate_genome_info_ordering() {
@@ -1542,19 +1745,21 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/500kb.fna",
                 "tests/data/set1/1mbp.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 500kb	0.00464\n")
             .unwrap();
-
 
         // 500kb specified first, but checkm specified so should be second
         Assert::main_binary()
@@ -1563,17 +1768,21 @@ genome6~random_sequence_length_11003	0	0	0
                 "--genome-fasta-files",
                 "tests/data/set1/500kb.fna",
                 "tests/data/set1/1mbp.fna",
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
                 "--dereplicate",
-                "--genome-info", "tests/data/set1/genomeInfo.csv",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "--genome-info",
+                "tests/data/set1/genomeInfo.csv",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .is(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
     }
@@ -1582,8 +1791,8 @@ genome6~random_sequence_length_11003	0	0	0
     fn test_genome_fasta_list() {
         let mut tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
 
-        writeln!(tf,"tests/data/set1/500kb.fna").unwrap();
-        writeln!(tf,"tests/data/set1/1mbp.fna").unwrap();
+        writeln!(tf, "tests/data/set1/500kb.fna").unwrap();
+        writeln!(tf, "tests/data/set1/1mbp.fna").unwrap();
         tf.flush().unwrap();
         let t = tf.path().to_str().unwrap();
 
@@ -1592,31 +1801,38 @@ genome6~random_sequence_length_11003	0	0	0
                 "genome",
                 "--genome-fasta-list",
                 t,
-                "-t", "5",
-                "--methods", "covered_fraction",
-                "--min-covered-fraction", "0",
-                "--single", "tests/data/set1/1read.actually_fasta.fq",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
             ])
             .succeeds()
             .stdout()
-            .satisfies(|observed| assert_equal_table(
-                "Genome	1read.actually_fasta.fq Covered Fraction\n\
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	1read.actually_fasta.fq Covered Fraction\n\
                 500kb	0\n\
                 1mbp	0.00232\n",
-                observed), "table incorrect")
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
             .unwrap();
     }
 
     #[test]
     fn test_contig_unsorted_bam_file() {
         Assert::main_binary()
-            .with_args(&[
-                "contig",
-                "-b",
-                "tests/data/2seqs.bad_read.1.unsorted.bam",
-            ])
+            .with_args(&["contig", "-b", "tests/data/2seqs.bad_read.1.unsorted.bam"])
             .fails()
-            .stderr().contains("BAM file appears to be unsorted")
+            .stderr()
+            .contains("BAM file appears to be unsorted")
             .unwrap();
     }
 
@@ -1631,7 +1847,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "tests/data/2seqs.bad_read.1.unsorted.bam",
             ])
             .fails()
-            .stderr().contains("BAM file appears to be unsorted")
+            .stderr()
+            .contains("BAM file appears to be unsorted")
             .unwrap();
     }
 
@@ -1646,11 +1863,11 @@ genome6~random_sequence_length_11003	0	0	0
                 "tests/data/2seqs.bad_read.1.unsorted.bam",
             ])
             .fails()
-            .stderr().contains("BAM file appears to be unsorted")
+            .stderr()
+            .contains("BAM file appears to be unsorted")
             .unwrap();
     }
 }
-
 
 // TODO: Add mismatching bases test
 // TODO: Filter fails when reference sequences are duplicated?
