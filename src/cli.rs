@@ -145,6 +145,12 @@ Alignment filtering (optional):
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
 
+Output (optional):
+   -o, --output FILE                     Output file [default: '-' i.e. stdout]
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: dense]
+
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
                                          One or more (space separated) of:
@@ -163,9 +169,6 @@ Other arguments (optional):
                                          methods is available at
                                          https://github.com/wwood/CoverM
 
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: dense]
    --min-covered-fraction FRACTION       Contigs with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0]
@@ -257,6 +260,12 @@ Define mapping(s) (required):
                                          implications if untrusted input is specified.
                                          [default \"\"]
 
+Output (optional):                                         
+   -o, --output FILE                     Output file [default: '-' i.e. stdout]
+   --output-format FORMAT                Shape of output: 'sparse' for long format,
+                                         'dense' for species-by-site.
+                                         [default: dense]
+                                      
 Sharding i.e. multiple reference sets (optional):
    --sharded                             If -b/--bam-files was used:
                                            Input BAM files are read-sorted alignments
@@ -338,9 +347,6 @@ Other arguments (optional):
                                          methods is available at
                                          https://github.com/wwood/CoverM
 
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: dense]
    --min-covered-fraction FRACTION       Genomes with less coverage than this
                                          reported as having zero coverage.
                                          [default: 0.10]
@@ -556,6 +562,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .short("b")
                         .long("bam-files")
                         .multiple(true)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("output")
+                        .short("o")
+                        .long("output")
                         .takes_value(true),
                 )
                 .arg(Arg::with_name("sharded").long("sharded").required(false))
@@ -945,6 +957,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .about("Calculate coverage of contigs")
                 .help(CONTIG_HELP.as_str())
                 .arg(Arg::with_name("full-help").long("full-help"))
+                .arg(
+                    Arg::with_name("output")
+                        .short("o")
+                        .long("output")
+                        .takes_value(true),
+                )
                 .arg(
                     Arg::with_name("bam-files")
                         .short("b")

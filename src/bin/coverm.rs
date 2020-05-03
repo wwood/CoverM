@@ -51,7 +51,6 @@ fn galah_command_line_definition(
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
 
     match matches.subcommand_name() {
@@ -63,9 +62,13 @@ fn main() {
             }
             set_log_level(m, true);
 
+            // let mut print_stream = setup_output_file(m.value_of("output"));
+            let mut print_stream_mutex = std::sync::Arc::new(std::sync::Mutex::new(setup_output_file(m.value_of("output"))));
+
             let genome_names_content: Vec<u8>;
 
-            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, print_stream);
+            // let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
+            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, print_stream_mutex.clone());
             estimators_and_taker =
                 estimators_and_taker.print_headers(&"Genome", &mut std::io::stdout());
             let filter_params = FilterParameters::generate_from_clap(m);
@@ -466,9 +469,13 @@ fn main() {
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
             let threads = m.value_of("threads").unwrap().parse().unwrap();
+            let mut print_stream_mutex = std::sync::Arc::new(std::sync::Mutex::new(setup_output_file(m.value_of("output"))));
 
-            let mut estimators_and_taker =
-                EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
+            // let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
+            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, print_stream_mutex.clone());
+
+            // let mut estimators_and_taker =
+            //     EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
             estimators_and_taker =
                 estimators_and_taker.print_headers(&"Contig", &mut std::io::stdout());
 
@@ -830,7 +837,7 @@ fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
 impl<'a> EstimatorsAndTaker<'a> {
     pub fn generate_from_clap(
         m: &clap::ArgMatches,
-        stream: &'a mut std::io::Stdout,
+        stream: std::sync::Arc<std::sync::Mutex<dyn std::io::Write>>,
     ) -> EstimatorsAndTaker<'a> {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
@@ -945,7 +952,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                     process::exit(1);
                 } else {
                     debug!("Coverage histogram type coverage taker being used");
-                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
+                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(std::sync::Arc::make_mut(&mut stream).lock().unwrap());
                     printer = CoveragePrinter::StreamedCoveragePrinter;
                 }
             } else if columns_to_normalise.len() == 0
@@ -954,7 +961,7 @@ impl<'a> EstimatorsAndTaker<'a> {
             {
                 debug!("Streaming regular coverage output");
                 taker =
-                    CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream);
+                    CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream.make_mut().unwrap());
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
@@ -1370,6 +1377,22 @@ fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &
             .expect("Unable to covert file name into str")
             .to_string()
         + ".bam"
+}
+
+fn setup_output_file(file_path_opt: Option<&str>) -> Box<dyn Write> {
+    match file_path_opt {
+        Some(file_path) => {
+            if file_path == "-" {
+                Box::new(std::io::stdout())
+            } else {
+                let path = std::path::Path::new(&file_path);
+                debug!("Writing output to: {}", file_path);
+                Box::new(std::fs::File::create(path).expect(
+                    &format!("Failed to create output file: {}", file_path)))
+            }
+        },
+        None => Box::new(std::io::stdout())
+    }
 }
 
 fn setup_bam_cache_directory(cache_directory: &str) {
