@@ -30,6 +30,7 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 extern crate bird_tool_utils;
+extern crate man;
 extern crate version_compare;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";

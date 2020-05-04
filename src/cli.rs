@@ -1,4 +1,5 @@
 use clap::*;
+use man::prelude::{Author, Flag, Manual, Opt};
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "bwa-mem",
@@ -8,15 +9,6 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-no-preset",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
-
-const MAPPER_HELP: &'static str =
-    "   -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
-                                         \"minimap2-pb\", or \"minimap2-no-preset\").
-                                         minimap2 -sr, -ont, -pb, -no-preset specify
-                                         '-x' preset of minimap2 to be used
-                                         (with map-ont, map-pb for -ont, -pb).
-                                         [default: \"minimap2-sr\"]";
 
 pub fn filter_full_help() -> &'static str {
     "coverm filter: Remove alignments with insufficient identity.
@@ -193,179 +185,348 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
     &CONTIG_HELP
 }
 
-pub fn genome_full_help() -> &'static str {
-    lazy_static! {
-        static ref GENOME_HELP: String = format!(
-            "coverm genome: Calculate read coverage per-genome
+const MAPPER_HELP: &'static str =
+    "   -p, --mapper <NAME>                   Underlying mapping software used
+                                         (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
+                                         \"minimap2-pb\", or \"minimap2-no-preset\").
+                                         minimap2 -sr, -ont, -pb, -no-preset specify
+                                         '-x' preset of minimap2 to be used
+                                         (with map-ont, map-pb for -ont, -pb).
+                                         [default: \"minimap2-sr\"]";
+fn add_mapping_options(manual: Manual) -> Manual {
+    manual.option(Opt::new("NAME").short("-p").long("--mapper").help(
+        "Underlying mapping software used \
+                    (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\", \
+                    \"minimap2-pb\", or \"minimap2-no-preset\"). \
+                    minimap2 -sr, -ont, -pb, -no-preset specify \
+                    '-x' preset of minimap2 to be used \
+                    (with map-ont, map-pb for -ont, -pb). \
+                    [default: \"minimap2-sr\"]",
+    ))
+}
 
-Define the contigs in each genome (exactly one of the following is required):
-   -s, --separator <CHARACTER>           This character separates genome names
-                                         from contig names
-   -f, --genome-fasta-files <PATH> ..    Path to FASTA files of each genome e.g.
-                                         'pathA/genome1.fna pathB/genome2.fa'
-   -d, --genome-fasta-directory <PATH>   Directory containing FASTA files of each
-                                         genome
-   -x, --genome-fasta-extension <EXT>    File extension of genomes in the directory
-                                         specified with -d/--genome-fasta-directory
-                                         [default \"fna\"]
-   -d, --genome-fasta-list <PATH>        File containing FASTA file paths, one per 
-                                         line
-   --genome-definition <FILE>            File containing list of
-                                         genome_name<tab>contig
-                                         lines to define the genome of each contig
-   --single-genome                       All contigs are from the same genome
+fn add_thresholding_options(manual: Manual) -> Manual {
+    manual
+        .option(Opt::new("INT").long("--min-read-aligned-length").help(
+            "Exclude reads with smaller numbers of \
+        aligned bases [default: 0]",
+        ))
+        .option(Opt::new("FLOAT").long("--min-read-percent-identity").help(
+            "Exclude reads by overall percent \
+        identity e.g. 0.95 for 95%. [default 0.0]",
+        ))
+        .option(Opt::new("FLOAT").long("--min-read-aligned-percent").help(
+            "Exclude reads by percent aligned \
+        bases e.g. 0.95 means 95% of the read's \
+        bases must be aligned. [default 0.0]",
+        ))
+        .option(Opt::new("INT").long("--min-read-aligned-length-pair").help(
+            "Exclude pairs with smaller numbers of \
+        aligned bases. \
+        Implies --proper-pairs-only. [default: 0]",
+        ))
+        .option(
+            Opt::new("FLOAT")
+                .long("--min-read-percent-identity-pair")
+                .help(
+                    "Exclude pairs by overall percent \
+                identity e.g. 0.95 for 95%. \
+                Implies --proper-pairs-only. [default 0.0]",
+                ),
+        )
+        .option(
+            Opt::new("FLOAT")
+                .long("--min-read-aligned-percent-pair")
+                .help(
+                    "Exclude reads by percent aligned \
+                bases e.g. 0.95 means 95% of the read's \
+                bases must be aligned. \
+                Implies --proper-pairs-only. [default 0.0]",
+                ),
+        )
+        .flag(
+            Flag::new()
+                .long("--proper-pairs-only")
+                .help("Require reads to be mapped as proper pairs"),
+        )
+}
 
-Define mapping(s) (required):
-  Either define BAM:
-   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
-                                         reference sorted (e.g. with samtools sort)
-                                         unless --sharded is specified, in which
-                                         case they must be read name sorted (e.g.
-                                         with samtools sort -n).
+pub fn genome_full_help() -> Manual {
+    // pub fn genome_full_help() -> &'static Manual {
+    // lazy_static! {
+    // static ref GENOME_HELP: Manual =
+    let mut manual = Manual::new("coverm genome")
+            .about("Calculate read coverage per-genome")
+            .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+            .option(
+                Opt::new("CHARACTER")
+                    .short("-s")
+                    .long("--separator")
+                    .help("This character separates genome names from contig names in the reference file")
+            )
+            .option(
+                Opt::new("PATH ..")
+                    .short("-f")
+                    .long("--genome-fasta-files")
+                    .help("Path(s) to FASTA files of each genome e.g. 'pathA/genome1.fna pathB/genome2.fa'")
+            )
+            .option(
+                Opt::new("PATH")
+                    .short("-d")
+                    .long("--genome-fasta-directory")
+                    .help("Directory containing FASTA files of each genome")
+            )
+            .option(
+                Opt::new("EXT")
+                    .short("-x")
+                    .long("--genome-fasta-extension")
+                    .help("File extension of genomes in the directory \
+                        specified with -d/--genome-fasta-directory [default \"fna\"]")
+            )
+            .option(
+                Opt::new("PATH")
+                    .short("-d")
+                    .long("--genome-fasta-list")
+                    .help("File containing FASTA file paths, one per line")
+            )
+            .option(
+                Opt::new("FILE")
+                    .long("--genome-definition")
+                    .help("File containing list of \
+                    genome_name<tab>contig lines to define the genome of each contig")
+            )
+            .flag(
+                Flag::new()
+                    .long("--single-genome")
+                    .help("All contigs are from the same genome")
+            )
 
-  Or do mapping:
-{}
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated
-                                         genomes or metagenome assembly, or minimap2
-                                         index
-                                         (with --minimap2-reference-is-index),
-                                         or BWA index stem (with -p bwa-mem).
-                                         If multiple references FASTA files are
-                                         provided and --sharded is specified,
-                                         then reads will be mapped to references
-                                         separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping, sorting
-                                         and reading.
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
-                                         FASTA/Q files for mapping in order
-                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
-                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
-   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
-   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
-                                         both indexing command (if used) and for
-                                         mapping. Note that usage of this parameter
-                                         has security implications if untrusted input
-                                         is specified. '-a' is always specified.
-                                         [default \"\"]
-   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
-                                         as a FASTA file.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
+            .option(
+                Opt::new("PATH")
+                    .short("-b")
+                    .long("--bam-files")
+                    .help("Path to BAM file(s). These must be \
+                        reference sorted (e.g. with samtools sort) \
+                        unless --sharded is specified, in which \
+                        case they must be read name sorted (e.g. \
+                        with samtools sort -n).")
+            );
 
-Sharding i.e. multiple reference sets (optional):
-   --sharded                             If -b/--bam-files was used:
-                                           Input BAM files are read-sorted alignments
-                                           of a set of reads mapped to multiple
-                                           reference contig sets. Choose the best
-                                           hit for each read pair.
+    manual = add_mapping_options(manual);
 
-                                         Otherwise if mapping was carried out:
-                                           Map reads to each reference, choosing the
-                                           best hit for each pair.
-   --exclude-genomes-from-deshard <FILE> Ignore genomes whose name appears in this
-                                         newline-separated file when combining shards.
-
-
-Alignment filtering (optional):
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95%. [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned. [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases.
-                                         Implies --proper-pairs-only. [default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-
-Dereplication (optional):
-   --dereplicate                         Do genome dereplication via average nucleotide
-                                         identity (ANI) - choose a genome to represent
-                                         all within a small distance, using Dashing for
-                                         preclustering and FastANI for final ANI 
-                                         calculation.
-   --dereplication-ani <FLOAT>           Overall ANI level to dereplicate at with
-                                         FastANI.
-   --checkm-tab-table                    CheckM tab table for defining genome quality,
-                                         which is in turn used during clustering. 
-                                         Genomes are scored as 
-                                         completeness-4*contamination.
-   --genome-info                         dRep style genome info tabl for defining
-                                         quality. Used like --checkm-tab-table.
-   --min-completeness <FLOAT>            Ignore genomes with less completeness than 
-                                         this percentage.
-   --max-contamination <FLOAT>           Ignore genomes with more contamination than
-                                         this percentage.
-   --output-dereplication-clusters <PATH>  Output clustered genome information to this
-                                         file as 'representative<TAB>member'
-   --dereplication-prethreshold-ani <FLOAT>  Require at least this dashing-derived ANI
-                                         for preclustering and to avoid FastANI on
-                                         distant lineages within preclusters.
-   --dereplication-quality-formula <NAME>  Scoring function for genome quality. See
-                                         `coverm dereplicate -h`.
-   --dereplication-precluster-method <NAME>  method of calculating rough ANI for 
-                                         dereplication. 'dashing' for HyperLogLog, 
-                                         'finch' for finch MinHash.
-
-Other arguments (optional):
-   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One or more (space separated) of:
-                                              relative_abundance (default)
-                                              mean
-                                              trimmed_mean
-                                              coverage_histogram
-                                              covered_fraction
-                                              covered_bases
-                                              variance
-                                              length
-                                              count
-                                              reads_per_base
-                                              rpkm
-                                         A more thorough description of the different
-                                         methods is available at
-                                         https://github.com/wwood/CoverM
-
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: dense]
-   --min-covered-fraction FRACTION       Genomes with less coverage than this
-                                         reported as having zero coverage.
-                                         [default: 0.10]
-   --contig-end-exclusion                Exclude bases at the ends of reference
-                                         sequences from calculation [default: 75]
-   --trim-min FRACTION                   Remove this smallest fraction of positions
-                                         when calculating trimmed_mean
-                                         [default: 0.05]
-   --trim-max FRACTION                   Maximum fraction for trimmed_mean
-                                         calculations [default: 0.95]
-   --no-zeros                            Omit printing of genomes that have zero
-                                         coverage
-   --bam-file-cache-directory            Output BAM files generated during
-                                         alignment to this directory
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
-   -v, --verbose                         Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>
-",
-            MAPPER_HELP
-        );
-    }
-    &GENOME_HELP
+    manual = manual
+        .option(Opt::new("PATH").short("-r").long("--reference").help(
+            "FASTA file of contigs e.g. concatenated \
+                    genomes or metagenome assembly, or minimap2 \
+                    index \
+                    (with --minimap2-reference-is-index), \
+                    or BWA index stem (with -p bwa-mem). \
+                    If multiple references FASTA files are \
+                    provided and --sharded is specified, \
+                    then reads will be mapped to references \
+                    separately as sharded BAMs.",
+        ))
+        .option(
+            Opt::new("INT")
+                .short("-t")
+                .long("--threads")
+                .help("Number of threads for mapping, sorting and reading."),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .short("-1")
+                .help("Forward FASTA/Q file(s) for mapping"),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .short("-2")
+                .help("Reverse FASTA/Q file(s) for mapping"),
+        )
+        .option(Opt::new("PATH ..").short("-c").long("--coupled").help(
+            "One or more pairs of forward and reverse \
+            FASTA/Q files for mapping in order \
+            <sample1_R1.fq.gz> <sample1_R2.fq.gz> \
+            <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..",
+        ))
+        .option(
+            Opt::new("PATH ..")
+                .long("--interleaved")
+                .help("Interleaved FASTA/Q files(s) for mapping."),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .long("--single")
+                .help("Unpaired FASTA/Q files(s) for mapping."),
+        )
+        .option(Opt::new("PARAMS").long("--minimap2-params").help(
+            "Extra parameters to provide to minimap2, \
+            both indexing command (if used) and for \
+            mapping. Note that usage of this parameter \
+            has security implications if untrusted input \
+            is specified. '-a' is always specified. \
+            [default \"\"]",
+        ))
+        .flag(
+            Flag::new()
+                .long("--minimap2-reference-is-index ")
+                .help("Treat reference as a minimap2 database, not as a FASTA file."),
+        )
+        .option(Opt::new("PARAMS").long("--bwa-params").help(
+            "Extra parameters to provide to BWA. Note \
+            that usage of this parameter has security \
+            implications if untrusted input is specified. \
+            [default \"\"]",
+        ))
+        .flag(Flag::new().long("--sharded").help(
+            "If -b/--bam-files was used: \
+                Input BAM files are read-sorted alignments \
+                of a set of reads mapped to multiple \
+                reference contig sets. Choose the best \
+                hit for each read pair. Otherwise if mapping was carried out: \
+                Map reads to each reference, choosing the \
+                best hit for each pair.",
+        ))
+        .flag(Flag::new().long("--exclude-genomes-from-deshard").help(
+            "Ignore genomes whose name appears in this newline-separated \
+                file when combining shards.",
+        ));
+    manual = add_thresholding_options(manual);
+    manual
+        .flag(Flag::new().long("--dereplicate").help(
+            "Do genome dereplication via average nucleotide \
+            identity (ANI) - choose a genome to represent \
+            all within a small distance, using Dashing for \
+            preclustering and FastANI for final ANI \
+            calculation.",
+        ))
+        .option(
+            Opt::new("FLOAT")
+                .long("--dereplication-ani")
+                .help("Overall ANI level to dereplicate at with FastANI."),
+        )
+        .option(Opt::new("PATH").long("--checkm-tab-table").help(
+            "CheckM tab table for defining genome quality, \
+            which is in turn used during clustering. \
+            Genomes are scored as \
+            completeness-4*contamination.",
+        ))
+        .option(Opt::new("PATH").long("--genome-info").help(
+            "dRep style genome info tabl for defining \
+            quality. Used like --checkm-tab-table.",
+        ))
+        .option(Opt::new("FLOAT").long("--min-completeness").help(
+            "Ignore genomes with less completeness than \
+            this percentage.",
+        ))
+        .option(Opt::new("FLOAT").long("--max-contamination").help(
+            "Ignore genomes with more contamination than \
+            this percentage.",
+        ))
+        .option(
+            Opt::new("PATH")
+                .long("--output-dereplication-clusters")
+                .help(
+                    "Output clustered genome information to this \
+                    file as 'representative<TAB>member'",
+                ),
+        )
+        .option(
+            Opt::new("FLOAT")
+                .long("--dereplication-prethreshold-ani")
+                .help(
+                    "Require at least this dashing-derived ANI \
+                    for preclustering and to avoid FastANI on \
+                    distant lineages within preclusters.",
+                ),
+        )
+        .option(
+            Opt::new("NAME")
+                .long("--dereplication-quality-formula")
+                .help(
+                    "Scoring function for genome quality. See \
+                    `coverm dereplicate -h`.",
+                ),
+        )
+        .option(
+            Opt::new("NAME")
+                .long("--dereplication-precluster-method")
+                .help(
+                    "method of calculating rough ANI for \
+                    dereplication. 'dashing' for HyperLogLog, \
+                    'finch' for finch MinHash.",
+                ),
+        )
+        .option(Opt::new("METHOD").short("-m").long("--methods").help(
+            "Method(s) for calculating coverage. \
+            One or more (space separated) of: \
+                relative_abundance (default), \
+                mean, \
+                trimmed_mean, \
+                coverage_histogram, \
+                covered_fraction, \
+                covered_bases, \
+                variance, \
+                length, \
+                count, \
+                reads_per_base, \
+                rpkm. \
+            A more thorough description of the different \
+            methods is available at \
+            https://github.com/wwood/CoverM",
+        ))
+        .option(Opt::new("FORMAT").long("--output-format").help(
+            "Shape of output: 'sparse' for long format, \
+            'dense' for species-by-site. \
+            [default: dense]",
+        ))
+        .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
+            "Genomes with less coverage than this \
+            reported as having zero coverage. \
+            [default: 0.10]",
+        ))
+        .option(Opt::new("INT").long("--contig-end-exclusion").help(
+            "Exclude bases at the ends of reference \
+            sequences from calculation [default: 75]",
+        ))
+        .option(Opt::new("FRACTION").long("--trim-min").help(
+            "Remove this smallest fraction of positions \
+            when calculating trimmed_mean \
+            [default: 0.05]",
+        ))
+        .option(Opt::new("FRACTION").long("--trim-max").help(
+            "Maximum fraction for trimmed_mean \
+            calculations [default: 0.95]",
+        ))
+        .flag(Flag::new().long("--no-zeros").help(
+            "Omit printing of genomes that have zero \
+            coverage",
+        ))
+        .option(
+            Opt::new("DIRECTORY")
+                .long("--bam-file-cache-directory")
+                .help(
+                    "Output BAM files generated during \
+                    alignment to this directory. The directory may or may not exist",
+                ),
+        )
+        .flag(
+            Flag::new()
+                .long("--discard-unmapped")
+                .help("Exclude unmapped reads from cached BAM files."),
+        )
+        .flag(
+            Flag::new()
+                .short("-v")
+                .long("--verbose")
+                .help("Print extra debugging information"),
+        )
+        .flag(Flag::new().short("-q").long("--quiet").help(
+            "Unless there is an error, do not print \
+            log messages",
+        ))
+    //cleared
+    // .option(Opt::new("").long("").help(""))
+    // .flag(Flag::new().long("").help(""))
 }
 
 pub fn build_cli() -> App<'static, 'static> {

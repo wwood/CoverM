@@ -48,6 +48,19 @@ fn galah_command_line_definition(
     }
 }
 
+fn display_full_help(manual: man::Manual) {
+    let mut f =
+        tempfile::NamedTempFile::new().expect("Failed to create temporary file for --full-help");
+    write!(f, "{}", manual.render()).expect("Failed to write to tempfile for full-help");
+    let child = std::process::Command::new("man")
+        .args(&[f.path()])
+        .spawn()
+        .expect("Failed to spawn 'man' command for --full-help");
+
+    bird_tool_utils::command::finish_command_safely(child, &"man");
+    process::exit(1);
+}
+
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -58,8 +71,7 @@ fn main() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             if m.is_present("full-help") {
-                println!("{}", genome_full_help());
-                process::exit(1);
+                display_full_help(genome_full_help())
             }
             set_log_level(m, true);
 
@@ -269,35 +281,34 @@ fn main() {
                     }
                 };
 
-                let (concatenated_genomes, genomes_and_contigs_option) = match m
-                    .is_present("reference")
-                {
-                    true => match genome_fasta_files_opt {
-                        Some(genome_paths) => (
-                            None,
-                            extract_genomes_and_contigs_option(
-                                &m,
-                                &genome_paths.iter().map(|s| s.as_str()).collect(),
+                let (concatenated_genomes, genomes_and_contigs_option) =
+                    match m.is_present("reference") {
+                        true => match genome_fasta_files_opt {
+                            Some(genome_paths) => (
+                                None,
+                                extract_genomes_and_contigs_option(
+                                    &m,
+                                    &genome_paths.iter().map(|s| s.as_str()).collect(),
+                                ),
                             ),
-                        ),
-                        None => (None, None),
-                    },
-                    false => {
-                        // Dereplicate if required
-                        let dereplicated_genomes: Vec<String> = if m.is_present("dereplicate") {
-                            dereplicate(&m, &genome_fasta_files_opt.unwrap())
-                        } else {
-                            genome_fasta_files_opt.unwrap()
-                        };
-                        info!("Profiling {} genomes", dereplicated_genomes.len());
+                            None => (None, None),
+                        },
+                        false => {
+                            // Dereplicate if required
+                            let dereplicated_genomes: Vec<String> = if m.is_present("dereplicate") {
+                                dereplicate(&m, &genome_fasta_files_opt.unwrap())
+                            } else {
+                                genome_fasta_files_opt.unwrap()
+                            };
+                            info!("Profiling {} genomes", dereplicated_genomes.len());
 
-                        let list_of_genome_fasta_files = &dereplicated_genomes;
-                        info!(
-                            "Generating concatenated reference FASTA file of {} genomes ..",
-                            list_of_genome_fasta_files.len()
-                        );
+                            let list_of_genome_fasta_files = &dereplicated_genomes;
+                            info!(
+                                "Generating concatenated reference FASTA file of {} genomes ..",
+                                list_of_genome_fasta_files.len()
+                            );
 
-                        (
+                            (
                             Some(
                                 coverm::mapping_index_maintenance::generate_concatenated_fasta_file(
                                     list_of_genome_fasta_files,
@@ -312,8 +323,8 @@ fn main() {
                                     .collect(),
                             ),
                         )
-                    }
-                };
+                        }
+                    };
 
                 if filter_params.doing_filtering() {
                     debug!("Mapping and filtering..");
