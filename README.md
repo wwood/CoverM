@@ -69,6 +69,8 @@ For the full suite of options, these additional programs must be installed:
 * [samtools](https://github.com/samtools/samtools) >1.0 (tested with v1.9)
 * [tee](https://www.gnu.org/software/coreutils/), which is installed by default
   on most Linux operating systems.
+* [man](http://man-db.nongnu.org/), which is installed by default on most Linux
+  operating systems.
 
 and some mapping software:
 * [minimap2](https://github.com/lh3/minimap2)
@@ -108,7 +110,7 @@ For more detailed usage see `coverm <command> -h` or `coverm <command> --full-he
 
 ## Calculation methods
 
-The `-m/--methods` flag specified the specific kind(s) of coverage that are
+The `-m/--methods` flag specifies the specific kind(s) of coverage that are
 to be calculated.
 
 To illustrate, imagine a set of 3 pairs of reads, where only 1 aligns to a
