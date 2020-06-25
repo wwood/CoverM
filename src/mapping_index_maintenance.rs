@@ -31,6 +31,15 @@ impl MappingIndex for VanillaBwaIndexStuct {
     }
 }
 
+pub struct VanillaUrmapIndexStuct {
+    index_path_internal: String,
+}
+impl MappingIndex for VanillaUrmapIndexStuct {
+    fn index_path(&self) -> &String {
+        return &self.index_path_internal;
+    }
+}
+
 pub struct TemporaryIndexStruct {
     #[allow(dead_code)] // field is never used, it just needs to be kept in scope.
     tempdir: TempDir,
@@ -60,6 +69,7 @@ impl TemporaryIndexStruct {
         );
         let mut cmd = match mapping_program {
             MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
+            MappingProgram::URMAP => std::process::Command::new("urmap"),
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
@@ -71,6 +81,12 @@ impl TemporaryIndexStruct {
                     .arg("-p")
                     .arg(&index_path)
                     .arg(&reference_path);
+            }
+            MappingProgram::URMAP => {
+                cmd.arg("-make_ufi")
+                    .arg(&reference_path)
+                    .arg("-output")
+                    .arg(&index_path);
             }
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
@@ -86,7 +102,9 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_PB => {
                         cmd.arg("-x").arg("map-pb");
                     }
-                    MappingProgram::MINIMAP2_NO_PRESET | MappingProgram::BWA_MEM => {}
+                    MappingProgram::MINIMAP2_NO_PRESET
+                    | MappingProgram::BWA_MEM
+                    | MappingProgram::URMAP => {}
                 };
                 match num_threads {
                     Some(t) => {
@@ -183,6 +201,20 @@ pub fn generate_bwa_index(
 }
 
 pub fn generate_minimap2_index(
+    reference_path: &str,
+    num_threads: Option<usize>,
+    index_creation_parameters: Option<&str>,
+    mapping_program: MappingProgram,
+) -> Box<dyn MappingIndex> {
+    return Box::new(TemporaryIndexStruct::new(
+        mapping_program,
+        reference_path,
+        num_threads,
+        index_creation_parameters,
+    ));
+}
+
+pub fn generate_urmap_index(
     reference_path: &str,
     num_threads: Option<usize>,
     index_creation_parameters: Option<&str>,

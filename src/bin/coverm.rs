@@ -681,6 +681,12 @@ fn setup_mapping_index(
             reference_wise_params.reference,
             None,
         )),
+        MappingProgram::URMAP => Some(coverm::mapping_index_maintenance::generate_urmap_index(
+            reference_wise_params.reference,
+            Some(m.value_of("threads").unwrap().parse::<usize>().unwrap()),
+            Some(m.value_of("urmap-params").unwrap_or("")),
+            mapping_program,
+        )),
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_PB
@@ -760,6 +766,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-ont") => MappingProgram::MINIMAP2_ONT,
         Some("minimap2-pb") => MappingProgram::MINIMAP2_PB,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
+        Some("urmap") => MappingProgram::URMAP,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -770,6 +777,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
         }
+        MappingProgram::URMAP => {} //TODO: check for urmap
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_PB

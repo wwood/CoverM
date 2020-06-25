@@ -50,6 +50,7 @@ pub enum MappingProgram {
     MINIMAP2_ONT,
     MINIMAP2_PB,
     MINIMAP2_NO_PRESET,
+    URMAP,
 }
 
 pub struct BamFileNamedReader {
@@ -344,7 +345,7 @@ pub fn generate_named_bam_readers_from_reads(
             .expect("Failed to convert tempfile path to str"),
         // remove extraneous @SQ lines
         match mapping_program {
-            MappingProgram::BWA_MEM => {
+            MappingProgram::BWA_MEM | MappingProgram::URMAP => {
                 ""
             }
             // Required because of https://github.com/lh3/minimap2/issues/527
@@ -829,53 +830,72 @@ pub fn build_mapping_command(
     read2_path: Option<&str>,
     mapping_options: Option<&str>,
 ) -> String {
-    let read_params1 = match mapping_program {
-        // minimap2 auto-detects interleaved based on read names
-        MappingProgram::MINIMAP2_SR
-        | MappingProgram::MINIMAP2_ONT
-        | MappingProgram::MINIMAP2_PB
-        | MappingProgram::MINIMAP2_NO_PRESET => "",
-        MappingProgram::BWA_MEM => match read_format {
-            ReadFormat::Interleaved => "-p",
-            ReadFormat::Coupled | ReadFormat::Single => "",
-        },
-    };
+    match mapping_program {
+        MappingProgram::URMAP => format!(
+            "urmap -samout - -ufi '{}' -threads {} {} {}",
+            reference,
+            threads,
+            match read_format {
+                ReadFormat::Single => format!("-map '{}'", read1_path),
+                ReadFormat::Coupled =>
+                    format!("-map2 '{}' -reverse '{}'", read1_path, read2_path.unwrap()),
+                ReadFormat::Interleaved => panic!("urmap is incompatible with interleaved inputs"),
+            },
+            mapping_options.unwrap_or("")
+        ),
+        _ => {
+            let read_params1 = match mapping_program {
+                // minimap2 auto-detects interleaved based on read names
+                MappingProgram::MINIMAP2_SR
+                | MappingProgram::MINIMAP2_ONT
+                | MappingProgram::MINIMAP2_PB
+                | MappingProgram::MINIMAP2_NO_PRESET
+                // urmap is treated separately
+                | MappingProgram::URMAP => "",
+                MappingProgram::BWA_MEM => match read_format {
+                    ReadFormat::Interleaved => "-p",
+                    ReadFormat::Coupled | ReadFormat::Single => "",
+                },
+            };
 
-    let read_params2 = match read_format {
-        ReadFormat::Interleaved => format!("'{}'", read1_path),
-        ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
-        ReadFormat::Single => format!("'{}'", read1_path),
-    };
+            let read_params2 = match read_format {
+                ReadFormat::Interleaved => format!("'{}'", read1_path),
+                ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+                ReadFormat::Single => format!("'{}'", read1_path),
+            };
 
-    return format!(
-        "{} {} -t {} {} '{}' {}",
-        match mapping_program {
-            MappingProgram::BWA_MEM => "bwa mem".to_string(),
-            _ => {
-                let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
-                    "Failed to create {:?} minimap2 split_prefix file",
-                    mapping_program
-                ));
-                format!(
-                    "minimap2 --split-prefix {} -a {}",
-                    split_prefix
-                        .path()
-                        .to_str()
-                        .expect("Failed to convert split prefix tempfile path to str"),
-                    match mapping_program {
-                        MappingProgram::BWA_MEM => unreachable!(),
-                        MappingProgram::MINIMAP2_SR => "-x sr",
-                        MappingProgram::MINIMAP2_ONT => "-x map-ont",
-                        MappingProgram::MINIMAP2_PB => "-x map-pb",
-                        MappingProgram::MINIMAP2_NO_PRESET => "",
+            format!(
+                "{} {} -t {} {} '{}' {}",
+                match mapping_program {
+                    MappingProgram::BWA_MEM => "bwa mem".to_string(),
+                    MappingProgram::URMAP => unreachable!(),
+                    _ => {
+                        let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
+                            "Failed to create {:?} minimap2 split_prefix file",
+                            mapping_program
+                        ));
+                        format!(
+                            "minimap2 --split-prefix {} -a {}",
+                            split_prefix
+                                .path()
+                                .to_str()
+                                .expect("Failed to convert split prefix tempfile path to str"),
+                            match mapping_program {
+                                MappingProgram::BWA_MEM | MappingProgram::URMAP => unreachable!(),
+                                MappingProgram::MINIMAP2_SR => "-x sr",
+                                MappingProgram::MINIMAP2_ONT => "-x map-ont",
+                                MappingProgram::MINIMAP2_PB => "-x map-pb",
+                                MappingProgram::MINIMAP2_NO_PRESET => "",
+                            }
+                        )
                     }
-                )
-            }
-        },
-        mapping_options.unwrap_or(""),
-        threads,
-        read_params1,
-        reference,
-        read_params2
-    );
+                },
+                mapping_options.unwrap_or(""),
+                threads,
+                read_params1,
+                reference,
+                read_params2
+            )
+        }
+    }
 }

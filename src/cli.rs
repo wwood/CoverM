@@ -7,6 +7,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-ont",
     "minimap2-pb",
     "minimap2-no-preset",
+    "urmap",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
