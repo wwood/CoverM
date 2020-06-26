@@ -566,7 +566,7 @@ the unfiltered BAM files in the saved_bam_files folder:"
 {}
 
   coverm genome --coupled read1.fastq.gz read2.fastq.gz
-    --reference assembly.fna --separator '~'
+    --genome-fasta-files genome1.fna genome2.fna
 
 {}
 
@@ -581,10 +581,7 @@ See coverm genome --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm genome"),
             ansi_term::Colour::Green.paint("Calculate coverage of individual genomes"),
-            ansi_term::Colour::Purple.paint(
-                "Example: Map paired reads to a reference where the FASTA header separates
-the genome name from the contig name with '~' e.g. >genome10~contig15"
-            ),
+            ansi_term::Colour::Purple.paint("Example: Map paired reads to 2 genomes:"),
             ansi_term::Colour::Purple.paint(
                 "Example: Calculate coverage of genomes defined as .fna files in
 genomes_directory/ from a sorted BAM file:"
