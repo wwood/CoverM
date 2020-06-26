@@ -81,17 +81,27 @@ For dereplication:
 * [FastANI](https://github.com/ParBLiSS/FastANI) v1.3
 
 ### Shell completion
-Completion scripts for various shells e.g. BASH can be generated. For example, to install the bash completion script
+Completion scripts for various shells e.g. BASH can be generated. For example, to install the bash completion script system-wide (this requires root privileges):
 
 ```
 coverm shell-completion --output-file coverm --shell bash
 mv coverm /etc/bash_completion.d/
 ```
-The second step will probably require root privileges. To take effect, the terminal will likely need to be restarted.
 
+It can also be installed into a user's home directory (root privileges not required):
+
+```
+coverm shell-completion --shell bash --output-file /dev/stdout >>~/.bash_completion
+```
+
+In both cases, to take effect, the terminal will likely need to be restarted. To test, type `coverm gen` and it should complete after pressing the TAB key.
 
 ## Usage
 ```
+Mapping coverage analysis for metagenomics
+
+Usage: coverm <subcommand> ...
+
 Main subcommands:
 	contig	Calculate coverage of contigs
 	genome	Calculate coverage of genomes
@@ -99,6 +109,7 @@ Main subcommands:
 Less used utility subcommands:
 	make	Generate BAM files through alignment
 	filter	Remove (or only keep) alignments with insufficient identity
+	cluster	Dereplicate and cluster genomes
 	shell-completion
 		Generate shell completion scripts
 
@@ -154,4 +165,4 @@ positions sorted by coverage.
 CoverM is made available under GPL3+. See LICENSE.txt for details. Copyright Ben
 Woodcroft.
 
-Developed by Ben Woodcroft at the [Australian Centre for Ecogenomics](http://ecogenomic.org).
+Developed by Ben Woodcroft at the Queensland University of Technology [Microbiome Research Group](https://www.qut.edu.au/news?id=159549).
