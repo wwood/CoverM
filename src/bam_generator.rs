@@ -289,6 +289,14 @@ pub fn generate_named_bam_readers_from_reads(
         "Failed to create {:?} log tempfile",
         mapping_program
     ));
+    let remove_minimap2_duplicated_headers_log = match mapping_program {
+        MappingProgram::BWA_MEM => None,
+        // Required because of https://github.com/lh3/minimap2/issues/527
+        _ => Some(tempfile::NamedTempFile::new().expect(&format!(
+            "Failed to create {:?} remove_minimap2_duplicated_headers_log tempfile",
+            mapping_program
+        ))),
+    };
     let samtools2_log =
         tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -343,12 +351,24 @@ pub fn generate_named_bam_readers_from_reads(
             .to_str()
             .expect("Failed to convert tempfile path to str"),
         // remove extraneous @SQ lines
+        // remove extraneous @SQ lines
         match mapping_program {
             MappingProgram::BWA_MEM => {
-                ""
+                "".to_string()
             }
             // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers",
+            MappingProgram::MINIMAP2_SR
+            | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_NO_PRESET => format!(
+                " | remove_minimap2_duplicated_headers 2>{}",
+                remove_minimap2_duplicated_headers_log
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .to_str()
+                    .expect("Failed to convert tempfile path to str")
+            ),
         },
         // samtools
         bwa_sort_prefix
@@ -378,6 +398,17 @@ pub fn generate_named_bam_readers_from_reads(
         log_descriptions.push("samtools view for cache".to_string());
         log_files.push(samtools_view_cache_log);
     }
+    match mapping_program {
+        MappingProgram::BWA_MEM => {}
+        // Required because of https://github.com/lh3/minimap2/issues/527
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => {
+            log_descriptions.push("remove_minimap2_duplicated_headers".to_string());
+            log_files.push(remove_minimap2_duplicated_headers_log.unwrap());
+        }
+    };
 
     let stoit_name = match include_reference_in_stoit_name {
         true => {
@@ -689,6 +720,14 @@ pub fn generate_bam_maker_generator_from_reads(
         "Failed to create {:?} log tempfile",
         mapping_program
     ));
+    let remove_minimap2_duplicated_headers_log = match mapping_program {
+        MappingProgram::BWA_MEM => None,
+        // Required because of https://github.com/lh3/minimap2/issues/527
+        _ => Some(tempfile::NamedTempFile::new().expect(&format!(
+            "Failed to create {:?} remove_minimap2_duplicated_headers_log tempfile",
+            mapping_program
+        ))),
+    };
     let samtools2_log =
         tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
@@ -724,10 +763,21 @@ pub fn generate_bam_maker_generator_from_reads(
         // remove extraneous @SQ lines
         match mapping_program {
             MappingProgram::BWA_MEM => {
-                ""
+                "".to_string()
             }
             // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers",
+            MappingProgram::MINIMAP2_SR
+            | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_NO_PRESET => format!(
+                " | remove_minimap2_duplicated_headers 2>{}",
+                remove_minimap2_duplicated_headers_log
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .to_str()
+                    .expect("Failed to convert tempfile path to str")
+            ),
         },
         // samtools
         bwa_sort_prefix
@@ -757,12 +807,24 @@ pub fn generate_bam_maker_generator_from_reads(
         .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
 
-    let log_descriptions = vec![
+    let mut log_descriptions = vec![
         format!("{:?}", mapping_program).to_string(),
         "samtools sort".to_string(),
         "samtools view for cache".to_string(),
     ];
-    let log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
+    let mut log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
+
+    match mapping_program {
+        MappingProgram::BWA_MEM => {}
+        // Required because of https://github.com/lh3/minimap2/issues/527
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => {
+            log_descriptions.push("remove_minimap2_duplicated_headers".to_string());
+            log_files.push(remove_minimap2_duplicated_headers_log.unwrap());
+        }
+    };
 
     return NamedBamMakerGenerator {
         stoit_name: std::path::Path::new(reference)
