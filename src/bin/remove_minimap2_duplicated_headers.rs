@@ -15,9 +15,11 @@ fn main() {
     // See https://github.com/lh3/minimap2/issues/527
 
     let mut is_before_pg = true;
+    let mut num_lines_seen = 0u64;
 
     let stdin = std::io::stdin();
     for line_res in stdin.lock().lines() {
+        num_lines_seen += 1;
         match line_res {
             Ok(line) => {
                 if is_before_pg {
@@ -37,5 +39,11 @@ fn main() {
                 panic!("{}", e);
             }
         }
+    }
+    if is_before_pg {
+        panic!(
+            "After {} lines, no @PG lines were detected - something went wrong during mapping?",
+            num_lines_seen
+        );
     }
 }
