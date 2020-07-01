@@ -484,31 +484,34 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 min_fraction_covered_bases,
                 exclude_mismatches,
             } => {
-                debug!(
-                    "Calculating coverage with unobserved {:?}, \
-                        total bases {}, num_covered_bases {}, total_count {}, \
-                        total_mismatches {}",
-                    unobserved_contig_lengths,
-                    total_bases,
-                    num_covered_bases,
-                    total_count,
-                    total_mismatches
-                );
                 let final_total_bases = *total_bases
                     + CoverageEstimator::calculate_unobserved_bases(
                         unobserved_contig_lengths,
                         *contig_end_exclusion,
                     );
+                debug!(
+                    "Calculating coverage with unobserved {:?}, \
+                        total bases {}, num_covered_bases {}, total_count {}, \
+                        total_mismatches {}, final_total_bases {}",
+                    unobserved_contig_lengths,
+                    total_bases,
+                    num_covered_bases,
+                    total_count,
+                    total_mismatches,
+                    final_total_bases,
+                );
                 if final_total_bases == 0
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
                     return 0.0;
                 } else {
-                    return match exclude_mismatches {
+                    let calculated_coverage = match exclude_mismatches {
                         true => (*total_count - (*total_mismatches as u64)) as f32,
                         false => *total_count as f32,
                     } / final_total_bases as f32;
+                    debug!("Found mean coverage {}", calculated_coverage);
+                    return calculated_coverage;
                 }
             }
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {

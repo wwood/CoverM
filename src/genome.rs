@@ -377,6 +377,12 @@ fn print_last_genomes<T: CoverageTaker>(
             );
             for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
                 let coverage = coverages[i];
+                debug!(
+                    "Found coverage {} for genome {} i.e. coverage estimator {}",
+                    coverage,
+                    &str::from_utf8(last_genome.unwrap()).unwrap(),
+                    i
+                );
 
                 // Print coverage of previous genome
                 if coverage > 0.0 {
@@ -388,10 +394,13 @@ fn print_last_genomes<T: CoverageTaker>(
                         9,
                     );
                 }
-                coverage_estimator.setup();
             }
             coverage_taker.finish_entry();
         }
+    }
+    // Reset all estimators
+    for coverage_estimator in coverage_estimators.iter_mut() {
+        coverage_estimator.setup();
     }
     if print_zero_coverage_genomes && !single_genome {
         print_previous_zero_coverage_genomes2(
@@ -423,6 +432,10 @@ pub fn mosdepth_genome_coverage<
     threads: usize,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
+    debug!(
+        "Calculating coverage using a split character {}",
+        str::from_utf8(&[split_char]).unwrap()
+    );
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
         bam_generated.set_threads(threads);
@@ -635,9 +648,10 @@ pub fn mosdepth_genome_coverage<
                             split_char,
                             &header,
                         );
-                        debug!(
-                            "Setting unobserved contig length to be {:?}",
-                            unobserved_contig_length_and_first_tid.unobserved_contig_lengths
+                        info!(
+                            "Setting unobserved contig length to be {:?} for genome {}",
+                            unobserved_contig_length_and_first_tid.unobserved_contig_lengths,
+                            str::from_utf8(&current_genome).unwrap()
                         );
                     }
 
