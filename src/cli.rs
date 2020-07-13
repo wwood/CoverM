@@ -39,6 +39,7 @@ Thresholds:
                                          bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
+   --exclude-supplementary               Exclude supplementary alignments
 
 Other:
    -t, --threads <INT>                   Number of threads for output compression
@@ -136,6 +137,7 @@ Alignment filtering (optional):
                                          bases must be aligned.
                                          Implies --proper-pairs-only. [default 0.0]
    --proper-pairs-only                   Require reads to be mapped as proper pairs
+   --exclude-supplementary               Exclude supplementary alignments
 
 Other arguments (optional):
    -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
@@ -248,6 +250,11 @@ fn add_thresholding_options(manual: Manual) -> Manual {
             Flag::new()
                 .long("--proper-pairs-only")
                 .help("Require reads to be mapped as proper pairs"),
+        )
+        .flag(
+            Flag::new()
+                .long("--exclude-supplementary")
+                .help("Exclude supplementary alignments"),
         )
 }
 
@@ -1030,6 +1037,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 )
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
                 .arg(
                     Arg::with_name("output-format")
                         .long("output-format")
@@ -1315,6 +1323,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 )
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
                 .arg(
                     Arg::with_name("output-format")
                         .long("output-format")
@@ -1380,6 +1389,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("proper-pairs-only"),
                 )
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
                 .arg(
                     Arg::with_name("threads")
                         .long("threads")

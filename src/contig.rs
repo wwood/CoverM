@@ -145,7 +145,9 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     total_indels_in_current_contig = 0;
                 }
 
-                num_mapped_reads_in_current_contig += 1;
+                if !record.is_supplementary() && !record.is_secondary() {
+                    num_mapped_reads_in_current_contig += 1;
+                }
 
                 // for each chunk of the cigar string
                 trace!(

@@ -1382,7 +1382,7 @@ genome6	26.697144
             .succeeds()
             .stdout().is(
                 "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
-                ctg4	1887.6234	0.02457587	6\n\
+                ctg4	1887.6234	0.024918951	6\n\
                 ctg5	717.27264	0.0041760243	3\n\
                 ctg6	126.346375	0.0021053297	1\n")
             .unwrap();
@@ -1413,7 +1413,7 @@ genome6	26.697144
             .stdout()
             .is(
                 "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
-                ctg4	1887.6234	0.02457587	6	1887.6234	0.02457587	6\n\
+                ctg4	1887.6234	0.024918951	6	1887.6234	0.024918951	6\n\
                 ctg5	717.27264	0.0041760243	3	717.27264	0.0041760243	3\n\
                 ctg6	126.346375	0.0021053297	1	126.346375	0.0021053297	1\n")
             .stderr()

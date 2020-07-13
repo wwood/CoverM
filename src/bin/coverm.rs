@@ -1153,7 +1153,7 @@ impl FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
                 include_secondary: false,
-                include_supplementary: false,
+                include_supplementary: !m.is_present("exclude-supplementary-alignments"),
             },
             min_aligned_length_single: match m.is_present("min-read-aligned-length") {
                 true => value_t!(m.value_of("min-read-aligned-length"), u32).unwrap(),
@@ -1169,9 +1169,10 @@ impl FilterParameters {
             min_aligned_percent_pair: parse_percentage(&m, "min-read-aligned-percent-pair"),
         };
         if doing_metabat(&m) {
-            debug!(
+            info!(
                 "Setting single read percent identity threshold at 0.97 for \
-                 MetaBAT adjusted coverage."
+                 MetaBAT adjusted coverage, and not filtering out supplementary, \
+                 secondary and improper pair alignments"
             );
             // we use >= where metabat uses >. Gah.
             f.min_percent_identity_single = 0.97001;

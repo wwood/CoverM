@@ -168,7 +168,9 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     None => {}
                     Some(genome_index) => {
                         reads_mapped_in_each_genome[genome_index] += 1;
-                        num_mapped_reads_in_current_contig += 1;
+                        if !record.is_supplementary() && !record.is_secondary() {
+                            num_mapped_reads_in_current_contig += 1;
+                        }
                         trace!(
                             "read name {:?}",
                             std::str::from_utf8(record.qname()).unwrap()
@@ -669,7 +671,9 @@ pub fn mosdepth_genome_coverage<
                     "read name {:?}",
                     std::str::from_utf8(record.qname()).unwrap()
                 );
-                num_mapped_reads_in_current_contig += 1;
+                if !record.is_supplementary() && !record.is_secondary() {
+                    num_mapped_reads_in_current_contig += 1;
+                }
                 num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
