@@ -60,133 +60,6 @@ Example usage:
 Ben J. Woodcroft <benjwoodcroft near gmail.com>"
 }
 
-pub fn contig_full_help() -> &'static str {
-    lazy_static! {
-        static ref CONTIG_HELP: String = format!(
-            "coverm contig: Calculate read coverage per-contig
-
-Define mapping(s) (required):
-  Either define BAM:
-   -b, --bam-files <PATH> ..             Path to BAM file(s). These must be
-                                         reference sorted (e.g. with samtools sort)
-                                         unless --sharded is specified, in which
-                                         case they must be read name sorted (e.g.
-                                         with samtools sort -n).
-
-  Or do mapping:
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
-                                         genomes or metagenome assembly, or minimap2
-                                         index
-                                         (with --minimap2-reference-is-index),
-                                         or BWA index stem (with -p bwa-mem).
-                                         If multiple references FASTA files are
-                                         provided and --sharded is specified,
-                                         then reads will be mapped to references
-                                         separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads for mapping, sorting
-                                         and reading.
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
-                                         FASTA/Q files for mapping in order
-                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
-                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
-   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
-   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
-{}
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
-                                         both indexing command (if used) and for
-                                         mapping. Note that usage of this parameter
-                                         has security implications if untrusted input
-                                         is specified. '-a' is always specified.
-                                         [default \"\"]
-   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
-                                         as a FASTA file.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
-
-Sharding i.e. multiple reference sets (optional):
-   --sharded                             If -b/--bam-files was used:
-                                           Input BAM files are read-sorted alignments
-                                           of a set of reads mapped to multiple
-                                           reference contig sets. Choose the best
-                                           hit for each read pair.
-
-                                         Otherwise if mapping was carried out:
-                                           Map reads to each reference, choosing the
-                                           best hit for each pair.
-
-Alignment filtering (optional):
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95%. [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned. [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases.
-                                         Implies --proper-pairs-only. [default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-   --exclude-supplementary               Exclude supplementary alignments
-
-Other arguments (optional):
-   -m, --methods <METHOD> [METHOD ..]    Method(s) for calculating coverage.
-                                         One or more (space separated) of:
-                                           mean (default)
-                                           trimmed_mean
-                                           coverage_histogram
-                                           covered_fraction
-                                           covered_bases
-                                           variance
-                                           length
-                                           count
-                                           metabat (\"MetaBAT adjusted coverage\")
-                                           reads_per_base
-                                           rpkm
-                                         A more thorough description of the different
-                                         methods is available at
-                                         https://github.com/wwood/CoverM
-
-   --output-format FORMAT                Shape of output: 'sparse' for long format,
-                                         'dense' for species-by-site.
-                                         [default: dense]
-   --min-covered-fraction FRACTION       Contigs with less coverage than this
-                                         reported as having zero coverage.
-                                         [default: 0]
-   --contig-end-exclusion                Exclude bases at the ends of reference
-                                         sequences from calculation [default: 75]
-   --trim-min FRACTION                   Remove this smallest fraction of positions
-                                         when calculating trimmed_mean
-                                         [default: 0.05]
-   --trim-max FRACTION                   Maximum fraction for trimmed_mean
-                                         calculations [default: 0.95]
-   --no-zeros                            Omit printing of genomes that have zero
-                                         coverage
-   --bam-file-cache-directory            Output BAM files generated during
-                                         alignment to this directory
-   --discard-unmapped                    Exclude unmapped reads from cached BAM files.
-   -v, --verbose                         Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>
-",
-            MAPPER_HELP
-        );
-    }
-    &CONTIG_HELP
-}
-
 const MAPPER_HELP: &'static str =
     "   -p, --mapper <NAME>                   Underlying mapping software used
                                          (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
@@ -258,10 +131,150 @@ fn add_thresholding_options(manual: Manual) -> Manual {
         )
 }
 
+fn add_read_params(manual: Manual) -> Manual {
+    manual
+        .option(
+            Opt::new("PATH ..")
+                .short("-1")
+                .help("Forward FASTA/Q file(s) for mapping"),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .short("-2")
+                .help("Reverse FASTA/Q file(s) for mapping"),
+        )
+        .option(Opt::new("PATH ..").short("-c").long("--coupled").help(
+            "One or more pairs of forward and reverse \
+        FASTA/Q files for mapping in order \
+        <sample1_R1.fq.gz> <sample1_R2.fq.gz> \
+        <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..",
+        ))
+        .option(
+            Opt::new("PATH ..")
+                .long("--interleaved")
+                .help("Interleaved FASTA/Q files(s) for mapping."),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .long("--single")
+                .help("Unpaired FASTA/Q files(s) for mapping."),
+        )
+        .option(Opt::new("PARAMS").long("--minimap2-params").help(
+            "Extra parameters to provide to minimap2, \
+        both indexing command (if used) and for \
+        mapping. Note that usage of this parameter \
+        has security implications if untrusted input \
+        is specified. '-a' is always specified. \
+        [default \"\"]",
+        ))
+        .flag(
+            Flag::new()
+                .long("--minimap2-reference-is-index ")
+                .help("Treat reference as a minimap2 database, not as a FASTA file."),
+        )
+        .option(Opt::new("PARAMS").long("--bwa-params").help(
+            "Extra parameters to provide to BWA. Note \
+        that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default \"\"]",
+        ))
+        .flag(Flag::new().long("--sharded").help(
+            "If -b/--bam-files was used: \
+            Input BAM files are read-sorted alignments \
+            of a set of reads mapped to multiple \
+            reference contig sets. Choose the best \
+            hit for each read pair. Otherwise if mapping was carried out: \
+            Map reads to each reference, choosing the \
+            best hit for each pair.",
+        ))
+}
+
+pub fn contig_full_help() -> Manual {
+    let mut manual = Manual::new("coverm contig")
+        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .option(Opt::new("PATH").short("-b").long("--bam-files").help(
+            "Path to BAM file(s). These must be \
+                reference sorted (e.g. with samtools sort) \
+                unless --sharded is specified, in which \
+                case they must be read name sorted (e.g. \
+                with samtools sort -n).",
+        ));
+    manual = add_mapping_options(manual);
+    manual = add_thresholding_options(manual);
+    manual = manual
+        .option(Opt::new("METHOD").short("-m").long("--methods").help(
+            "Method(s) for calculating coverage. \
+            One or more (space separated) of: \
+            mean (default), \
+            trimmed_mean, \
+            coverage_histogram, \
+            covered_fraction, \
+            covered_bases, \
+            variance, \
+            length, \
+            count, \
+            metabat (\"MetaBAT adjusted coverage\"), \
+            reads_per_base, \
+            rpkm. \
+        A more thorough description of the different \
+        methods is available at \
+        https://github.com/wwood/CoverM",
+        ))
+        .option(Opt::new("FORMAT").long("--output-format").help(
+            "Shape of output: 'sparse' for long format, \
+        'dense' for species-by-site. \
+        [default: dense]",
+        ))
+        .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
+            "Genomes with less coverage than this \
+        reported as having zero coverage. \
+        [default: 0.10]",
+        ))
+        .option(Opt::new("INT").long("--contig-end-exclusion").help(
+            "Exclude bases at the ends of reference \
+        sequences from calculation [default: 75]",
+        ))
+        .option(Opt::new("FRACTION").long("--trim-min").help(
+            "Remove this smallest fraction of positions \
+        when calculating trimmed_mean \
+        [default: 0.05]",
+        ))
+        .option(Opt::new("FRACTION").long("--trim-max").help(
+            "Maximum fraction for trimmed_mean \
+        calculations [default: 0.95]",
+        ))
+        .flag(Flag::new().long("--no-zeros").help(
+            "Omit printing of genomes that have zero \
+        coverage",
+        ))
+        .option(
+            Opt::new("DIRECTORY")
+                .long("--bam-file-cache-directory")
+                .help(
+                    "Output BAM files generated during \
+                alignment to this directory. The directory may or may not exist",
+                ),
+        )
+        .flag(
+            Flag::new()
+                .long("--discard-unmapped")
+                .help("Exclude unmapped reads from cached BAM files."),
+        )
+        .flag(
+            Flag::new()
+                .short("-v")
+                .long("--verbose")
+                .help("Print extra debugging information"),
+        )
+        .flag(Flag::new().short("-q").long("--quiet").help(
+            "Unless there is an error, do not print \
+        log messages",
+        ));
+
+    return manual;
+}
+
 pub fn genome_full_help() -> Manual {
-    // pub fn genome_full_help() -> &'static Manual {
-    // lazy_static! {
-    // static ref GENOME_HELP: Manual =
     let mut manual = Manual::new("coverm genome")
             .about("Calculate read coverage per-genome")
             .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
@@ -338,65 +351,14 @@ pub fn genome_full_help() -> Manual {
                 .short("-t")
                 .long("--threads")
                 .help("Number of threads for mapping, sorting and reading."),
-        )
-        .option(
-            Opt::new("PATH ..")
-                .short("-1")
-                .help("Forward FASTA/Q file(s) for mapping"),
-        )
-        .option(
-            Opt::new("PATH ..")
-                .short("-2")
-                .help("Reverse FASTA/Q file(s) for mapping"),
-        )
-        .option(Opt::new("PATH ..").short("-c").long("--coupled").help(
-            "One or more pairs of forward and reverse \
-            FASTA/Q files for mapping in order \
-            <sample1_R1.fq.gz> <sample1_R2.fq.gz> \
-            <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..",
-        ))
-        .option(
-            Opt::new("PATH ..")
-                .long("--interleaved")
-                .help("Interleaved FASTA/Q files(s) for mapping."),
-        )
-        .option(
-            Opt::new("PATH ..")
-                .long("--single")
-                .help("Unpaired FASTA/Q files(s) for mapping."),
-        )
-        .option(Opt::new("PARAMS").long("--minimap2-params").help(
-            "Extra parameters to provide to minimap2, \
-            both indexing command (if used) and for \
-            mapping. Note that usage of this parameter \
-            has security implications if untrusted input \
-            is specified. '-a' is always specified. \
-            [default \"\"]",
-        ))
-        .flag(
-            Flag::new()
-                .long("--minimap2-reference-is-index ")
-                .help("Treat reference as a minimap2 database, not as a FASTA file."),
-        )
-        .option(Opt::new("PARAMS").long("--bwa-params").help(
-            "Extra parameters to provide to BWA. Note \
-            that usage of this parameter has security \
-            implications if untrusted input is specified. \
-            [default \"\"]",
-        ))
-        .flag(Flag::new().long("--sharded").help(
-            "If -b/--bam-files was used: \
-                Input BAM files are read-sorted alignments \
-                of a set of reads mapped to multiple \
-                reference contig sets. Choose the best \
-                hit for each read pair. Otherwise if mapping was carried out: \
-                Map reads to each reference, choosing the \
-                best hit for each pair.",
-        ))
-        .flag(Flag::new().long("--exclude-genomes-from-deshard").help(
-            "Ignore genomes whose name appears in this newline-separated \
+        );
+
+    manual = add_read_params(manual);
+
+    manual = manual.flag(Flag::new().long("--exclude-genomes-from-deshard").help(
+        "Ignore genomes whose name appears in this newline-separated \
                 file when combining shards.",
-        ));
+    ));
     manual = add_thresholding_options(manual);
     manual
         .flag(Flag::new().long("--dereplicate").help(
@@ -531,9 +493,6 @@ pub fn genome_full_help() -> Manual {
             "Unless there is an error, do not print \
             log messages",
         ))
-    //cleared
-    // .option(Opt::new("").long("").help(""))
-    // .flag(Flag::new().long("").help(""))
 }
 
 pub fn build_cli() -> App<'static, 'static> {

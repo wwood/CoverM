@@ -470,8 +470,7 @@ fn main() {
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
             if m.is_present("full-help") {
-                println!("{}", contig_full_help());
-                process::exit(1);
+                display_full_help(contig_full_help())
             }
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
