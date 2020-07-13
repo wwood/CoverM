@@ -1867,6 +1867,196 @@ genome6~random_sequence_length_11003	0	0	0
             .contains("BAM file appears to be unsorted")
             .unwrap();
     }
+
+    #[test]
+    fn test_no_zeros_bug1() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
+                "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-t",
+                "8",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0.05",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
+                        73.20120700_S3D.10	0.0710157	0.06776461\n\
+                        73.20120700_S3D.12	0	0\n\
+                        73.20120700_S3D.15	0	0\n\
+                        73.20120700_S3D.16	0	0\n\
+                        73.20120700_S3D.34	0.06653676	0.0630154\n\
+                        73.20120700_S3D.3	0	0\n\
+                        73.20120700_S3D.5	0.1341526	0.123165175\n\
+                        73.20120700_S3D.7	0.100108385	0.093486056\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_bug2() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
+                "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-t",
+                "8",
+                "--no-zeros",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0.05",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
+                        73.20120700_S3D.10	0.0710157	0.06776461\n\
+                        73.20120700_S3D.34	0.06653676	0.0630154\n\
+                        73.20120700_S3D.5	0.1341526	0.123165175\n\
+                        73.20120700_S3D.7	0.100108385	0.093486056\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_bug3() {
+        Assert::main_binary()
+        .with_args(&[
+            "genome",
+            "-c",
+            "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
+            "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
+            "--genome-fasta-files",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+            "-t",
+            "8",
+            "--no-zeros",
+            "-m",
+            "mean",
+            "covered_fraction",
+            "--min-covered-fraction",
+            "0.03",
+        ])
+        .succeeds()
+        .stdout()
+        .satisfies(
+            |observed| {
+                assert_equal_table(
+                    "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
+                    73.20120700_S3D.10	0.0710157	0.06776461\n\
+                    73.20120700_S3D.15	0.03561887	0.034370355\n\
+                    73.20120700_S3D.16	0.032864396	0.031665392\n\
+                    73.20120700_S3D.34	0.06653676	0.0630154\n\
+                    73.20120700_S3D.3	0.036180563	0.03499215\n\
+                    73.20120700_S3D.5	0.1341526	0.123165175\n\
+                    73.20120700_S3D.7	0.100108385	0.093486056\n\
+                    ",
+                    observed,
+                )
+            },
+            "table incorrect",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_bug4() {
+        Assert::main_binary()
+        .with_args(&[
+            "genome",
+            "-c",
+            "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
+            "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
+            "--genome-fasta-files",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+            "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+            "-t",
+            "8",
+            //"--no-zeros",
+            "-m",
+            "mean",
+            "covered_fraction",
+            "--min-covered-fraction",
+            "0.03",
+        ])
+        .succeeds()
+        .stdout()
+        .satisfies(
+            |observed| {
+                assert_equal_table(
+                    "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
+                    73.20120700_S3D.10	0.0710157	0.06776461\n\
+                    73.20120700_S3D.12	0	0\n\
+                    73.20120700_S3D.15	0.03561887	0.034370355\n\
+                    73.20120700_S3D.16	0.032864396	0.031665392\n\
+                    73.20120700_S3D.34	0.06653676	0.0630154\n\
+                    73.20120700_S3D.3	0.036180563	0.03499215\n\
+                    73.20120700_S3D.5	0.1341526	0.123165175\n\
+                    73.20120700_S3D.7	0.100108385	0.093486056\n\
+                    ",
+                    observed,
+                )
+            },
+            "table incorrect",
+        )
+        .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test
