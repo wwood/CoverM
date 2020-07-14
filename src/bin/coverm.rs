@@ -61,6 +61,15 @@ fn display_full_help(manual: man::Manual) {
     process::exit(1);
 }
 
+fn print_full_help_if_needed(m: &clap::ArgMatches, manual: man::Manual) {
+    if m.is_present("full-help") {
+        display_full_help(manual)
+    } else if m.is_present("full-help-roff") {
+        println!("{}", manual.render());
+        process::exit(1);
+    }
+}
+
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -70,9 +79,7 @@ fn main() {
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            if m.is_present("full-help") {
-                display_full_help(genome_full_help())
-            }
+            print_full_help_if_needed(&m, genome_full_help());
             set_log_level(m, true);
 
             let genome_names_content: Vec<u8>;
@@ -469,9 +476,7 @@ fn main() {
         }
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
-            if m.is_present("full-help") {
-                display_full_help(contig_full_help())
-            }
+            print_full_help_if_needed(&m, contig_full_help());
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);

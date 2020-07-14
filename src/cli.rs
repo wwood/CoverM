@@ -169,7 +169,7 @@ fn add_read_params(manual: Manual) -> Manual {
         ))
         .flag(
             Flag::new()
-                .long("--minimap2-reference-is-index ")
+                .long("--minimap2-reference-is-index")
                 .help("Treat reference as a minimap2 database, not as a FASTA file."),
         )
         .option(Opt::new("PARAMS").long("--bwa-params").help(
@@ -191,6 +191,7 @@ fn add_read_params(manual: Manual) -> Manual {
 
 pub fn contig_full_help() -> Manual {
     let mut manual = Manual::new("coverm contig")
+        .about("Calculate read coverage per-contig")
         .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
         .option(Opt::new("PATH").short("-b").long("--bam-files").help(
             "Path to BAM file(s). These must be \
@@ -675,6 +676,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .about("Calculate coverage of genomes")
                 .help(GENOME_HELP.as_str())
                 .arg(Arg::with_name("full-help").long("full-help"))
+                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
                 .arg(
                     Arg::with_name("bam-files")
                         .short("b")
@@ -701,6 +703,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -716,6 +719,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -731,6 +735,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -745,6 +750,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -759,6 +765,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -829,6 +836,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "single-genome",
                             "genome-definition",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .takes_value(true),
                 )
@@ -847,6 +855,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "single-genome",
                             "genome-definition",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .takes_value(true),
                 )
@@ -864,6 +873,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "single-genome",
                             "genome-definition",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .takes_value(true),
                 )
@@ -881,6 +891,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "single-genome",
                             "genome-definition",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .takes_value(true),
                 )
@@ -908,6 +919,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "single-genome",
                             "genome-fasta-directory",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .takes_value(true),
                 )
@@ -1070,6 +1082,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .about("Calculate coverage of contigs")
                 .help(CONTIG_HELP.as_str())
                 .arg(Arg::with_name("full-help").long("full-help"))
+                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
                 .arg(
                     Arg::with_name("bam-files")
                         .short("b")
@@ -1090,6 +1103,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -1105,6 +1119,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -1120,6 +1135,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "interleaved",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -1134,6 +1150,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "single",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -1148,6 +1165,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "full-help",
+                            "full-help-roff",
                         ])
                         .conflicts_with("bam-files"),
                 )
@@ -1157,7 +1175,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .takes_value(true)
                         .multiple(true)
-                        .required_unless_one(&["bam-files", "full-help"])
+                        .required_unless_one(&["bam-files", "full-help", "full-help-roff"])
                         .conflicts_with("bam-files"),
                 )
                 .arg(
