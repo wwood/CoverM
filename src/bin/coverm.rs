@@ -600,6 +600,7 @@ fn main() {
         }
         Some("make") => {
             let m = matches.subcommand_matches("make").unwrap();
+            print_full_help_if_needed(&m, make_full_help());
             set_log_level(m, true);
 
             let mapping_program = parse_mapping_program(&m);

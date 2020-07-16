@@ -60,14 +60,6 @@ Example usage:
 Ben J. Woodcroft <benjwoodcroft near gmail.com>"
 }
 
-const MAPPER_HELP: &'static str =
-    "   -p, --mapper <NAME>                   Underlying mapping software used
-                                         (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\",
-                                         \"minimap2-pb\", or \"minimap2-no-preset\").
-                                         minimap2 -sr, -ont, -pb, -no-preset specify
-                                         '-x' preset of minimap2 to be used
-                                         (with map-ont, map-pb for -ont, -pb).
-                                         [default: \"minimap2-sr\"]";
 fn add_mapping_options(manual: Manual) -> Manual {
     manual.option(Opt::new("NAME").short("-p").long("--mapper").help(
         "Underlying mapping software used \
@@ -178,14 +170,65 @@ fn add_read_params(manual: Manual) -> Manual {
         implications if untrusted input is specified. \
         [default \"\"]",
         ))
-        .flag(Flag::new().long("--sharded").help(
-            "If -b/--bam-files was used: \
-            Input BAM files are read-sorted alignments \
-            of a set of reads mapped to multiple \
-            reference contig sets. Choose the best \
-            hit for each read pair. Otherwise if mapping was carried out: \
-            Map reads to each reference, choosing the \
-            best hit for each pair.",
+}
+
+fn add_sharding_option(manual: Manual) -> Manual {
+    manual.flag(Flag::new().long("--sharded").help(
+        "If -b/--bam-files was used: \
+        Input BAM files are read-sorted alignments \
+        of a set of reads mapped to multiple \
+        reference contig sets. Choose the best \
+        hit for each read pair. Otherwise if mapping was carried out: \
+        Map reads to each reference, choosing the \
+        best hit for each pair.",
+    ))
+}
+
+pub fn make_full_help() -> Manual {
+    let mut manual = Manual::new("coverm make")
+        .about("Generate BAM files through mapping")
+        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .option(Opt::new("DIR").short("-o").long("--output-directory").help(
+            "Where generated BAM files will go. The directory will be created if it does not exist.",
+        ));
+
+    manual = manual
+        .option(Opt::new("PATH").short("-r").long("--reference").help(
+            "FASTA file of contigs e.g. concatenated \
+                    genomes or metagenome assembly, or minimap2 \
+                    index \
+                    (with --minimap2-reference-is-index), \
+                    or BWA index stem (with -p bwa-mem). \
+                    If multiple references FASTA files are \
+                    provided and --sharded is specified, \
+                    then reads will be mapped to references \
+                    separately as sharded BAMs.",
+        ))
+        .option(
+            Opt::new("INT")
+                .short("-t")
+                .long("--threads")
+                .help("Number of threads for mapping."),
+        );
+
+    manual = add_read_params(manual);
+    manual = add_mapping_options(manual);
+
+    manual
+        .flag(
+            Flag::new()
+                .long("--discard-unmapped")
+                .help("Exclude unmapped reads from cached BAM files."),
+        )
+        .flag(
+            Flag::new()
+                .short("-v")
+                .long("--verbose")
+                .help("Print extra debugging information"),
+        )
+        .flag(Flag::new().short("-q").long("--quiet").help(
+            "Unless there is an error, do not print \
+        log messages",
         ))
 }
 
@@ -202,6 +245,7 @@ pub fn contig_full_help() -> Manual {
         ));
     manual = add_mapping_options(manual);
     manual = add_thresholding_options(manual);
+    manual = add_sharding_option(manual);
     manual = manual
         .option(Opt::new("METHOD").short("-m").long("--methods").help(
             "Method(s) for calculating coverage. \
@@ -355,6 +399,7 @@ pub fn genome_full_help() -> Manual {
         );
 
     manual = add_read_params(manual);
+    manual = add_sharding_option(manual);
 
     manual = manual.flag(Flag::new().long("--exclude-genomes-from-deshard").help(
         "Ignore genomes whose name appears in this newline-separated \
@@ -586,58 +631,26 @@ See coverm filter --full-help for further options and further detail.
             ),
         )
         .to_string();
-    }
-
-    lazy_static! {
         static ref MAKE_HELP: String = format!(
-            "coverm make: Generate BAM files through mapping.
-
-Output (required):
-   -o, --output-directory <DIR>          Where generated BAM files will go
-
-Mapping parameters:
-   -r, --reference <PATH> ..             FASTA file of contigs e.g. concatenated 
-                                         genomes or assembly, or minimap2 index
-                                         (with --minimap2-reference-is-index),
-                                         or BWA index stem (with -p bwa-mem).
-                                         If multiple references FASTA files are
-                                         provided and --sharded is specified,
-                                         then reads will be mapped to references
-                                         separately as sharded BAMs.
-   -t, --threads <INT>                   Number of threads to use for mapping
-   -1 <PATH> ..                          Forward FASTA/Q file(s) for mapping
-   -2 <PATH> ..                          Reverse FASTA/Q file(s) for mapping
-   -c, --coupled <PATH> <PATH> ..        One or more pairs of forward and reverse
-                                         FASTA/Q files for mapping in order
-                                         <sample1_R1.fq.gz> <sample1_R2.fq.gz>
-                                         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..
-   --interleaved <PATH> ..               Interleaved FASTA/Q files(s) for mapping.
-   --single <PATH> ..                    Unpaired FASTA/Q files(s) for mapping.
+            "
+                            {}
+                     {}
 
 {}
-   --minimap2-params PARAMS              Extra parameters to provide to minimap2,
-                                         both indexing command (if used) and for
-                                         mapping. Note that usage of this parameter
-                                         has security implications if untrusted input
-                                         is specified. '-a' is always specified.
-                                         [default \"\"]
-   --minimap2-reference-is-index         Treat reference as a minimap2 database, not 
-                                         as a FASTA file.
-   --bwa-params PARAMS                   Extra parameters to provide to BWA. Note
-                                         that usage of this parameter has security
-                                         implications if untrusted input is specified.
-                                         [default \"\"]
-   --discard-unmapped                    Exclude unmapped reads from generated BAM files.
 
-Example usage:
+  coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq -o output_dir
 
-  coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>
+See coverm make --full-help for further options and further detail.
 ",
-            MAPPER_HELP
-        );
-    };
+            ansi_term::Colour::Green.paint("coverm make"),
+            ansi_term::Colour::Green.paint("Generate BAM files through mapping"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Map pair of read files to the combined_genomes.fna reference,\n\
+                storing sorted BAM files in output_dir/"
+            ),
+        )
+        .to_string();
+    }
 
     let mut app = App::new("coverm")
         .version(crate_version!())
@@ -1385,12 +1398,17 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
             SubCommand::with_name("make")
                 .about("Generate BAM files through mapping")
                 .help(MAKE_HELP.as_str())
+                .arg(Arg::with_name("full-help").long("full-help"))
+                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
                 .arg(
                     Arg::with_name("output-directory")
                         .short("-o")
                         .long("output-directory")
                         .takes_value(true)
-                        .required(true),
+                        .required_unless_one(&[
+                            "full-help",
+                            "full-help-roff",
+                        ])
                 )
                 .arg(
                     Arg::with_name("read1")
@@ -1398,7 +1416,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .multiple(true)
                         .takes_value(true)
                         .requires("read2")
-                        .required_unless_one(&["coupled", "interleaved", "single"]),
+                        .required_unless_one(&["coupled", "interleaved", "single",
+                        "full-help",
+                        "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("read2")
@@ -1406,7 +1427,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .multiple(true)
                         .takes_value(true)
                         .requires("read1")
-                        .required_unless_one(&["coupled", "interleaved", "single"]),
+                        .required_unless_one(&["coupled", "interleaved", "single",
+                        "full-help",
+                        "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("coupled")
@@ -1414,21 +1438,30 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("coupled")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "interleaved", "single"]),
+                        .required_unless_one(&["read1", "interleaved", "single",
+                        "full-help",
+                        "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("interleaved")
                         .long("interleaved")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "coupled", "single"]),
+                        .required_unless_one(&["read1", "coupled", "single",
+                        "full-help",
+                        "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("single")
                         .long("single")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "coupled", "interleaved"]),
+                        .required_unless_one(&["read1", "coupled", "interleaved",
+                        "full-help",
+                        "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("reference")
@@ -1436,7 +1469,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .multiple(true)
                         .takes_value(true)
-                        .required(true),
+                        .required_unless_one(&[
+                            "full-help",
+                            "full-help-roff",
+                        ]),
                 )
                 .arg(
                     Arg::with_name("threads")
