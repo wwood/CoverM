@@ -66,15 +66,15 @@ PATH=target/debug:$PATH cargo test
 ### Dependencies
 For the full suite of options, these additional programs must be installed:
 
-* [samtools](https://github.com/samtools/samtools) >1.0 (tested with v1.9)
+* [samtools](https://github.com/samtools/samtools) v1.9
 * [tee](https://www.gnu.org/software/coreutils/), which is installed by default
   on most Linux operating systems.
 * [man](http://man-db.nongnu.org/), which is installed by default on most Linux
   operating systems.
 
 and some mapping software:
-* [minimap2](https://github.com/lh3/minimap2)
-* [bwa](https://github.com/lh3/bwa)
+* [minimap2](https://github.com/lh3/minimap2) v2.17-r941
+* [bwa](https://github.com/lh3/bwa) v0.7.17-r1188
 
 For dereplication:
 * [Dashing](https://github.com/dnbaker/dashing) v0.4.0
