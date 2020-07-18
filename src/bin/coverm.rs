@@ -424,10 +424,7 @@ fn main() {
         }
         Some("filter") => {
             let m = matches.subcommand_matches("filter").unwrap();
-            if m.is_present("full-help") {
-                println!("{}", filter_full_help());
-                process::exit(1);
-            }
+            print_full_help_if_needed(&m, filter_full_help());
             set_log_level(m, true);
 
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();

@@ -10,56 +10,6 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
-pub fn filter_full_help() -> &'static str {
-    "coverm filter: Remove alignments with insufficient identity.
-
-Only primary, non-supplementary alignments are considered, and output files
-are grouped by reference, but not sorted by position.
-
-Files (both required):
-   -b, --bam-files <PATH> ..             Path to reference-sorted BAM file(s)
-   -o, --output-bam-files <PATH> ..      Path to corresponding output file(s)
-
-Thresholds:
-   --min-read-aligned-length <INT>            Exclude reads with smaller numbers of
-                                         aligned bases [default: 0]
-   --min-read-percent-identity <FLOAT>        Exclude reads by overall percent
-                                         identity e.g. 0.95 for 95%. [default 0.0]
-   --min-read-aligned-percent <FLOAT>         Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned. [default 0.0]
-   --min-read-aligned-length-pair <INT>       Exclude pairs with smaller numbers of
-                                         aligned bases.
-                                         Implies --proper-pairs-only. [default: 0]
-   --min-read-percent-identity-pair <FLOAT>   Exclude pairs by overall percent
-                                         identity e.g. 0.95 for 95%.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --min-read-aligned-percent-pair <FLOAT>    Exclude reads by percent aligned
-                                         bases e.g. 0.95 means 95% of the read's
-                                         bases must be aligned.
-                                         Implies --proper-pairs-only. [default 0.0]
-   --proper-pairs-only                   Require reads to be mapped as proper pairs
-   --exclude-supplementary               Exclude supplementary alignments
-
-Other:
-   -t, --threads <INT>                   Number of threads for output compression
-                                         [default 1]
-   --inverse                             Only keep reads which are unmapped or
-                                         align below thresholds. Note that output
-                                         records may still be marked as mapped
-                                         if they do not meet the thresholds.
-                                         [default false]
-   --verbose                             Print extra debugging information
-   -q, --quiet                           Unless there is an error, do not print
-                                         log messages
-
-Example usage:
-
-  coverm filter -b in.bam -o out.bam --min-read-aligned-length 75
-
-Ben J. Woodcroft <benjwoodcroft near gmail.com>"
-}
-
 fn add_mapping_options(manual: Manual) -> Manual {
     manual.option(Opt::new("NAME").short("-p").long("--mapper").help(
         "Underlying mapping software used \
@@ -215,6 +165,45 @@ fn add_verbosity_flags(manual: Manual) -> Manual {
             "Unless there is an error, do not print \
     log messages",
         ))
+}
+
+pub fn filter_full_help() -> Manual {
+    let mut manual = Manual::new("coverm filter")
+        .about("Threshold alignments with insufficient identity")
+        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .description(
+            "Only primary, non-supplementary alignments are considered, and output files \
+        are grouped by reference, but not sorted by position.",
+        )
+        .option(
+            Opt::new("PATH ..")
+                .short("-b")
+                .long("--bam-files")
+                .help("Path to reference-sorted BAM file(s)."),
+        )
+        .option(
+            Opt::new("PATH ..")
+                .short("-o")
+                .long("--output-bam-files")
+                .help(" Path to corresponding output file(s)"),
+        );
+    manual = add_thresholding_options(manual);
+    manual = manual.option(
+        Opt::new("INT")
+            .short("-t")
+            .long("--threads")
+            .help("Number of threads for output compression."),
+    );
+    manual = manual.flag(Flag::new().long("--inverse").help(
+        "Only keep reads which are unmapped or \
+                align below thresholds. Note that output \
+                records may still be marked as mapped \
+                if they do not meet the thresholds.",
+    ));
+    manual = add_verbosity_flags(manual);
+    manual = add_help_options(manual);
+
+    manual
 }
 
 pub fn make_full_help() -> Manual {
