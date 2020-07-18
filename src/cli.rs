@@ -172,6 +172,25 @@ fn add_read_params(manual: Manual) -> Manual {
         ))
 }
 
+fn add_help_options(manual: Manual) -> Manual {
+    manual
+        .flag(
+            Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Output a short usage message."),
+        )
+        .flag(
+            Flag::new()
+                .long("--full-help")
+                .help("Output a full help message and display in 'man'."),
+        )
+        .flag(Flag::new().long("--full-help-roff").help(
+            "Output a full help message in raw ROFF format for \
+        conversion to other formats.",
+        ))
+}
+
 fn add_sharding_option(manual: Manual) -> Manual {
     manual.flag(Flag::new().long("--sharded").help(
         "If -b/--bam-files was used: \
@@ -182,6 +201,20 @@ fn add_sharding_option(manual: Manual) -> Manual {
         Map reads to each reference, choosing the \
         best hit for each pair.",
     ))
+}
+
+fn add_verbosity_flags(manual: Manual) -> Manual {
+    manual
+        .flag(
+            Flag::new()
+                .short("-v")
+                .long("--verbose")
+                .help("Print extra debugging information"),
+        )
+        .flag(Flag::new().short("-q").long("--quiet").help(
+            "Unless there is an error, do not print \
+    log messages",
+        ))
 }
 
 pub fn make_full_help() -> Manual {
@@ -213,23 +246,16 @@ pub fn make_full_help() -> Manual {
 
     manual = add_read_params(manual);
     manual = add_mapping_options(manual);
+    manual = add_help_options(manual);
 
+    manual = manual.flag(
+        Flag::new()
+            .long("--discard-unmapped")
+            .help("Exclude unmapped reads from cached BAM files."),
+    );
+
+    manual = add_verbosity_flags(manual);
     manual
-        .flag(
-            Flag::new()
-                .long("--discard-unmapped")
-                .help("Exclude unmapped reads from cached BAM files."),
-        )
-        .flag(
-            Flag::new()
-                .short("-v")
-                .long("--verbose")
-                .help("Print extra debugging information"),
-        )
-        .flag(Flag::new().short("-q").long("--quiet").help(
-            "Unless there is an error, do not print \
-        log messages",
-        ))
 }
 
 pub fn contig_full_help() -> Manual {
@@ -243,6 +269,7 @@ pub fn contig_full_help() -> Manual {
                 case they must be read name sorted (e.g. \
                 with samtools sort -n).",
         ));
+    manual = add_help_options(manual);
     manual = add_mapping_options(manual);
     manual = add_thresholding_options(manual);
     manual = add_sharding_option(manual);
@@ -304,17 +331,10 @@ pub fn contig_full_help() -> Manual {
             Flag::new()
                 .long("--discard-unmapped")
                 .help("Exclude unmapped reads from cached BAM files."),
-        )
-        .flag(
-            Flag::new()
-                .short("-v")
-                .long("--verbose")
-                .help("Print extra debugging information"),
-        )
-        .flag(Flag::new().short("-q").long("--quiet").help(
-            "Unless there is an error, do not print \
-        log messages",
-        ));
+        );
+
+    manual = add_verbosity_flags(manual);
+    manual = add_help_options(manual);
 
     return manual;
 }
@@ -378,6 +398,7 @@ pub fn genome_full_help() -> Manual {
             );
 
     manual = add_mapping_options(manual);
+    manual = add_help_options(manual);
 
     manual = manual
         .option(Opt::new("PATH").short("-r").long("--reference").help(
@@ -406,7 +427,7 @@ pub fn genome_full_help() -> Manual {
                 file when combining shards.",
     ));
     manual = add_thresholding_options(manual);
-    manual
+    manual = manual
         .flag(Flag::new().long("--dereplicate").help(
             "Do genome dereplication via average nucleotide \
             identity (ANI) - choose a genome to represent \
@@ -528,17 +549,10 @@ pub fn genome_full_help() -> Manual {
             Flag::new()
                 .long("--discard-unmapped")
                 .help("Exclude unmapped reads from cached BAM files."),
-        )
-        .flag(
-            Flag::new()
-                .short("-v")
-                .long("--verbose")
-                .help("Print extra debugging information"),
-        )
-        .flag(Flag::new().short("-q").long("--quiet").help(
-            "Unless there is an error, do not print \
-            log messages",
-        ))
+        );
+
+    manual = add_verbosity_flags(manual);
+    manual
 }
 
 pub fn build_cli() -> App<'static, 'static> {
