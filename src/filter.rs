@@ -375,7 +375,7 @@ mod tests {
             sorted.read(&mut record).expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record) == Ok(false))
+        assert!(sorted.read(&mut record).unwrap_or(true) == false)
     }
 
     #[test]
@@ -404,7 +404,7 @@ mod tests {
             sorted.read(&mut record).expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record) == Ok(false))
+        assert!(sorted.read(&mut record).unwrap_or(true) == false)
     }
 
     #[test]
@@ -739,7 +739,7 @@ mod tests {
         assert_eq!(true, sorted.filter_pairs);
         let mut num_passing: u64 = 0;
         let mut record = bam::record::Record::new();
-        while sorted.read(&mut record) == Ok(true) {
+        while sorted.read(&mut record).unwrap_or(false) == true {
             num_passing += 1;
         }
         assert_eq!(11192, num_passing);

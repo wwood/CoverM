@@ -14,8 +14,8 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.30.*"
-rust-htslib = { version="0.30.*", default-features = false }
+bio = "0.31.*"
+rust-htslib = { version="0.32.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.7.*"
@@ -23,7 +23,7 @@ nix = "0.17.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
-lazy_static = "1.3.0"
+lazy_static = "1.4.0"
 rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"

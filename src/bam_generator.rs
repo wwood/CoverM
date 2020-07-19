@@ -63,11 +63,11 @@ impl NamedBamReader for BamFileNamedReader {
         &(self.stoit_name)
     }
     fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
-        let res = self.bam_reader.read(record);
-        if res == Ok(true) && !record.is_secondary() && !record.is_supplementary() {
+        let res = self.bam_reader.read(record)?;
+        if res == true && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return res;
+        return Ok(res);
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -217,11 +217,11 @@ impl NamedBamReader for StreamingNamedBamReader {
         &(self.stoit_name)
     }
     fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
-        let res = self.bam_reader.read(record);
-        if res == Ok(true) && !record.is_secondary() && !record.is_supplementary() {
+        let res = self.bam_reader.read(record)?;
+        if res == true && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return res;
+        return Ok(res);
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
