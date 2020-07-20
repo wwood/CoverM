@@ -1,5 +1,5 @@
 use clap::*;
-use man::prelude::{Author, Flag, Manual, Opt};
+use man::prelude::{Author, Flag, Manual, Opt, Section};
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "bwa-mem",
@@ -11,70 +11,94 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
 fn add_mapping_options(manual: Manual) -> Manual {
-    manual.option(Opt::new("NAME").short("-p").long("--mapper").help(
-        "Underlying mapping software used \
+    manual.custom(
+        Section::new("Mapping algorithm options")
+            .option(Opt::new("NAME").short("-p").long("--mapper").help(
+                "Underlying mapping software used \
                     (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\", \
                     \"minimap2-pb\", or \"minimap2-no-preset\"). \
                     minimap2 -sr, -ont, -pb, -no-preset specify \
                     '-x' preset of minimap2 to be used \
                     (with map-ont, map-pb for -ont, -pb). \
                     [default: \"minimap2-sr\"]",
-    ))
+            ))
+            .option(Opt::new("PARAMS").long("--minimap2-params").help(
+                "Extra parameters to provide to minimap2, \
+        both indexing command (if used) and for \
+        mapping. Note that usage of this parameter \
+        has security implications if untrusted input \
+        is specified. '-a' is always specified. \
+        [default \"\"]",
+            ))
+            .flag(
+                Flag::new()
+                    .long("--minimap2-reference-is-index")
+                    .help("Treat reference as a minimap2 database, not as a FASTA file."),
+            )
+            .option(Opt::new("PARAMS").long("--bwa-params").help(
+                "Extra parameters to provide to BWA. Note \
+        that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default \"\"]",
+            )),
+    )
 }
 
 fn add_thresholding_options(manual: Manual) -> Manual {
-    manual
-        .option(Opt::new("INT").long("--min-read-aligned-length").help(
-            "Exclude reads with smaller numbers of \
+    manual.custom(
+        Section::new("Alignment thresholding")
+            .option(Opt::new("INT").long("--min-read-aligned-length").help(
+                "Exclude reads with smaller numbers of \
         aligned bases [default: 0]",
-        ))
-        .option(Opt::new("FLOAT").long("--min-read-percent-identity").help(
-            "Exclude reads by overall percent \
+            ))
+            .option(Opt::new("FLOAT").long("--min-read-percent-identity").help(
+                "Exclude reads by overall percent \
         identity e.g. 0.95 for 95%. [default 0.0]",
-        ))
-        .option(Opt::new("FLOAT").long("--min-read-aligned-percent").help(
-            "Exclude reads by percent aligned \
+            ))
+            .option(Opt::new("FLOAT").long("--min-read-aligned-percent").help(
+                "Exclude reads by percent aligned \
         bases e.g. 0.95 means 95% of the read's \
         bases must be aligned. [default 0.0]",
-        ))
-        .option(Opt::new("INT").long("--min-read-aligned-length-pair").help(
-            "Exclude pairs with smaller numbers of \
+            ))
+            .option(Opt::new("INT").long("--min-read-aligned-length-pair").help(
+                "Exclude pairs with smaller numbers of \
         aligned bases. \
         Implies --proper-pairs-only. [default: 0]",
-        ))
-        .option(
-            Opt::new("FLOAT")
-                .long("--min-read-percent-identity-pair")
-                .help(
-                    "Exclude pairs by overall percent \
+            ))
+            .option(
+                Opt::new("FLOAT")
+                    .long("--min-read-percent-identity-pair")
+                    .help(
+                        "Exclude pairs by overall percent \
                 identity e.g. 0.95 for 95%. \
                 Implies --proper-pairs-only. [default 0.0]",
-                ),
-        )
-        .option(
-            Opt::new("FLOAT")
-                .long("--min-read-aligned-percent-pair")
-                .help(
-                    "Exclude reads by percent aligned \
+                    ),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--min-read-aligned-percent-pair")
+                    .help(
+                        "Exclude reads by percent aligned \
                 bases e.g. 0.95 means 95% of the read's \
                 bases must be aligned. \
                 Implies --proper-pairs-only. [default 0.0]",
-                ),
-        )
-        .flag(
-            Flag::new()
-                .long("--proper-pairs-only")
-                .help("Require reads to be mapped as proper pairs"),
-        )
-        .flag(
-            Flag::new()
-                .long("--exclude-supplementary")
-                .help("Exclude supplementary alignments"),
-        )
+                    ),
+            )
+            .flag(
+                Flag::new()
+                    .long("--proper-pairs-only")
+                    .help("Require reads to be mapped as proper pairs"),
+            )
+            .flag(
+                Flag::new()
+                    .long("--exclude-supplementary")
+                    .help("Exclude supplementary alignments"),
+            ),
+    )
 }
 
-fn add_read_params(manual: Manual) -> Manual {
-    manual
+fn read_mapping_params_section() -> Section {
+    Section::new("Read mapping parameters")
         .option(
             Opt::new("PATH ..")
                 .short("-1")
@@ -101,25 +125,6 @@ fn add_read_params(manual: Manual) -> Manual {
                 .long("--single")
                 .help("Unpaired FASTA/Q files(s) for mapping."),
         )
-        .option(Opt::new("PARAMS").long("--minimap2-params").help(
-            "Extra parameters to provide to minimap2, \
-        both indexing command (if used) and for \
-        mapping. Note that usage of this parameter \
-        has security implications if untrusted input \
-        is specified. '-a' is always specified. \
-        [default \"\"]",
-        ))
-        .flag(
-            Flag::new()
-                .long("--minimap2-reference-is-index")
-                .help("Treat reference as a minimap2 database, not as a FASTA file."),
-        )
-        .option(Opt::new("PARAMS").long("--bwa-params").help(
-            "Extra parameters to provide to BWA. Note \
-        that usage of this parameter has security \
-        implications if untrusted input is specified. \
-        [default \"\"]",
-        ))
 }
 
 fn add_help_options(manual: Manual) -> Manual {
@@ -140,9 +145,27 @@ fn add_help_options(manual: Manual) -> Manual {
         conversion to other formats.",
         ))
 }
+fn add_help_options_to_section(section: Section) -> Section {
+    section
+        .flag(
+            Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Output a short usage message."),
+        )
+        .flag(
+            Flag::new()
+                .long("--full-help")
+                .help("Output a full help message and display in 'man'."),
+        )
+        .flag(Flag::new().long("--full-help-roff").help(
+            "Output a full help message in raw ROFF format for \
+        conversion to other formats.",
+        ))
+}
 
-fn add_sharding_option(manual: Manual) -> Manual {
-    manual.flag(Flag::new().long("--sharded").help(
+fn sharding_section() -> Section {
+    Section::new("Sharding").flag(Flag::new().long("--sharded").help(
         "If -b/--bam-files was used: \
         Input BAM files are read-sorted alignments \
         of a set of reads mapped to multiple \
@@ -155,6 +178,19 @@ fn add_sharding_option(manual: Manual) -> Manual {
 
 fn add_verbosity_flags(manual: Manual) -> Manual {
     manual
+        .flag(
+            Flag::new()
+                .short("-v")
+                .long("--verbose")
+                .help("Print extra debugging information"),
+        )
+        .flag(Flag::new().short("-q").long("--quiet").help(
+            "Unless there is an error, do not print \
+    log messages",
+        ))
+}
+fn add_verbosity_flags_to_section(section: Section) -> Section {
+    section
         .flag(
             Flag::new()
                 .short("-v")
@@ -233,8 +269,10 @@ pub fn make_full_help() -> Manual {
                 .help("Number of threads for mapping."),
         );
 
-    manual = add_read_params(manual);
+    manual = manual.custom(read_mapping_params_section());
+
     manual = add_mapping_options(manual);
+
     manual = add_help_options(manual);
 
     manual = manual.flag(
@@ -261,7 +299,7 @@ pub fn contig_full_help() -> Manual {
     manual = add_help_options(manual);
     manual = add_mapping_options(manual);
     manual = add_thresholding_options(manual);
-    manual = add_sharding_option(manual);
+    manual = manual.custom(sharding_section());
     manual = manual
         .option(Opt::new("METHOD").short("-m").long("--methods").help(
             "Method(s) for calculating coverage. \
@@ -277,7 +315,7 @@ pub fn contig_full_help() -> Manual {
             metabat (\"MetaBAT adjusted coverage\"), \
             reads_per_base, \
             rpkm. \
-        A more thorough description of the different \
+        A more thorough fdfdfdfdfdfdfdfdfdfd of the different \
         methods is available at \
         https://github.com/wwood/CoverM",
         ))
@@ -330,14 +368,28 @@ pub fn contig_full_help() -> Manual {
 
 pub fn genome_full_help() -> Manual {
     let mut manual = Manual::new("coverm genome")
-            .about("Calculate read coverage per-genome")
-            .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
-            .option(
-                Opt::new("CHARACTER")
-                    .short("-s")
-                    .long("--separator")
-                    .help("This character separates genome names from contig names in the reference file")
-            )
+        .about("Calculate read coverage per-genome")
+        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+
+        .description("coverm genome calculates the coverage of a set of reads on a set of genomes.\n\n\
+            This process can be undertaken in several ways, for instance by specifying BAM files or raw reads as input, \
+            defining genomes in different input formats, dereplicating genomes before mapping, \
+            using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
+            and printing the calculated coverage in various formats.");
+
+    manual = manual.custom(
+            read_mapping_params_section().option(
+                Opt::new("PATH")
+                    .short("-b")
+                    .long("--bam-files")
+                    .help("Path to BAM file(s). These must be \
+                        reference sorted (e.g. with samtools sort) \
+                        unless --sharded is specified, in which \
+                        case they must be read name sorted (e.g. \
+                        with samtools sort -n). When specified, no read mapping algorithm is undertaken.")
+            ));
+
+    manual = manual.custom(Section::new("Genome definition")
             .option(
                 Opt::new("PATH ..")
                     .short("-f")
@@ -364,34 +416,8 @@ pub fn genome_full_help() -> Manual {
                     .help("File containing FASTA file paths, one per line")
             )
             .option(
-                Opt::new("FILE")
-                    .long("--genome-definition")
-                    .help("File containing list of \
-                    genome_name<tab>contig lines to define the genome of each contig")
-            )
-            .flag(
-                Flag::new()
-                    .long("--single-genome")
-                    .help("All contigs are from the same genome")
-            )
-
-            .option(
-                Opt::new("PATH")
-                    .short("-b")
-                    .long("--bam-files")
-                    .help("Path to BAM file(s). These must be \
-                        reference sorted (e.g. with samtools sort) \
-                        unless --sharded is specified, in which \
-                        case they must be read name sorted (e.g. \
-                        with samtools sort -n).")
-            );
-
-    manual = add_mapping_options(manual);
-    manual = add_help_options(manual);
-
-    manual = manual
-        .option(Opt::new("PATH").short("-r").long("--reference").help(
-            "FASTA file of contigs e.g. concatenated \
+                Opt::new("PATH").short("-r").long("--reference").help(
+                    "FASTA file of contigs e.g. concatenated \
                     genomes or metagenome assembly, or minimap2 \
                     index \
                     (with --minimap2-reference-is-index), \
@@ -400,89 +426,128 @@ pub fn genome_full_help() -> Manual {
                     provided and --sharded is specified, \
                     then reads will be mapped to references \
                     separately as sharded BAMs.",
-        ))
-        .option(
-            Opt::new("INT")
-                .short("-t")
-                .long("--threads")
-                .help("Number of threads for mapping, sorting and reading."),
+                )
+            )
+            .option(
+                Opt::new("CHARACTER")
+                    .short("-s")
+                    .long("--separator")
+                    .help("This character separates genome names from contig names in the reference file. Requires --reference.")
+            )
+            .flag(
+                Flag::new()
+                    .long("--single-genome")
+                    .help("All contigs are from the same genome. Requires --reference")
+            )
+            .option(
+                Opt::new("FILE")
+                    .long("--genome-definition")
+                    .help("File containing list of \
+                    genome_name<tab>contig lines to define the genome of each contig. Requires --reference")
+            )
         );
 
-    manual = add_read_params(manual);
-    manual = add_sharding_option(manual);
-
-    manual = manual.flag(Flag::new().long("--exclude-genomes-from-deshard").help(
-        "Ignore genomes whose name appears in this newline-separated \
-                file when combining shards.",
-    ));
-    manual = add_thresholding_options(manual);
-    manual = manual
-        .flag(Flag::new().long("--dereplicate").help(
-            "Do genome dereplication via average nucleotide \
+    manual = manual.custom(
+        Section::new("DEREPLICATION / GENOME CLUSTERING")
+            .flag(Flag::new().long("--dereplicate").help(
+                "Do genome dereplication via average nucleotide \
             identity (ANI) - choose a genome to represent \
             all within a small distance, using Dashing for \
             preclustering and FastANI for final ANI \
             calculation.",
-        ))
-        .option(
-            Opt::new("FLOAT")
-                .long("--dereplication-ani")
-                .help("Overall ANI level to dereplicate at with FastANI."),
-        )
-        .option(Opt::new("PATH").long("--checkm-tab-table").help(
-            "CheckM tab table for defining genome quality, \
+            ))
+            .option(
+                Opt::new("FLOAT")
+                    .long("--dereplication-ani")
+                    .help("Overall ANI level to dereplicate at with FastANI."),
+            )
+            .option(Opt::new("PATH").long("--checkm-tab-table").help(
+                "CheckM tab table for defining genome quality, \
             which is in turn used during clustering. \
             Genomes are scored as \
             completeness-4*contamination.",
-        ))
-        .option(Opt::new("PATH").long("--genome-info").help(
-            "dRep style genome info tabl for defining \
+            ))
+            .option(Opt::new("PATH").long("--genome-info").help(
+                "dRep style genome info table for defining \
             quality. Used like --checkm-tab-table.",
-        ))
-        .option(Opt::new("FLOAT").long("--min-completeness").help(
-            "Ignore genomes with less completeness than \
+            ))
+            .option(Opt::new("FLOAT").long("--min-completeness").help(
+                "Ignore genomes with less completeness than \
             this percentage.",
-        ))
-        .option(Opt::new("FLOAT").long("--max-contamination").help(
-            "Ignore genomes with more contamination than \
+            ))
+            .option(Opt::new("FLOAT").long("--max-contamination").help(
+                "Ignore genomes with more contamination than \
             this percentage.",
-        ))
-        .option(
-            Opt::new("PATH")
-                .long("--output-dereplication-clusters")
-                .help(
-                    "Output clustered genome information to this \
+            ))
+            .option(
+                Opt::new("PATH")
+                    .long("--output-dereplication-clusters")
+                    .help(
+                        "Output clustered genome information to this \
                     file as 'representative<TAB>member'",
-                ),
-        )
-        .option(
-            Opt::new("FLOAT")
-                .long("--dereplication-prethreshold-ani")
-                .help(
-                    "Require at least this dashing-derived ANI \
+                    ),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--dereplication-prethreshold-ani")
+                    .help(
+                        "Require at least this dashing-derived ANI \
                     for preclustering and to avoid FastANI on \
                     distant lineages within preclusters.",
-                ),
-        )
-        .option(
-            Opt::new("NAME")
-                .long("--dereplication-quality-formula")
-                .help(
-                    "Scoring function for genome quality. See \
-                    `coverm dereplicate -h`.",
-                ),
-        )
-        .option(
-            Opt::new("NAME")
-                .long("--dereplication-precluster-method")
-                .help(
-                    "method of calculating rough ANI for \
+                    ),
+            )
+            .option(
+                Opt::new("NAME")
+                    .long("--dereplication-quality-formula")
+                    .help(
+                        "Scoring function for genome quality. See \
+                    `coverm cluster -h`.",
+                    ),
+            )
+            .option(
+                Opt::new("NAME")
+                    .long("--dereplication-precluster-method")
+                    .help(&format!(
+                        "method of calculating rough ANI for \
                     dereplication. 'dashing' for HyperLogLog, \
                     'finch' for finch MinHash.",
-                ),
-        )
-        .option(Opt::new("METHOD").short("-m").long("--methods").help(
-            "Method(s) for calculating coverage. \
+                    )),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--dereplication-aligned-fraction")
+                    .help(&format!(
+                        "Min aligned fraction of two genomes for \
+                    clustering [default: {}].",
+                        galah::DEFAULT_ALIGNED_FRACTION
+                    )),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--dereplication-fragment-length")
+                    .help(&format!(
+                        "Length of fragment used in FastANI calculation \
+                    (i.e. --fragLen) [default: {}].",
+                        galah::DEFAULT_FRAGMENT_LENGTH
+                    )),
+            ),
+    );
+
+    manual = manual.custom(sharding_section().flag(
+        Flag::new().long("--exclude-genomes-from-deshard").help(
+            "Ignore genomes whose name appears in this newline-separated \
+                file when combining shards.",
+        ),
+    ));
+
+    manual = add_mapping_options(manual);
+
+    manual = add_thresholding_options(manual);
+
+    manual = manual.custom(
+        Section::new("Coverage calculation options")
+            .option(Opt::new("METHOD").short("-m").long("--methods").help(
+                "Method(s) for calculating coverage. \
             One or more (space separated) of: \
                 relative_abundance (default), \
                 mean, \
@@ -498,49 +563,63 @@ pub fn genome_full_help() -> Manual {
             A more thorough description of the different \
             methods is available at \
             https://github.com/wwood/CoverM",
-        ))
-        .option(Opt::new("FORMAT").long("--output-format").help(
-            "Shape of output: 'sparse' for long format, \
-            'dense' for species-by-site. \
-            [default: dense]",
-        ))
-        .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-            "Genomes with less coverage than this \
+            ))
+            .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
+                "Genomes with less coverage than this \
             reported as having zero coverage. \
             [default: 0.10]",
-        ))
-        .option(Opt::new("INT").long("--contig-end-exclusion").help(
-            "Exclude bases at the ends of reference \
+            ))
+            .option(Opt::new("INT").long("--contig-end-exclusion").help(
+                "Exclude bases at the ends of reference \
             sequences from calculation [default: 75]",
-        ))
-        .option(Opt::new("FRACTION").long("--trim-min").help(
-            "Remove this smallest fraction of positions \
+            ))
+            .option(Opt::new("FRACTION").long("--trim-min").help(
+                "Remove this smallest fraction of positions \
             when calculating trimmed_mean \
             [default: 0.05]",
-        ))
-        .option(Opt::new("FRACTION").long("--trim-max").help(
-            "Maximum fraction for trimmed_mean \
+            ))
+            .option(Opt::new("FRACTION").long("--trim-max").help(
+                "Maximum fraction for trimmed_mean \
             calculations [default: 0.95]",
-        ))
-        .flag(Flag::new().long("--no-zeros").help(
-            "Omit printing of genomes that have zero \
-            coverage",
-        ))
-        .option(
-            Opt::new("DIRECTORY")
-                .long("--bam-file-cache-directory")
-                .help(
-                    "Output BAM files generated during \
-                    alignment to this directory. The directory may or may not exist",
-                ),
-        )
-        .flag(
-            Flag::new()
-                .long("--discard-unmapped")
-                .help("Exclude unmapped reads from cached BAM files."),
-        );
+            )),
+    );
 
-    manual = add_verbosity_flags(manual);
+    manual = manual.custom(
+        Section::new("Output")
+            .option(Opt::new("FORMAT").long("--output-format").help(
+                "Shape of output: 'sparse' for long format, \
+            'dense' for species-by-site. \
+            [default: dense]",
+            ))
+            .flag(Flag::new().long("--no-zeros").help(
+                "Omit printing of genomes that have zero \
+            coverage",
+            ))
+            .option(
+                Opt::new("DIRECTORY")
+                    .long("--bam-file-cache-directory")
+                    .help(
+                        "Output BAM files generated during \
+                    alignment to this directory. The directory may or may not exist",
+                    ),
+            )
+            .flag(
+                Flag::new()
+                    .long("--discard-unmapped")
+                    .help("Exclude unmapped reads from cached BAM files."),
+            ),
+    );
+
+    let mut general_section = Section::new("General options").option(
+        Opt::new("INT")
+            .short("-t")
+            .long("--threads")
+            .help("Number of threads for mapping, sorting and reading."),
+    );
+    general_section = add_help_options_to_section(general_section);
+    general_section = add_verbosity_flags_to_section(general_section);
+    manual = manual.custom(general_section);
+
     manual
 }
 
@@ -1031,65 +1110,93 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .possible_values(&["sparse", "dense"])
                         .default_value("dense"),
                 )
-
-                .arg(Arg::with_name("dereplicate")
-                    .long("dereplicate")
-                    .conflicts_with("reference")
-                    .conflicts_with("bam-files")
-                    .conflicts_with("separator")
-                    .conflicts_with("single-genome"))
-                .arg(Arg::with_name("dereplication-ani")
-                    .long("dereplication-ani")
-                    .takes_value(true)
-                    .default_value("99")
+                .arg(
+                    Arg::with_name("dereplicate")
+                        .long("dereplicate")
+                        .conflicts_with("reference")
+                        .conflicts_with("bam-files")
+                        .conflicts_with("separator")
+                        .conflicts_with("single-genome"),
                 )
-                .arg(Arg::with_name("dereplication-prethreshold-ani")
-                    .long("dereplication-prethreshold-ani")
-                    .takes_value(true)
-                    .default_value("95"))
-                .arg(Arg::with_name("dereplication-quality-formula")
-                    .long("dereplication-quality-formula")
-                    .possible_values(&[
-                        "completeness-4contamination",
-                        "completeness-5contamination",
-                        "Parks2020_reduced",
-                        "dRep"])
-                    .default_value("Parks2020_reduced")
-                    .takes_value(true))
-                .arg(Arg::with_name("dereplication-precluster-method")
-                    .long("dereplication-precluster-method")
-                    .help("method of calculating rough ANI. 'dashing' for HyperLogLog, 'finch' for finch MinHash")
-                    .possible_values(&["dashing","finch"])
-                    .default_value("dashing")
-                    .takes_value(true))
-                .arg(Arg::with_name("output-dereplication-clusters")
-                    .long("output-dereplication-clusters")
-                    .takes_value(true))
-                .arg(Arg::with_name("checkm-tab-table")
-                    .long("checkm-tab-table")
-                    .conflicts_with("reference")
-                    .conflicts_with("bam-file")
-                    .conflicts_with("separator")
-                    .conflicts_with("single-genome")
-                    .takes_value(true))
-                .arg(Arg::with_name("genome-info")
-                    .long("genome-info")
-                    .conflicts_with("reference")
-                    .conflicts_with("bam-file")
-                    .conflicts_with("separator")
-                    .conflicts_with("single-genome")
-                    .conflicts_with("checkm-tab-table")
-                    .takes_value(true))
-                .arg(Arg::with_name("min-completeness")
-                    .long("min-completeness")
-                    .requires("checkm-tab-table")
-                    .takes_value(true))
-                .arg(Arg::with_name("max-contamination")
-                    .long("max-contamination")
-                    .requires("checkm-tab-table")
-                    .takes_value(true))
-
-
+                .arg(
+                    Arg::with_name("dereplication-ani")
+                        .long("dereplication-ani")
+                        .takes_value(true)
+                        .default_value(galah::DEFAULT_ANI),
+                )
+                .arg(
+                    Arg::with_name("dereplication-prethreshold-ani")
+                        .long("dereplication-prethreshold-ani")
+                        .takes_value(true)
+                        .default_value(galah::DEFAULT_PRETHRESHOLD_ANI),
+                )
+                .arg(
+                    Arg::with_name("dereplication-quality-formula")
+                        .long("dereplication-quality-formula")
+                        .possible_values(&[
+                            "completeness-4contamination",
+                            "completeness-5contamination",
+                            "Parks2020_reduced",
+                            "dRep",
+                        ])
+                        .default_value(galah::DEFAULT_QUALITY_FORMULA)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-precluster-method")
+                        .long("dereplication-precluster-method")
+                        .possible_values(&["dashing", "finch"])
+                        .default_value(galah::DEFAULT_PRECLUSTER_METHOD)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-aligned-fraction")
+                        .long("dereplication-aligned-fraction")
+                        .default_value(galah::DEFAULT_ALIGNED_FRACTION)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-fragment-length")
+                        .long("dereplication-fragment-length")
+                        .default_value(galah::DEFAULT_FRAGMENT_LENGTH)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("output-dereplication-clusters")
+                        .long("output-dereplication-clusters")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("checkm-tab-table")
+                        .long("checkm-tab-table")
+                        .conflicts_with("reference")
+                        .conflicts_with("bam-file")
+                        .conflicts_with("separator")
+                        .conflicts_with("single-genome")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("genome-info")
+                        .long("genome-info")
+                        .conflicts_with("reference")
+                        .conflicts_with("bam-file")
+                        .conflicts_with("separator")
+                        .conflicts_with("single-genome")
+                        .conflicts_with("checkm-tab-table")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("min-completeness")
+                        .long("min-completeness")
+                        .requires("checkm-tab-table")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("max-contamination")
+                        .long("max-contamination")
+                        .requires("checkm-tab-table")
+                        .takes_value(true),
+                )
                 .arg(Arg::with_name("verbose").short("v").long("verbose"))
                 .arg(Arg::with_name("quiet").short("q").long("quiet")),
         )
@@ -1408,10 +1515,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .short("-o")
                         .long("output-directory")
                         .takes_value(true)
-                        .required_unless_one(&[
-                            "full-help",
-                            "full-help-roff",
-                        ])
+                        .required_unless_one(&["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::with_name("read1")
@@ -1419,9 +1523,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .multiple(true)
                         .takes_value(true)
                         .requires("read2")
-                        .required_unless_one(&["coupled", "interleaved", "single",
-                        "full-help",
-                        "full-help-roff",
+                        .required_unless_one(&[
+                            "coupled",
+                            "interleaved",
+                            "single",
+                            "full-help",
+                            "full-help-roff",
                         ]),
                 )
                 .arg(
@@ -1430,9 +1537,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .multiple(true)
                         .takes_value(true)
                         .requires("read1")
-                        .required_unless_one(&["coupled", "interleaved", "single",
-                        "full-help",
-                        "full-help-roff",
+                        .required_unless_one(&[
+                            "coupled",
+                            "interleaved",
+                            "single",
+                            "full-help",
+                            "full-help-roff",
                         ]),
                 )
                 .arg(
@@ -1441,9 +1551,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("coupled")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "interleaved", "single",
-                        "full-help",
-                        "full-help-roff",
+                        .required_unless_one(&[
+                            "read1",
+                            "interleaved",
+                            "single",
+                            "full-help",
+                            "full-help-roff",
                         ]),
                 )
                 .arg(
@@ -1451,9 +1564,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("interleaved")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "coupled", "single",
-                        "full-help",
-                        "full-help-roff",
+                        .required_unless_one(&[
+                            "read1",
+                            "coupled",
+                            "single",
+                            "full-help",
+                            "full-help-roff",
                         ]),
                 )
                 .arg(
@@ -1461,9 +1577,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("single")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["read1", "coupled", "interleaved",
-                        "full-help",
-                        "full-help-roff",
+                        .required_unless_one(&[
+                            "read1",
+                            "coupled",
+                            "interleaved",
+                            "full-help",
+                            "full-help-roff",
                         ]),
                 )
                 .arg(
@@ -1472,10 +1591,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&[
-                            "full-help",
-                            "full-help-roff",
-                        ]),
+                        .required_unless_one(&["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::with_name("threads")
@@ -1529,14 +1645,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .short("-o")
                         .long("output-file")
                         .takes_value(true)
-                        .required(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("shell")
                         .long("shell")
                         .takes_value(true)
                         .required(true)
-                        .possible_values(&Shell::variants())
+                        .possible_values(&Shell::variants()),
                 )
                 .arg(
                     Arg::with_name("verbose")
@@ -1545,7 +1661,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("verbose"),
                 )
                 .arg(Arg::with_name("quiet").short("q").long("quiet")),
-            );
+        );
 
     app = galah::cluster_argument_parsing::add_cluster_subcommand(app);
     return app;

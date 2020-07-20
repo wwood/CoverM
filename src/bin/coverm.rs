@@ -45,25 +45,14 @@ fn galah_command_line_definition(
         dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
         dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
         dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
+        dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
+        dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
     }
-}
-
-fn display_full_help(manual: man::Manual) {
-    let mut f =
-        tempfile::NamedTempFile::new().expect("Failed to create temporary file for --full-help");
-    write!(f, "{}", manual.render()).expect("Failed to write to tempfile for full-help");
-    let child = std::process::Command::new("man")
-        .args(&[f.path()])
-        .spawn()
-        .expect("Failed to spawn 'man' command for --full-help");
-
-    bird_tool_utils::command::finish_command_safely(child, &"man");
-    process::exit(1);
 }
 
 fn print_full_help_if_needed(m: &clap::ArgMatches, manual: man::Manual) {
     if m.is_present("full-help") {
-        display_full_help(manual)
+        bird_tool_utils::clap_utils::display_full_help(manual)
     } else if m.is_present("full-help-roff") {
         println!("{}", manual.render());
         process::exit(1);
