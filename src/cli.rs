@@ -125,6 +125,16 @@ fn read_mapping_params_section() -> Section {
                 .long("--single")
                 .help("Unpaired FASTA/Q files(s) for mapping."),
         )
+        .option(
+            Opt::new("PATH")
+                .short("-b")
+                .long("--bam-files")
+                .help("Path to BAM file(s). These must be \
+                    reference sorted (e.g. with samtools sort) \
+                    unless --sharded is specified, in which \
+                    case they must be read name sorted (e.g. \
+                    with samtools sort -n). When specified, no read mapping algorithm is undertaken.")
+        )
 }
 
 fn add_help_options(manual: Manual) -> Manual {
@@ -289,20 +299,35 @@ pub fn contig_full_help() -> Manual {
     let mut manual = Manual::new("coverm contig")
         .about("Calculate read coverage per-contig")
         .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
-        .option(Opt::new("PATH").short("-b").long("--bam-files").help(
-            "Path to BAM file(s). These must be \
-                reference sorted (e.g. with samtools sort) \
-                unless --sharded is specified, in which \
-                case they must be read name sorted (e.g. \
-                with samtools sort -n).",
-        ));
-    manual = add_help_options(manual);
+        .description("coverm contig calculates the coverage of a set of reads on a set of contigs.\n\n\
+        This process can be undertaken in several ways, for instance by specifying BAM files or raw reads as input, \
+        using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
+        and printing the calculated coverage in various formats.");
+
+    manual = manual.custom(read_mapping_params_section());
+
+    manual = manual.custom(Section::new("Reference").option(
+        Opt::new("PATH").short("-r").long("--reference").help(
+            "FASTA file of contigs e.g. concatenated \
+                    genomes or metagenome assembly, or minimap2 \
+                    index \
+                    (with --minimap2-reference-is-index), \
+                    or BWA index stem (with -p bwa-mem). \
+                    If multiple references FASTA files are \
+                    provided and --sharded is specified, \
+                    then reads will be mapped to references \
+                    separately as sharded BAMs.",
+        ),
+    ));
+
+    manual = manual.custom(sharding_section());
     manual = add_mapping_options(manual);
     manual = add_thresholding_options(manual);
-    manual = manual.custom(sharding_section());
-    manual = manual
-        .option(Opt::new("METHOD").short("-m").long("--methods").help(
-            "Method(s) for calculating coverage. \
+
+    manual = manual.custom(
+        Section::new("Coverage calculation options")
+            .option(Opt::new("METHOD").short("-m").long("--methods").help(
+                "Method(s) for calculating coverage. \
             One or more (space separated) of: \
             mean (default), \
             trimmed_mean, \
@@ -315,53 +340,65 @@ pub fn contig_full_help() -> Manual {
             metabat (\"MetaBAT adjusted coverage\"), \
             reads_per_base, \
             rpkm. \
-        A more thorough fdfdfdfdfdfdfdfdfdfd of the different \
+        A more thorough description of the different \
         methods is available at \
         https://github.com/wwood/CoverM",
-        ))
-        .option(Opt::new("FORMAT").long("--output-format").help(
-            "Shape of output: 'sparse' for long format, \
+            ))
+            .option(Opt::new("FORMAT").long("--output-format").help(
+                "Shape of output: 'sparse' for long format, \
         'dense' for species-by-site. \
         [default: dense]",
-        ))
-        .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-            "Genomes with less coverage than this \
+            ))
+            .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
+                "Genomes with less coverage than this \
         reported as having zero coverage. \
         [default: 0.10]",
-        ))
-        .option(Opt::new("INT").long("--contig-end-exclusion").help(
-            "Exclude bases at the ends of reference \
+            ))
+            .option(Opt::new("INT").long("--contig-end-exclusion").help(
+                "Exclude bases at the ends of reference \
         sequences from calculation [default: 75]",
-        ))
-        .option(Opt::new("FRACTION").long("--trim-min").help(
-            "Remove this smallest fraction of positions \
+            ))
+            .option(Opt::new("FRACTION").long("--trim-min").help(
+                "Remove this smallest fraction of positions \
         when calculating trimmed_mean \
         [default: 0.05]",
-        ))
-        .option(Opt::new("FRACTION").long("--trim-max").help(
-            "Maximum fraction for trimmed_mean \
+            ))
+            .option(Opt::new("FRACTION").long("--trim-max").help(
+                "Maximum fraction for trimmed_mean \
         calculations [default: 0.95]",
-        ))
-        .flag(Flag::new().long("--no-zeros").help(
-            "Omit printing of genomes that have zero \
-        coverage",
-        ))
-        .option(
-            Opt::new("DIRECTORY")
-                .long("--bam-file-cache-directory")
-                .help(
-                    "Output BAM files generated during \
-                alignment to this directory. The directory may or may not exist",
-                ),
-        )
-        .flag(
-            Flag::new()
-                .long("--discard-unmapped")
-                .help("Exclude unmapped reads from cached BAM files."),
-        );
+            )),
+    );
 
-    manual = add_verbosity_flags(manual);
-    manual = add_help_options(manual);
+    manual = manual.custom(
+        Section::new("Output")
+            .flag(Flag::new().long("--no-zeros").help(
+                "Omit printing of genomes that have zero \
+        coverage",
+            ))
+            .option(
+                Opt::new("DIRECTORY")
+                    .long("--bam-file-cache-directory")
+                    .help(
+                        "Output BAM files generated during \
+                alignment to this directory. The directory may or may not exist",
+                    ),
+            )
+            .flag(
+                Flag::new()
+                    .long("--discard-unmapped")
+                    .help("Exclude unmapped reads from cached BAM files."),
+            ),
+    );
+
+    let mut general_section = Section::new("General options").option(
+        Opt::new("INT")
+            .short("-t")
+            .long("--threads")
+            .help("Number of threads for mapping, sorting and reading."),
+    );
+    general_section = add_help_options_to_section(general_section);
+    general_section = add_verbosity_flags_to_section(general_section);
+    manual = manual.custom(general_section);
 
     return manual;
 }
@@ -377,17 +414,7 @@ pub fn genome_full_help() -> Manual {
             using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
             and printing the calculated coverage in various formats.");
 
-    manual = manual.custom(
-            read_mapping_params_section().option(
-                Opt::new("PATH")
-                    .short("-b")
-                    .long("--bam-files")
-                    .help("Path to BAM file(s). These must be \
-                        reference sorted (e.g. with samtools sort) \
-                        unless --sharded is specified, in which \
-                        case they must be read name sorted (e.g. \
-                        with samtools sort -n). When specified, no read mapping algorithm is undertaken.")
-            ));
+    manual = manual.custom(read_mapping_params_section());
 
     manual = manual.custom(Section::new("Genome definition")
             .option(
