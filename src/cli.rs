@@ -125,16 +125,6 @@ fn read_mapping_params_section() -> Section {
                 .long("--single")
                 .help("Unpaired FASTA/Q files(s) for mapping."),
         )
-        .option(
-            Opt::new("PATH")
-                .short("-b")
-                .long("--bam-files")
-                .help("Path to BAM file(s). These must be \
-                    reference sorted (e.g. with samtools sort) \
-                    unless --sharded is specified, in which \
-                    case they must be read name sorted (e.g. \
-                    with samtools sort -n). When specified, no read mapping algorithm is undertaken.")
-        )
 }
 
 fn add_help_options(manual: Manual) -> Manual {
@@ -256,42 +246,46 @@ pub fn make_full_help() -> Manual {
     let mut manual = Manual::new("coverm make")
         .about("Generate BAM files through mapping")
         .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
-        .option(Opt::new("DIR").short("-o").long("--output-directory").help(
-            "Where generated BAM files will go. The directory will be created if it does not exist.",
-        ));
-
-    manual = manual
-        .option(Opt::new("PATH").short("-r").long("--reference").help(
-            "FASTA file of contigs e.g. concatenated \
-                    genomes or metagenome assembly, or minimap2 \
-                    index \
-                    (with --minimap2-reference-is-index), \
-                    or BWA index stem (with -p bwa-mem). \
-                    If multiple references FASTA files are \
-                    provided and --sharded is specified, \
-                    then reads will be mapped to references \
-                    separately as sharded BAMs.",
-        ))
-        .option(
-            Opt::new("INT")
-                .short("-t")
-                .long("--threads")
-                .help("Number of threads for mapping."),
+        .description(
+            "coverm make generates BAM files by read mapping a set of reads against \
+        a reference FASTA database.\n\n",
         );
 
     manual = manual.custom(read_mapping_params_section());
 
+    manual = manual.custom(Section::new("Reference").option(
+        Opt::new("PATH").short("-r").long("--reference").help(
+            "FASTA file of contigs e.g. concatenated \
+                        genomes or metagenome assembly, or minimap2 \
+                        index \
+                        (with --minimap2-reference-is-index), \
+                        or BWA index stem (with -p bwa-mem).",
+        ),
+    ));
+
     manual = add_mapping_options(manual);
 
-    manual = add_help_options(manual);
+    manual = manual.custom(
+            Section::new("Output")    
+        .option(Opt::new("DIR").short("-o").long("--output-directory").help(
+            "Where generated BAM files will go. The directory will be created if it does not exist.",
+        ))
+        .flag(
+            Flag::new()
+                .long("--discard-unmapped")
+                .help("Exclude unmapped reads from cached BAM files."),
+        ));
 
-    manual = manual.flag(
-        Flag::new()
-            .long("--discard-unmapped")
-            .help("Exclude unmapped reads from cached BAM files."),
+    let mut general_section = Section::new("General options").option(
+        Opt::new("INT")
+            .short("-t")
+            .long("--threads")
+            .help("Number of threads for mapping and sorting."),
     );
+    general_section = add_help_options_to_section(general_section);
+    general_section = add_verbosity_flags_to_section(general_section);
+    manual = manual.custom(general_section);
 
-    manual = add_verbosity_flags(manual);
     manual
 }
 
@@ -304,7 +298,15 @@ pub fn contig_full_help() -> Manual {
         using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
         and printing the calculated coverage in various formats.");
 
-    manual = manual.custom(read_mapping_params_section());
+    manual = manual.custom(read_mapping_params_section().option(
+        Opt::new("PATH").short("-b").long("--bam-files").help(
+            "Path to BAM file(s). These must be \
+                reference sorted (e.g. with samtools sort) \
+                unless --sharded is specified, in which \
+                case they must be read name sorted (e.g. \
+                with samtools sort -n). When specified, no read mapping algorithm is undertaken.",
+        ),
+    ));
 
     manual = manual.custom(Section::new("Reference").option(
         Opt::new("PATH").short("-r").long("--reference").help(
@@ -344,11 +346,6 @@ pub fn contig_full_help() -> Manual {
         methods is available at \
         https://github.com/wwood/CoverM",
             ))
-            .option(Opt::new("FORMAT").long("--output-format").help(
-                "Shape of output: 'sparse' for long format, \
-        'dense' for species-by-site. \
-        [default: dense]",
-            ))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
                 "Genomes with less coverage than this \
         reported as having zero coverage. \
@@ -371,6 +368,11 @@ pub fn contig_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
+            .option(Opt::new("FORMAT").long("--output-format").help(
+                "Shape of output: 'sparse' for long format, \
+    'dense' for species-by-site. \
+    [default: dense]",
+            ))
             .flag(Flag::new().long("--no-zeros").help(
                 "Omit printing of genomes that have zero \
         coverage",
@@ -414,7 +416,15 @@ pub fn genome_full_help() -> Manual {
             using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
             and printing the calculated coverage in various formats.");
 
-    manual = manual.custom(read_mapping_params_section());
+    manual = manual.custom(read_mapping_params_section().option(
+        Opt::new("PATH").short("-b").long("--bam-files").help(
+            "Path to BAM file(s). These must be \
+                reference sorted (e.g. with samtools sort) \
+                unless --sharded is specified, in which \
+                case they must be read name sorted (e.g. \
+                with samtools sort -n). When specified, no read mapping algorithm is undertaken.",
+        ),
+    ));
 
     manual = manual.custom(Section::new("Genome definition")
             .option(
