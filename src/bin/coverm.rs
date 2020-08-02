@@ -38,27 +38,6 @@ use tempfile::NamedTempFile;
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
 
-fn galah_command_line_definition(
-) -> galah::cluster_argument_parsing::GalahClustererCommandDefinition {
-    galah::cluster_argument_parsing::GalahClustererCommandDefinition {
-        dereplication_ani_argument: "dereplication-ani".to_string(),
-        dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
-        dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
-        dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
-        dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
-        dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
-    }
-}
-
-fn print_full_help_if_needed(m: &clap::ArgMatches, manual: man::Manual) {
-    if m.is_present("full-help") {
-        bird_tool_utils::clap_utils::display_full_help(manual)
-    } else if m.is_present("full-help-roff") {
-        println!("{}", manual.render());
-        process::exit(1);
-    }
-}
-
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
@@ -68,7 +47,7 @@ fn main() {
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            print_full_help_if_needed(&m, genome_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, genome_full_help());
             set_log_level(m, true);
 
             let genome_names_content: Vec<u8>;
@@ -252,7 +231,7 @@ fn main() {
                                     galah::cluster_argument_parsing::filter_genomes_through_checkm(
                                         &paths,
                                         &m,
-                                        &galah_command_line_definition(),
+                                        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
                                     )
                                     .expect("Error parsing CheckM-related options");
                                 info!(
@@ -413,7 +392,7 @@ fn main() {
         }
         Some("filter") => {
             let m = matches.subcommand_matches("filter").unwrap();
-            print_full_help_if_needed(&m, filter_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, filter_full_help());
             set_log_level(m, true);
 
             let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -462,7 +441,7 @@ fn main() {
         }
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
-            print_full_help_if_needed(&m, contig_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, contig_full_help());
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
@@ -586,7 +565,7 @@ fn main() {
         }
         Some("make") => {
             let m = matches.subcommand_matches("make").unwrap();
-            print_full_help_if_needed(&m, make_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, make_full_help());
             set_log_level(m, true);
 
             let mapping_program = parse_mapping_program(&m);
@@ -707,7 +686,7 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
         genome_fasta_files,
         &m,
-        &galah_command_line_definition(),
+        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
     )
     .expect("Failed to parse galah clustering arguments correctly");
 

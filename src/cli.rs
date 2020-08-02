@@ -1,4 +1,5 @@
 use clap::*;
+use galah::cluster_argument_parsing::GalahClustererCommandDefinition;
 use man::prelude::{Author, Flag, Manual, Opt, Section};
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
@@ -9,6 +10,19 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-no-preset",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
+
+lazy_static! {
+    pub static ref COVERM_CLUSTER_COMMAND_DEFINITION: GalahClustererCommandDefinition = {
+        galah::cluster_argument_parsing::GalahClustererCommandDefinition {
+            dereplication_ani_argument: "dereplication-ani".to_string(),
+            dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
+            dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
+            dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
+            dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
+            dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
+        }
+    };
+}
 
 fn add_mapping_options(manual: Manual) -> Manual {
     manual.custom(
@@ -426,32 +440,9 @@ pub fn genome_full_help() -> Manual {
         ),
     ));
 
-    manual = manual.custom(Section::new("Genome definition")
-            .option(
-                Opt::new("PATH ..")
-                    .short("-f")
-                    .long("--genome-fasta-files")
-                    .help("Path(s) to FASTA files of each genome e.g. 'pathA/genome1.fna pathB/genome2.fa'")
-            )
-            .option(
-                Opt::new("PATH")
-                    .short("-d")
-                    .long("--genome-fasta-directory")
-                    .help("Directory containing FASTA files of each genome")
-            )
-            .option(
-                Opt::new("EXT")
-                    .short("-x")
-                    .long("--genome-fasta-extension")
-                    .help("File extension of genomes in the directory \
-                        specified with -d/--genome-fasta-directory [default \"fna\"]")
-            )
-            .option(
-                Opt::new("PATH")
-                    .short("-d")
-                    .long("--genome-fasta-list")
-                    .help("File containing FASTA file paths, one per line")
-            )
+    manual = manual.custom(
+        bird_tool_utils::clap_utils::add_genome_specification_to_section(
+            Section::new("Genome definition"))
             .option(
                 Opt::new("PATH").short("-r").long("--reference").help(
                     "FASTA file of contigs e.g. concatenated \
@@ -484,91 +475,27 @@ pub fn genome_full_help() -> Manual {
             )
         );
 
-    manual = manual.custom(
-        Section::new("DEREPLICATION / GENOME CLUSTERING")
-            .flag(Flag::new().long("--dereplicate").help(
-                "Do genome dereplication via average nucleotide \
-            identity (ANI) - choose a genome to represent \
-            all within a small distance, using Dashing for \
-            preclustering and FastANI for final ANI \
-            calculation.",
-            ))
-            .option(
-                Opt::new("FLOAT")
-                    .long("--dereplication-ani")
-                    .help("Overall ANI level to dereplicate at with FastANI."),
-            )
-            .option(Opt::new("PATH").long("--checkm-tab-table").help(
-                "CheckM tab table for defining genome quality, \
-            which is in turn used during clustering. \
-            Genomes are scored as \
-            completeness-4*contamination.",
-            ))
-            .option(Opt::new("PATH").long("--genome-info").help(
-                "dRep style genome info table for defining \
-            quality. Used like --checkm-tab-table.",
-            ))
-            .option(Opt::new("FLOAT").long("--min-completeness").help(
-                "Ignore genomes with less completeness than \
-            this percentage.",
-            ))
-            .option(Opt::new("FLOAT").long("--max-contamination").help(
-                "Ignore genomes with more contamination than \
-            this percentage.",
-            ))
-            .option(
-                Opt::new("PATH")
-                    .long("--output-dereplication-clusters")
-                    .help(
-                        "Output clustered genome information to this \
-                    file as 'representative<TAB>member'",
-                    ),
-            )
-            .option(
-                Opt::new("FLOAT")
-                    .long("--dereplication-prethreshold-ani")
-                    .help(
-                        "Require at least this dashing-derived ANI \
-                    for preclustering and to avoid FastANI on \
-                    distant lineages within preclusters.",
-                    ),
-            )
-            .option(
-                Opt::new("NAME")
-                    .long("--dereplication-quality-formula")
-                    .help(
-                        "Scoring function for genome quality. See \
-                    `coverm cluster -h`.",
-                    ),
-            )
-            .option(
-                Opt::new("NAME")
-                    .long("--dereplication-precluster-method")
-                    .help(&format!(
-                        "method of calculating rough ANI for \
-                    dereplication. 'dashing' for HyperLogLog, \
-                    'finch' for finch MinHash.",
-                    )),
-            )
-            .option(
-                Opt::new("FLOAT")
-                    .long("--dereplication-aligned-fraction")
-                    .help(&format!(
-                        "Min aligned fraction of two genomes for \
-                    clustering [default: {}].",
-                        galah::DEFAULT_ALIGNED_FRACTION
-                    )),
-            )
-            .option(
-                Opt::new("FLOAT")
-                    .long("--dereplication-fragment-length")
-                    .help(&format!(
-                        "Length of fragment used in FastANI calculation \
-                    (i.e. --fragLen) [default: {}].",
-                        galah::DEFAULT_FRAGMENT_LENGTH
-                    )),
-            ),
+    let mut derep_section = Section::new("DEREPLICATION / GENOME CLUSTERING").flag(
+        Flag::new().long("--dereplicate").help(
+            "Do genome dereplication via average nucleotide \
+        identity (ANI) - choose a genome to represent \
+        all within a small distance, using Dashing for \
+        preclustering and FastANI for final ANI \
+        calculation.",
+        ),
     );
+    derep_section =
+        galah::cluster_argument_parsing::add_dereplication_filtering_parameters_to_section(
+            derep_section,
+        );
+    derep_section =
+        galah::cluster_argument_parsing::add_dereplication_clustering_parameters_to_section(
+            derep_section,
+            &COVERM_CLUSTER_COMMAND_DEFINITION,
+        );
+    // not yet implemented
+    //galah::cluster_argument_parsing::add_dereplication_output_parameters_to_section(derep_section);
+    manual = manual.custom(derep_section);
 
     manual = manual.custom(sharding_section().flag(
         Flag::new().long("--exclude-genomes-from-deshard").help(
