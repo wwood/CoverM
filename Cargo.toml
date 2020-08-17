@@ -14,7 +14,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.31.*"
+bio = "0.32.0"
 rust-htslib = { version="0.32.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
@@ -28,7 +28,7 @@ rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.10"
 bird_tool_utils = {git = "https://github.com/wwood/bird_tool_utils", rev = "3b16f11ed421ae74c1a140f3894da02584bcb5b5"}
-galah = {git = "https://github.com/wwood/galah", rev = "4503b13f580c89164ee78a85267a50ad33c0f5c8"}
+galah = {git = "https://github.com/wwood/galah", rev = "9125da2f61e2088957bf9f1ad41614ac4346baef"}
 man = {git = "https://github.com/wwood/man", rev = "6aed86ec55ab6c867b391658586a597770c6dcb1"}
 
 [dev-dependencies]

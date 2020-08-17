@@ -43,7 +43,6 @@ fn main() {
     let matches = app.clone().get_matches();
     let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
-
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();

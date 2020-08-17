@@ -34,7 +34,7 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     minimap2 -sr, -ont, -pb, -no-preset specify \
                     '-x' preset of minimap2 to be used \
                     (with map-ont, map-pb for -ont, -pb). \
-                    [default: \"minimap2-sr\"]",
+                    [default: minimap2-sr]",
             ))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(
                 "Extra parameters to provide to minimap2, \
@@ -42,18 +42,16 @@ fn add_mapping_options(manual: Manual) -> Manual {
         mapping. Note that usage of this parameter \
         has security implications if untrusted input \
         is specified. '-a' is always specified. \
-        [default \"\"]",
+        [default: none i.e. \"\"]",
             ))
-            .flag(
-                Flag::new()
-                    .long("--minimap2-reference-is-index")
-                    .help("Treat reference as a minimap2 database, not as a FASTA file."),
-            )
+            .flag(Flag::new().long("--minimap2-reference-is-index").help(
+                "Treat reference as a minimap2 database, not as a FASTA file. [default: not set]",
+            ))
             .option(Opt::new("PARAMS").long("--bwa-params").help(
                 "Extra parameters to provide to BWA. Note \
         that usage of this parameter has security \
         implications if untrusted input is specified. \
-        [default \"\"]",
+        [default: none i.e. \"\"]",
             )),
     )
 }
@@ -67,12 +65,12 @@ fn add_thresholding_options(manual: Manual) -> Manual {
             ))
             .option(Opt::new("FLOAT").long("--min-read-percent-identity").help(
                 "Exclude reads by overall percent \
-        identity e.g. 0.95 for 95%. [default 0.0]",
+        identity e.g. 0.95 for 95%. [default: 0.0]",
             ))
             .option(Opt::new("FLOAT").long("--min-read-aligned-percent").help(
                 "Exclude reads by percent aligned \
         bases e.g. 0.95 means 95% of the read's \
-        bases must be aligned. [default 0.0]",
+        bases must be aligned. [default: 0.0]",
             ))
             .option(Opt::new("INT").long("--min-read-aligned-length-pair").help(
                 "Exclude pairs with smaller numbers of \
@@ -85,7 +83,7 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .help(
                         "Exclude pairs by overall percent \
                 identity e.g. 0.95 for 95%. \
-                Implies --proper-pairs-only. [default 0.0]",
+                Implies --proper-pairs-only. [default: 0.0]",
                     ),
             )
             .option(
@@ -95,18 +93,18 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                         "Exclude reads by percent aligned \
                 bases e.g. 0.95 means 95% of the read's \
                 bases must be aligned. \
-                Implies --proper-pairs-only. [default 0.0]",
+                Implies --proper-pairs-only. [default: 0.0]",
                     ),
             )
             .flag(
                 Flag::new()
                     .long("--proper-pairs-only")
-                    .help("Require reads to be mapped as proper pairs"),
+                    .help("Require reads to be mapped as proper pairs. [default: not set]"),
             )
             .flag(
                 Flag::new()
                     .long("--exclude-supplementary")
-                    .help("Exclude supplementary alignments"),
+                    .help("Exclude supplementary alignments. [default: not set]"),
             ),
     )
 }
@@ -116,28 +114,28 @@ fn read_mapping_params_section() -> Section {
         .option(
             Opt::new("PATH ..")
                 .short("-1")
-                .help("Forward FASTA/Q file(s) for mapping"),
+                .help("Forward FASTA/Q file(s) for mapping. These may be gzipped or not."),
         )
         .option(
             Opt::new("PATH ..")
                 .short("-2")
-                .help("Reverse FASTA/Q file(s) for mapping"),
+                .help("Reverse FASTA/Q file(s) for mapping. These may be gzipped or not."),
         )
         .option(Opt::new("PATH ..").short("-c").long("--coupled").help(
             "One or more pairs of forward and reverse \
-        FASTA/Q files for mapping in order \
+        possibly gzipped FASTA/Q files for mapping in order \
         <sample1_R1.fq.gz> <sample1_R2.fq.gz> \
         <sample2_R1.fq.gz> <sample2_R2.fq.gz> ..",
         ))
         .option(
             Opt::new("PATH ..")
                 .long("--interleaved")
-                .help("Interleaved FASTA/Q files(s) for mapping."),
+                .help("Interleaved FASTA/Q files(s) for mapping. These may be gzipped or not."),
         )
         .option(
             Opt::new("PATH ..")
                 .long("--single")
-                .help("Unpaired FASTA/Q files(s) for mapping."),
+                .help("Unpaired FASTA/Q files(s) for mapping. These may be gzipped or not."),
         )
 }
 
@@ -147,16 +145,16 @@ fn add_help_options(manual: Manual) -> Manual {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Output a short usage message."),
+                .help("Output a short usage message. [default: not set]"),
         )
         .flag(
             Flag::new()
                 .long("--full-help")
-                .help("Output a full help message and display in 'man'."),
+                .help("Output a full help message and display in 'man'. [default: not set]"),
         )
         .flag(Flag::new().long("--full-help-roff").help(
             "Output a full help message in raw ROFF format for \
-        conversion to other formats.",
+        conversion to other formats. [default: not set]",
         ))
 }
 fn add_help_options_to_section(section: Section) -> Section {
@@ -165,16 +163,16 @@ fn add_help_options_to_section(section: Section) -> Section {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Output a short usage message."),
+                .help("Output a short usage message. [default: not set]"),
         )
         .flag(
             Flag::new()
                 .long("--full-help")
-                .help("Output a full help message and display in 'man'."),
+                .help("Output a full help message and display in 'man'. [default: not set]"),
         )
         .flag(Flag::new().long("--full-help-roff").help(
             "Output a full help message in raw ROFF format for \
-        conversion to other formats.",
+        conversion to other formats. [default: not set]",
         ))
 }
 
@@ -186,7 +184,7 @@ fn sharding_section() -> Section {
         reference contig sets. Choose the best \
         hit for each read pair. Otherwise if mapping was carried out: \
         Map reads to each reference, choosing the \
-        best hit for each pair.",
+        best hit for each pair. [default: not set]",
     ))
 }
 
@@ -196,11 +194,11 @@ fn add_verbosity_flags(manual: Manual) -> Manual {
             Flag::new()
                 .short("-v")
                 .long("--verbose")
-                .help("Print extra debugging information"),
+                .help("Print extra debugging information. [default: not set]"),
         )
         .flag(Flag::new().short("-q").long("--quiet").help(
             "Unless there is an error, do not print \
-    log messages",
+    log messages. [default: not set]",
         ))
 }
 fn add_verbosity_flags_to_section(section: Section) -> Section {
@@ -209,11 +207,11 @@ fn add_verbosity_flags_to_section(section: Section) -> Section {
             Flag::new()
                 .short("-v")
                 .long("--verbose")
-                .help("Print extra debugging information"),
+                .help("Print extra debugging information. [default: not set]"),
         )
         .flag(Flag::new().short("-q").long("--quiet").help(
             "Unless there is an error, do not print \
-    log messages",
+    log messages. [default: not set]",
         ))
 }
 
@@ -229,26 +227,26 @@ pub fn filter_full_help() -> Manual {
             Opt::new("PATH ..")
                 .short("-b")
                 .long("--bam-files")
-                .help("Path to reference-sorted BAM file(s)."),
+                .help("Path to reference-sorted BAM file(s). [required]"),
         )
         .option(
             Opt::new("PATH ..")
                 .short("-o")
                 .long("--output-bam-files")
-                .help(" Path to corresponding output file(s)"),
+                .help(" Path to corresponding output file(s). [required]"),
         );
     manual = add_thresholding_options(manual);
     manual = manual.option(
         Opt::new("INT")
             .short("-t")
             .long("--threads")
-            .help("Number of threads for output compression."),
+            .help("Number of threads for output compression. [default: 1]"),
     );
     manual = manual.flag(Flag::new().long("--inverse").help(
         "Only keep reads which are unmapped or \
                 align below thresholds. Note that output \
                 records may still be marked as mapped \
-                if they do not meet the thresholds.",
+                if they do not meet the thresholds. [default: not set]",
     ));
     manual = add_verbosity_flags(manual);
     manual = add_help_options(manual);
@@ -273,7 +271,7 @@ pub fn make_full_help() -> Manual {
                         genomes or metagenome assembly, or minimap2 \
                         index \
                         (with --minimap2-reference-is-index), \
-                        or BWA index stem (with -p bwa-mem).",
+                        or BWA index stem (with -p bwa-mem). [required]",
         ),
     ));
 
@@ -282,19 +280,19 @@ pub fn make_full_help() -> Manual {
     manual = manual.custom(
             Section::new("Output")    
         .option(Opt::new("DIR").short("-o").long("--output-directory").help(
-            "Where generated BAM files will go. The directory will be created if it does not exist.",
+            "Where generated BAM files will go. The directory will be created if it does not exist. [required]",
         ))
         .flag(
             Flag::new()
                 .long("--discard-unmapped")
-                .help("Exclude unmapped reads from cached BAM files."),
+                .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
         ));
 
     let mut general_section = Section::new("General options").option(
         Opt::new("INT")
             .short("-t")
             .long("--threads")
-            .help("Number of threads for mapping and sorting."),
+            .help("Number of threads for mapping and sorting. [default: 1]"),
     );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
@@ -332,7 +330,7 @@ pub fn contig_full_help() -> Manual {
                     If multiple references FASTA files are \
                     provided and --sharded is specified, \
                     then reads will be mapped to references \
-                    separately as sharded BAMs.",
+                    separately as sharded BAMs. [required]",
         ),
     ));
 
@@ -358,7 +356,7 @@ pub fn contig_full_help() -> Manual {
             rpkm. \
         A more thorough description of the different \
         methods is available at \
-        https://github.com/wwood/CoverM",
+        https://github.com/wwood/CoverM [default: mean]",
             ))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
                 "Genomes with less coverage than this \
@@ -389,20 +387,21 @@ pub fn contig_full_help() -> Manual {
             ))
             .flag(Flag::new().long("--no-zeros").help(
                 "Omit printing of genomes that have zero \
-        coverage",
+        coverage. [default: not set]",
             ))
             .option(
                 Opt::new("DIRECTORY")
                     .long("--bam-file-cache-directory")
                     .help(
                         "Output BAM files generated during \
-                alignment to this directory. The directory may or may not exist",
+                alignment to this directory. The directory may or may not exist. \
+                [default: not used]",
                     ),
             )
             .flag(
                 Flag::new()
                     .long("--discard-unmapped")
-                    .help("Exclude unmapped reads from cached BAM files."),
+                    .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
             ),
     );
 
@@ -410,7 +409,7 @@ pub fn contig_full_help() -> Manual {
         Opt::new("INT")
             .short("-t")
             .long("--threads")
-            .help("Number of threads for mapping, sorting and reading."),
+            .help("Number of threads for mapping, sorting and reading. [default: 1]"),
     );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
@@ -460,18 +459,19 @@ pub fn genome_full_help() -> Manual {
                 Opt::new("CHARACTER")
                     .short("-s")
                     .long("--separator")
-                    .help("This character separates genome names from contig names in the reference file. Requires --reference.")
+                    .help("This character separates genome names from contig names in the reference file. Requires --reference. \
+                    [default: unspecified]")
             )
             .flag(
                 Flag::new()
                     .long("--single-genome")
-                    .help("All contigs are from the same genome. Requires --reference")
+                    .help("All contigs are from the same genome. Requires --reference. [default: not set]")
             )
             .option(
                 Opt::new("FILE")
                     .long("--genome-definition")
                     .help("File containing list of \
-                    genome_name<tab>contig lines to define the genome of each contig. Requires --reference")
+                    genome_name<tab>contig lines to define the genome of each contig. Requires --reference. [default: not set]")
             )
         );
 
@@ -481,7 +481,8 @@ pub fn genome_full_help() -> Manual {
         identity (ANI) - choose a genome to represent \
         all within a small distance, using Dashing for \
         preclustering and FastANI for final ANI \
-        calculation.",
+        calculation. When this flag is used, dereplication occurs \
+        transparently through the Galah method (https://github.com/wwood/galah) [default: not set i.e. no dereplication]",
         ),
     );
     derep_section =
@@ -500,7 +501,7 @@ pub fn genome_full_help() -> Manual {
     manual = manual.custom(sharding_section().flag(
         Flag::new().long("--exclude-genomes-from-deshard").help(
             "Ignore genomes whose name appears in this newline-separated \
-                file when combining shards.",
+                file when combining shards. [default: not set]",
         ),
     ));
 
@@ -526,7 +527,7 @@ pub fn genome_full_help() -> Manual {
                 rpkm. \
             A more thorough description of the different \
             methods is available at \
-            https://github.com/wwood/CoverM",
+            https://github.com/wwood/CoverM [default: relative_abundance]",
             ))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
                 "Genomes with less coverage than this \
@@ -557,20 +558,20 @@ pub fn genome_full_help() -> Manual {
             ))
             .flag(Flag::new().long("--no-zeros").help(
                 "Omit printing of genomes that have zero \
-            coverage",
+            coverage. [default: not set]",
             ))
             .option(
                 Opt::new("DIRECTORY")
                     .long("--bam-file-cache-directory")
                     .help(
                         "Output BAM files generated during \
-                    alignment to this directory. The directory may or may not exist",
+                    alignment to this directory. The directory may or may not exist. [default: not set]",
                     ),
             )
             .flag(
                 Flag::new()
                     .long("--discard-unmapped")
-                    .help("Exclude unmapped reads from cached BAM files."),
+                    .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
             ),
     );
 
@@ -578,7 +579,7 @@ pub fn genome_full_help() -> Manual {
         Opt::new("INT")
             .short("-t")
             .long("--threads")
-            .help("Number of threads for mapping, sorting and reading."),
+            .help("Number of threads for mapping, sorting and reading. [default: 1]"),
     );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
