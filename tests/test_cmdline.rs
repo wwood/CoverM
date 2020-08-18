@@ -1647,8 +1647,14 @@ genome6~random_sequence_length_11003	0	0	0
 
     #[test]
     fn test_dereplicate_output_clusters() {
-        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
-        let t = tf.path().to_str().unwrap();
+        let tf_clusters: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t_clusters = tf_clusters.path().to_str().unwrap();
+
+        let tf_reps: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t_reps = tf_reps.path().to_str().unwrap();
+
+        let td_symlink = tempfile::TempDir::new().unwrap();
+        let td_copy = tempfile::TempDir::new().unwrap();
 
         Assert::main_binary()
             .with_args(&[
@@ -1665,24 +1671,54 @@ genome6~random_sequence_length_11003	0	0	0
                 "--dereplicate",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
-                "--output-dereplication-clusters",
-                t,
+                "--dereplication-output-cluster-definition",
+                t_clusters,
+                "--dereplication-output-representative-fasta-directory",
+                td_symlink.path().to_str().unwrap(),
+                "--dereplication-output-representative-fasta-directory-copy",
+                td_copy.path().to_str().unwrap(),
+                "--dereplication-output-representative-list",
+                t_reps,
             ])
             .succeeds()
             .stdout()
             .is("Genome	1read.actually_fasta.fq Covered Fraction\n\
                 1mbp	0.00232\n")
             .unwrap();
+
         let mut s: String = "".to_string();
-        std::fs::File::open(t)
+        std::fs::File::open(t_clusters)
             .unwrap()
             .read_to_string(&mut s)
             .unwrap();
         assert_eq!(
             "tests/data/set1/1mbp.fna	tests/data/set1/1mbp.fna\n\
-            tests/data/set1/1mbp.fna	tests/data/set1/500kb.fna\n",
+                tests/data/set1/1mbp.fna	tests/data/set1/500kb.fna\n",
             s
-        )
+        );
+
+        let mut s2: String = "".to_string();
+        std::fs::File::open(t_reps)
+            .unwrap()
+            .read_to_string(&mut s2)
+            .unwrap();
+        assert_eq!("tests/data/set1/1mbp.fna\n", s2);
+
+        let out = td_symlink.path().join("1mbp.fna");
+        assert!(out.exists());
+        assert!(std::fs::symlink_metadata(out)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!td_symlink.path().join("500kbp.fna").exists());
+
+        let out2 = td_copy.path().join("1mbp.fna");
+        assert!(out2.exists());
+        assert!(!std::fs::symlink_metadata(out2)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!td_symlink.path().join("500kbp.fna").exists());
     }
 
     #[test]

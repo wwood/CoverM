@@ -20,6 +20,14 @@ lazy_static! {
             dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
             dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
             dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
+            dereplication_output_cluster_definition_file: "dereplication-output-cluster-definition"
+                .to_string(),
+            dereplication_output_representative_fasta_directory:
+                "dereplication-output-representative-fasta-directory".to_string(),
+            dereplication_output_representative_fasta_directory_copy:
+                "dereplication-output-representative-fasta-directory-copy".to_string(),
+            dereplication_output_representative_list: "dereplication-output-representative-list"
+                .to_string(),
         }
     };
 }
@@ -494,6 +502,10 @@ pub fn genome_full_help() -> Manual {
             derep_section,
             &COVERM_CLUSTER_COMMAND_DEFINITION,
         );
+    derep_section = galah::cluster_argument_parsing::add_dereplication_output_parameters_to_section(
+        derep_section,
+        &COVERM_CLUSTER_COMMAND_DEFINITION,
+    );
     // not yet implemented
     //galah::cluster_argument_parsing::add_dereplication_output_parameters_to_section(derep_section);
     manual = manual.custom(derep_section);
@@ -1127,8 +1139,23 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("output-dereplication-clusters")
-                        .long("output-dereplication-clusters")
+                    Arg::with_name("dereplication-output-cluster-definition")
+                        .long("dereplication-output-cluster-definition")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-output-representative-fasta-directory")
+                        .long("dereplication-output-representative-fasta-directory")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-output-representative-fasta-directory-copy")
+                        .long("dereplication-output-representative-fasta-directory-copy")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("dereplication-output-representative-list")
+                        .long("dereplication-output-representative-list")
                         .takes_value(true),
                 )
                 .arg(

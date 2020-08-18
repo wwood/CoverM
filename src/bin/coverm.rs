@@ -19,7 +19,6 @@ use rust_htslib::bam::Read;
 
 use std::collections::HashSet;
 use std::env;
-use std::io::Write;
 use std::process;
 use std::str;
 
@@ -689,6 +688,11 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     )
     .expect("Failed to parse galah clustering arguments correctly");
 
+    let cluster_outputs = galah::cluster_argument_parsing::setup_galah_outputs(
+        &m,
+        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+    );
+
     info!("Dereplicating genome at {}% ANI ..", clusterer.ani * 100.);
     let cluster_indices = clusterer.cluster();
     info!(
@@ -702,23 +706,12 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         .collect::<Vec<_>>();
     debug!("Found cluster representatives: {:?}", reps);
 
-    if m.is_present("output-dereplication-clusters") {
-        let path = m.value_of("output-dereplication-clusters").unwrap();
-        info!("Writing dereplication cluster memberships to {}", path);
-        let mut f =
-            std::fs::File::create(path).expect("Error creating dereplication cluster output file");
-        for cluster in cluster_indices.iter() {
-            let rep = cluster[0];
-            for member in cluster {
-                writeln!(
-                    f,
-                    "{}\t{}",
-                    genome_fasta_files[rep], genome_fasta_files[*member]
-                )
-                .expect("Failed to write a specific line to dereplication cluster file");
-            }
-        }
-    }
+    galah::cluster_argument_parsing::write_galah_outputs(
+        cluster_outputs,
+        &cluster_indices,
+        &clusterer.genome_fasta_paths,
+    );
+
     reps
 }
 
