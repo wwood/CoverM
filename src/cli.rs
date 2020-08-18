@@ -766,6 +766,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::with_name("read1")
                         .short("-1")
+                        .long("read1")
                         .multiple(true)
                         .takes_value(true)
                         .requires("read2")
@@ -782,6 +783,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::with_name("read2")
                         .short("-2")
+                        .long("read2")
                         .multiple(true)
                         .takes_value(true)
                         .requires("read1")
