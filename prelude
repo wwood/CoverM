@@ -1,0 +1,10 @@
+---
+title: "coverm SUBCOMMAND usage"
+author: "Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology"
+date: "`r Sys.Date()` (`r system('cargo run -- --version',intern=T)`)"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: true
+---

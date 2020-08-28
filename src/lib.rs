@@ -30,11 +30,17 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 extern crate bird_tool_utils;
+extern crate bird_tool_utils_man;
 extern crate galah;
-extern crate man;
+extern crate roff;
 extern crate version_compare;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
+
+pub const AUTHOR: &str =
+    "Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology";
+pub const AUTHOR_AND_EMAIL: &str =
+    "Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology <benjwoodcroft near gmail.com>";
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ReadsMapped {

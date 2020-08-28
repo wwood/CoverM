@@ -2,26 +2,27 @@
 
 set -o pipefail
 
-export LIBCLANG_PATH=~/.guix-profile/lib
+echo "Building normally .."
+cargo build --release
 
 export VERSION=`cargo run -- --version |awk '{print $2}'`
 
 # For minimap header fix binary
-export PATH=target/debug:$PATH
+export PATH=target/release:$PATH
 
 echo "Found version $VERSION .."
 
-echo "Building normally .."
-cargo build --release
+
 
 echo "Testing release version .."
 cargo test --release
 
 echo "Building musl static binary .."
-cargo build --target x86_64-unknown-linux-musl --release
+# Use cross not cargo here so htslib is OK - see https://github.com/rust-bio/rust-htslib
+cross build --target x86_64-unknown-linux-musl --release
 
 echo "Making static dist .."
-mkdir dist/coverm-x86_64-unknown-linux-musl-$VERSION
+mkdir -p dist/coverm-x86_64-unknown-linux-musl-$VERSION
 cp \
  target/x86_64-unknown-linux-musl/release/coverm \
  target/x86_64-unknown-linux-musl/release/remove_minimap2_duplicated_headers \
@@ -31,4 +32,15 @@ cd dist
 tar czf coverm-x86_64-unknown-linux-musl-$VERSION.tar.gz coverm-x86_64-unknown-linux-musl-$VERSION
 cd ..
 
-echo "Now make sure git is up to date, and run LIBCLANG_PATH=~/.guix-profile/lib cargo publish"
+echo "Building HTML versions of man pages .."
+for SUBCOMMAND in genome cluster contig filter make
+do
+    echo "Documenting $SUBCOMMAND .."
+    cargo run -- $SUBCOMMAND --full-help-roff |pandoc - -t markdown -f man |sed 's/\\\[/[/g; s/\\\]/]/g' |cat <(sed s/SUBCOMMAND/$SUBCOMMAND/ prelude) - >docs/coverm-$SUBCOMMAND.Rmd
+    echo "library(prettydoc); setwd('docs'); rmarkdown::render('coverm-$SUBCOMMAND.Rmd','prettydoc::html_pretty','coverm-$SUBCOMMAND.html')" |R --no-save
+    rm docs/coverm-$SUBCOMMAND.Rmd
+    echo "Finished documenting $SUBCOMMAND"
+done
+
+
+echo "Now make sure git is up to date, the documentation HTML has been properly generated and run cargo publish"

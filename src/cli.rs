@@ -1,6 +1,8 @@
+use bird_tool_utils::clap_utils::{default_roff, monospace_roff};
+use bird_tool_utils_man::prelude::{Author, Flag, Manual, Opt, Section};
 use clap::*;
 use galah::cluster_argument_parsing::GalahClustererCommandDefinition;
-use man::prelude::{Author, Flag, Manual, Opt, Section};
+use roff::bold;
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "bwa-mem",
@@ -35,23 +37,42 @@ lazy_static! {
 fn add_mapping_options(manual: Manual) -> Manual {
     manual.custom(
         Section::new("Mapping algorithm options")
-            .option(Opt::new("NAME").short("-p").long("--mapper").help(
-                "Underlying mapping software used \
-                    (\"minimap2-sr\", \"bwa-mem\", \"minimap2-ont\", \
-                    \"minimap2-pb\", or \"minimap2-no-preset\"). \
-                    minimap2 -sr, -ont, -pb, -no-preset specify \
-                    '-x' preset of minimap2 to be used \
-                    (with map-ont, map-pb for -ont, -pb). \
-                    [default: minimap2-sr]",
-            ))
-            .option(Opt::new("PARAMS").long("--minimap2-params").help(
+            .option(Opt::new("NAME").short("-p").long("--mapper").help(&format!(
+                "Underlying mapping software used {}. One of: {}",
+                default_roff("minimap2-sr"),
+                bird_tool_utils::clap_utils::table_roff(&[
+                    &["name", "description"],
+                    &[
+                        &monospace_roff("minimap2-sr"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
+                    ],
+                    &[
+                        &monospace_roff("bwa-mem"),
+                        &format!("bwa mem using default parameters")
+                    ],
+                    &[
+                        &monospace_roff("minimap2-ont"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-ont"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-pb"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-pb"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-no-preset"),
+                        &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
+                    ],
+                ])
+            )))
+            .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
                 "Extra parameters to provide to minimap2, \
         both indexing command (if used) and for \
         mapping. Note that usage of this parameter \
         has security implications if untrusted input \
-        is specified. '-a' is always specified. \
-        [default: none i.e. \"\"]",
-            ))
+        is specified. '{}' is always specified to minimap2. \
+        [default: none]",
+                &monospace_roff("-a")
+            )))
             .flag(Flag::new().long("--minimap2-reference-is-index").help(
                 "Treat reference as a minimap2 database, not as a FASTA file. [default: not set]",
             ))
@@ -59,7 +80,7 @@ fn add_mapping_options(manual: Manual) -> Manual {
                 "Extra parameters to provide to BWA. Note \
         that usage of this parameter has security \
         implications if untrusted input is specified. \
-        [default: none i.e. \"\"]",
+        [default: none]",
             )),
     )
 }
@@ -67,42 +88,64 @@ fn add_mapping_options(manual: Manual) -> Manual {
 fn add_thresholding_options(manual: Manual) -> Manual {
     manual.custom(
         Section::new("Alignment thresholding")
-            .option(Opt::new("INT").long("--min-read-aligned-length").help(
-                "Exclude reads with smaller numbers of \
-        aligned bases [default: 0]",
-            ))
-            .option(Opt::new("FLOAT").long("--min-read-percent-identity").help(
-                "Exclude reads by overall percent \
-        identity e.g. 0.95 for 95%. [default: 0.0]",
-            ))
-            .option(Opt::new("FLOAT").long("--min-read-aligned-percent").help(
-                "Exclude reads by percent aligned \
+            .option(
+                Opt::new("INT")
+                    .long("--min-read-aligned-length")
+                    .help(&format!(
+                        "Exclude reads with smaller numbers of \
+        aligned bases. {}",
+                        default_roff("0")
+                    )),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--min-read-percent-identity")
+                    .help(&format!(
+                        "Exclude reads by overall percent \
+        identity e.g. 0.95 for 95%. {}",
+                        default_roff("0.0")
+                    )),
+            )
+            .option(
+                Opt::new("FLOAT")
+                    .long("--min-read-aligned-percent")
+                    .help(&format!(
+                        "Exclude reads by percent aligned \
         bases e.g. 0.95 means 95% of the read's \
-        bases must be aligned. [default: 0.0]",
-            ))
-            .option(Opt::new("INT").long("--min-read-aligned-length-pair").help(
-                "Exclude pairs with smaller numbers of \
+        bases must be aligned. {}",
+                        default_roff("0.0")
+                    )),
+            )
+            .option(
+                Opt::new("INT")
+                    .long("--min-read-aligned-length-pair")
+                    .help(&format!(
+                        "Exclude pairs with smaller numbers of \
         aligned bases. \
-        Implies --proper-pairs-only. [default: 0]",
-            ))
+        Implies --proper-pairs-only. {}",
+                        default_roff("0")
+                    )),
+            )
             .option(
                 Opt::new("FLOAT")
                     .long("--min-read-percent-identity-pair")
-                    .help(
+                    .help(&format!(
                         "Exclude pairs by overall percent \
                 identity e.g. 0.95 for 95%. \
-                Implies --proper-pairs-only. [default: 0.0]",
-                    ),
+                Implies --proper-pairs-only. {}",
+                        default_roff("0.0")
+                    )),
             )
             .option(
                 Opt::new("FLOAT")
                     .long("--min-read-aligned-percent-pair")
-                    .help(
+                    .help(&format!(
                         "Exclude reads by percent aligned \
                 bases e.g. 0.95 means 95% of the read's \
                 bases must be aligned. \
-                Implies --proper-pairs-only. [default: 0.0]",
-                    ),
+                Implies --proper-pairs-only. {}",
+                        default_roff("0.0")
+                    )),
             )
             .flag(
                 Flag::new()
@@ -185,15 +228,16 @@ fn add_help_options_to_section(section: Section) -> Section {
 }
 
 fn sharding_section() -> Section {
-    Section::new("Sharding").flag(Flag::new().long("--sharded").help(
-        "If -b/--bam-files was used: \
+    Section::new("Sharding").flag(Flag::new().long("--sharded").help(&format!(
+        "If {} was used: \
         Input BAM files are read-sorted alignments \
         of a set of reads mapped to multiple \
         reference contig sets. Choose the best \
         hit for each read pair. Otherwise if mapping was carried out: \
         Map reads to each reference, choosing the \
         best hit for each pair. [default: not set]",
-    ))
+        monospace_roff("-b/--bam-files")
+    )))
 }
 
 fn add_verbosity_flags(manual: Manual) -> Manual {
@@ -225,8 +269,11 @@ fn add_verbosity_flags_to_section(section: Section) -> Section {
 
 pub fn filter_full_help() -> Manual {
     let mut manual = Manual::new("coverm filter")
-        .about("Threshold alignments with insufficient identity")
-        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .about(&format!(
+            "Threshold alignments with insufficient identity (version {})",
+            crate_version!()
+        ))
+        .author(Author::new(crate::AUTHOR).email("benjwoodcroft near gmail.com"))
         .description(
             "Only primary, non-supplementary alignments are considered, and output files \
         are grouped by reference, but not sorted by position.",
@@ -244,12 +291,10 @@ pub fn filter_full_help() -> Manual {
                 .help(" Path to corresponding output file(s). [required]"),
         );
     manual = add_thresholding_options(manual);
-    manual = manual.option(
-        Opt::new("INT")
-            .short("-t")
-            .long("--threads")
-            .help("Number of threads for output compression. [default: 1]"),
-    );
+    manual = manual.option(Opt::new("INT").short("-t").long("--threads").help(&format!(
+        "Number of threads for output compression. {}",
+        default_roff("1")
+    )));
     manual = manual.flag(Flag::new().long("--inverse").help(
         "Only keep reads which are unmapped or \
                 align below thresholds. Note that output \
@@ -264,8 +309,12 @@ pub fn filter_full_help() -> Manual {
 
 pub fn make_full_help() -> Manual {
     let mut manual = Manual::new("coverm make")
-        .about("Generate BAM files through mapping")
-        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .about(&format!(
+            "Generate BAM files through mapping (version: {})",
+            crate_version!()
+        ))
+        .custom_synopsis_expansion("<REFERENCE> <READ_DEFINITION> <OUTPUT> ..")
+        .author(Author::new(crate::AUTHOR).email("benjwoodcroft near gmail.com"))
         .description(
             "coverm make generates BAM files by read mapping a set of reads against \
         a reference FASTA database.\n\n",
@@ -273,15 +322,19 @@ pub fn make_full_help() -> Manual {
 
     manual = manual.custom(read_mapping_params_section());
 
-    manual = manual.custom(Section::new("Reference").option(
-        Opt::new("PATH").short("-r").long("--reference").help(
-            "FASTA file of contigs e.g. concatenated \
+    manual = manual.custom(
+        Section::new("Reference").option(Opt::new("PATH").short("-r").long("--reference").help(
+            &format!(
+                "FASTA file of contigs e.g. concatenated \
                         genomes or metagenome assembly, or minimap2 \
                         index \
-                        (with --minimap2-reference-is-index), \
-                        or BWA index stem (with -p bwa-mem). [required]",
-        ),
-    ));
+                        (with {}), \
+                        or BWA index stem (with {}). [required]",
+                monospace_roff("--minimap2-reference-is-index"),
+                monospace_roff("-p bwa-mem"),
+            ),
+        )),
+    );
 
     manual = add_mapping_options(manual);
 
@@ -297,10 +350,10 @@ pub fn make_full_help() -> Manual {
         ));
 
     let mut general_section = Section::new("General options").option(
-        Opt::new("INT")
-            .short("-t")
-            .long("--threads")
-            .help("Number of threads for mapping and sorting. [default: 1]"),
+        Opt::new("INT").short("-t").long("--threads").help(&format!(
+            "Number of threads for mapping and sorting. {}",
+            default_roff("1")
+        )),
     );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
@@ -311,36 +364,52 @@ pub fn make_full_help() -> Manual {
 
 pub fn contig_full_help() -> Manual {
     let mut manual = Manual::new("coverm contig")
-        .about("Calculate read coverage per-contig")
-        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .about(format!("Calculate read coverage per-contig (version {})",crate_version!()))
+        .custom_synopsis_expansion("<MAPPING_INPUT> ..")
+        .author(Author::new(crate::AUTHOR).email("benjwoodcroft near gmail.com"))
         .description("coverm contig calculates the coverage of a set of reads on a set of contigs.\n\n\
         This process can be undertaken in several ways, for instance by specifying BAM files or raw reads as input, \
         using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
-        and printing the calculated coverage in various formats.");
+        and printing the calculated coverage in various formats.\n\
+        \n\
+        The source code for CoverM is available at https://github.com/wwood/CoverM");
 
-    manual = manual.custom(read_mapping_params_section().option(
-        Opt::new("PATH").short("-b").long("--bam-files").help(
-            "Path to BAM file(s). These must be \
+    manual = manual.custom(
+        read_mapping_params_section().option(
+            Opt::new("PATH")
+                .short("-b")
+                .long("--bam-files")
+                .help(&format!(
+                    "Path to BAM file(s). These must be \
                 reference sorted (e.g. with samtools sort) \
-                unless --sharded is specified, in which \
+                unless {} is specified, in which \
                 case they must be read name sorted (e.g. \
-                with samtools sort -n). When specified, no read mapping algorithm is undertaken.",
+                with {}). When specified, no read mapping algorithm is undertaken.",
+                    monospace_roff("--sharded"),
+                    monospace_roff("samtools sort -n"),
+                )),
         ),
-    ));
+    );
 
-    manual = manual.custom(Section::new("Reference").option(
-        Opt::new("PATH").short("-r").long("--reference").help(
-            "FASTA file of contigs e.g. concatenated \
+    manual = manual.custom(
+        Section::new("Reference").option(Opt::new("PATH").short("-r").long("--reference").help(
+            &format!(
+                "FASTA file of contigs e.g. concatenated \
                     genomes or metagenome assembly, or minimap2 \
                     index \
-                    (with --minimap2-reference-is-index), \
-                    or BWA index stem (with -p bwa-mem). \
+                    (with {}), \
+                    or BWA index stem (with {}). \
                     If multiple references FASTA files are \
-                    provided and --sharded is specified, \
+                    provided and {} is specified, \
                     then reads will be mapped to references \
-                    separately as sharded BAMs. [required]",
-        ),
-    ));
+                    separately as sharded BAMs. [required unless {} is specified]",
+                monospace_roff("--minimap2-reference-is-index"),
+                monospace_roff("-p bwa-mem"),
+                monospace_roff("--sharded"),
+                monospace_roff("-b/--bam-files")
+            ),
+        )),
+    );
 
     manual = manual.custom(sharding_section());
     manual = add_mapping_options(manual);
@@ -349,40 +418,45 @@ pub fn contig_full_help() -> Manual {
     manual = manual.custom(
         Section::new("Coverage calculation options")
             .option(Opt::new("METHOD").short("-m").long("--methods").help(
-                "Method(s) for calculating coverage. \
-            One or more (space separated) of: \
-            mean (default), \
-            trimmed_mean, \
-            coverage_histogram, \
-            covered_fraction, \
-            covered_bases, \
-            variance, \
-            length, \
-            count, \
-            metabat (\"MetaBAT adjusted coverage\"), \
-            reads_per_base, \
-            rpkm. \
-        A more thorough description of the different \
-        methods is available at \
-        https://github.com/wwood/CoverM [default: mean]",
-            ))
+                &format!("Method(s) for calculating coverage {}. A more thorough description of the different methods is available at\n\
+                https://github.com/wwood/CoverM#calculation-methods but briefly:\n\
+                {}",
+                default_roff("mean"),
+                bird_tool_utils::clap_utils::table_roff(&[
+                    &["method","description"],
+                    &[&monospace_roff("mean"), "(default) Average number of aligned reads overlapping each position on the contig"],
+                    &[&monospace_roff("trimmed_mean"), &format!("Average number of aligned reads overlapping each position after removing the most deeply and shallow-ly covered positions. See {}/{} to adjust.",
+                        &monospace_roff("--trim-min"),
+                        &monospace_roff("--trim-max"))],
+
+                    &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
+                    &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
+                    &[&monospace_roff("variance"), "Variance of coverage depths"],
+                    &[&monospace_roff("length"), "Length of each contig in base pairs"],
+                    &[&monospace_roff("count"), "Number of reads aligned toq each contig. Note that a single read may be aligned to multiple contigs with supplementary alignments"],
+                    &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165"],
+                    &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
+                    &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],
+                ]),
+            )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-                "Genomes with less coverage than this \
-        reported as having zero coverage. \
-        [default: 0.10]",
+                &format!("Genomes with less coverage than this \
+                reported as having zero coverage. \
+                {}", default_roff("0.10"))
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
-                "Exclude bases at the ends of reference \
-        sequences from calculation [default: 75]",
+                &format!("Exclude bases at the ends of reference \
+                sequences from calculation {}",
+                default_roff("75"))
             ))
             .option(Opt::new("FRACTION").long("--trim-min").help(
-                "Remove this smallest fraction of positions \
-        when calculating trimmed_mean \
-        [default: 0.05]",
+                &format!("Remove this smallest fraction of positions \
+                when calculating trimmed_mean {}",
+                default_roff("0.05"))
             ))
             .option(Opt::new("FRACTION").long("--trim-max").help(
-                "Maximum fraction for trimmed_mean \
-        calculations [default: 0.95]",
+                &format!("Maximum fraction for trimmed_mean \
+                calculations {}", default_roff("0.95"))
             )),
     );
 
@@ -428,58 +502,82 @@ pub fn contig_full_help() -> Manual {
 
 pub fn genome_full_help() -> Manual {
     let mut manual = Manual::new("coverm genome")
-        .about("Calculate read coverage per-genome")
-        .author(Author::new("Ben J Woodcroft").email("benjwoodcroft near gmail.com"))
+        .about(format!("Calculate read coverage per-genome (version {})",crate_version!()))
+        .custom_synopsis_expansion("<GENOME_DESCRIPTION> <MAPPING_INPUT> ..")
+        .author(Author::new(crate::AUTHOR).email("benjwoodcroft near gmail.com"))
 
         .description("coverm genome calculates the coverage of a set of reads on a set of genomes.\n\n\
             This process can be undertaken in several ways, for instance by specifying BAM files or raw reads as input, \
             defining genomes in different input formats, dereplicating genomes before mapping, \
             using different mapping programs, thresholding read alignments, using different methods of calculating coverage \
-            and printing the calculated coverage in various formats.");
+            and printing the calculated coverage in various formats.\n\
+            \n\
+            The source code for CoverM is available at https://github.com/wwood/CoverM");
 
-    manual = manual.custom(read_mapping_params_section().option(
-        Opt::new("PATH").short("-b").long("--bam-files").help(
-            "Path to BAM file(s). These must be \
+    manual = manual.custom(
+        read_mapping_params_section().option(
+            Opt::new("PATH")
+                .short("-b")
+                .long("--bam-files")
+                .help(&format!(
+                    "Path to BAM file(s). These must be \
                 reference sorted (e.g. with samtools sort) \
-                unless --sharded is specified, in which \
+                unless {} is specified, in which \
                 case they must be read name sorted (e.g. \
-                with samtools sort -n). When specified, no read mapping algorithm is undertaken.",
+                with {}). When specified, no read mapping algorithm is undertaken.",
+                    monospace_roff("--sharded"),
+                    monospace_roff("samtools sort -n")
+                )),
         ),
-    ));
+    );
 
     manual = manual.custom(
         bird_tool_utils::clap_utils::add_genome_specification_to_section(
             Section::new("Genome definition"))
             .option(
                 Opt::new("PATH").short("-r").long("--reference").help(
-                    "FASTA file of contigs e.g. concatenated \
+                    &format!("FASTA file of contigs e.g. concatenated \
                     genomes or metagenome assembly, or minimap2 \
                     index \
-                    (with --minimap2-reference-is-index), \
-                    or BWA index stem (with -p bwa-mem). \
+                    (with {}), \
+                    or BWA index stem (with {}). \
                     If multiple references FASTA files are \
-                    provided and --sharded is specified, \
+                    provided and {} is specified, \
                     then reads will be mapped to references \
-                    separately as sharded BAMs.",
+                    separately as sharded BAMs. {}: If genomic FASTA files are \
+                    specified elsewhere (e.g. with {} or {}), then {} is not needed as a reference FASTA file can be derived \
+                    by concatenating input genomes. However, while not necessary, {} can \
+                    be specified if an alternate reference sequence set is desired.",
+                    monospace_roff("--minimap2-reference-is-index"),
+                    monospace_roff("-p bwa-mem"),
+                    monospace_roff("--sharded"),
+                    bold("NOTE"),
+                    monospace_roff("--genome-fasta-files"),
+                    monospace_roff("--genome-fasta-directory"),
+                    //monospace_roff("--bam-files"),
+                    monospace_roff("--reference"),
+                    monospace_roff("--reference"),
                 )
+            )
             )
             .option(
                 Opt::new("CHARACTER")
                     .short("-s")
                     .long("--separator")
-                    .help("This character separates genome names from contig names in the reference file. Requires --reference. \
-                    [default: unspecified]")
+                    .help(
+                        &format!("This character separates genome names from contig names in the reference file. Requires {}. \
+                    [default: unspecified]", monospace_roff("--reference")))
             )
             .flag(
                 Flag::new()
                     .long("--single-genome")
-                    .help("All contigs are from the same genome. Requires --reference. [default: not set]")
+                    .help(&format!("All contigs are from the same genome. Requires {}. [default: not set]", monospace_roff("--reference")))
             )
             .option(
                 Opt::new("FILE")
                     .long("--genome-definition")
-                    .help("File containing list of \
-                    genome_name<tab>contig lines to define the genome of each contig. Requires --reference. [default: not set]")
+                    .help(&format!("File containing list of \
+                    genome_name<tab>contig lines to define the genome of each contig. Requires {}. [default: not set]", monospace_roff("--reference")))
             )
         );
 
@@ -490,7 +588,7 @@ pub fn genome_full_help() -> Manual {
         all within a small distance, using Dashing for \
         preclustering and FastANI for final ANI \
         calculation. When this flag is used, dereplication occurs \
-        transparently through the Galah method (https://github.com/wwood/galah) [default: not set i.e. no dereplication]",
+        transparently through the Galah method (https://github.com/wwood/galah) [default: not set]",
         ),
     );
     derep_section =
@@ -524,49 +622,52 @@ pub fn genome_full_help() -> Manual {
     manual = manual.custom(
         Section::new("Coverage calculation options")
             .option(Opt::new("METHOD").short("-m").long("--methods").help(
-                "Method(s) for calculating coverage. \
-            One or more (space separated) of: \
-                relative_abundance (default), \
-                mean, \
-                trimmed_mean, \
-                coverage_histogram, \
-                covered_fraction, \
-                covered_bases, \
-                variance, \
-                length, \
-                count, \
-                reads_per_base, \
-                rpkm. \
-            A more thorough description of the different \
-            methods is available at \
-            https://github.com/wwood/CoverM [default: relative_abundance]",
-            ))
+                &format!("Method(s) for calculating coverage {}. A more thorough description of the different methods is available at\n\
+                https://github.com/wwood/CoverM#calculation-methods but briefly:\n\
+                {}",
+                default_roff("relative_abundance"),
+                bird_tool_utils::clap_utils::table_roff(&[
+                    &["method","description"],
+                    &[&monospace_roff("relative_abundance"), "(default) Percentage relative abundance of each genome, and the unmapped read percentage"],
+                    &[&monospace_roff("mean"), "Average number of aligned reads overlapping each position on the genome"],
+                    &[&monospace_roff("trimmed_mean"), &format!("Average number of aligned reads overlapping each position after removing the most deeply and shallow-ly covered positions. See {}/{} to adjust.",
+                        &monospace_roff("--trim-min"),
+                        &monospace_roff("--trim-max"))],    
+                    &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
+                    &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
+                    &[&monospace_roff("variance"), "Variance of coverage depths"],
+                    &[&monospace_roff("length"), "Length of each genome in base pairs"],
+                    &[&monospace_roff("count"), "Number of reads aligned toq each genome. Note that a single read may be aligned to multiple genomes with supplementary alignments"],
+                    &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the genome"],
+                    &[&monospace_roff("rpkm"), "Reads mapped per kilobase of genome, per million mapped reads"],
+                ])
+            )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-                "Genomes with less coverage than this \
-            reported as having zero coverage. \
-            [default: 0.10]",
+                &format!("Genomes with less coverage than this \
+                reported as having zero coverage. \
+                {}", default_roff("0.10"))
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
-                "Exclude bases at the ends of reference \
-            sequences from calculation [default: 75]",
+                &format!("Exclude bases at the ends of reference \
+                sequences from calculation {}",
+                default_roff("75"))
             ))
             .option(Opt::new("FRACTION").long("--trim-min").help(
-                "Remove this smallest fraction of positions \
-            when calculating trimmed_mean \
-            [default: 0.05]",
+                &format!("Remove this smallest fraction of positions \
+                when calculating trimmed_mean {}",
+                default_roff("0.05"))
             ))
             .option(Opt::new("FRACTION").long("--trim-max").help(
-                "Maximum fraction for trimmed_mean \
-            calculations [default: 0.95]",
+                &format!("Maximum fraction for trimmed_mean \
+                calculations {}", default_roff("0.95"))
             )),
     );
 
     manual = manual.custom(
         Section::new("Output")
             .option(Opt::new("FORMAT").long("--output-format").help(
-                "Shape of output: 'sparse' for long format, \
-            'dense' for species-by-site. \
-            [default: dense]",
+                &format!("Shape of output: 'sparse' for long format, \
+            'dense' for species-by-site. {}", default_roff("dense"))
             ))
             .flag(Flag::new().long("--no-zeros").help(
                 "Omit printing of genomes that have zero \
@@ -588,10 +689,10 @@ pub fn genome_full_help() -> Manual {
     );
 
     let mut general_section = Section::new("General options").option(
-        Opt::new("INT")
-            .short("-t")
-            .long("--threads")
-            .help("Number of threads for mapping, sorting and reading. [default: 1]"),
+        Opt::new("INT").short("-t").long("--threads").help(&format!(
+            "Number of threads for mapping, sorting and reading. {}",
+            default_roff("1")
+        )),
     );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
@@ -713,7 +814,7 @@ See coverm make --full-help for further options and further detail.
 
     let mut app = App::new("coverm")
         .version(crate_version!())
-        .author("Ben J. Woodcroft <benjwoodcroft near gmail.com>")
+        .author(crate::AUTHOR_AND_EMAIL)
         .about("Mapping coverage analysis for metagenomics")
         .args_from_usage(
             "-v, --verbose       'Print extra debug logging information'
@@ -1432,13 +1533,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .about("Remove alignments with insufficient identity")
                 .help(FILTER_HELP.as_str())
                 .arg(Arg::with_name("full-help").long("full-help"))
+                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
                 .arg(
                     Arg::with_name("bam-files")
                         .short("b")
                         .long("bam-files")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["full-help"]),
+                        .required_unless_one(&["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::with_name("output-bam-files")
@@ -1446,7 +1548,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("output-bam-files")
                         .multiple(true)
                         .takes_value(true)
-                        .required_unless_one(&["full-help"]),
+                        .required_unless_one(&["full-help", "full-help-roff"]),
                 )
                 .arg(Arg::with_name("inverse").long("inverse"))
                 .arg(

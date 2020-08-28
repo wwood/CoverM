@@ -17,10 +17,9 @@
 CoverM aims to be a configurable, easy to use and fast DNA read coverage and
 relative abundance calculator focused on metagenomics applications.
 
-CoverM calculates coverage of genomes/MAGs (`coverm genome`) or individual
-contigs (`coverm contig`). Calculating coverage by read mapping, its input can
-either be BAM files sorted by reference, or raw reads and reference FASTA
-sequences.
+CoverM calculates coverage of genomes/MAGs `coverm genome` ([help](https://wwood.github.io/coverm/coverm-genome.html)) or individual
+contigs `coverm contig` ([help](https://wwood.github.io/coverm/coverm-contig.html)). Calculating coverage by read mapping, its input can
+either be BAM files sorted by reference, or raw reads and reference genomes in various formats.
 
 ## Installation
 
@@ -97,27 +96,16 @@ coverm shell-completion --shell bash --output-file /dev/stdout >>~/.bash_complet
 In both cases, to take effect, the terminal will likely need to be restarted. To test, type `coverm gen` and it should complete after pressing the TAB key.
 
 ## Usage
-```
-Mapping coverage analysis for metagenomics
 
-Usage: coverm <subcommand> ...
+CoverM operates in several modes. Detailed usage information is given at the links below, or alternatively by using the `-h` or `--full-help` flags for each mode:
+* [genome](https://wwood.github.com/coverm/coverm-genome.html) - Calculate coverage of genomes
+* [contig](https://wwood.github.com/coverm/coverm-contig.html) - Calculate coverage of contigs
 
-Main subcommands:
-	contig	Calculate coverage of contigs
-	genome	Calculate coverage of genomes
-
-Less used utility subcommands:
-	make	Generate BAM files through alignment
-	filter	Remove (or only keep) alignments with insufficient identity
-	cluster	Dereplicate and cluster genomes
-	shell-completion
-		Generate shell completion scripts
-
-Other options:
-	-V, --version	Print version information
-```
-
-For more detailed usage see `coverm <command> -h` or `coverm <command> --full-help`.
+There are several utility modes as well:
+* [make](https://wwood.github.com/coverm/coverm-make.html) - Generate BAM files through alignment
+* [filter](https://wwood.github.com/coverm/coverm-filter.html) - Remove (or only keep) alignments with insufficient identity
+* [cluster](https://wwood.github.com/coverm/coverm-cluster.html) - Dereplicate and cluster genomes
+* shell-completion - Generate shell completion scripts
 
 ## Calculation methods
 

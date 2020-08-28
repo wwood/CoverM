@@ -630,7 +630,11 @@ fn main() {
             ); // Where write the completions to
         }
         Some("cluster") => {
-            galah::cluster_argument_parsing::run_cluster_subcommand(&matches);
+            galah::cluster_argument_parsing::run_cluster_subcommand(
+                &matches,
+                "coverm",
+                crate_version!(),
+            );
         }
         _ => {
             app.print_help().unwrap();
