@@ -11,6 +11,7 @@ use coverm::mapping_parameters::*;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::shard_bam_reader::*;
 use coverm::FlagFilter;
+use coverm::OutputWriter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 
 extern crate rust_htslib;
@@ -40,19 +41,22 @@ const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_S
 fn main() {
     let mut app = build_cli();
     let matches = app.clone().get_matches();
-    let mut print_stream = &mut std::io::stdout();
     set_log_level(&matches, false);
+    let mut print_stream;
+
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(&m, genome_full_help());
             set_log_level(m, true);
+            print_stream = OutputWriter::generate(m.value_of("output-file"));
 
             let genome_names_content: Vec<u8>;
 
-            let mut estimators_and_taker = EstimatorsAndTaker::generate_from_clap(m, print_stream);
+            let mut estimators_and_taker =
+                EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker =
-                estimators_and_taker.print_headers(&"Genome", &mut std::io::stdout());
+                estimators_and_taker.print_headers(&"Genome", print_stream.clone());
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -155,6 +159,7 @@ fn main() {
                         &mut estimators_and_taker,
                         separator,
                         &genomes_and_contigs_option,
+                        &mut print_stream,
                     );
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
@@ -171,7 +176,8 @@ fn main() {
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                &genomes_and_contigs_option);
+                                &genomes_and_contigs_option,
+                                &mut print_stream,);
                         }
                         GenomeExclusionTypes::SeparatorType => {
                             run_genome(
@@ -182,7 +188,8 @@ fn main() {
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                &genomes_and_contigs_option);
+                                &genomes_and_contigs_option,
+                                &mut print_stream,);
                         }
                         GenomeExclusionTypes::GenomesAndContigsType => {
                             run_genome(
@@ -193,7 +200,8 @@ fn main() {
                                 m,
                                 &mut estimators_and_taker,
                                 separator,
-                                &genomes_and_contigs_option);
+                                &genomes_and_contigs_option,
+                                &mut print_stream,);
                         }
                     }
                 } else {
@@ -203,6 +211,7 @@ fn main() {
                         &mut estimators_and_taker,
                         separator,
                         &genomes_and_contigs_option,
+                        &mut print_stream,
                     );
                 }
             } else {
@@ -321,6 +330,7 @@ fn main() {
                         &mut estimators_and_taker,
                         separator,
                         &genomes_and_contigs_option,
+                        &mut print_stream,
                     );
                 } else if m.is_present("sharded") {
                     match genome_exclusion_type {
@@ -336,6 +346,7 @@ fn main() {
                                 &mut estimators_and_taker,
                                 separator,
                                 &genomes_and_contigs_option,
+                                &mut print_stream,
                             );
                         }
                         GenomeExclusionTypes::SeparatorType => {
@@ -350,6 +361,7 @@ fn main() {
                                 &mut estimators_and_taker,
                                 separator,
                                 &genomes_and_contigs_option,
+                                &mut print_stream,
                             );
                         }
                         GenomeExclusionTypes::GenomesAndContigsType => {
@@ -364,6 +376,7 @@ fn main() {
                                 &mut estimators_and_taker,
                                 separator,
                                 &genomes_and_contigs_option,
+                                &mut print_stream,
                             );
                         }
                     }
@@ -384,6 +397,7 @@ fn main() {
                         &mut estimators_and_taker,
                         separator,
                         &genomes_and_contigs_option,
+                        &mut print_stream,
                     );
                 };
             }
@@ -444,11 +458,12 @@ fn main() {
             let print_zeros = !m.is_present("no-zeros");
             let filter_params = FilterParameters::generate_from_clap(m);
             let threads = m.value_of("threads").unwrap().parse().unwrap();
+            print_stream = OutputWriter::generate(m.value_of("output-file"));
 
             let mut estimators_and_taker =
-                EstimatorsAndTaker::generate_from_clap(m, &mut print_stream);
+                EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker =
-                estimators_and_taker.print_headers(&"Contig", &mut std::io::stdout());
+                estimators_and_taker.print_headers(&"Contig", print_stream.clone());
 
             if m.is_present("bam-files") {
                 let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
@@ -470,6 +485,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &mut print_stream,
                     );
                 } else if m.is_present("sharded") {
                     external_command_checker::check_for_samtools();
@@ -486,6 +502,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &mut print_stream,
                     );
                 } else {
                     let bam_readers =
@@ -496,6 +513,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &mut print_stream,
                     );
                 }
             } else {
@@ -525,6 +543,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &mut print_stream,
                     );
                 } else if m.is_present("sharded") {
                     let generator_sets = get_sharded_bam_readers(
@@ -539,6 +558,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &mut print_stream,
                     );
                 } else {
                     debug!("Not filtering..");
@@ -557,6 +577,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters.clone(),
                         threads,
+                        &mut print_stream,
                     );
                 }
             }
@@ -746,9 +767,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     return mapping_program;
 }
 
-struct EstimatorsAndTaker<'a> {
+struct EstimatorsAndTaker {
     estimators: Vec<CoverageEstimator>,
-    taker: CoverageTakerType<'a>,
+    taker: CoverageTakerType,
     columns_to_normalise: Vec<usize>,
     rpkm_column: Option<usize>,
     printer: CoveragePrinter,
@@ -804,11 +825,8 @@ fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
     }
 }
 
-impl<'a> EstimatorsAndTaker<'a> {
-    pub fn generate_from_clap(
-        m: &clap::ArgMatches,
-        stream: &'a mut std::io::Stdout,
-    ) -> EstimatorsAndTaker<'a> {
+impl EstimatorsAndTaker {
+    pub fn generate_from_clap(m: &clap::ArgMatches, stream: OutputWriter) -> EstimatorsAndTaker {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
         let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u64).unwrap();
@@ -922,7 +940,7 @@ impl<'a> EstimatorsAndTaker<'a> {
                     process::exit(1);
                 } else {
                     debug!("Coverage histogram type coverage taker being used");
-                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
+                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream.clone());
                     printer = CoveragePrinter::StreamedCoveragePrinter;
                 }
             } else if columns_to_normalise.len() == 0
@@ -930,8 +948,9 @@ impl<'a> EstimatorsAndTaker<'a> {
                 && output_format == "sparse"
             {
                 debug!("Streaming regular coverage output");
-                taker =
-                    CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream);
+                taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
+                    stream.clone(),
+                );
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
@@ -982,11 +1001,7 @@ impl<'a> EstimatorsAndTaker<'a> {
         };
     }
 
-    pub fn print_headers(
-        mut self,
-        entry_type: &str,
-        print_stream: &mut dyn std::io::Write,
-    ) -> Self {
+    pub fn print_headers(mut self, entry_type: &str, print_stream: OutputWriter) -> Self {
         let mut headers: Vec<String> = vec![];
         for e in self.estimators.iter() {
             for h in e.column_headers() {
@@ -1029,15 +1044,15 @@ fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
 }
 
 fn run_genome<
-    'a,
     R: coverm::bam_generator::NamedBamReader,
     T: coverm::bam_generator::NamedBamReaderGenerator<R>,
 >(
     bam_generators: Vec<T>,
     m: &clap::ArgMatches,
-    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
+    estimators_and_taker: &mut EstimatorsAndTaker,
     separator: Option<u8>,
     genomes_and_contigs_option: &Option<GenomesAndContigs>,
+    print_stream: &mut OutputWriter,
 ) {
     let print_zeros = !m.is_present("no-zeros");
     let proper_pairs_only = m.is_present("proper-pairs-only");
@@ -1072,7 +1087,7 @@ fn run_genome<
     debug!("Finalising printing ..");
     estimators_and_taker.printer.finalise_printing(
         &estimators_and_taker.taker,
-        &mut std::io::stdout(),
+        print_stream,
         Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
         estimators_and_taker.rpkm_column,
@@ -1507,15 +1522,15 @@ fn get_streamed_filtered_bam_readers(
 }
 
 fn run_contig<
-    'a,
     R: coverm::bam_generator::NamedBamReader,
     T: coverm::bam_generator::NamedBamReaderGenerator<R>,
 >(
-    estimators_and_taker: &'a mut EstimatorsAndTaker<'a>,
+    estimators_and_taker: &mut EstimatorsAndTaker,
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filters: FlagFilter,
     threads: usize,
+    print_stream: &mut OutputWriter,
 ) {
     let reads_mapped = coverm::contig::contig_coverage(
         bam_readers,
@@ -1530,7 +1545,7 @@ fn run_contig<
 
     estimators_and_taker.printer.finalise_printing(
         &estimators_and_taker.taker,
-        &mut std::io::stdout(),
+        print_stream,
         Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
         estimators_and_taker.rpkm_column,

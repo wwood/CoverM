@@ -941,7 +941,8 @@ mod tests {
     use rust_htslib::bam::Read;
     use shard_bam_reader::*;
     use std::collections::HashSet;
-    use std::io::Cursor;
+    use std::io::Read as _;
+    use OutputWriter;
 
     fn test_streaming_with_stream<R: NamedBamReader, G: NamedBamReaderGenerator<R>>(
         expected: &str,
@@ -952,12 +953,13 @@ mod tests {
         proper_pairs_only: bool,
         single_genome: bool,
     ) -> Vec<ReadsMapped> {
-        let mut stream = Cursor::new(Vec::new());
         let res;
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
         {
             let mut coverage_taker =
                 CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                    &mut stream,
+                    OutputWriter::generate(Some(t)),
                 );
             res = mosdepth_genome_coverage(
                 bam_readers,
@@ -970,7 +972,12 @@ mod tests {
                 1,
             );
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        assert_eq!(expected, str::from_utf8(&buf).unwrap());
         return res;
     }
 
@@ -986,11 +993,13 @@ mod tests {
         proper_pairs_only: bool,
         single_genome: bool,
     ) -> Vec<ReadsMapped> {
-        let mut stream = Cursor::new(Vec::new());
         let res;
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
         {
-            let mut coverage_taker =
-                CoverageTakerType::new_pileup_coverage_coverage_printer(&mut stream);
+            let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
+                OutputWriter::generate(Some(t)),
+            );
             res = mosdepth_genome_coverage(
                 bam_readers,
                 separator,
@@ -1002,7 +1011,12 @@ mod tests {
                 1,
             );
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        assert_eq!(expected, str::from_utf8(&buf).unwrap());
         return res;
     }
 
@@ -1014,12 +1028,13 @@ mod tests {
         proper_pairs_only: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
     ) -> Vec<ReadsMapped> {
-        let mut stream = Cursor::new(Vec::new());
         let res;
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
         {
             let mut coverage_taker =
                 CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                    &mut stream,
+                    OutputWriter::generate(Some(t)),
                 );
             res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
@@ -1031,7 +1046,12 @@ mod tests {
                 1,
             );
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        assert_eq!(expected, str::from_utf8(&buf).unwrap());
         return res;
     }
 
@@ -1046,11 +1066,13 @@ mod tests {
         proper_pairs_only: bool,
         coverage_estimators: &mut Vec<CoverageEstimator>,
     ) -> Vec<ReadsMapped> {
-        let mut stream = Cursor::new(Vec::new());
         let res;
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
         {
-            let mut coverage_taker =
-                CoverageTakerType::new_pileup_coverage_coverage_printer(&mut stream);
+            let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
+                OutputWriter::generate(Some(t)),
+            );
             res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
@@ -1061,7 +1083,12 @@ mod tests {
                 1,
             );
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        assert_eq!(expected, str::from_utf8(&buf).unwrap());
         return res;
     }
 

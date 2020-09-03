@@ -1,14 +1,17 @@
 use std;
 use std::fmt;
+use std::io::Write;
 use std::process;
 
-pub enum CoverageTakerType<'a> {
+use OutputWriter;
+
+pub enum CoverageTakerType {
     SingleFloatCoverageStreamingCoveragePrinter {
-        print_stream: &'a mut dyn std::io::Write,
+        print_stream: OutputWriter,
         current_stoit: Option<String>,
     },
     PileupCoverageCoveragePrinter {
-        print_stream: &'a mut dyn std::io::Write,
+        print_stream: OutputWriter,
         current_stoit: Option<String>,
         current_entry: Option<String>,
     },
@@ -40,25 +43,23 @@ pub struct CoverageEntry {
     pub coverage: f32,
 }
 
-impl<'a> CoverageTakerType<'a> {
+impl CoverageTakerType {
     pub fn new_single_float_coverage_streaming_coverage_printer(
-        print_stream: &mut dyn std::io::Write,
+        print_stream: OutputWriter,
     ) -> CoverageTakerType {
         CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
             print_stream: print_stream,
             current_stoit: None,
         }
     }
-    pub fn new_pileup_coverage_coverage_printer(
-        print_stream: &mut dyn std::io::Write,
-    ) -> CoverageTakerType {
+    pub fn new_pileup_coverage_coverage_printer(print_stream: OutputWriter) -> CoverageTakerType {
         CoverageTakerType::PileupCoverageCoveragePrinter {
             print_stream: print_stream,
             current_stoit: None,
             current_entry: None,
         }
     }
-    pub fn new_cached_single_float_coverage_taker(num_coverages: usize) -> CoverageTakerType<'a> {
+    pub fn new_cached_single_float_coverage_taker(num_coverages: usize) -> CoverageTakerType {
         CoverageTakerType::CachedSingleFloatCoverageTaker {
             stoit_names: vec![],
             entry_names: vec![],
@@ -70,7 +71,7 @@ impl<'a> CoverageTakerType<'a> {
     }
 }
 
-impl<'a> CoverageTaker for CoverageTakerType<'a> {
+impl CoverageTaker for CoverageTakerType {
     fn start_stoit(&mut self, stoit_name: &str) {
         match self {
             CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
@@ -234,14 +235,14 @@ pub struct EntryAndCoverages {
 }
 
 pub struct CoverageTakerTypeIterator<'a> {
-    coverage_taker_type: &'a CoverageTakerType<'a>,
+    coverage_taker_type: &'a CoverageTakerType,
     // indices for iterating
     iter_next_entry_indices: Vec<usize>, // indexes into coverages[stoit]
     iter_current_stoit_index: usize,     // indexes into coverages
     iter_last_entry_order_index: Option<usize>, // index into entry_names
 }
 
-impl<'a> std::fmt::Debug for CoverageTakerTypeIterator<'a> {
+impl std::fmt::Debug for CoverageTakerTypeIterator<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("CoverageTakerTypeIterator")
             .field("iter_next_entry_indices", &self.iter_next_entry_indices)
@@ -254,7 +255,7 @@ impl<'a> std::fmt::Debug for CoverageTakerTypeIterator<'a> {
     }
 }
 
-impl<'a> CoverageTakerType<'a> {
+impl<'a> CoverageTakerType {
     pub fn generate_iterator(&'a self) -> CoverageTakerTypeIterator<'a> {
         match self {
             CoverageTakerType::CachedSingleFloatCoverageTaker { stoit_names, .. } => {
@@ -270,7 +271,7 @@ impl<'a> CoverageTakerType<'a> {
     }
 }
 
-impl<'a> Iterator for CoverageTakerTypeIterator<'a> {
+impl Iterator for CoverageTakerTypeIterator<'_> {
     type Item = EntryAndCoverages;
 
     fn next(&mut self) -> Option<EntryAndCoverages> {

@@ -274,8 +274,9 @@ mod tests {
     use genome_exclusion::*;
     use mapping_parameters::*;
     use shard_bam_reader::*;
-    use std::io::Cursor;
+    use std::io::Read;
     use std::str;
+    use OutputWriter;
 
     fn test_with_stream<R: NamedBamReader, G: NamedBamReaderGenerator<R>>(
         expected: &str,
@@ -284,7 +285,9 @@ mod tests {
         print_zero_coverage_contigs: bool,
         proper_pairs_only: bool,
     ) -> Vec<ReadsMapped> {
-        let mut stream = Cursor::new(Vec::new());
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+
         let flag_filters = FlagFilter {
             include_improper_pairs: !proper_pairs_only,
             include_secondary: false,
@@ -294,7 +297,7 @@ mod tests {
         {
             let mut coverage_taker =
                 CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                    &mut stream,
+                    OutputWriter::generate(Some(t)),
                 );
             reads_mapped_vec = contig_coverage(
                 bam_readers,
@@ -305,7 +308,12 @@ mod tests {
                 1,
             );
         }
-        assert_eq!(expected, str::from_utf8(stream.get_ref()).unwrap());
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        assert_eq!(expected, str::from_utf8(&buf).unwrap());
         return reads_mapped_vec;
     }
 

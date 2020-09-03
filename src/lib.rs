@@ -14,6 +14,8 @@ pub mod mapping_parameters;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod shard_bam_reader;
 
+use std::sync::Arc;
+
 extern crate bio;
 #[macro_use]
 extern crate log;
@@ -53,4 +55,61 @@ pub struct FlagFilter {
     pub include_improper_pairs: bool,
     pub include_supplementary: bool,
     pub include_secondary: bool,
+}
+
+pub struct OutputWriter {
+    pub output_file: Option<Arc<std::sync::Mutex<std::fs::File>>>,
+}
+
+impl OutputWriter {
+    pub fn generate(file_path_opt: Option<&str>) -> OutputWriter {
+        info!("Generating from {:?}", file_path_opt);
+        match file_path_opt {
+            Some(file_path) => {
+                if file_path == "-" {
+                    info!("Outputing to STDOUT");
+                    OutputWriter { output_file: None }
+                } else {
+                    let path = std::path::Path::new(&file_path);
+                    info!("Writing output to file: {}", file_path);
+                    OutputWriter {
+                        output_file: Some(Arc::new(std::sync::Mutex::new(
+                            std::fs::File::create(path)
+                                .expect(&format!("Failed to create output file: {}", file_path)),
+                        ))),
+                    }
+                }
+            }
+            None => {
+                debug!("Outputing to STDOUT");
+                OutputWriter { output_file: None }
+            }
+        }
+    }
+}
+
+impl std::io::Write for OutputWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match &mut self.output_file {
+            None => std::io::stdout().write(buf),
+            Some(f) => f.lock().expect("failed to unlock output file").write(buf),
+        }
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        match &mut self.output_file {
+            None => std::io::stdout().flush(),
+            Some(f) => f.lock().expect("failed to unlock output file").flush(),
+        }
+    }
+}
+
+impl Clone for OutputWriter {
+    fn clone(&self) -> OutputWriter {
+        OutputWriter {
+            output_file: match &self.output_file {
+                Some(f) => Some(f.clone()),
+                None => None,
+            },
+        }
+    }
 }

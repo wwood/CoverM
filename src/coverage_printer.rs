@@ -1,7 +1,9 @@
 use std;
+use std::io::Write;
 use std::process;
 
 use coverage_takers::*;
+use OutputWriter;
 use ReadsMapped;
 
 pub enum CoveragePrinter {
@@ -15,10 +17,10 @@ pub enum CoveragePrinter {
 }
 
 impl CoveragePrinter {
-    pub fn finalise_printing<'a>(
+    pub fn finalise_printing(
         &mut self,
-        cached_coverage_taker: &'a CoverageTakerType<'a>,
-        print_stream: &mut dyn std::io::Write,
+        cached_coverage_taker: &CoverageTakerType,
+        print_stream: &mut OutputWriter,
         reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
         columns_to_normalise: &Vec<usize>,
         rpkm_column: Option<usize>,
@@ -120,7 +122,7 @@ impl CoveragePrinter {
         &mut self,
         entry_type_str: &str,
         estimator_headers_vec: Vec<String>,
-        print_stream: &mut dyn std::io::Write,
+        mut print_stream: OutputWriter,
     ) {
         match self {
             CoveragePrinter::StreamedCoveragePrinter
@@ -148,8 +150,8 @@ impl CoveragePrinter {
     }
 }
 
-pub fn print_sparse_cached_coverage_taker<'a>(
-    cached_coverage_taker: &'a CoverageTakerType<'a>,
+pub fn print_sparse_cached_coverage_taker(
+    cached_coverage_taker: &CoverageTakerType,
     print_stream: &mut dyn std::io::Write,
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>,
@@ -305,10 +307,10 @@ pub fn print_sparse_cached_coverage_taker<'a>(
     }
 }
 
-pub fn print_dense_cached_coverage_taker<'a>(
+pub fn print_dense_cached_coverage_taker(
     entry_type: &str,
     estimator_headers: &Vec<String>,
-    cached_coverage_taker: &'a CoverageTakerType<'a>,
+    cached_coverage_taker: &CoverageTakerType,
     print_stream: &mut dyn std::io::Write,
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>,
@@ -470,7 +472,9 @@ pub fn print_dense_cached_coverage_taker<'a>(
 mod tests {
     use super::*;
     use std::io::Cursor;
+    use std::io::Read;
     use std::str;
+    use OutputWriter;
 
     #[test]
     fn test_dense_cached_printer_hello_world() {
@@ -548,13 +552,25 @@ mod tests {
         c.add_single_coverage(22.1);
         c.add_single_coverage(22.2);
 
-        let mut stream = Cursor::new(Vec::new());
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
         let mut metabat = CoveragePrinter::MetabatAdjustedCoveragePrinter;
-        metabat.finalise_printing(&c, &mut stream, None, &vec![], None);
+        metabat.finalise_printing(
+            &c,
+            &mut OutputWriter::generate(Some(t)),
+            None,
+            &vec![],
+            None,
+        );
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
         assert_eq!(
             "contigName\tcontigLen\ttotalAvgDepth\tstoit1.bam\tstoit1.bam-var\tstoit2.bam\tstoit2.bam-var\n\
              contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
              contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
-            str::from_utf8(stream.get_ref()).unwrap());
+             str::from_utf8(&buf).unwrap());
     }
 }

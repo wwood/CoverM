@@ -462,6 +462,10 @@ pub fn contig_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
+            .option(Opt::new("FILE").long("--output-file").help(
+                "Output coverage values to this file, or '-' for STDOUT. \
+                [default: output to STDOUT]",
+            ))
             .option(Opt::new("FORMAT").long("--output-format").help(
                 "Shape of output: 'sparse' for long format, \
     'dense' for species-by-site. \
@@ -665,6 +669,10 @@ pub fn genome_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
+            .option(Opt::new("FILE").long("--output-file").help(
+                "Output coverage values to this file, or '-' for STDOUT. \
+                [default: output to STDOUT]",
+            ))
             .option(Opt::new("FORMAT").long("--output-format").help(
                 &format!("Shape of output: 'sparse' for long format, \
             'dense' for species-by-site. {}", default_roff("dense"))
@@ -1185,6 +1193,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
                 .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
                 .arg(
+                    Arg::with_name("output-file")
+                        .takes_value(true)
+                        .long("output-file")
+                        .short("o"),
+                )
+                .arg(
                     Arg::with_name("output-format")
                         .long("output-format")
                         .possible_values(&["sparse", "dense"])
@@ -1519,6 +1533,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
                 .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
+                .arg(
+                    Arg::with_name("output-file")
+                        .takes_value(true)
+                        .long("output-file")
+                        .short("o"),
+                )
                 .arg(
                     Arg::with_name("output-format")
                         .long("output-format")

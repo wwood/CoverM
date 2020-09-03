@@ -8,6 +8,7 @@ mod tests {
     use std;
     use std::io::Read;
     use std::io::Write;
+    use std::str;
 
     fn assert_equal_table(expected: &str, observed: &str) -> bool {
         // assert the first lines are the same
@@ -2092,6 +2093,44 @@ genome6~random_sequence_length_11003	0	0	0
             "table incorrect",
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_contig_output_file() {
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--output-format",
+                "sparse",
+                "--interleaved",
+                "tests/data/bad_reads.interleaved.fq",
+                "-o",
+                t,
+            ])
+            .succeeds()
+            .stdout()
+            .is("")
+            .unwrap();
+
+        let mut buf = vec![];
+        std::fs::File::open(tf.path())
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+
+        assert_eq!(
+            "Sample\tContig\tMean\n\
+            2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
+            2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0\n",
+            str::from_utf8(&buf).unwrap()
+        )
     }
 }
 
