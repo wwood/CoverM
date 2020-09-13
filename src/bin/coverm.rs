@@ -774,6 +774,7 @@ struct EstimatorsAndTaker {
     taker: CoverageTakerType,
     columns_to_normalise: Vec<usize>,
     rpkm_column: Option<usize>,
+    tpm_column: Option<usize>,
     printer: CoveragePrinter,
 }
 
@@ -840,6 +841,7 @@ impl EstimatorsAndTaker {
         let output_format = m.value_of("output-format").unwrap();
         let printer;
         let mut rpkm_column = None;
+        let mut tpm_column = None;
 
         if doing_metabat(&m) {
             estimators.push(CoverageEstimator::new_estimator_length());
@@ -908,6 +910,14 @@ impl EstimatorsAndTaker {
                         rpkm_column = Some(i);
                         estimators.push(CoverageEstimator::new_estimator_rpkm(min_fraction_covered))
                     }
+                    &"tpm" => {
+                        if tpm_column.is_some() {
+                            error!("The TPM column cannot be specified more than once");
+                            process::exit(1);
+                        }
+                        tpm_column = Some(i);
+                        estimators.push(CoverageEstimator::new_estimator_tpm(min_fraction_covered))
+                    }
                     &"variance" => {
                         estimators.push(CoverageEstimator::new_estimator_variance(
                             min_fraction_covered,
@@ -947,6 +957,7 @@ impl EstimatorsAndTaker {
                 }
             } else if columns_to_normalise.len() == 0
                 && rpkm_column.is_none()
+                && tpm_column.is_none()
                 && output_format == "sparse"
             {
                 debug!("Streaming regular coverage output");
@@ -956,8 +967,8 @@ impl EstimatorsAndTaker {
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
-                    "Cached regular coverage taker with columns to normlise: {:?} and rpkm_column: {:?}",
-                    columns_to_normalise, rpkm_column
+                    "Cached regular coverage taker with columns to normlise: {:?} and rpkm_column: {:?} and tpm_column: {:?}",
+                    columns_to_normalise, rpkm_column, tpm_column
                 );
                 taker = CoverageTakerType::new_cached_single_float_coverage_taker(estimators.len());
                 printer = match output_format {
@@ -999,6 +1010,7 @@ impl EstimatorsAndTaker {
             taker: taker,
             columns_to_normalise: columns_to_normalise,
             rpkm_column: rpkm_column,
+            tpm_column: tpm_column,
             printer: printer,
         };
     }
@@ -1093,6 +1105,7 @@ fn run_genome<
         Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
         estimators_and_taker.rpkm_column,
+        estimators_and_taker.tpm_column,
     );
 }
 
@@ -1551,6 +1564,7 @@ fn run_contig<
         Some(&reads_mapped),
         &estimators_and_taker.columns_to_normalise,
         estimators_and_taker.rpkm_column,
+        estimators_and_taker.tpm_column,
     );
 }
 

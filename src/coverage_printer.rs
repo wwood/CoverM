@@ -24,6 +24,7 @@ impl CoveragePrinter {
         reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
         columns_to_normalise: &Vec<usize>,
         rpkm_column: Option<usize>,
+        tpm_column: Option<usize>,
     ) {
         match self {
             CoveragePrinter::StreamedCoveragePrinter => {}
@@ -34,6 +35,7 @@ impl CoveragePrinter {
                     reads_mapped_per_sample,
                     &columns_to_normalise,
                     rpkm_column,
+                    tpm_column,
                 );
             }
             CoveragePrinter::DenseCachedCoveragePrinter {
@@ -156,6 +158,7 @@ pub fn print_sparse_cached_coverage_taker(
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>,
     rpkm_column: Option<usize>,
+    tpm_column: Option<usize>,
 ) {
     let iterator = cached_coverage_taker.generate_iterator();
 
@@ -203,6 +206,18 @@ pub fn print_sparse_cached_coverage_taker(
                             coverage_multipliers[*i] = Some(fraction_mapped);
                         }
                     }
+                    // Calculate RPKM total for TPM calculation
+                    match tpm_column {
+                        None => {},
+                        Some(i) => {
+                            let mut total_coverage = 0.0;
+                            for coverage_set in current_stoit_coverages {
+                                total_coverage += coverage_set[i]
+                            }
+                            coverage_totals[i] = Some(total_coverage);
+                        }
+                    }
+                    debug!("Found coverage totals: {:?}", coverage_totals);
 
                     // Print unmapped entries at the top
                     let stoit = &stoit_names[current_stoit_index];
@@ -276,6 +291,23 @@ pub fn print_sparse_cached_coverage_taker(
                                     }
                                 )
                                 .unwrap();
+                            } else if tpm_column == Some(i) {
+                                debug!("Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
+                                    coverages[i], reads_mapped_per_sample);
+                                let num_mapped_reads = reads_mapped_per_sample.unwrap()
+                                    [current_stoit_index]
+                                    .num_mapped_reads;
+                                write!(
+                                    print_stream,
+                                    "\t{}",
+                                    match num_mapped_reads == 0 {
+                                        true => 0.0,
+                                        // TPM can be calculated from RPKM - see 
+                                        // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
+                                        false => coverages[i] / coverage_totals[i].unwrap() * (10u64.pow(6) as f32),
+                                    }
+                                )
+                                .unwrap();
                             } else {
                                 write!(print_stream, "\t{}", coverages[i]).unwrap();
                             }
@@ -315,6 +347,7 @@ pub fn print_dense_cached_coverage_taker(
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>,
     rpkm_column: Option<usize>,
+    tpm_column: Option<usi //To implement. Add documentation, and fix rounding errors by using lots of log?
 ) {
     match &cached_coverage_taker {
         CoverageTakerType::CachedSingleFloatCoverageTaker {

@@ -1507,6 +1507,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "metabat",
                             "reads_per_base",
                             "rpkm",
+                            "tpm",
                         ])
                         .default_value("mean"),
                 )
