@@ -2132,6 +2132,56 @@ genome6~random_sequence_length_11003	0	0	0
             str::from_utf8(&buf).unwrap()
         )
     }
+
+    #[test]
+    fn test_autoconcatenation_with_clashing() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "--genome-fasta-files",
+                "tests/data/contig_name_clashing/genome1.fna",
+                "tests/data/contig_name_clashing/genome2.fna",
+                "tests/data/contig_name_clashing/genome3.fna",
+                "--coupled",
+                "tests/data/contig_name_clashing/reads_for_genome2.1.fa",
+                "tests/data/contig_name_clashing/reads_for_genome2.2.fa",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Genome	reads_for_genome2.1.fa Mean\n\
+            genome1	0\n\
+            genome2	4.8142858\n\
+            genome3	0\n\
+            ")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_clashing_contig_names_with_reference_specified() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "--genome-fasta-files",
+                "tests/data/contig_name_clashing/genome1.fna",
+                "tests/data/contig_name_clashing/genome2.fna",
+                "tests/data/contig_name_clashing/genome3.fna",
+                "--reference",
+                "tests/data/contig_name_clashing/bad_reference.fna",
+                "--coupled",
+                "tests/data/contig_name_clashing/reads_for_genome2.1.fa",
+                "tests/data/contig_name_clashing/reads_for_genome2.2.fa",
+            ])
+            .fails()
+            .stderr()
+            .contains(
+                "The contig 'random_sequence_length_500_1' has been assigned to multiple genomes",
+            )
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test

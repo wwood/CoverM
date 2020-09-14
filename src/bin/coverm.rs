@@ -60,7 +60,8 @@ fn main() {
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
-            let genomes_and_contigs_option_predereplication = if !m.is_present("separator")
+            let genomes_and_contigs_option_predereplication = if m.is_present("sharded")
+                && !m.is_present("separator")
                 && !m.is_present("dereplicate")
                 && !m.is_present("single-genome")
             {
@@ -296,15 +297,8 @@ fn main() {
                                     list_of_genome_fasta_files,
                                 ),
                             ),
-                            extract_genomes_and_contigs_option(
-                                &m,
-                                &dereplicated_genomes
-                                    .clone()
-                                    .iter()
-                                    .map(|s| s.as_str())
-                                    .collect(),
-                            ),
-                        )
+                            None
+                            )
                         }
                     };
 
