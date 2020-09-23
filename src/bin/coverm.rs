@@ -274,7 +274,15 @@ fn main() {
                                     &genome_paths.iter().map(|s| s.as_str()).collect(),
                                 ),
                             ),
-                            None => (None, None),
+                            None => match m.value_of("genome-definition") {
+                                Some(definition_path) => (
+                                    None,
+                                    Some(coverm::genome_parsing::read_genome_definition_file(
+                                        definition_path,
+                                    )),
+                                ),
+                                None => (None, None),
+                            },
                         },
                         false => {
                             // Dereplicate if required

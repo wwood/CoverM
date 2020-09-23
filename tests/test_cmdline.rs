@@ -1161,7 +1161,7 @@ genome6	26.697144
     }
 
     #[test]
-    fn test_genome_definition() {
+    fn test_genome_definition_with_bam() {
         Assert::main_binary()
             .with_args(&[
                 "genome",
@@ -1173,6 +1173,28 @@ genome6	26.697144
             .succeeds()
             .stdout()
             .contains("Genome	7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n")
+            .stdout()
+            .contains("genome2	53.167923\n")
+            .stdout()
+            .contains("genome5	46.832077\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_definition_with_reference() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-definition",
+                "tests/data/7seqs.definition",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--interleaved",
+                "tests/data/reads_for_seq1_and_seq2.fna",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("Genome	7seqs.fna/reads_for_seq1_and_seq2.fna Relative Abundance (%)\n")
             .stdout()
             .contains("genome2	53.167923\n")
             .stdout()
