@@ -173,7 +173,7 @@ pub fn complete_processes(
         if failed || log_enabled!(log::Level::Debug) {
             if failed {
                 failed_any = true;
-                error!("Error when running mapping process: {:?}", command_strings);
+                error!("Error when running mapping process. Exitstatus was {:?}. Command run was: {:?}", es, command_strings);
             } else {
                 debug!("Successfully finished process {:?}", process);
             }
