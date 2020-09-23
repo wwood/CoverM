@@ -51,6 +51,7 @@ impl CoveragePrinter {
                     reads_mapped_per_sample,
                     &columns_to_normalise,
                     rpkm_column,
+                    tpm_column,
                 );
             }
             CoveragePrinter::MetabatAdjustedCoveragePrinter => {
@@ -208,7 +209,7 @@ pub fn print_sparse_cached_coverage_taker(
                     }
                     // Calculate RPKM total for TPM calculation
                     match tpm_column {
-                        None => {},
+                        None => {}
                         Some(i) => {
                             let mut total_coverage = 0.0;
                             for coverage_set in current_stoit_coverages {
@@ -292,8 +293,10 @@ pub fn print_sparse_cached_coverage_taker(
                                 )
                                 .unwrap();
                             } else if tpm_column == Some(i) {
-                                debug!("Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
-                                    coverages[i], reads_mapped_per_sample);
+                                debug!(
+                                    "Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
+                                    coverages[i], reads_mapped_per_sample
+                                );
                                 let num_mapped_reads = reads_mapped_per_sample.unwrap()
                                     [current_stoit_index]
                                     .num_mapped_reads;
@@ -302,9 +305,13 @@ pub fn print_sparse_cached_coverage_taker(
                                     "\t{}",
                                     match num_mapped_reads == 0 {
                                         true => 0.0,
-                                        // TPM can be calculated from RPKM - see 
+                                        // TPM can be calculated from RPKM - see
                                         // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
-                                        false => coverages[i] / coverage_totals[i].unwrap() * (10u64.pow(6) as f32),
+                                        false =>
+                                            (coverages[i].ln() - coverage_totals[i].unwrap().ln())
+                                                .exp()
+                                                as f64
+                                                * (10u64.pow(6) as f64),
                                     }
                                 )
                                 .unwrap();
@@ -347,7 +354,7 @@ pub fn print_dense_cached_coverage_taker(
     reads_mapped_per_sample: Option<&Vec<ReadsMapped>>,
     columns_to_normalise: &Vec<usize>,
     rpkm_column: Option<usize>,
-    tpm_column: Option<usi //To implement. Add documentation, and fix rounding errors by using lots of log?
+    tpm_column: Option<usize>,
 ) {
     match &cached_coverage_taker {
         CoverageTakerType::CachedSingleFloatCoverageTaker {
@@ -433,6 +440,16 @@ pub fn print_dense_cached_coverage_taker(
                             None => Some(ecs.coverages[*i]),
                         }
                 }
+                match tpm_column {
+                    None => {}
+                    Some(i) => {
+                        coverage_totals[ecs.stoit_index as usize][i] =
+                            match coverage_totals[ecs.stoit_index as usize][i] {
+                                Some(total) => Some(total + ecs.coverages[i]),
+                                None => Some(ecs.coverages[i]),
+                            }
+                    }
+                }
 
                 // If first entry in stoit, make room
                 if stoit_by_entry_by_coverage.len() <= ecs.stoit_index {
@@ -489,6 +506,30 @@ pub fn print_dense_cached_coverage_taker(
                                 }
                             )
                             .unwrap();
+                        } else if tpm_column == Some(i) {
+                            debug!(
+                                "Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
+                                coverages[i], reads_mapped_per_sample,
+                            );
+                            let num_mapped_reads =
+                                reads_mapped_per_sample.unwrap()[stoit_i].num_mapped_reads;
+                            write!(
+                                print_stream,
+                                "\t{}",
+                                match num_mapped_reads == 0 {
+                                    true => 0.0,
+                                    // TPM can be calculated from RPKM - see
+                                    // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
+                                    false =>
+                                        (coverages[i].ln()
+                                            - coverage_totals[ecs.stoit_index as usize][i]
+                                                .unwrap()
+                                                .ln())
+                                        .exp()
+                                            * (10u64.pow(6) as f32),
+                                }
+                            )
+                            .unwrap();
                         } else {
                             write!(print_stream, "\t{}", cov).unwrap();
                         }
@@ -525,6 +566,7 @@ mod tests {
             None,
             &vec![],
             None,
+            None,
         );
         assert_eq!(
             "Contig\tstoit1 mean\tstoit1 std\n\
@@ -551,6 +593,7 @@ mod tests {
                 num_reads: 2,
             }]),
             &vec![0],
+            None,
             None,
         );
         assert_eq!(
@@ -593,6 +636,7 @@ mod tests {
             &mut OutputWriter::generate(Some(t)),
             None,
             &vec![],
+            None,
             None,
         );
         let mut buf = vec![];

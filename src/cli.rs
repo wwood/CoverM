@@ -437,6 +437,7 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165"],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],
+                    &[&monospace_roff("tpm"), "Transcripts Per Million as described in Li et al 2010 https://doi.org/10.1093/bioinformatics/btp692"],
                 ]),
             )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
@@ -644,6 +645,7 @@ pub fn genome_full_help() -> Manual {
                     &[&monospace_roff("count"), "Number of reads aligned toq each genome. Note that a single read may be aligned to multiple genomes with supplementary alignments"],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the genome"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of genome, per million mapped reads"],
+                    &[&monospace_roff("tpm"), "Transcripts Per Million as described in Li et al 2010 https://doi.org/10.1093/bioinformatics/btp692"],
                 ])
             )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
@@ -1166,6 +1168,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "count",
                             "reads_per_base",
                             "rpkm",
+                            "tpm",
                         ])
                         .default_value("relative_abundance"),
                 )

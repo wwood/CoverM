@@ -2204,6 +2204,112 @@ genome6~random_sequence_length_11003	0	0	0
             )
             .unwrap();
     }
+
+    #[test]
+    fn test_tpm_contig_sparse() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-m",
+                "mean",
+                "tpm",
+                "-b",
+                "tests/data/tpm_test.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Sample	Contig	Mean	TPM\n\
+                tpm_test	genome1~random_sequence_length_11000	0	0\n\
+                tpm_test	genome1~random_sequence_length_11010	0	0\n\
+                tpm_test	genome2~seq1	1.5882353	900000.0357627869\n\
+                tpm_test	genome3~random_sequence_length_11001	0	0\n\
+                tpm_test	genome4~random_sequence_length_11002	0	0\n\
+                tpm_test	genome5~seq2	0.14467005	99999.99403953552\n\
+                tpm_test	genome6~random_sequence_length_11003	0	0\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_tpm_contig_dense() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "tpm",
+                "-b",
+                "tests/data/tpm_test.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Contig	tpm_test Mean	tpm_test TPM\n\
+                genome1~random_sequence_length_11000	0	0\n\
+                genome1~random_sequence_length_11010	0	0\n\
+                genome2~seq1	1.5882353	900000.06\n\
+                genome3~random_sequence_length_11001	0	0\n\
+                genome4~random_sequence_length_11002	0	0\n\
+                genome5~seq2	0.14467005	99999.99\n\
+                genome6~random_sequence_length_11003	0	0\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_tpm_genome_sparse() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "-m",
+                "mean",
+                "tpm",
+                "-b",
+                "tests/data/tpm_test.bam",
+                "-s",
+                "~",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Sample	Genome	Mean	TPM\n\
+                tpm_test	genome1	0	0\n\
+                tpm_test	genome2	1.5882353	900000.0357627869\n\
+                tpm_test	genome3	0	0\n\
+                tpm_test	genome4	0	0\n\
+                tpm_test	genome5	0.14467005	99999.99403953552\n\
+                tpm_test	genome6	0	0\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_tpm_genome_dense() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "tpm",
+                "-b",
+                "tests/data/tpm_test.bam",
+                "-s",
+                "~",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Genome	tpm_test Mean	tpm_test TPM\n\
+            genome1	0	0\n\
+            genome2	1.5882353	900000.06\n\
+            genome3	0	0\n\
+            genome4	0	0\n\
+            genome5	0.14467005	99999.99\n\
+            genome6	0	0\n")
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test
