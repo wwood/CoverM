@@ -63,7 +63,7 @@ pub struct OutputWriter {
 
 impl OutputWriter {
     pub fn generate(file_path_opt: Option<&str>) -> OutputWriter {
-        info!("Generating from {:?}", file_path_opt);
+        debug!("Generating output writer from path {:?}", file_path_opt);
         match file_path_opt {
             Some(file_path) => {
                 if file_path == "-" {
