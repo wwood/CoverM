@@ -5,10 +5,10 @@ use std::str;
 use rand::prelude::*;
 
 use rust_htslib::bam;
-use rust_htslib::bam::errors::Result as HtslibResult;
 use rust_htslib::bam::record::{Cigar, CigarString};
 use rust_htslib::bam::Read as BamRead;
 use rust_htslib::bam::Record;
+use rust_htslib::errors::Result as HtslibResult;
 
 use mapping_parameters::ReadFormat;
 
@@ -55,18 +55,22 @@ where
         let mut some_unfinished = false;
         let mut some_finished = false;
         let mut record;
-        let mut res;
         let mut current_alignment;
         for (i, reader) in self.shard_bam_readers.iter_mut().enumerate() {
             // loop until there is a primary alignment or the BAM file ends.
             loop {
                 {
                     current_alignment = bam::Record::new();
-                    res = reader.read(&mut current_alignment);
-                    if res.expect("Failure to read from a shard BAM file") == false {
-                        debug!("BAM reader #{} appears to be finished", i);
-                        some_finished = true;
-                        break;
+                    match reader.read(&mut current_alignment) {
+                        None => {
+                            debug!("BAM reader #{} appears to be finished", i);
+                            some_finished = true;
+                            break;
+                        }
+                        Some(Ok(())) => {}
+                        Some(e) => {
+                            panic!("EFailure to read from a shard BAM file: {:?}", e)
+                        }
                     }
                 }
 
@@ -473,12 +477,12 @@ impl NamedBamReader for ShardedBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
-        let res = self.bam_reader.read(record)?;
-        if res == true && !record.is_secondary() && !record.is_supplementary() {
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+        let res = self.bam_reader.read(record);
+        if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return Ok(res);
+        return res;
     }
     fn header(&self) -> &bam::HeaderView {
         &self.bam_reader.header()
@@ -718,7 +722,7 @@ mod tests {
         let mut reader = gen.start();
         assert_eq!("stoiter".to_string(), reader.stoit_name);
         let mut r = bam::Record::new();
-        reader.bam_reader.read(&mut r).unwrap();
+        reader.bam_reader.read(&mut r).expect("").expect("");
         println!("{}", str::from_utf8(r.qname()).unwrap());
         println!("{}", r.tid());
 

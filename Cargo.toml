@@ -15,11 +15,11 @@ default-run = "coverm"
 
 [dependencies]
 bio = "0.32.0"
-rust-htslib = { version="0.32.*", default-features = false }
+rust-htslib = { version="0.35.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
-env_logger = "0.7.*"
-nix = "0.18.*"
+env_logger = "0.8.*"
+nix = "0.19.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
@@ -27,7 +27,7 @@ lazy_static = "1.4.0"
 rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.11"
-bird_tool_utils = "0.2.0"
+bird_tool_utils = {git = "https://github.com/wwood/bird_tool_utils", rev = "ce131fbc7e825896ac34623b443bef645870cea2"}
 galah = "0.2.0"
 bird_tool_utils-man = "0.4.0"
 roff = "0.1.*"

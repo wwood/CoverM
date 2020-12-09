@@ -923,6 +923,24 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
     }
 
     #[test]
+    fn test_dot_in_extension() {
+        // https://github.com/wwood/CoverM/issues/49
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir/",
+                "-x",
+                ".fna",
+            ])
+            .succeeds()
+            .unwrap();
+    }
+
+    #[test]
     fn test_caches_when_reference_not_specified() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()

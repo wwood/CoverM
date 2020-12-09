@@ -16,14 +16,14 @@ use nix::unistd;
 use tempdir::TempDir;
 use tempfile;
 
-use rust_htslib::bam::errors::Result as HtslibResult;
+use rust_htslib::errors::Result as HtslibResult;
 
 pub trait NamedBamReader {
     // Name of the stoit
     fn name(&self) -> &str;
 
     // Read a record into record parameter
-    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool>;
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>>;
 
     // Return the bam header of the final BAM file
     fn header(&self) -> &bam::HeaderView;
@@ -62,12 +62,12 @@ impl NamedBamReader for BamFileNamedReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
-        let res = self.bam_reader.read(record)?;
-        if res == true && !record.is_secondary() && !record.is_supplementary() {
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+        let res = self.bam_reader.read(record);
+        if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return Ok(res);
+        return res;
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -216,12 +216,12 @@ impl NamedBamReader for StreamingNamedBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
-        let res = self.bam_reader.read(record)?;
-        if res == true && !record.is_secondary() && !record.is_supplementary() {
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+        let res = self.bam_reader.read(record);
+        if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return Ok(res);
+        return res;
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -448,7 +448,7 @@ impl NamedBamReader for FilteredBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, mut record: &mut bam::record::Record) -> HtslibResult<bool> {
+    fn read(&mut self, mut record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
         self.filtered_stream.read(&mut record)
     }
     fn header(&self) -> &bam::HeaderView {
@@ -602,7 +602,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, record: &mut bam::record::Record) -> HtslibResult<bool> {
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
         self.filtered_stream.read(record)
     }
     fn header(&self) -> &bam::HeaderView {

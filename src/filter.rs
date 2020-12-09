@@ -6,9 +6,9 @@ use std::str;
 use FlagFilter;
 
 use rust_htslib::bam;
-use rust_htslib::bam::errors::Result as HtslibResult;
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Read;
+use rust_htslib::errors::Result as HtslibResult;
 
 pub struct ReferenceSortedBamFilter {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
@@ -68,22 +68,19 @@ impl ReferenceSortedBamFilter {
 }
 
 impl ReferenceSortedBamFilter {
-    pub fn read(&mut self, mut record: &mut bam::record::Record) -> HtslibResult<bool> {
+    pub fn read(&mut self, mut record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
         // if doing only singles, remove filter them and return
         if self.filter_single_reads && !self.filter_pairs {
             loop {
-                let res = self
-                    .reader
-                    .read(&mut record)
-                    .expect("Failed to read BAM record");
-                if res == false {
-                    return Ok(false);
+                let res = self.reader.read(&mut record);
+                if res == None {
+                    return res;
                 }
                 if !record.is_supplementary() && !record.is_secondary() {
                     self.num_detected_primary_alignments += 1;
                 }
                 if record.is_unmapped() && !self.filter_out {
-                    return Ok(true);
+                    return res;
                 }
                 let passes_filter1 = !record.is_unmapped()
                     && (self.flag_filters.include_supplementary || !record.is_supplementary())
@@ -97,7 +94,7 @@ impl ReferenceSortedBamFilter {
                     );
                     if (passes_filter2 && self.filter_out) || (!passes_filter2 && !self.filter_out)
                     {
-                        return Ok(true);
+                        return res;
                     }
                 }
                 // else this read shall not pass, try another
@@ -106,12 +103,7 @@ impl ReferenceSortedBamFilter {
         // else doing pairs, so do as before except maybe filter out single reads too
         else {
             if self.known_next_read.is_none() {
-                while self
-                    .reader
-                    .read(&mut record)
-                    .expect("Failure to read BAM record")
-                    == true
-                {
+                while self.reader.read(&mut record) == Some(Ok(())) {
                     debug!("record: {:?}", record);
 
                     debug!(
@@ -126,7 +118,7 @@ impl ReferenceSortedBamFilter {
                     }
 
                     if record.is_unmapped() && !self.filter_out {
-                        return Ok(true);
+                        return Some(Ok(()));
                     }
 
                     // TODO: make usage ensure flag_filtering when mapping
@@ -137,7 +129,7 @@ impl ReferenceSortedBamFilter {
                         if self.filter_out {
                             continue;
                         } else {
-                            return Ok(true);
+                            return Some(Ok(()));
                         }
                     }
 
@@ -212,7 +204,7 @@ impl ReferenceSortedBamFilter {
                                     &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"),
                                 );
                                 debug!("Returning..");
-                                return Ok(true);
+                                return Some(Ok(()));
                             } else {
                                 debug!("Read pair did not pass QC");
                             }
@@ -221,11 +213,11 @@ impl ReferenceSortedBamFilter {
                 }
 
                 // No more records, we are finished.
-                return Ok(false);
+                return None;
             } else {
                 record.clone_from(self.known_next_read.as_ref().unwrap());
                 self.known_next_read = None;
-                return Ok(true);
+                return Some(Ok(()));
             }
         }
     }
@@ -372,10 +364,10 @@ mod tests {
         let mut record = bam::record::Record::new();
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record).unwrap_or(true) == false)
+        assert!(sorted.read(&mut record) == None)
     }
 
     #[test]
@@ -401,10 +393,10 @@ mod tests {
         let mut record = bam::record::Record::new();
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record).unwrap_or(true) == false)
+        assert!(sorted.read(&mut record) == None)
     }
 
     #[test]
@@ -429,7 +421,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -452,7 +444,7 @@ mod tests {
         let queries = vec!["2", "2", "3", "3"];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -475,7 +467,7 @@ mod tests {
         let queries = vec!["2", "2", "3", "3"];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -498,7 +490,7 @@ mod tests {
         let queries = vec!["1", "1", "2", "2"];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -525,7 +517,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -548,7 +540,7 @@ mod tests {
         let queries = vec!["1", "1"];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -571,7 +563,7 @@ mod tests {
         let queries = vec!["1", "1"];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
@@ -594,7 +586,7 @@ mod tests {
         let queries: Vec<&str> = vec![];
         for i in queries {
             println!("query: {}", i);
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -623,7 +615,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -652,7 +644,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -681,7 +673,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -710,7 +702,7 @@ mod tests {
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
         for i in queries {
-            sorted.read(&mut record).expect("");
+            sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
     }
@@ -739,7 +731,7 @@ mod tests {
         assert_eq!(true, sorted.filter_pairs);
         let mut num_passing: u64 = 0;
         let mut record = bam::record::Record::new();
-        while sorted.read(&mut record).unwrap_or(false) == true {
+        while sorted.read(&mut record) == Some(Ok(())) {
             num_passing += 1;
         }
         assert_eq!(11192, num_passing);

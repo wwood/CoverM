@@ -443,11 +443,17 @@ fn main() {
                 );
 
                 let mut record = bam::record::Record::new();
-                while filtered
-                    .read(&mut record)
-                    .expect("Failure to read filtered BAM record")
-                    == true
-                {
+                loop {
+                    match filtered.read(&mut record) {
+                        None => {
+                            break;
+                        }
+                        Some(Ok(())) => {}
+                        Some(e) => {
+                            panic!("Failure to read filtered BAM record: {:?}", e)
+                        }
+                    }
+
                     debug!("Writing.. {:?}", record.qname());
                     writer.write(&record).expect("Failed to write BAM record");
                 }
