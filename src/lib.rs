@@ -40,9 +40,9 @@ extern crate version_compare;
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";
 
 pub const AUTHOR: &str =
-    "Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology";
+    "Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology";
 pub const AUTHOR_AND_EMAIL: &str =
-    "Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology <benjwoodcroft near gmail.com>";
+    "Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology <benjwoodcroft near gmail.com>";
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ReadsMapped {

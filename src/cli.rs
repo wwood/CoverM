@@ -1,5 +1,5 @@
 use bird_tool_utils::clap_utils::{default_roff, monospace_roff};
-use bird_tool_utils_man::prelude::{Author, Flag, Manual, Opt, Section};
+use bird_tool_utils_man::prelude::{Author, Example, Flag, Manual, Opt, Section};
 use clap::*;
 use galah::cluster_argument_parsing::GalahClustererCommandDefinition;
 use roff::bold;
@@ -304,6 +304,28 @@ pub fn filter_full_help() -> Manual {
     manual = add_verbosity_flags(manual);
     manual = add_help_options(manual);
 
+    manual = manual.example(
+        Example::new()
+            .text("Filter a BAM file by removing alignments shorter than 50bp")
+            .command(
+                "coverm filter --bam-files input.bam --output-bam filtered.bam \
+                --min-read-aligned-length 50",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Filter inverse: Keep alignments that have <95% alignment identity \
+            and those which do map at all. Note that the output BAM file will likely \
+            records that are still mapped, but align with < 95% identity. Use 16 \
+            threads for output compression",
+            )
+            .command(
+                "coverm filter -b input.bam -o inverse_filtered.bam --inverse \
+                --min-read-percent-identity 0.95 --threads 16",
+            ),
+    );
+
     manual
 }
 
@@ -348,6 +370,15 @@ pub fn make_full_help() -> Manual {
                 .long("--discard-unmapped")
                 .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
         ));
+
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Map pair of read files to the combined_genomes.fna reference, \
+                storing sorted BAM files in output_dir/",
+            )
+            .command("coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq -o output_dir"),
+    );
 
     let mut general_section = Section::new("General options").option(
         Opt::new("INT").short("-t").long("--threads").help(&format!(
@@ -463,7 +494,7 @@ pub fn contig_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
-            .option(Opt::new("FILE").long("--output-file").help(
+            .option(Opt::new("FILE").short("o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
                 [default: output to STDOUT]",
             ))
@@ -489,6 +520,25 @@ pub fn contig_full_help() -> Manual {
                 Flag::new()
                     .long("--discard-unmapped")
                     .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
+            ),
+    );
+
+    manual = manual.example(
+        Example::new()
+            .text("Calculate mean coverage from reads and assembly")
+            .command(
+                "coverm contig --coupled read1.fastq.gz read2.fastq.gz --reference assembly.fna",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Calculate MetaBAT adjusted coverage from a sorted BAM file, saving \
+                the unfiltered BAM files in the saved_bam_files folder",
+            )
+            .command(
+                "coverm contig --method metabat --bam-files my.bam \
+                --bam-file-cache-directory saved_bam_files",
             ),
     );
 
@@ -671,7 +721,7 @@ pub fn genome_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
-            .option(Opt::new("FILE").long("--output-file").help(
+            .option(Opt::new("FILE").short("o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
                 [default: output to STDOUT]",
             ))
@@ -695,6 +745,33 @@ pub fn genome_full_help() -> Manual {
                 Flag::new()
                     .long("--discard-unmapped")
                     .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
+            ),
+    );
+
+    manual = manual.example(
+        Example::new()
+            .text("Map paired reads to 2 genomes, and output relative abundances to output.tsv")
+            .command(
+                "coverm genome --coupled read1.fastq.gz read2.fastq.gz \
+            --genome-fasta-files genome1.fna genome2.fna -o output.tsv",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Calculate coverage of genomes defined as .fna files in \
+                genomes_directory/ from a sorted BAM file",
+            )
+            .command(
+                "coverm genome --bam-files my.bam --genome-fasta-directory genomes_directory/",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text("Dereplicate genomes at 99% ANI before mapping unpaired reads")
+            .command(
+                "coverm genome --genome-fasta-directory genomes/ --dereplicate \
+                --single single_reads.fq.gz",
             ),
     );
 
@@ -748,7 +825,7 @@ the unfiltered BAM files in the saved_bam_files folder:"
 {}
 
   coverm genome --coupled read1.fastq.gz read2.fastq.gz
-    --genome-fasta-files genome1.fna genome2.fna
+    --genome-fasta-files genome1.fna genome2.fna -o output.tsv 
 
 {}
 
@@ -763,10 +840,13 @@ See coverm genome --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm genome"),
             ansi_term::Colour::Green.paint("Calculate coverage of individual genomes"),
-            ansi_term::Colour::Purple.paint("Example: Map paired reads to 2 genomes:"),
             ansi_term::Colour::Purple.paint(
-                "Example: Calculate coverage of genomes defined as .fna files in
-genomes_directory/ from a sorted BAM file:"
+                "Example: Map paired reads to 2 genomes, and output relative abundances\n\
+                to output.tsv:"
+            ),
+            ansi_term::Colour::Purple.paint(
+                "Example: Calculate coverage of genomes defined as .fna files in\n\
+                genomes_directory/ from a sorted BAM file:"
             ),
             ansi_term::Colour::Purple
                 .paint("Example: Dereplicate genomes at 99% ANI before mapping unpaired reads:"),
