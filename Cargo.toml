@@ -27,7 +27,8 @@ lazy_static = "1.4.0"
 rand = "0.7.*"
 serde = "1.0"
 version-compare = "0.0.11"
-bird_tool_utils = {git = "https://github.com/wwood/bird_tool_utils", rev = "ce131fbc7e825896ac34623b443bef645870cea2"}
+bird_tool_utils = {git = "https://github.com/wwood/bird_tool_utils", rev = "6dfff8df36adfdeac180a85083dd44ae84eb3951"}
+#bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
 galah = "0.2.0"
 bird_tool_utils-man = "0.4.0"
 roff = "0.1.*"
