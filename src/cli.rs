@@ -240,6 +240,19 @@ fn sharding_section() -> Section {
     )))
 }
 
+fn faq_section() -> Section {
+    Section::new("Frequently asked questions").paragraph(&format!(
+        "{} CoverM makes use of \
+        the system temporary directory (often {}) to store intermediate files. This can cause \
+        problems if the amount of storage available there is small or used by many programs. \
+        To fix, set the {} environment variable e.g. to set it to use the current directory: {}",
+        bold("Can the temporary directory used be changed?"),
+        monospace_roff("/tmp"),
+        monospace_roff("TMPDIR"),
+        monospace_roff("TMPDIR=. coverm genome <etc>")
+    ))
+}
+
 fn add_verbosity_flags(manual: Manual) -> Manual {
     manual
         .flag(
@@ -326,6 +339,8 @@ pub fn filter_full_help() -> Manual {
             ),
     );
 
+    manual = manual.custom(faq_section());
+
     manual
 }
 
@@ -389,6 +404,8 @@ pub fn make_full_help() -> Manual {
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
+
+    manual = manual.custom(faq_section());
 
     manual
 }
@@ -551,6 +568,8 @@ pub fn contig_full_help() -> Manual {
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
+
+    manual = manual.custom(faq_section());
 
     return manual;
 }
@@ -784,6 +803,8 @@ pub fn genome_full_help() -> Manual {
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
+
+    manual = manual.custom(faq_section());
 
     manual
 }
