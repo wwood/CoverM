@@ -63,7 +63,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm make usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2020-08-28 (coverm 0.5.0)</span>
+<span class="author_bio mbm">2020-12-11 (coverm 0.6.0)</span>
 </div>
 </div>
 </div>
@@ -81,7 +81,9 @@ code span.ot { color: #007020; }
 <li><a href="#mapping-algorithm-options">MAPPING ALGORITHM OPTIONS</a></li>
 <li><a href="#output">OUTPUT</a></li>
 <li><a href="#general-options">GENERAL OPTIONS</a></li>
+<li><a href="#frequently-asked-questions">FREQUENTLY ASKED QUESTIONS</a></li>
 <li><a href="#exit-status">EXIT STATUS</a></li>
+<li><a href="#examples">EXAMPLES</a></li>
 <li><a href="#author">AUTHOR</a></li>
 </ul>
 </div>
@@ -90,7 +92,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm make - Generate BAM files through mapping (version: 0.5.0)</p>
+<p>coverm make - Generate BAM files through mapping (version: 0.6.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -244,6 +246,10 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="frequently-asked-questions" class="section level1">
+<h1>FREQUENTLY ASKED QUESTIONS</h1>
+<p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
+</div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
 <dl>
@@ -264,10 +270,18 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="examples" class="section level1">
+<h1>EXAMPLES</h1>
+<dl>
+<dt>Map pair of read files to the combined_genomes.fna reference, storing sorted BAM files in output_dir/</dt>
+<dd><p><strong>$ coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq -o output_dir</strong></p>
+</dd>
+</dl>
+</div>
 <div id="author" class="section level1">
 <h1>AUTHOR</h1>
 <blockquote>
-<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
 </blockquote>
 </div>
 </article>

@@ -63,7 +63,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm filter usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2020-08-28 (coverm 0.5.0)</span>
+<span class="author_bio mbm">2020-12-11 (coverm 0.6.0)</span>
 </div>
 </div>
 </div>
@@ -79,7 +79,9 @@ code span.ot { color: #007020; }
 <li><a href="#flags">FLAGS</a></li>
 <li><a href="#options">OPTIONS</a></li>
 <li><a href="#alignment-thresholding">ALIGNMENT THRESHOLDING</a></li>
+<li><a href="#frequently-asked-questions">FREQUENTLY ASKED QUESTIONS</a></li>
 <li><a href="#exit-status">EXIT STATUS</a></li>
+<li><a href="#examples">EXAMPLES</a></li>
 <li><a href="#author">AUTHOR</a></li>
 </ul>
 </div>
@@ -88,7 +90,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm filter - Threshold alignments with insufficient identity (version 0.5.0)</p>
+<p>coverm filter - Threshold alignments with insufficient identity (version 0.6.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -206,6 +208,10 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="frequently-asked-questions" class="section level1">
+<h1>FREQUENTLY ASKED QUESTIONS</h1>
+<p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
+</div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
 <dl>
@@ -226,10 +232,21 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="examples" class="section level1">
+<h1>EXAMPLES</h1>
+<dl>
+<dt>Filter a BAM file by removing alignments shorter than 50bp</dt>
+<dd><p><strong>$ coverm filter --bam-files input.bam --output-bam filtered.bam --min-read-aligned-length 50</strong></p>
+</dd>
+<dt>Filter inverse: Keep alignments that have &lt;95% alignment identity and those which do map at all. Note that the output BAM file will likely records that are still mapped, but align with &lt; 95% identity. Use 16 threads for output compression</dt>
+<dd><p><strong>$ coverm filter -b input.bam -o inverse_filtered.bam --inverse --min-read-percent-identity 0.95 --threads 16</strong></p>
+</dd>
+</dl>
+</div>
 <div id="author" class="section level1">
 <h1>AUTHOR</h1>
 <blockquote>
-<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
 </blockquote>
 </div>
 </article>

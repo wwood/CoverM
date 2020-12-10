@@ -63,7 +63,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm contig usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2020-08-28 (coverm 0.5.0)</span>
+<span class="author_bio mbm">2020-12-11 (coverm 0.6.0)</span>
 </div>
 </div>
 </div>
@@ -84,7 +84,9 @@ code span.ot { color: #007020; }
 <li><a href="#coverage-calculation-options">COVERAGE CALCULATION OPTIONS</a></li>
 <li><a href="#output">OUTPUT</a></li>
 <li><a href="#general-options">GENERAL OPTIONS</a></li>
+<li><a href="#frequently-asked-questions">FREQUENTLY ASKED QUESTIONS</a></li>
 <li><a href="#exit-status">EXIT STATUS</a></li>
+<li><a href="#examples">EXAMPLES</a></li>
 <li><a href="#author">AUTHOR</a></li>
 </ul>
 </div>
@@ -93,7 +95,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm contig - Calculate read coverage per-contig (version 0.5.0)</p>
+<p>coverm contig - Calculate read coverage per-contig (version 0.6.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -313,6 +315,10 @@ code span.ot { color: #007020; }
 <td align="left"><code>rpkm</code></td>
 <td align="left">Reads mapped per kilobase of contig, per million mapped reads</td>
 </tr>
+<tr class="odd">
+<td align="left"><code>tpm</code></td>
+<td align="left">Transcripts Per Million as described in Li et al 2010 <a href="https://doi.org/10.1093/bioinformatics/btp692" class="uri">https://doi.org/10.1093/bioinformatics/btp692</a></td>
+</tr>
 </tbody>
 </table>
 <dl>
@@ -341,6 +347,12 @@ code span.ot { color: #007020; }
 </div>
 <div id="output" class="section level1">
 <h1>OUTPUT</h1>
+<dl>
+<dt><strong>o</strong>, <strong>--output-file</strong> <em>FILE</em></dt>
+<dd><p>Output coverage values to this file, or &#39;-&#39; for STDOUT. [default: output to STDOUT]</p>
+</dd>
+</dl>
+<!-- -->
 <dl>
 <dt><strong>--output-format</strong> <em>FORMAT</em></dt>
 <dd><p>Shape of output: &#39;sparse&#39; for long format, &#39;dense&#39; for species-by-site. [default: dense]</p>
@@ -403,6 +415,10 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="frequently-asked-questions" class="section level1">
+<h1>FREQUENTLY ASKED QUESTIONS</h1>
+<p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
+</div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
 <dl>
@@ -423,10 +439,21 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
+<div id="examples" class="section level1">
+<h1>EXAMPLES</h1>
+<dl>
+<dt>Calculate mean coverage from reads and assembly</dt>
+<dd><p><strong>$ coverm contig --coupled read1.fastq.gz read2.fastq.gz --reference assembly.fna</strong></p>
+</dd>
+<dt>Calculate MetaBAT adjusted coverage from a sorted BAM file, saving the unfiltered BAM files in the saved_bam_files folder</dt>
+<dd><p><strong>$ coverm contig --method metabat --bam-files my.bam --bam-file-cache-directory saved_bam_files</strong></p>
+</dd>
+</dl>
+</div>
 <div id="author" class="section level1">
 <h1>AUTHOR</h1>
 <blockquote>
-<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology &lt;benjwoodcroft near gmail.com&gt;</code></pre>
 </blockquote>
 </div>
 </article>
