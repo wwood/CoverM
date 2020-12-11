@@ -25,7 +25,7 @@ either be BAM files sorted by reference, or raw reads and reference genomes in v
 
 ### Install through the bioconda package
 
-CoverM can be installed through the [bioconda](https://bioconda.github.io/user/install.html) conda channel. After initial setup of conda and the bioconda channel, it can be installed with
+CoverM and its dependencies can be installed through the [bioconda](https://bioconda.github.io/user/install.html) conda channel. After initial setup of conda and the bioconda channel, it can be installed with
 
 ```
 conda install coverm
@@ -97,7 +97,7 @@ In both cases, to take effect, the terminal will likely need to be restarted. To
 
 ## Usage
 
-CoverM operates in several modes. Detailed usage information is given at the links below, or alternatively by using the `-h` or `--full-help` flags for each mode:
+CoverM operates in several modes. Detailed usage information including examples is given at the links below, or alternatively by using the `-h` or `--full-help` flags for each mode:
 * [genome](https://wwood.github.io/CoverM/coverm-genome.html) - Calculate coverage of genomes
 * [contig](https://wwood.github.io/CoverM/coverm-contig.html) - Calculate coverage of contigs
 
