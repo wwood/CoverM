@@ -1281,6 +1281,47 @@ genome6	26.697144
     }
 
     #[test]
+    fn test_reference_specified_as_directory_genome() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "bwa-mem",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data",
+                "-x",
+                "fna",
+                "-s",
+                "=",
+            ])
+            .fails()
+            .stderr()
+            .contains("should be a file, not e.g. a directory")
+            .unwrap();
+    }
+    #[test]
+    fn test_reference_not_existing_contig() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "bwa-mem",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "testsblah",
+            ])
+            .fails()
+            .stderr()
+            .contains("does not appear to exist")
+            .unwrap();
+    }
+
+    #[test]
     fn test_make_with_minimap2() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()

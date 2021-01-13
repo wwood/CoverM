@@ -113,7 +113,14 @@ impl<'a> MappingParameters<'a> {
             references: match reference_tempfile {
                 Some(r) => vec![r.path().to_str().unwrap()],
                 None => match m.values_of("reference") {
-                    Some(refs) => refs.collect(),
+                    Some(refs) => refs
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .map(|r| {
+                            check_reference_file(r);
+                            r
+                        })
+                        .collect(),
                     None => vec![],
                 },
             },
@@ -143,6 +150,21 @@ impl<'a> MappingParameters<'a> {
             to_return.push((&s, None))
         }
         return to_return;
+    }
+}
+
+pub fn check_reference_file(reference_path: &str) {
+    let ref_path = std::path::Path::new(reference_path);
+    if !ref_path.exists() {
+        panic!(format!(
+            "The reference specified '{}' does not appear to exist",
+            &reference_path
+        ));
+    } else if !ref_path.is_file() {
+        panic!(format!(
+            "The reference specified '{}' should be a file, not e.g. a directory",
+            &reference_path
+        ));
     }
 }
 

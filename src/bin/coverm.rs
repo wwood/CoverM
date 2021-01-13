@@ -266,24 +266,27 @@ fn main() {
 
                 let (concatenated_genomes, genomes_and_contigs_option) =
                     match m.is_present("reference") {
-                        true => match genome_fasta_files_opt {
-                            Some(genome_paths) => (
-                                None,
-                                extract_genomes_and_contigs_option(
-                                    &m,
-                                    &genome_paths.iter().map(|s| s.as_str()).collect(),
-                                ),
-                            ),
-                            None => match m.value_of("genome-definition") {
-                                Some(definition_path) => (
+                        true => {
+                            check_reference_file(m.value_of("reference").unwrap());
+                            match genome_fasta_files_opt {
+                                Some(genome_paths) => (
                                     None,
-                                    Some(coverm::genome_parsing::read_genome_definition_file(
-                                        definition_path,
-                                    )),
+                                    extract_genomes_and_contigs_option(
+                                        &m,
+                                        &genome_paths.iter().map(|s| s.as_str()).collect(),
+                                    ),
                                 ),
-                                None => (None, None),
-                            },
-                        },
+                                None => match m.value_of("genome-definition") {
+                                    Some(definition_path) => (
+                                        None,
+                                        Some(coverm::genome_parsing::read_genome_definition_file(
+                                            definition_path,
+                                        )),
+                                    ),
+                                    None => (None, None),
+                                },
+                            }
+                        }
                         false => {
                             // Dereplicate if required
                             let dereplicated_genomes: Vec<String> = if m.is_present("dereplicate") {
