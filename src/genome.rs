@@ -662,7 +662,7 @@ pub fn mosdepth_genome_coverage<
                             split_char,
                             &header,
                         );
-                        info!(
+                        debug!(
                             "Setting unobserved contig length to be {:?} for genome {}",
                             unobserved_contig_length_and_first_tid.unobserved_contig_lengths,
                             str::from_utf8(&current_genome).unwrap()
