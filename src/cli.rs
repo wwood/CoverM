@@ -241,15 +241,22 @@ fn sharding_section() -> Section {
 }
 
 fn faq_section() -> Section {
-    Section::new("Frequently asked questions").paragraph(&format!(
+    Section::new("Frequently asked questions (FAQ)").paragraph(&format!(
         "{} CoverM makes use of \
         the system temporary directory (often {}) to store intermediate files. This can cause \
         problems if the amount of storage available there is small or used by many programs. \
-        To fix, set the {} environment variable e.g. to set it to use the current directory: {}",
+        To fix, set the {} environment variable e.g. to set it to use the current directory: {}\n\n\
+
+        {} Either is fine, CoverM determines which is being used by virtue of being less than \
+        or greater than 1.",
         bold("Can the temporary directory used be changed?"),
         monospace_roff("/tmp"),
         monospace_roff("TMPDIR"),
-        monospace_roff("TMPDIR=. coverm genome <etc>")
+        monospace_roff("TMPDIR=. coverm genome <etc>"),
+        bold(
+            "For thresholding arguments e.g. --dereplication-ani and --min-read-percent-identity, \
+        should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?"
+        )
     ))
 }
 
