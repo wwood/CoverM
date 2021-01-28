@@ -884,16 +884,8 @@ impl EstimatorsAndTaker {
                         ));
                     }
                     &"trimmed_mean" => {
-                        let min = value_t!(m.value_of("trim-min"), f32).unwrap();
-                        let max = value_t!(m.value_of("trim-max"), f32).unwrap();
-                        if min < 0.0 || min > 1.0 || max <= min || max > 1.0 {
-                            error!(
-                                "error: Trim bounds must be between 0 and 1, and \
-                                 min must be less than max, found {} and {}",
-                                min, max
-                            );
-                            process::exit(1);
-                        }
+                        let min = parse_percentage(&m, "trim-min");
+                        let max = parse_percentage(&m, "trim-max");
                         estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
                             min,
                             max,

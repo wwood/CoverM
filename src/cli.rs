@@ -102,8 +102,8 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .long("--min-read-percent-identity")
                     .help(&format!(
                         "Exclude reads by overall percent \
-        identity e.g. 0.95 for 95%. {}",
-                        default_roff("0.0")
+        identity e.g. 95 for 95%. {}",
+                        default_roff("0")
                     )),
             )
             .option(
@@ -111,9 +111,9 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .long("--min-read-aligned-percent")
                     .help(&format!(
                         "Exclude reads by percent aligned \
-        bases e.g. 0.95 means 95% of the read's \
+        bases e.g. 95 means 95% of the read's \
         bases must be aligned. {}",
-                        default_roff("0.0")
+                        default_roff("0")
                     )),
             )
             .option(
@@ -131,9 +131,9 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .long("--min-read-percent-identity-pair")
                     .help(&format!(
                         "Exclude pairs by overall percent \
-                identity e.g. 0.95 for 95%. \
+                identity e.g. 95 for 95%. \
                 Implies --proper-pairs-only. {}",
-                        default_roff("0.0")
+                        default_roff("0")
                     )),
             )
             .option(
@@ -141,10 +141,10 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .long("--min-read-aligned-percent-pair")
                     .help(&format!(
                         "Exclude reads by percent aligned \
-                bases e.g. 0.95 means 95% of the read's \
+                bases e.g. 95 means 95% of the read's \
                 bases must be aligned. \
                 Implies --proper-pairs-only. {}",
-                        default_roff("0.0")
+                        default_roff("0")
                     )),
             )
             .flag(
@@ -342,7 +342,7 @@ pub fn filter_full_help() -> Manual {
             )
             .command(
                 "coverm filter -b input.bam -o inverse_filtered.bam --inverse \
-                --min-read-percent-identity 0.95 --threads 16",
+                --min-read-percent-identity 95 --threads 16",
             ),
     );
 
@@ -498,7 +498,7 @@ pub fn contig_full_help() -> Manual {
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
                 &format!("Genomes with less coverage than this \
                 reported as having zero coverage. \
-                {}", default_roff("0.10"))
+                {}", default_roff("10"))
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
                 &format!("Exclude bases at the ends of reference \
@@ -508,11 +508,11 @@ pub fn contig_full_help() -> Manual {
             .option(Opt::new("FRACTION").long("--trim-min").help(
                 &format!("Remove this smallest fraction of positions \
                 when calculating trimmed_mean {}",
-                default_roff("0.05"))
+                default_roff("5"))
             ))
             .option(Opt::new("FRACTION").long("--trim-max").help(
                 &format!("Maximum fraction for trimmed_mean \
-                calculations {}", default_roff("0.95"))
+                calculations {}", default_roff("95"))
             )),
     );
 
@@ -727,7 +727,7 @@ pub fn genome_full_help() -> Manual {
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
                 &format!("Genomes with less coverage than this \
                 reported as having zero coverage. \
-                {}", default_roff("0.10"))
+                {}", default_roff("10"))
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
                 &format!("Exclude bases at the ends of reference \
@@ -737,11 +737,11 @@ pub fn genome_full_help() -> Manual {
             .option(Opt::new("FRACTION").long("--trim-min").help(
                 &format!("Remove this smallest fraction of positions \
                 when calculating trimmed_mean {}",
-                default_roff("0.05"))
+                default_roff("5"))
             ))
             .option(Opt::new("FRACTION").long("--trim-max").help(
                 &format!("Maximum fraction for trimmed_mean \
-                calculations {}", default_roff("0.95"))
+                calculations {}", default_roff("95"))
             )),
     );
 
@@ -893,7 +893,7 @@ See coverm genome --full-help for further options and further detail.
 {}
 
   coverm filter -b input.bam -o inverse_filtered.bam --inverse
-    --min-read-percent-identity 0.95 --threads 16
+    --min-read-percent-identity 95 --threads 16
 
 See coverm filter --full-help for further options and further detail.
 ",
@@ -1283,17 +1283,17 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::with_name("trim-min")
                         .long("trim-min")
-                        .default_value("0.05"),
+                        .default_value("5"),
                 )
                 .arg(
                     Arg::with_name("trim-max")
                         .long("trim-max")
-                        .default_value("0.95"),
+                        .default_value("95"),
                 )
                 .arg(
                     Arg::with_name("min-covered-fraction")
                         .long("min-covered-fraction")
-                        .default_value("0.10"),
+                        .default_value("10"),
                 )
                 .arg(
                     Arg::with_name("contig-end-exclusion")
@@ -1625,7 +1625,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::with_name("min-covered-fraction")
                         .long("min-covered-fraction")
-                        .default_value("0.0"),
+                        .default_value("0"),
                 )
                 .arg(
                     Arg::with_name("contig-end-exclusion")
@@ -1635,12 +1635,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::with_name("trim-min")
                         .long("trim-min")
-                        .default_value("0.05"),
+                        .default_value("5"),
                 )
                 .arg(
                     Arg::with_name("trim-max")
                         .long("trim-max")
-                        .default_value("0.95"),
+                        .default_value("95"),
                 )
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
