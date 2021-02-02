@@ -2369,6 +2369,27 @@ genome6~random_sequence_length_11003	0	0	0
             genome6	0	0\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_mismatched_read_pairs() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "tpm",
+                "-c",
+                "tests/data/bad_read.1.fa",
+                "tests/data/7seqs.fna",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--single-genome",
+            ])
+            .fails()
+            .stderr()
+            .contains("Not continuing since when input file pairs have unequal numbers of reads")
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test

@@ -104,6 +104,7 @@ pub struct StreamingNamedBamReader {
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
     num_detected_primary_alignments: u64,
+    minimap2_log_file_index: Option<usize>,
 }
 
 pub struct StreamingNamedBamReaderGenerator {
@@ -114,6 +115,7 @@ pub struct StreamingNamedBamReaderGenerator {
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
+    minimap2_log_file_index: Option<usize>,
 }
 
 impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReaderGenerator {
@@ -152,6 +154,7 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
             num_detected_primary_alignments: 0,
+            minimap2_log_file_index: self.minimap2_log_file_index,
         };
     }
 }
@@ -227,13 +230,34 @@ impl NamedBamReader for StreamingNamedBamReader {
         self.bam_reader.header()
     }
     fn finish(self) {
+        // Check minimap2 didn't complain about unequal numbers of reads
+        match self.minimap2_log_file_index {
+            None => {}
+            Some(log_file_index) => {
+                let mut contents = String::new();
+                std::fs::File::open(&self.log_files[log_file_index])
+                    .expect("Failed to read minimap2 log file")
+                    .read_to_string(&mut contents)
+                    .expect("Failed to read minimap2 log file to string");
+                if contents.contains("query files have different number of records") {
+                    error!("The STDERR for the minimap2 part was: {}", contents);
+                    error!(
+                        "Not continuing since when input file pairs have \
+                        unequal numbers of reads this usually means \
+                        incorrect / corrupt files were specified"
+                    );
+                    process::exit(1);
+                }
+            }
+        };
+
         complete_processes(
             self.processes,
             self.command_strings,
             self.log_file_descriptions,
             self.log_files,
             Some(self.tempdir),
-        )
+        );
     }
 
     fn set_threads(&mut self, n_threads: usize) {
@@ -389,6 +413,16 @@ pub fn generate_named_bam_readers_from_reads(
         .arg(&cmd_string)
         .stderr(std::process::Stdio::piped());
 
+    // Required because of https://github.com/wwood/CoverM/issues/58
+    let minimap2_log_file_index = match mapping_program {
+        MappingProgram::BWA_MEM => None,
+        // Required because of https://github.com/lh3/minimap2/issues/527
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => Some(0),
+    };
+
     let mut log_descriptions = vec![
         format!("{:?}", mapping_program).to_string(),
         "samtools sort".to_string(),
@@ -398,6 +432,7 @@ pub fn generate_named_bam_readers_from_reads(
         log_descriptions.push("samtools view for cache".to_string());
         log_files.push(samtools_view_cache_log);
     }
+
     match mapping_program {
         MappingProgram::BWA_MEM => {}
         // Required because of https://github.com/lh3/minimap2/issues/527
@@ -436,6 +471,7 @@ pub fn generate_named_bam_readers_from_reads(
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files: log_files,
+        minimap2_log_file_index: minimap2_log_file_index,
     };
 }
 
