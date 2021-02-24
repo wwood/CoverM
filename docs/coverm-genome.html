@@ -63,7 +63,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm genome usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2020-12-11 (coverm 0.6.0)</span>
+<span class="author_bio mbm">2021-02-25 (coverm 0.6.1)</span>
 </div>
 </div>
 </div>
@@ -85,7 +85,7 @@ code span.ot { color: #007020; }
 <li><a href="#coverage-calculation-options">COVERAGE CALCULATION OPTIONS</a></li>
 <li><a href="#output">OUTPUT</a></li>
 <li><a href="#general-options">GENERAL OPTIONS</a></li>
-<li><a href="#frequently-asked-questions">FREQUENTLY ASKED QUESTIONS</a></li>
+<li><a href="#frequently-asked-questions-faq">FREQUENTLY ASKED QUESTIONS (FAQ)</a></li>
 <li><a href="#exit-status">EXIT STATUS</a></li>
 <li><a href="#examples">EXAMPLES</a></li>
 <li><a href="#author">AUTHOR</a></li>
@@ -96,7 +96,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm genome - Calculate read coverage per-genome (version 0.6.0)</p>
+<p>coverm genome - Calculate read coverage per-genome (version 0.6.1)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -386,13 +386,13 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--min-read-percent-identity</strong> <em>FLOAT</em></dt>
-<dd><p>Exclude reads by overall percent identity e.g. 0.95 for 95%. [default: <code>0.0</code>]</p>
+<dd><p>Exclude reads by overall percent identity e.g. 95 for 95%. [default: <code>0</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--min-read-aligned-percent</strong> <em>FLOAT</em></dt>
-<dd><p>Exclude reads by percent aligned bases e.g. 0.95 means 95% of the read&#39;s bases must be aligned. [default: <code>0.0</code>]</p>
+<dd><p>Exclude reads by percent aligned bases e.g. 95 means 95% of the read&#39;s bases must be aligned. [default: <code>0</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -404,13 +404,13 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--min-read-percent-identity-pair</strong> <em>FLOAT</em></dt>
-<dd><p>Exclude pairs by overall percent identity e.g. 0.95 for 95%. Implies --proper-pairs-only. [default: <code>0.0</code>]</p>
+<dd><p>Exclude pairs by overall percent identity e.g. 95 for 95%. Implies --proper-pairs-only. [default: <code>0</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--min-read-aligned-percent-pair</strong> <em>FLOAT</em></dt>
-<dd><p>Exclude reads by percent aligned bases e.g. 0.95 means 95% of the read&#39;s bases must be aligned. Implies --proper-pairs-only. [default: <code>0.0</code>]</p>
+<dd><p>Exclude reads by percent aligned bases e.g. 95 means 95% of the read&#39;s bases must be aligned. Implies --proper-pairs-only. [default: <code>0</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -486,7 +486,7 @@ code span.ot { color: #007020; }
 </table>
 <dl>
 <dt><strong>--min-covered-fraction</strong> <em>FRACTION</em></dt>
-<dd><p>Genomes with less coverage than this reported as having zero coverage. [default: <code>0.10</code>]</p>
+<dd><p>Genomes with less coverage than this reported as having zero coverage. [default: <code>10</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -498,13 +498,13 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--trim-min</strong> <em>FRACTION</em></dt>
-<dd><p>Remove this smallest fraction of positions when calculating trimmed_mean [default: <code>0.05</code>]</p>
+<dd><p>Remove this smallest fraction of positions when calculating trimmed_mean [default: <code>5</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--trim-max</strong> <em>FRACTION</em></dt>
-<dd><p>Maximum fraction for trimmed_mean calculations [default: <code>0.95</code>]</p>
+<dd><p>Maximum fraction for trimmed_mean calculations [default: <code>95</code>]</p>
 </dd>
 </dl>
 </div>
@@ -578,9 +578,10 @@ code span.ot { color: #007020; }
 </dd>
 </dl>
 </div>
-<div id="frequently-asked-questions" class="section level1">
-<h1>FREQUENTLY ASKED QUESTIONS</h1>
+<div id="frequently-asked-questions-faq" class="section level1">
+<h1>FREQUENTLY ASKED QUESTIONS (FAQ)</h1>
 <p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
+<p><strong>For thresholding arguments e.g. --dereplication-ani and --min-read-percent-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
 </div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
