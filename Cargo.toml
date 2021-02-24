@@ -1,6 +1,6 @@
 [package]
 name = "coverm"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
 license = "GPL-3.0"
 description = "Read coverage calculator for metagenomics"
@@ -15,16 +15,16 @@ default-run = "coverm"
 
 [dependencies]
 bio = "0.32.0"
-rust-htslib = { version="0.35.*", default-features = false }
+rust-htslib = { version="0.36.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.8.*"
-nix = "0.19.*"
+nix = "0.20.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
 lazy_static = "1.4.0"
-rand = "0.7.*"
+rand = "0.8.*"
 serde = "1.0"
 version-compare = "0.0.11"
 bird_tool_utils = "0.3.0"
