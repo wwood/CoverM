@@ -156,15 +156,15 @@ impl<'a> MappingParameters<'a> {
 pub fn check_reference_file(reference_path: &str) {
     let ref_path = std::path::Path::new(reference_path);
     if !ref_path.exists() {
-        panic!(format!(
+        panic!(
             "The reference specified '{}' does not appear to exist",
             &reference_path
-        ));
+        );
     } else if !ref_path.is_file() {
-        panic!(format!(
+        panic!(
             "The reference specified '{}' should be a file, not e.g. a directory",
             &reference_path
-        ));
+        );
     }
 }
 
