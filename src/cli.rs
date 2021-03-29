@@ -536,7 +536,10 @@ pub fn contig_full_help() -> Manual {
                     .long("--bam-file-cache-directory")
                     .help(
                         "Output BAM files generated during \
-                alignment to this directory. The directory may or may not exist. \
+                alignment to this directory. The directory may or may not exist. Note that \
+                BAM files in this directory contain all mappings, including those that later \
+                are excluded by alignment thresholding (e.g. --min-read-percent-identity) or \
+                genome-wise thresholding (e.g. --min-covered-fraction). \
                 [default: not used]",
                     ),
             )
@@ -751,10 +754,11 @@ pub fn genome_full_help() -> Manual {
                 "Output coverage values to this file, or '-' for STDOUT. \
                 [default: output to STDOUT]",
             ))
-            .option(Opt::new("FORMAT").long("--output-format").help(
-                &format!("Shape of output: 'sparse' for long format, \
-            'dense' for species-by-site. {}", default_roff("dense"))
-            ))
+            .option(Opt::new("FORMAT").long("--output-format").help(&format!(
+                "Shape of output: 'sparse' for long format, \
+            'dense' for species-by-site. {}",
+                default_roff("dense")
+            )))
             .flag(Flag::new().long("--no-zeros").help(
                 "Omit printing of genomes that have zero \
             coverage. [default: not set]",
@@ -764,7 +768,11 @@ pub fn genome_full_help() -> Manual {
                     .long("--bam-file-cache-directory")
                     .help(
                         "Output BAM files generated during \
-                    alignment to this directory. The directory may or may not exist. [default: not set]",
+                alignment to this directory. The directory may or may not exist. Note that \
+                BAM files in this directory contain all mappings, including those that later \
+                are excluded by alignment thresholding (e.g. --min-read-percent-identity) or \
+                genome-wise thresholding (e.g. --min-covered-fraction). \
+                [default: not used]",
                     ),
             )
             .flag(
