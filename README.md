@@ -1,3 +1,5 @@
+![CoverM logo](images/coverm.png)
+
 - [CoverM](#coverm)
 	- [Installation](#installation)
 		- [Install through the bioconda package](#install-through-the-bioconda-package)
