@@ -1,4 +1,4 @@
-![CoverM logo](images/coloured_with_btext.png)
+![CoverM logo](images/coverm.png)
 
 - [CoverM](#coverm)
 	- [Installation](#installation)
