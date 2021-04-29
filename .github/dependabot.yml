@@ -1,0 +1,15 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/"
+  schedule:
+    interval: monthly
+    time: "19:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: rust-htslib
+    versions:
+    - 0.36.0
+  - dependency-name: rand
+    versions:
+    - 0.8.0
