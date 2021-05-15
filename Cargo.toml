@@ -14,7 +14,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.33.0"
+bio = "0.34.0"
 rust-htslib = { version="0.36.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
