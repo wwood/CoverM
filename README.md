@@ -74,7 +74,7 @@ For the full suite of options, these additional programs must be installed:
   operating systems.
 
 and some mapping software:
-* [minimap2](https://github.com/lh3/minimap2) v2.17-r941
+* [minimap2](https://github.com/lh3/minimap2) v2.17-r941 (2.18 will _not_ work)
 * [bwa](https://github.com/lh3/bwa) v0.7.17-r1188
 
 For dereplication:
