@@ -2010,6 +2010,7 @@ genome6~random_sequence_length_11003	0	0	0
                 "covered_fraction",
                 "--min-covered-fraction",
                 "0.05",
+                "--exclude-supplementary",
             ])
             .succeeds()
             .stdout()
@@ -2059,6 +2060,7 @@ genome6~random_sequence_length_11003	0	0	0
                 "covered_fraction",
                 "--min-covered-fraction",
                 "0.05",
+                "--exclude-supplementary",
             ])
             .succeeds()
             .stdout()
@@ -2104,6 +2106,7 @@ genome6~random_sequence_length_11003	0	0	0
             "covered_fraction",
             "--min-covered-fraction",
             "0.03",
+            "--exclude-supplementary",
         ])
         .succeeds()
         .stdout()
@@ -2152,6 +2155,7 @@ genome6~random_sequence_length_11003	0	0	0
             "covered_fraction",
             "--min-covered-fraction",
             "0.03",
+            "--exclude-supplementary",
         ])
         .succeeds()
         .stdout()
@@ -2388,6 +2392,202 @@ genome6~random_sequence_length_11003	0	0	0
             .fails()
             .stderr()
             .contains("Not continuing since when input file pairs have unequal numbers of reads")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_single_genome_no_exclude_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "count",
+                "-b",
+                "tests/data/2seqs.bad_read.1.with_supplementary.bam",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            // We only count a supplementary alignment once in read count
+            .is("Genome	2seqs.bad_read.1.with_supplementary Read Count\n\
+            genome1	20\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genomes_and_contigs_with_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "count",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.1.fq",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.stray_read1.1.fq Mean	20120700_S3D.stray_read1.1.fq Covered Fraction	20120700_S3D.stray_read1.1.fq Read Count\n\
+                        73.20120700_S3D.10	0.000022701126	0.00003879494	2\n\
+                        73.20120700_S3D.12	0	0	0\n\
+                        73.20120700_S3D.15	0	0	0\n\
+                        73.20120700_S3D.16	0	0	0\n\
+                        73.20120700_S3D.34	0	0	0\n\
+                        73.20120700_S3D.3	0	0	0\n\
+                        73.20120700_S3D.5	0.000043860742	0.000043714655	2\n\
+                        73.20120700_S3D.7	0	0	0\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .stderr()
+            .contains("found 4 reads mapped out of 4 total (100.00%)")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genomes_and_contigs_without_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "count",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.1.fq",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
+                "--min-covered-fraction",
+                "0",
+                "--exclude-supplementary"
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.stray_read1.1.fq Mean	20120700_S3D.stray_read1.1.fq Covered Fraction	20120700_S3D.stray_read1.1.fq Read Count\n\
+                        73.20120700_S3D.10	0.000008399416	0.000024585164	2\n\
+                        73.20120700_S3D.12	0	0	0\n\
+                        73.20120700_S3D.15	0	0	0\n\
+                        73.20120700_S3D.16	0	0	0\n\
+                        73.20120700_S3D.34	0	0	0\n\
+                        73.20120700_S3D.3	0	0	0\n\
+                        73.20120700_S3D.5	0.000043860742	0.000043714655	2\n\
+                        73.20120700_S3D.7	0	0	0\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .stderr()
+            .contains("found 4 reads mapped out of 4 total (100.00%)")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genomes_separator_with_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "count",
+                "-r",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "-s",
+                "_",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.1.fq",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Mean	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Covered Fraction	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Read Count\n\
+                        73.20120700	0.000022701126	0.00003879494	2\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .stderr()
+            .contains("found 2 reads mapped out of 4 total (50.00%)")
+            .unwrap();
+    }
+
+
+    #[test]
+    fn test_genomes_separator_without_supplementary() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "count",
+                "-r",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "-s",
+                "_",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.1.fq",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
+                "--min-covered-fraction",
+                "0",
+                "--exclude-supplementary",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Mean	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Covered Fraction	73.20120700_S3D.10.fna/20120700_S3D.stray_read1.1.fq Read Count\n\
+                        73.20120700	0.000008399416	0.000024585164	2\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .stderr()
+            .contains("found 2 reads mapped out of 4 total (50.00%)")
             .unwrap();
     }
 }

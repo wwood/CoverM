@@ -14,6 +14,7 @@ pub mod mapping_parameters;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod shard_bam_reader;
 
+use rust_htslib::bam::record::Record;
 use std::sync::Arc;
 
 extern crate bio;
@@ -55,6 +56,21 @@ pub struct FlagFilter {
     pub include_improper_pairs: bool,
     pub include_supplementary: bool,
     pub include_secondary: bool,
+}
+
+impl FlagFilter {
+    pub fn passes(&self, record: &Record) -> bool {
+        if !self.include_secondary && record.is_secondary() {
+            return false;
+        }
+        if !self.include_supplementary && record.is_supplementary() {
+            return false;
+        }
+        if !self.include_improper_pairs && !record.is_proper_pair() {
+            return false;
+        }
+        return true;
+    }
 }
 
 pub struct OutputWriter {

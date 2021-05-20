@@ -15,7 +15,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
     coverage_taker: &mut T,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
-    flag_filters: FlagFilter,
+    flag_filters: &FlagFilter,
     threads: usize,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
@@ -112,10 +112,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             }
 
             trace!("Starting with a new read.. {:?}", record);
-            if (!flag_filters.include_supplementary && record.is_supplementary())
-                || (!flag_filters.include_secondary && record.is_secondary())
-                || (!flag_filters.include_improper_pairs && !record.is_proper_pair())
-            {
+            if !flag_filters.passes(&record) {
                 trace!("Skipping read based on flag filtering");
                 continue;
             }
@@ -310,7 +307,7 @@ mod tests {
                 &mut coverage_taker,
                 coverage_estimators,
                 print_zero_coverage_contigs,
-                flag_filters,
+                &flag_filters,
                 1,
             );
         }

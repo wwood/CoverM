@@ -1070,7 +1070,7 @@ fn run_genome<
     print_stream: &mut OutputWriter,
 ) {
     let print_zeros = !m.is_present("no-zeros");
-    let proper_pairs_only = m.is_present("proper-pairs-only");
+    let flag_filter = FilterParameters::generate_from_clap(&m).flag_filters;
     let single_genome = m.is_present("single-genome");
     let threads = m.value_of("threads").unwrap().parse().unwrap();
     let reads_mapped = match separator.is_some() || single_genome {
@@ -1080,7 +1080,7 @@ fn run_genome<
             &mut estimators_and_taker.taker,
             print_zeros,
             &mut estimators_and_taker.estimators,
-            proper_pairs_only,
+            &flag_filter,
             single_genome,
             threads,
         ),
@@ -1091,7 +1091,7 @@ fn run_genome<
                 gc,
                 &mut estimators_and_taker.taker,
                 print_zeros,
-                proper_pairs_only,
+                &flag_filter,
                 &mut estimators_and_taker.estimators,
                 threads,
             ),
@@ -1150,7 +1150,7 @@ impl FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
                 include_secondary: false,
-                include_supplementary: !m.is_present("exclude-supplementary-alignments"),
+                include_supplementary: !m.is_present("exclude-supplementary"),
             },
             min_aligned_length_single: match m.is_present("min-read-aligned-length") {
                 true => value_t!(m.value_of("min-read-aligned-length"), u32).unwrap(),
@@ -1553,7 +1553,7 @@ fn run_contig<
         &mut estimators_and_taker.taker,
         &mut estimators_and_taker.estimators,
         print_zeros,
-        flag_filters,
+        &flag_filters,
         threads,
     );
 

@@ -2,6 +2,7 @@ use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 use std;
 use std::process;
+use FlagFilter;
 
 use std::collections::BTreeSet;
 use std::str;
@@ -22,7 +23,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
     contigs_and_genomes: &GenomesAndContigs,
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
-    proper_pairs_only: bool,
+    flag_filters: &FlagFilter,
     coverage_estimators: &mut Vec<CoverageEstimator>,
     threads: usize,
 ) -> Vec<ReadsMapped> {
@@ -118,10 +119,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 }
             }
 
-            if record.is_secondary() || record.is_supplementary() {
-                continue;
-            }
-            if proper_pairs_only && !record.is_proper_pair() {
+            if !flag_filters.passes(&record) {
+                trace!("Skipping read based on flag filtering");
                 continue;
             }
             let original_tid = record.tid();
@@ -174,9 +173,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     None => {}
                     Some(genome_index) => {
                         reads_mapped_in_each_genome[genome_index] += 1;
-                        if !record.is_supplementary() && !record.is_secondary() {
-                            num_mapped_reads_in_current_contig += 1;
-                        }
+                        num_mapped_reads_in_current_contig += 1;
                         trace!(
                             "read name {:?}",
                             std::str::from_utf8(record.qname()).unwrap()
@@ -435,7 +432,7 @@ pub fn mosdepth_genome_coverage<
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     coverage_estimators: &mut Vec<CoverageEstimator>,
-    proper_pairs_only: bool,
+    flag_filters: &FlagFilter,
     single_genome: bool,
     threads: usize,
 ) -> Vec<ReadsMapped> {
@@ -532,10 +529,8 @@ pub fn mosdepth_genome_coverage<
                 }
             }
 
-            if record.is_secondary() || record.is_supplementary() {
-                continue;
-            }
-            if proper_pairs_only && !record.is_proper_pair() {
+            if !flag_filters.passes(&record) {
+                trace!("Skipping read based on flag filtering");
                 continue;
             }
             let original_tid = record.tid();
@@ -683,10 +678,12 @@ pub fn mosdepth_genome_coverage<
                     "read name {:?}",
                     std::str::from_utf8(record.qname()).unwrap()
                 );
-                if !record.is_supplementary() && !record.is_secondary() {
+                if !record.is_supplementary() {
+                    // Supplementary reads are marked primary, so exclude
+                    // supplementary mappings to avoid double counting.
                     num_mapped_reads_in_current_contig += 1;
+                    num_mapped_reads_in_current_genome += 1;
                 }
-                num_mapped_reads_in_current_genome += 1;
                 let mut cursor: usize = record.pos() as usize;
                 for cig in record.cigar().iter() {
                     trace!("Found cigar {:} from {}", cig, cursor);
@@ -973,13 +970,18 @@ mod tests {
                 CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                     OutputWriter::generate(Some(t)),
                 );
+            let flags = FlagFilter {
+                include_improper_pairs: !proper_pairs_only,
+                include_secondary: true,
+                include_supplementary: true,
+            };
             res = mosdepth_genome_coverage(
                 bam_readers,
                 separator,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 coverage_estimators,
-                proper_pairs_only,
+                &flags,
                 single_genome,
                 1,
             );
@@ -1012,13 +1014,18 @@ mod tests {
             let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
                 OutputWriter::generate(Some(t)),
             );
+            let flags = FlagFilter {
+                include_improper_pairs: !proper_pairs_only,
+                include_secondary: false,
+                include_supplementary: false,
+            };
             res = mosdepth_genome_coverage(
                 bam_readers,
                 separator,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
                 coverage_estimators,
-                proper_pairs_only,
+                &flags,
                 single_genome,
                 1,
             );
@@ -1048,12 +1055,17 @@ mod tests {
                 CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
                     OutputWriter::generate(Some(t)),
                 );
+            let flags = FlagFilter {
+                include_improper_pairs: !proper_pairs_only,
+                include_secondary: false,
+                include_supplementary: false,
+            };
             res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
-                proper_pairs_only,
+                &flags,
                 coverage_estimators,
                 1,
             );
@@ -1085,12 +1097,17 @@ mod tests {
             let mut coverage_taker = CoverageTakerType::new_pileup_coverage_coverage_printer(
                 OutputWriter::generate(Some(t)),
             );
+            let flags = FlagFilter {
+                include_improper_pairs: !proper_pairs_only,
+                include_secondary: false,
+                include_supplementary: false,
+            };
             res = mosdepth_genome_coverage_with_contig_names(
                 bam_readers,
                 geco,
                 &mut coverage_taker,
                 print_zero_coverage_contigs,
-                proper_pairs_only,
+                &flags,
                 coverage_estimators,
                 1,
             );
