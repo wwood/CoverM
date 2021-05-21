@@ -75,7 +75,7 @@ For the full suite of options, these additional programs must be installed:
 
 and some mapping software:
 * [minimap2](https://github.com/lh3/minimap2) v2.17-r941 (2.18 will _not_ work)
-* [bwa](https://github.com/lh3/bwa) v0.7.17-r1188
+* [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
 
 For dereplication:
 * [Dashing](https://github.com/dnbaker/dashing) v0.4.0

@@ -1,7 +1,9 @@
 use bird_tool_utils::external_command_checker::*;
 
 pub fn check_for_bwa() {
-    check_for_external_command_presence("BWA", "which bwa").expect("Failed to find installed BWA");
+    check_for_external_command_presence("BWA", "which bwa-mem2").expect("Failed to find installed BWA");
+    default_version_check("bwa-mem2", "2.0", false, Some("bwa-mem2 version"))
+        .expect("Failed to find sufficient version of bwa-mem2");
 }
 
 pub fn check_for_minimap2() {

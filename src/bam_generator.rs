@@ -948,7 +948,7 @@ pub fn build_mapping_command(
     return format!(
         "{} {} -t {} {} '{}' {}",
         match mapping_program {
-            MappingProgram::BWA_MEM => "bwa mem".to_string(),
+            MappingProgram::BWA_MEM => "bwa-mem2 mem".to_string(),
             _ => {
                 let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
                     "Failed to create {:?} minimap2 split_prefix file",

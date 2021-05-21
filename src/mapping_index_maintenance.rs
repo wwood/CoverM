@@ -59,7 +59,7 @@ impl TemporaryIndexStruct {
             mapping_program, reference_path
         );
         let mut cmd = match mapping_program {
-            MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
+            MappingProgram::BWA_MEM => std::process::Command::new("bwa-mem2"),
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
@@ -158,7 +158,7 @@ pub fn generate_bwa_index(
     reference_path: &str,
     index_creation_parameters: Option<&str>,
 ) -> Box<dyn MappingIndex> {
-    let bwa_extensions = vec!["amb", "ann", "bwt", "pac", "sa"];
+    let bwa_extensions = vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"];
     let num_extensions = bwa_extensions.len();
     let mut num_existing: u8 = 0;
     for extension in bwa_extensions {
