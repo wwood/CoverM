@@ -1464,9 +1464,9 @@ genome6	26.697144
             .succeeds()
             .stdout().is(
                 "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
-                ctg4	1887.6234	0.024918951	6\n\
-                ctg5	717.27264	0.0041760243	3\n\
-                ctg6	126.346375	0.0021053297	1\n")
+                ctg4	1747.7994	0.024660854	5\n\
+                ctg5	796.9696	0.0041760243	3\n\
+                ctg6	140.38486	0.0021053297	1\n")
             .unwrap();
     }
 
@@ -1495,9 +1495,9 @@ genome6	26.697144
             .stdout()
             .is(
                 "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
-                ctg4	1887.6234	0.024918951	6	1887.6234	0.024918951	6\n\
-                ctg5	717.27264	0.0041760243	3	717.27264	0.0041760243	3\n\
-                ctg6	126.346375	0.0021053297	1	126.346375	0.0021053297	1\n")
+                ctg4	1747.7994	0.024660854	5	1747.7994	0.024660854	5\n\
+                ctg5	796.9696	0.0041760243	3	796.9696	0.0041760243	3\n\
+                ctg6	140.38486	0.0021053297	1	140.38486	0.0021053297	1\n")
             .stderr()
             .contains(
                     "Running DB indexing command: \"minimap2\" \"-x\" \"map-ont\" \"-t\" \"2\" \"-d\"")
@@ -1558,9 +1558,9 @@ genome6	26.697144
             .stdout()
             .is(
                 "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
-                ctg4	2202.2273	0.081332035	7\n\
-                ctg5	478.18173	0.010246328	2\n\
-                ctg6	126.346375	0.0021596688	1\n")
+                ctg4	2097.3594	0.067892104	6\n\
+                ctg5	531.31305	0.010246328	2\n\
+                ctg6	140.38486	0.0021596688	1\n")
             .stderr()
             .contains("-A 20 -t 1")
             .unwrap();
@@ -1634,40 +1634,6 @@ genome6~random_sequence_length_11003	0	0	0
         //         "-r",
         //         "tests/data/2seqs.fasta",
         //     ]).succeeds().unwrap();
-    }
-
-    #[test]
-    fn test_remove_minimap2_duplicated_headers_normal_sam() {
-        Assert::cargo_binary("remove_minimap2_duplicated_headers")
-            .stdin(
-                "@PG yes OK\n\
-                @SQ 1\n\
-                @SQ 2\n",
-            )
-            .succeeds()
-            .stdout()
-            .is("@PG yes OK\n\
-                @SQ 1\n\
-                @SQ 2\n")
-            .unwrap();
-    }
-
-    #[test]
-    fn test_remove_minimap2_duplicated_headers_duplicated_sam() {
-        Assert::cargo_binary("remove_minimap2_duplicated_headers")
-            .stdin(
-                "@SQ 1\n\
-                @SQ 2\n\
-                @PG yes OK\n\
-                @SQ 1\n\
-                @SQ 2\n",
-            )
-            .succeeds()
-            .stdout()
-            .is("@PG yes OK\n\
-                @SQ 1\n\
-                @SQ 2\n")
-            .unwrap();
     }
 
     #[test]
@@ -2018,14 +1984,14 @@ genome6~random_sequence_length_11003	0	0	0
                 |observed| {
                     assert_equal_table(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
-                        73.20120700_S3D.10	0.0710157	0.06776461\n\
+                        73.20120700_S3D.10	0.070454076	0.067262076\n\
                         73.20120700_S3D.12	0	0\n\
                         73.20120700_S3D.15	0	0\n\
                         73.20120700_S3D.16	0	0\n\
-                        73.20120700_S3D.34	0.06653676	0.0630154\n\
                         73.20120700_S3D.3	0	0\n\
-                        73.20120700_S3D.5	0.1341526	0.123165175\n\
-                        73.20120700_S3D.7	0.100108385	0.093486056\n\
+                        73.20120700_S3D.34	0.063717276	0.06055015\n\
+                        73.20120700_S3D.5	0.13361321	0.12273601\n\
+                        73.20120700_S3D.7	0.099415645	0.092869714\n\
                         ",
                         observed,
                     )
@@ -2068,10 +2034,10 @@ genome6~random_sequence_length_11003	0	0	0
                 |observed| {
                     assert_equal_table(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
-                        73.20120700_S3D.10	0.0710157	0.06776461\n\
-                        73.20120700_S3D.34	0.06653676	0.0630154\n\
-                        73.20120700_S3D.5	0.1341526	0.123165175\n\
-                        73.20120700_S3D.7	0.100108385	0.093486056\n\
+                        73.20120700_S3D.10	0.070454076	0.067262076\n\
+                        73.20120700_S3D.34	0.063717276	0.06055015\n\
+                        73.20120700_S3D.5	0.13361321	0.12273601\n\
+                        73.20120700_S3D.7	0.099415645	0.092869714\n\
                         ",
                         observed,
                     )
@@ -2114,13 +2080,13 @@ genome6~random_sequence_length_11003	0	0	0
             |observed| {
                 assert_equal_table(
                     "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
-                    73.20120700_S3D.10	0.0710157	0.06776461\n\
-                    73.20120700_S3D.15	0.03561887	0.034370355\n\
-                    73.20120700_S3D.16	0.032864396	0.031665392\n\
-                    73.20120700_S3D.34	0.06653676	0.0630154\n\
-                    73.20120700_S3D.3	0.036180563	0.03499215\n\
-                    73.20120700_S3D.5	0.1341526	0.123165175\n\
-                    73.20120700_S3D.7	0.100108385	0.093486056\n\
+                    73.20120700_S3D.10	0.070454076	0.067262076\n\
+                    73.20120700_S3D.15	0.035371803	0.03416976\n\
+                    73.20120700_S3D.16	0.031215662	0.030119542\n\
+                    73.20120700_S3D.3	0.03592973	0.034742467\n\
+                    73.20120700_S3D.34	0.063717276	0.06055015\n\
+                    73.20120700_S3D.5	0.13361321	0.12273601\n\
+                    73.20120700_S3D.7	0.099415645	0.092869714\n\
                     ",
                     observed,
                 )
@@ -2163,14 +2129,14 @@ genome6~random_sequence_length_11003	0	0	0
             |observed| {
                 assert_equal_table(
                     "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
-                    73.20120700_S3D.10	0.0710157	0.06776461\n\
+                    73.20120700_S3D.10	0.070454076	0.067262076\n\
                     73.20120700_S3D.12	0	0\n\
-                    73.20120700_S3D.15	0.03561887	0.034370355\n\
-                    73.20120700_S3D.16	0.032864396	0.031665392\n\
-                    73.20120700_S3D.34	0.06653676	0.0630154\n\
-                    73.20120700_S3D.3	0.036180563	0.03499215\n\
-                    73.20120700_S3D.5	0.1341526	0.123165175\n\
-                    73.20120700_S3D.7	0.100108385	0.093486056\n\
+                    73.20120700_S3D.15	0.035371803	0.03416976\n\
+                    73.20120700_S3D.16	0.031215662	0.030119542\n\
+                    73.20120700_S3D.3	0.03592973	0.034742467\n\
+                    73.20120700_S3D.34	0.063717276	0.06055015\n\
+                    73.20120700_S3D.5	0.13361321	0.12273601\n\
+                    73.20120700_S3D.7	0.099415645	0.092869714\n\
                     ",
                     observed,
                 )

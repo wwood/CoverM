@@ -628,7 +628,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .expect("Failed to create tempfile as samtools sort prefix");
     let cmd_string = format!(
         "set -e -o pipefail; \
-         {} 2>{} {}\
+         {} 2>{}\
          | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping
@@ -637,14 +637,6 @@ pub fn generate_named_sharded_bam_readers_from_reads(
             .path()
             .to_str()
             .expect("Failed to convert tempfile path to str"),
-        // remove extraneous @SQ lines
-        match mapping_program {
-            MappingProgram::BWA_MEM => {
-                ""
-            }
-            // Required because of https://github.com/lh3/minimap2/issues/527
-            _ => " | remove_minimap2_duplicated_headers",
-        },
         // samtools
         bwa_sort_prefix
             .path()
