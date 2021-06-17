@@ -156,6 +156,11 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                 Flag::new()
                     .long("--exclude-supplementary")
                     .help("Exclude supplementary alignments. [default: not set]"),
+            )
+            .flag(
+                Flag::new()
+                    .long("--include-secondary")
+                    .help("Include secondary alignments. [default: not set]"),
             ),
     )
 }
@@ -488,7 +493,7 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each contig in base pairs"],
-                    &[&monospace_roff("count"), "Number of reads aligned toq each contig. Note that a single read may be aligned to multiple contigs with supplementary alignments"],
+                    &[&monospace_roff("count"), "Number of reads aligned to each contig. Note that supplementary alignments are not counted."],
                     &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165"],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],
@@ -721,7 +726,7 @@ pub fn genome_full_help() -> Manual {
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each genome in base pairs"],
-                    &[&monospace_roff("count"), "Number of reads aligned toq each genome. Note that a single read may be aligned to multiple genomes with supplementary alignments"],
+                    &[&monospace_roff("count"), "Number of reads aligned to each genome. Note that supplementary alignments are not counted."],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the genome"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of genome, per million mapped reads"],
                     &[&monospace_roff("tpm"), "Transcripts Per Million as described in Li et al 2010 https://doi.org/10.1093/bioinformatics/btp692"],
@@ -1311,6 +1316,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
                 .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::with_name("include-secondary").long("include-secondary"))
                 .arg(
                     Arg::with_name("output-file")
                         .takes_value(true)
@@ -1653,6 +1659,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(Arg::with_name("no-zeros").long("no-zeros"))
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
                 .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::with_name("include-secondary").long("include-secondary"))
                 .arg(
                     Arg::with_name("output-file")
                         .takes_value(true)
@@ -1726,6 +1733,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 )
                 .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
                 .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::with_name("include-secondary").long("include-secondary"))
                 .arg(
                     Arg::with_name("threads")
                         .long("threads")

@@ -2518,7 +2518,6 @@ genome6~random_sequence_length_11003	0	0	0
             .unwrap();
     }
 
-
     #[test]
     fn test_genomes_separator_without_supplementary() {
         Assert::main_binary()

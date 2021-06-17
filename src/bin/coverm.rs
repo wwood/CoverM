@@ -1149,7 +1149,7 @@ impl FilterParameters {
         let mut f = FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
-                include_secondary: false,
+                include_secondary: m.is_present("include-secondary"),
                 include_supplementary: !m.is_present("exclude-supplementary"),
             },
             min_aligned_length_single: match m.is_present("min-read-aligned-length") {
