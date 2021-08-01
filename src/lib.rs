@@ -129,3 +129,49 @@ impl Clone for OutputWriter {
         }
     }
 }
+
+// Verbose to do this many times throughout the code so making a function to
+// abstract.
+fn nm(record: &rust_htslib::bam::Record) -> u64 {
+    match record.aux("NM".as_bytes()) {
+        Ok(value) => {
+            if let rust_htslib::bam::record::Aux::U8(v) = value {
+                v as u64
+            } else if let rust_htslib::bam::record::Aux::U16(v) = value {
+                v as u64
+            } else {
+                panic!("Unexpected data type of NM aux tag, found {:?}", value)
+            }
+        }
+        Err(e) => {
+            panic!(
+                "Mapping record encountered that does not have an 'NM' \
+                        auxiliary tag in the SAM/BAM format. This is required \
+                        to work out some coverage statistics. Error was {}",
+                e
+            )
+        }
+    }
+}
+
+fn aux_as(record: &rust_htslib::bam::Record) -> i64 {
+    match record.aux("AS".as_bytes()) {
+        Ok(value) => {
+            if let rust_htslib::bam::record::Aux::U8(v) = value {
+                v as i64
+            } else if let rust_htslib::bam::record::Aux::U16(v) = value {
+                v as i64
+            } else {
+                panic!("Unexpected data type of AS aux tag, found {:?}", value)
+            }
+        }
+        Err(e) => {
+            panic!(
+                "Mapping record encountered that does not have an 'AS' \
+                        auxiliary tag in the SAM/BAM format. This is required \
+                        for ranking pairs of alignments. Error was {}",
+                e
+            )
+        }
+    }
+}

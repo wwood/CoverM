@@ -428,7 +428,7 @@ fn main() {
                     bam::Reader::from_path(bam).expect(&format!("Unable to find BAM file {}", bam));
                 let header = bam::header::Header::from_template(reader.header());
                 let mut writer =
-                    bam::Writer::from_path(output, &header, rust_htslib::bam::Format::BAM)
+                    bam::Writer::from_path(output, &header, rust_htslib::bam::Format::Bam)
                         .expect(&format!("Failed to write BAM file {}", output));
                 writer
                     .set_threads(num_threads as usize)

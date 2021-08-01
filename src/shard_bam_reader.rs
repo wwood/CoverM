@@ -10,6 +10,7 @@ use rust_htslib::bam::Read as BamRead;
 use rust_htslib::bam::Record;
 use rust_htslib::errors::Result as HtslibResult;
 
+use aux_as;
 use mapping_parameters::ReadFormat;
 
 use nix::sys::stat;
@@ -146,18 +147,30 @@ where
         to.set_mpos(from.mpos());
         to.set_insert_size(from.insert_size());
         to.set_tid(from.tid());
+        // Remove previous NM tag if exists
+        match &to.aux("NM".as_bytes()) {
+            Ok(_) => to
+                .remove_aux(b"NM")
+                .expect("Failed to remove previous NM aux value when cloning"),
+            Err(_) => {}
+        };
         match &from.aux("NM".as_bytes()) {
-            Some(aux) => {
-                to.push_aux("NM".as_bytes(), aux);
+            Ok(value) => {
+                if let rust_htslib::bam::record::Aux::U8(v) = value {
+                    to.push_aux("NM".as_bytes(), rust_htslib::bam::record::Aux::U8(*v))
+                        .expect("Failed to push new AUX NM tag during record clone");
+                } else {
+                    panic!("Unexpected data type of NM aux tag")
+                }
             }
-            None => {
+            Err(e) => {
                 if from.tid() >= 0 && from.cigar_len() != 0 {
-                    error!(
-                        "record {:?} with name {} had no NM tag",
+                    panic!(
+                        "record {:?} with name {} had no NM tag: {}",
                         from,
-                        str::from_utf8(from.qname()).unwrap()
+                        str::from_utf8(from.qname()).unwrap(),
+                        e,
                     );
-                    process::exit(1);
                 }
             }
         }
@@ -219,16 +232,10 @@ where
                             // Unlike BWA-MEM, Minimap2 does not have AS tags
                             // when the read is unmapped.
                             if !aln1.is_unmapped() {
-                                score += aln1.aux(b"AS")
-                                    .expect(&format!(
-                                        "Record {:#?} (read1) unexpectedly did not have AS tag, which is needed for \
-                                        ranking pairs of alignments", aln1.qname())).integer();
+                                score += aux_as(&aln1);
                             }
                             if !second_read_alignments[i].is_unmapped() {
-                                score += second_read_alignments[i].aux(b"AS")
-                                    .expect(&format!(
-                                        "Record {:#?} (read2) unexpectedly did not have AS tag, which is needed for \
-                                        ranking pairs of alignments", aln1.qname())).integer();
+                                score += aux_as(&second_read_alignments[i]);
                             }
                             if max_score.is_none() || score > max_score.unwrap() {
                                 max_score = Some(score);
@@ -418,7 +425,7 @@ where
             let mut writer = bam::Writer::from_path(
                 &sort_input_fifo_path,
                 &new_header,
-                rust_htslib::bam::Format::BAM,
+                rust_htslib::bam::Format::Bam,
             )
             .expect("Failed to open BAM to write to samtools sort process");
             // Do not compress since these records are just read back in again -

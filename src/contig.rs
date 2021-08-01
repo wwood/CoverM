@@ -1,5 +1,4 @@
 use std;
-use std::process;
 
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
@@ -7,6 +6,7 @@ use rust_htslib::bam::record::Cigar;
 use bam_generator::*;
 use coverage_takers::*;
 use mosdepth_genome_coverage_estimators::*;
+use nm;
 use FlagFilter;
 use ReadsMapped;
 
@@ -193,17 +193,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
 
                 // Determine the number of mismatching bases in this read by
                 // looking at the NM tag.
-                total_edit_distance_in_current_contig += match record.aux("NM".as_bytes()) {
-                    Some(aux) => aux.integer() as u64,
-                    None => {
-                        error!(
-                            "Mapping record encountered that does not have an 'NM' \
-                                    auxiliary tag in the SAM/BAM format. This is required \
-                                    to work out some coverage statistics"
-                        );
-                        process::exit(1);
-                    }
-                };
+                total_edit_distance_in_current_contig += nm(&record);
 
                 trace!("At end of loop")
             }

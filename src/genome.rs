@@ -1,3 +1,4 @@
+use nm;
 use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
 use std;
@@ -213,17 +214,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
 
                         // Determine the number of mismatching bases in this read by
                         // looking at the NM tag.
-                        total_edit_distance_in_current_contig += match record.aux("NM".as_bytes()) {
-                            Some(aux) => aux.integer() as u64,
-                            None => {
-                                error!(
-                                    "Mapping record encountered that does not have an 'NM' \
-                                            auxiliary tag in the SAM/BAM format. This is required \
-                                            to work out some coverage statistics"
-                                );
-                                process::exit(1);
-                            }
-                        };
+                        total_edit_distance_in_current_contig += nm(&record);
                     }
                 }
             }
@@ -719,17 +710,7 @@ pub fn mosdepth_genome_coverage<
 
                 // Determine the number of mismatching bases in this read by
                 // looking at the NM tag.
-                total_edit_distance_in_current_contig += match record.aux("NM".as_bytes()) {
-                    Some(aux) => aux.integer() as u64,
-                    None => {
-                        error!(
-                            "Mapping record encountered that does not have an 'NM' \
-                                    auxiliary tag in the SAM/BAM format. This is required \
-                                    to work out some coverage statistics"
-                        );
-                        process::exit(1);
-                    }
-                };
+                total_edit_distance_in_current_contig += nm(&record);
             }
         }
 

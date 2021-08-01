@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use std::process;
 use std::rc::Rc;
 use std::str;
 
+use nm;
 use FlagFilter;
 
 use rust_htslib::bam;
@@ -235,16 +235,7 @@ fn single_read_passes_filter(
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
 ) -> bool {
-    let edit_distance1 = match record.aux(b"NM") {
-        Some(i) => i.integer(),
-        None => {
-            error!(
-                "Alignment of read {:?} did not have an NM aux tag",
-                record.qname()
-            );
-            process::exit(1);
-        }
-    };
+    let edit_distance1 = nm(record);
 
     let mut aligned: u32 = 0;
     for cig in record.cigar().iter() {
@@ -276,26 +267,8 @@ fn read_pair_passes_filter(
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
 ) -> bool {
-    let edit_distance1 = match record1.aux(b"NM") {
-        Some(i) => i.integer(),
-        None => {
-            error!(
-                "Alignment of read {:?} did not have an NM aux tag",
-                record1.qname()
-            );
-            process::exit(1);
-        }
-    };
-    let edit_distance2 = match record2.aux(b"NM") {
-        Some(i) => i.integer(),
-        None => {
-            error!(
-                "Alignment of read {:?} did not have an NM aux tag",
-                record2.qname()
-            );
-            process::exit(1);
-        }
-    };
+    let edit_distance1 = nm(record1);
+    let edit_distance2 = nm(record2);
 
     let mut aligned_length1: u32 = 0;
     for cig in record1.cigar().iter() {
