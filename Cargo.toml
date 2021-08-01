@@ -18,7 +18,7 @@ bio = "0.34.0"
 rust-htslib = { version="0.36.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
-env_logger = "0.8.*"
+env_logger = "0.9.*"
 nix = "0.20.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
