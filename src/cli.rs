@@ -501,9 +501,9 @@ pub fn contig_full_help() -> Manual {
                 ]),
             )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-                &format!("Genomes with less coverage than this \
+                &format!("Contigs with less covered bases than this are \
                 reported as having zero coverage. \
-                {}", default_roff("10"))
+                {}", default_roff("0"))
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
                 &format!("Exclude bases at the ends of reference \
@@ -733,7 +733,7 @@ pub fn genome_full_help() -> Manual {
                 ])
             )))
             .option(Opt::new("FRACTION").long("--min-covered-fraction").help(
-                &format!("Genomes with less coverage than this \
+                &format!("Genomes with less covered bases than this are \
                 reported as having zero coverage. \
                 {}", default_roff("10"))
             ))
