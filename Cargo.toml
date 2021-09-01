@@ -26,7 +26,7 @@ ansi_term = "0.12"
 lazy_static = "1.4.0"
 rand = "0.8.*"
 serde = "1.0"
-version-compare = "0.0.11"
+version-compare = "0.0.12"
 bird_tool_utils = "0.3.0"
 #bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
 galah = "0.3.0"
