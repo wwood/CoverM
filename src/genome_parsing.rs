@@ -6,7 +6,10 @@ use std::io::BufRead;
 use std::path::Path;
 use std::process;
 
-pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>) -> GenomesAndContigs {
+pub fn read_genome_fasta_files(
+    fasta_file_paths: &Vec<&str>,
+    use_full_sequence_name: bool,
+) -> GenomesAndContigs {
     let mut contig_to_genome = GenomesAndContigs::new();
 
     for file in fasta_file_paths {
@@ -26,14 +29,18 @@ pub fn read_genome_fasta_files(fasta_file_paths: &Vec<&str>) -> GenomesAndContig
         }
         let genome_index = contig_to_genome.establish_genome(genome_name);
         for record in reader.records() {
-            let contig = String::from(
-                record
-                    .expect(&format!(
-                        "Failed to parse contig name in fasta file {:?}",
-                        path
-                    ))
-                    .id(),
-            );
+            let record_expected = record.expect(&format!(
+                "Failed to parse contig name in fasta file {:?}",
+                path
+            ));
+
+            let contig = match use_full_sequence_name {
+                false => String::from(record_expected.id()),
+                true => match record_expected.desc() {
+                    Some(desc) => String::from(format!("{} {}", record_expected.id(), desc)),
+                    None => String::from(record_expected.id()),
+                },
+            };
             contig_to_genome.insert(contig, genome_index);
         }
     }
@@ -131,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_read_genome_fasta_files_one_genome() {
-        let contig_to_genome = read_genome_fasta_files(&vec!["tests/data/genome1.fna"]);
+        let contig_to_genome = read_genome_fasta_files(&vec!["tests/data/genome1.fna"], false);
         assert_eq!(
             String::from("genome1"),
             *contig_to_genome

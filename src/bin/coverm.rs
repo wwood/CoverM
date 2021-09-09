@@ -797,6 +797,7 @@ fn extract_genomes_and_contigs_option(
         )),
         false => Some(coverm::genome_parsing::read_genome_fasta_files(
             &genome_fasta_files,
+            m.is_present("use-full-contig-names"),
         )),
     }
 }

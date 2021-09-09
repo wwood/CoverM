@@ -668,6 +668,12 @@ pub fn genome_full_help() -> Manual {
                     .help(&format!("File containing list of \
                     genome_name<tab>contig lines to define the genome of each contig. Requires {}. [default: not set]", monospace_roff("--reference")))
             )
+            .flag(
+                Flag::new()
+                    .long("--use-full-contig-names")
+                    .help(&format!("Specify that the input BAM files have been generated with mapping software that includes the full name of each contig \
+                    in the reference definition (i.e. characters after the space), so when reading in genomes, record contig names as such."))
+            )
         );
 
     let mut derep_section = Section::new("DEREPLICATION / GENOME CLUSTERING").flag(
@@ -1237,6 +1243,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("genome-definition"),
                 )
+                .arg(Arg::with_name("use-full-contig-names").long("use-full-contig-names"))
                 .arg(
                     Arg::with_name("min-read-aligned-length")
                         .long("min-read-aligned-length")
