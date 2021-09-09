@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - samtools >=1.9
+  - coreutils
+  - minimap2 >=2.21
+  - bwa-mem2
+  - dashing >= 0.4.0
+  - fastani >= 1.3

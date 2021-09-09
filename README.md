@@ -48,8 +48,8 @@ cargo install coverm
 ```
 
 ### Development version
-To run an unreleased version of CoverM, after
-installing [Rust](https://www.rust-lang.org/):
+To run an unreleased version of CoverM, after installing
+[Rust](https://www.rust-lang.org/) and any additional dependencies listed below:
 
 ```
 git clone https://github.com/wwood/CoverM
@@ -57,15 +57,23 @@ cd CoverM
 cargo run -- genome ...etc...
 ```
 
-To run tests, the `$PATH` variable must be set:
+To run tests:
 
 ```
 cargo build
-PATH=target/debug:$PATH cargo test
+cargo test
 ```
 
 ### Dependencies
-For the full suite of options, these additional programs must be installed:
+For the full suite of options, additional programs must also be installed, when
+installing from source or for development.
+
+These can be installed using the conda YAML environment definition:
+```
+conda env create -n coverm -f coverm.yml
+```
+
+Or, these can be installed manually:
 
 * [samtools](https://github.com/samtools/samtools) v1.9
 * [tee](https://www.gnu.org/software/coreutils/), which is installed by default
@@ -74,7 +82,7 @@ For the full suite of options, these additional programs must be installed:
   operating systems.
 
 and some mapping software:
-* [minimap2](https://github.com/lh3/minimap2) v2.17-r941 (2.18 will _not_ work)
+* [minimap2](https://github.com/lh3/minimap2) v2.21
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
 
 For dereplication:
