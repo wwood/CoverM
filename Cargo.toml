@@ -19,7 +19,7 @@ rust-htslib = { version="0.38.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.9.*"
-nix = "0.22.*"
+nix = "0.23.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
