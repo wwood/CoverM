@@ -1,0 +1,28 @@
+name: Test CoverM with Setup-Miniconda From Marketplace
+on: [push]
+
+jobs:
+  miniconda:
+    name: Miniconda ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+        matrix:
+            os: ["ubuntu-latest"]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: test
+          environment-file: coverm.yml
+          auto-activate-base: false
+          mamba-version: "*"
+          channels: conda-forge,defaults,bioconda
+      - run: |
+          conda info
+          conda list
+      - name: Run test
+        run: |
+            cargo test

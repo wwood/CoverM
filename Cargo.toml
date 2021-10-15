@@ -36,4 +36,4 @@ roff = "0.1.*"
 [dev-dependencies]
 assert_cli = "0.6.*"
 # Run things before commit but not push
-cargo-husky = { version="1", default-features = false, features=["precommit-hook", "run-cargo-test", "run-cargo-fmt"] }
+cargo-husky = { version="1", default-features = false, features=["precommit-hook", "run-cargo-fmt"] }
