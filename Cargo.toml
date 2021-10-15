@@ -14,19 +14,19 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.37.0"
+bio = "0.38.0"
 rust-htslib = { version="0.38.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
 env_logger = "0.9.*"
-nix = "0.22.*"
+nix = "0.23.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
 lazy_static = "1.4.0"
 rand = "0.8.*"
 serde = "1.0"
-version-compare = "0.0.12"
+version-compare = "0.1.0"
 bird_tool_utils = "0.3.0"
 #bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
 galah = "0.3.0"
