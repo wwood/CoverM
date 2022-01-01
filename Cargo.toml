@@ -31,7 +31,7 @@ bird_tool_utils = "0.3.0"
 #bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
 galah = "0.3.0"
 bird_tool_utils-man = "0.4.0"
-roff = "0.1.*"
+roff = "0.2.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
