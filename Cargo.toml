@@ -14,7 +14,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.38.0"
+bio = "0.39.0"
 rust-htslib = { version="0.38.*", default-features = false }
 clap = "2.*"
 log = "0.4.*"
@@ -32,7 +32,7 @@ bird_tool_utils = "0.3.0"
 galah = "0.3.0"
 #galah = { path = "/home/ben/git/galah-local" }
 bird_tool_utils-man = "0.4.0"
-roff = "0.1.*"
+roff = "0.2.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"

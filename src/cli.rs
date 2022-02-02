@@ -2,7 +2,13 @@ use bird_tool_utils::clap_utils::{default_roff, monospace_roff};
 use bird_tool_utils_man::prelude::{Author, Example, Flag, Manual, Opt, Section};
 use clap::*;
 use galah::cluster_argument_parsing::GalahClustererCommandDefinition;
-use roff::bold;
+use roff::bold as roff_bold;
+use roff::Roff;
+
+// See https://github.com/rust-cli/roff-rs/issues/19
+fn bold(s: &str) -> String {
+    Roff::new().text([roff_bold(s)]).to_roff()
+}
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "bwa-mem",
