@@ -28,12 +28,12 @@ use clap::*;
 
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-use env_logger::Builder;
-use log::LevelFilter;
 
 extern crate tempfile;
 use tempfile::NamedTempFile;
+
+extern crate bird_tool_utils;
+use bird_tool_utils::clap_utils::set_log_level as set_log_level_bird_tool_utils;
 
 const CONCATENATED_REFERENCE_CACHE_STEM: &str = "coverm-genome";
 const DEFAULT_MAPPING_SOFTWARE_ENUM: MappingProgram = MappingProgram::MINIMAP2_SR;
@@ -664,7 +664,7 @@ fn main() {
         Some("cluster") => {
             galah::cluster_argument_parsing::run_cluster_subcommand(
                 &matches,
-                "coverm",
+                "CoverM",
                 crate_version!(),
             );
         }
@@ -1571,27 +1571,5 @@ fn run_contig<
 }
 
 fn set_log_level(matches: &clap::ArgMatches, is_last: bool) {
-    let mut log_level = LevelFilter::Info;
-    let mut specified = false;
-    if matches.is_present("verbose") {
-        specified = true;
-        log_level = LevelFilter::Debug;
-    }
-    if matches.is_present("quiet") {
-        specified = true;
-        log_level = LevelFilter::Error;
-    }
-    if specified || is_last {
-        let mut builder = Builder::new();
-        builder.filter_level(log_level);
-        if env::var("RUST_LOG").is_ok() {
-            builder.parse_filters(&env::var("RUST_LOG").unwrap());
-        }
-        if builder.try_init().is_err() {
-            panic!("Failed to set log level - has it been specified multiple times?")
-        }
-    }
-    if is_last {
-        info!("CoverM version {}", crate_version!());
-    }
+    set_log_level_bird_tool_utils(matches, is_last, "CoverM", crate_version!());
 }

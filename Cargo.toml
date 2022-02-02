@@ -30,6 +30,7 @@ version-compare = "0.1.0"
 bird_tool_utils = "0.3.0"
 #bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
 galah = "0.3.0"
+#galah = { path = "/home/ben/git/galah-local" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.1.*"
 
