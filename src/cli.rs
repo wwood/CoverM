@@ -635,13 +635,13 @@ pub fn genome_full_help() -> Manual {
                     index \
                     (with {}), \
                     or BWA index stem (with {}). \
-                    If multiple references FASTA files are \
+                    If multiple reference FASTA files are \
                     provided and {} is specified, \
                     then reads will be mapped to references \
                     separately as sharded BAMs. {}: If genomic FASTA files are \
                     specified elsewhere (e.g. with {} or {}), then {} is not needed as a reference FASTA file can be derived \
-                    by concatenating input genomes. However, while not necessary, {} can \
-                    be specified if an alternate reference sequence set is desired.",
+                    by concatenating input genomes. In these situations, {} can \
+                    be optionally specified if an alternate reference sequence set is desired.",
                     monospace_roff("--minimap2-reference-is-index"),
                     monospace_roff("-p bwa-mem"),
                     monospace_roff("--sharded"),
