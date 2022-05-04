@@ -256,7 +256,8 @@ fn faq_section() -> Section {
         "{} CoverM makes use of \
         the system temporary directory (often {}) to store intermediate files. This can cause \
         problems if the amount of storage available there is small or used by many programs. \
-        To fix, set the {} environment variable e.g. to set it to use the current directory: {}\n\n\
+        To fix, set the {} environment variable e.g. to set it to use the current directory: {}\n\
+        \n\
         {} Either is fine, CoverM determines which is being used by virtue of being less than \
         or greater than 1.",
         bold("Can the temporary directory used be changed?"),

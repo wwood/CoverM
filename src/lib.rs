@@ -35,6 +35,7 @@ extern crate lazy_static;
 extern crate bird_tool_utils;
 extern crate bird_tool_utils_man;
 extern crate galah;
+extern crate needletail;
 extern crate roff;
 extern crate version_compare;
 

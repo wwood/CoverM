@@ -1,6 +1,7 @@
 //// NOTE: This file is shared as a direct copy of code between cockatoo and coverm
 
 use genomes_and_contigs::GenomesAndContigs;
+use needletail::parse_fastx_file;
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::path::Path;
@@ -14,11 +15,24 @@ pub fn read_genome_fasta_files(
 
     for file in fasta_file_paths {
         let path = Path::new(file);
-        let reader = bio::io::fasta::Reader::from_file(path)
-            .expect(&format!("Unable to read fasta file {}", file));
+        let mut reader =
+            parse_fastx_file(path).expect(&format!("Unable to read fasta file {}", file));
+
+        // Remove .gz .bz .xz from file names if present
+        let mut genome_name1 =
+            String::from(path.to_str().expect("File name string conversion problem"));
+        if let Some(i) = genome_name1.rfind(".gz") {
+            genome_name1.truncate(i);
+        } else if let Some(i) = genome_name1.rfind(".bz") {
+            genome_name1.truncate(i);
+        } else if let Some(i) = genome_name1.rfind(".xz") {
+            genome_name1.truncate(i);
+        }
+        let path1 = Path::new(&genome_name1);
 
         let genome_name = String::from(
-            path.file_stem()
+            path1
+                .file_stem()
                 .expect("Problem while determining file stem")
                 .to_str()
                 .expect("File name string conversion problem"),
@@ -28,18 +42,28 @@ pub fn read_genome_fasta_files(
             process::exit(1);
         }
         let genome_index = contig_to_genome.establish_genome(genome_name);
-        for record in reader.records() {
-            let record_expected = record.expect(&format!(
-                "Failed to parse contig name in fasta file {:?}",
-                path
-            ));
+        while let Some(record) = reader.next() {
+            let record_expected =
+                record.expect(&format!("Failed to parse record in fasta file {:?}", path));
 
+            if record_expected.format() != needletail::parser::Format::Fasta {
+                panic!(
+                    "File {:?} is not a fasta file, but a {:?}",
+                    path,
+                    record_expected.format()
+                );
+            }
+
+            let contig_name = String::from(
+                std::str::from_utf8(record_expected.id())
+                    .expect("UTF-8 conversion problem in contig name"),
+            );
             let contig = match use_full_sequence_name {
-                false => String::from(record_expected.id()),
-                true => match record_expected.desc() {
-                    Some(desc) => String::from(format!("{} {}", record_expected.id(), desc)),
-                    None => String::from(record_expected.id()),
+                false => match contig_name.split_once(' ') {
+                    Some((contig, _)) => contig.to_string(),
+                    None => contig_name,
                 },
+                true => contig_name,
             };
             contig_to_genome.insert(contig, genome_index);
         }

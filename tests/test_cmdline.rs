@@ -739,6 +739,40 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
     }
 
     #[test]
+    fn test_compressed_input_genome_fasta_files() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "-m",
+                "trimmed_mean",
+                "mean",
+                "covered_fraction",
+                "--no-zeros",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "-c",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-files",
+                "tests/data/genomes_dir_compressed/seq1.fna.gz",
+                "tests/data/genomes_dir_compressed/seq2.fna.gz",
+                "--trim-max",
+                "0.01",
+                "--trim-min",
+                "0.009",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669
+2seqs.fasta/reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_no_zeroes_missing_column_bug_separator() {
         Assert::main_binary()
             .with_args(&[

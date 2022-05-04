@@ -33,6 +33,7 @@ galah = "0.3.0"
 #galah = { path = "/home/ben/git/galah-local" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
+needletail = "0.4.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
