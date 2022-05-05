@@ -26,6 +26,9 @@ use std::str;
 extern crate clap;
 use clap::*;
 
+extern crate clap_complete;
+use clap_complete::{generate, Shell};
+
 #[macro_use]
 extern crate log;
 
@@ -421,7 +424,7 @@ fn main() {
 
             let filter_params = FilterParameters::generate_from_clap(m);
 
-            let num_threads = value_t!(m.value_of("threads"), u16).unwrap();
+            let num_threads: u16 = m.value_of_t("threads").unwrap();
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
                 let reader =
@@ -467,7 +470,12 @@ fn main() {
             bird_tool_utils::clap_utils::print_full_help_if_needed(&m, contig_full_help());
             set_log_level(m, true);
             let print_zeros = !m.is_present("no-zeros");
-            let filter_params = FilterParameters::generate_from_clap(m);
+
+            // Add metabat filtering params since we are running contig
+            let mut filter_params1 = FilterParameters::generate_from_clap(m);
+            filter_params1.add_metabat_filtering_if_required(m);
+            let filter_params = filter_params1;
+
             let threads = m.value_of("threads").unwrap().parse().unwrap();
             print_stream = OutputWriter::generate(m.value_of("output-file"));
 
@@ -653,13 +661,13 @@ fn main() {
             set_log_level(m, true);
             let mut file = std::fs::File::create(m.value_of("output-file").unwrap())
                 .expect("failed to open file");
-            let shell = m.value_of("shell").unwrap().parse::<Shell>().unwrap();
-            info!("Generating completion script for shell {}", shell);
-            app.gen_completions_to(
-                "coverm", // We specify the bin name manually
-                shell,    // Which shell to build completions for
-                &mut file,
-            ); // Where write the completions to
+
+            if let Ok(generator) = matches.value_of_t::<Shell>("generator") {
+                let mut cmd = build_cli();
+                info!("Generating completion script for shell {}", generator);
+                let name = cmd.get_name().to_string();
+                generate(generator, &mut cmd, name, &mut file);
+            }
         }
         Some("cluster") => {
             galah::cluster_argument_parsing::run_cluster_subcommand(
@@ -824,7 +832,7 @@ fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContig
 fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
     match m.is_present(parameter) {
         true => {
-            let mut percentage = value_t!(m.value_of(parameter), f32).unwrap();
+            let mut percentage: f32 = m.value_of_t(parameter).unwrap();
             if percentage >= 1.0 && percentage <= 100.0 {
                 percentage = percentage / 100.0;
             } else if percentage < 0.0 || percentage > 100.0 {
@@ -842,7 +850,7 @@ impl EstimatorsAndTaker {
     pub fn generate_from_clap(m: &clap::ArgMatches, stream: OutputWriter) -> EstimatorsAndTaker {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
-        let contig_end_exclusion = value_t!(m.value_of("contig-end-exclusion"), u64).unwrap();
+        let contig_end_exclusion = m.value_of_t("contig-end-exclusion").unwrap();
 
         let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
         let mut columns_to_normalise: Vec<usize> = vec![];
@@ -1112,27 +1120,19 @@ fn run_genome<
 }
 
 fn doing_metabat(m: &clap::ArgMatches) -> bool {
-    match m.subcommand_name() {
-        Some("contig") | None => {
-            if !m.is_present("methods") {
-                return false;
-            }
-            let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
-            if methods.contains(&"metabat") {
-                if methods.len() > 1 {
-                    error!("Cannot specify the metabat method with any other coverage methods");
-                    process::exit(1);
-                } else {
-                    return true;
-                }
-            }
-            return false;
-        }
-        _ => {
-            debug!("Not running in contig mode so cannot be in metabat mode");
-            return false;
+    if !m.is_present("methods") {
+        return false;
+    }
+    let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+    if methods.contains(&"metabat") {
+        if methods.len() > 1 {
+            error!("Cannot specify the metabat method with any other coverage methods");
+            process::exit(1);
+        } else {
+            return true;
         }
     }
+    return false;
 }
 
 #[derive(Debug)]
@@ -1147,25 +1147,30 @@ struct FilterParameters {
 }
 impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
-        let mut f = FilterParameters {
+        let f = FilterParameters {
             flag_filters: FlagFilter {
                 include_improper_pairs: !m.is_present("proper-pairs-only"),
                 include_secondary: m.is_present("include-secondary"),
                 include_supplementary: !m.is_present("exclude-supplementary"),
             },
             min_aligned_length_single: match m.is_present("min-read-aligned-length") {
-                true => value_t!(m.value_of("min-read-aligned-length"), u32).unwrap(),
+                true => m.value_of_t("min-read-aligned-length").unwrap(),
                 false => 0,
             },
             min_percent_identity_single: parse_percentage(&m, "min-read-percent-identity"),
             min_aligned_percent_single: parse_percentage(&m, "min-read-aligned-percent"),
             min_aligned_length_pair: match m.is_present("min-read-aligned-length-pair") {
-                true => value_t!(m.value_of("min-read-aligned-length-pair"), u32).unwrap(),
+                true => m.value_of_t("min-read-aligned-length-pair").unwrap(),
                 false => 0,
             },
             min_percent_identity_pair: parse_percentage(&m, "min-read-percent-identity-pair"),
             min_aligned_percent_pair: parse_percentage(&m, "min-read-aligned-percent-pair"),
         };
+        debug!("Filter parameters set as {:?}", f);
+        return f;
+    }
+
+    pub fn add_metabat_filtering_if_required(&mut self, m: &clap::ArgMatches) {
         if doing_metabat(&m) {
             info!(
                 "Setting single read percent identity threshold at 0.97 for \
@@ -1173,13 +1178,11 @@ impl FilterParameters {
                  secondary and improper pair alignments"
             );
             // we use >= where metabat uses >. Gah.
-            f.min_percent_identity_single = 0.97001;
-            f.flag_filters.include_improper_pairs = true;
-            f.flag_filters.include_supplementary = true;
-            f.flag_filters.include_secondary = true;
+            self.min_percent_identity_single = 0.97001;
+            self.flag_filters.include_improper_pairs = true;
+            self.flag_filters.include_supplementary = true;
+            self.flag_filters.include_secondary = true;
         }
-        debug!("Filter parameters set as {:?}", f);
-        return f;
     }
 
     pub fn doing_filtering(&self) -> bool {

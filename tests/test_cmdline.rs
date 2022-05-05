@@ -1391,11 +1391,10 @@ genome6	26.697144
                 "-m",
                 "rpkm",
                 "reads_per_base",
-                "-b",
-                "tests/data/7seqs.fnaVbad_read.bam",
-                "-m",
                 "length",
                 "count",
+                "-b",
+                "tests/data/7seqs.fnaVbad_read.bam",
                 "--output-format",
                 "sparse",
             ])

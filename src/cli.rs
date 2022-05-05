@@ -1,6 +1,7 @@
-use bird_tool_utils::clap_utils::{default_roff, monospace_roff};
+use bird_tool_utils::clap_utils::{add_clap_verbosity_flags, default_roff, monospace_roff};
 use bird_tool_utils_man::prelude::{Author, Example, Flag, Manual, Opt, Section};
 use clap::*;
+use clap_complete::*;
 use galah::cluster_argument_parsing::GalahClustererCommandDefinition;
 use roff::bold as roff_bold;
 use roff::Roff;
@@ -529,7 +530,7 @@ pub fn contig_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
-            .option(Opt::new("FILE").short("o").long("--output-file").help(
+            .option(Opt::new("FILE").short("-o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
                 [default: output to STDOUT]",
             ))
@@ -767,7 +768,7 @@ pub fn genome_full_help() -> Manual {
 
     manual = manual.custom(
         Section::new("Output")
-            .option(Opt::new("FILE").short("o").long("--output-file").help(
+            .option(Opt::new("FILE").short("-o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
                 [default: output to STDOUT]",
             ))
@@ -841,7 +842,7 @@ pub fn genome_full_help() -> Manual {
     manual
 }
 
-pub fn build_cli() -> App<'static, 'static> {
+pub fn build_cli() -> Command<'static> {
     // specify static lazily because need to define it at runtime.
     lazy_static! {
         static ref CONTIG_HELP: String = format!(
@@ -955,15 +956,15 @@ See coverm make --full-help for further options and further detail.
         .to_string();
     }
 
-    let mut app = App::new("coverm")
+    let mut app = Command::new("coverm")
         .version(crate_version!())
         .author(crate::AUTHOR_AND_EMAIL)
         .about("Mapping coverage analysis for metagenomics")
-        .args_from_usage(
-            "-v, --verbose       'Print extra debug logging information'
-             -q, --quiet         'Unless there is an error, do not print logging information'",
-        )
-        .help(
+        .args(&[
+            arg!(-v --verbose "Print extra debug logging information"),
+            arg!(-q --quiet "Unless there is an error, do not print logging information"),
+        ])
+        .override_help(
             "
 Mapping coverage analysis for metagenomics
 
@@ -986,35 +987,35 @@ Other options:
 Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ",
         )
-        .global_setting(AppSettings::ArgRequiredElseHelp)
+        .arg_required_else_help(true)
         .subcommand(
-            SubCommand::with_name("genome")
+            add_clap_verbosity_flags(Command::new("genome"))
                 .about("Calculate coverage of genomes")
-                .help(GENOME_HELP.as_str())
-                .arg(Arg::with_name("full-help").long("full-help"))
-                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
+                .override_help(GENOME_HELP.as_str())
+                .arg(Arg::new("full-help").long("full-help"))
+                .arg(Arg::new("full-help-roff").long("full-help-roff"))
                 .arg(
-                    Arg::with_name("bam-files")
-                        .short("b")
+                    Arg::new("bam-files")
+                        .short('b')
                         .long("bam-files")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true),
                 )
-                .arg(Arg::with_name("sharded").long("sharded").required(false))
+                .arg(Arg::new("sharded").long("sharded").required(false))
                 .arg(
-                    Arg::with_name("exclude-genomes-from-deshard")
+                    Arg::new("exclude-genomes-from-deshard")
                         .long("exclude-genomes-from-deshard")
                         .requires("sharded")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("read1")
-                        .short("-1")
+                    Arg::new("read1")
+                        .short('1')
                         .long("read1")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read2")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1025,13 +1026,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("read2")
-                        .short("-2")
+                    Arg::new("read2")
+                        .short('2')
                         .long("read2")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read1")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1042,12 +1043,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("coupled")
-                        .short("-c")
+                    Arg::new("coupled")
+                        .short('c')
                         .long("coupled")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "interleaved",
@@ -1058,11 +1059,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("interleaved")
+                    Arg::new("interleaved")
                         .long("interleaved")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1073,11 +1074,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("single")
+                    Arg::new("single")
                         .long("single")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1088,47 +1089,47 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("reference")
-                        .short("-r")
+                    Arg::new("reference")
+                        .short('r')
                         .long("reference")
                         .takes_value(true)
-                        .multiple(true)
+                        .multiple_values(true)
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("bam-file-cache-directory")
+                    Arg::new("bam-file-cache-directory")
                         .long("bam-file-cache-directory")
                         .takes_value(true)
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("threads")
-                        .short("-t")
+                    Arg::new("threads")
+                        .short('t')
                         .long("threads")
                         .default_value("1")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("mapper")
-                        .short("p")
+                    Arg::new("mapper")
+                        .short('p')
                         .long("mapper")
                         .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
-                    Arg::with_name("minimap2-params")
+                    Arg::new("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
                         .allow_hyphen_values(true),
                 )
                 .arg(
-                    Arg::with_name("minimap2-reference-is-index")
+                    Arg::new("minimap2-reference-is-index")
                         .long("minimap2-reference-is-index")
                         .requires("reference"),
                 )
                 .arg(
-                    Arg::with_name("bwa-params")
+                    Arg::new("bwa-params")
                         .long("bwa-params")
                         .long("bwa-parameters")
                         .takes_value(true)
@@ -1136,18 +1137,18 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 ) // TODO: Relax this for autoconcatenation
                 .arg(
-                    Arg::with_name("discard-unmapped")
+                    Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("bam-file-cache-directory"),
                 )
                 .arg(
-                    Arg::with_name("separator")
-                        .short("s")
+                    Arg::new("separator")
+                        .short('s')
                         .long("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "genome-fasta-files",
                             "genome-fasta-directory",
                             "genome-fasta-list",
@@ -1159,14 +1160,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-fasta-files")
-                        .short("f")
+                    Arg::new("genome-fasta-files")
+                        .short('f')
                         .long("genome-fasta-files")
-                        .multiple(true)
+                        .multiple_values(true)
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "separator",
                             "genome-fasta-directory",
                             "genome-fasta-list",
@@ -1178,13 +1179,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-fasta-directory")
-                        .short("d")
+                    Arg::new("genome-fasta-directory")
+                        .short('d')
                         .long("genome-fasta-directory")
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("single-genome")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "genome-fasta-files",
                             "genome-fasta-list",
                             "separator",
@@ -1196,13 +1197,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-fasta-list")
+                    Arg::new("genome-fasta-list")
                         .long("genome-fasta-list")
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "genome-fasta-files",
                             "genome-fasta-directory",
                             "separator",
@@ -1214,8 +1215,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-fasta-extension")
-                        .short("x")
+                    Arg::new("genome-fasta-extension")
+                        .short('x')
                         .long("genome-fasta-extension")
                         // Unsure why, but uncommenting causes test failure - clap
                         // bug?
@@ -1224,13 +1225,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-definition")
+                    Arg::new("genome-definition")
                         .long("genome-definition")
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "genome-fasta-files",
                             "genome-fasta-list",
                             "separator",
@@ -1242,54 +1243,54 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("single-genome")
+                    Arg::new("single-genome")
                         .long("single-genome")
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("genome-definition"),
                 )
-                .arg(Arg::with_name("use-full-contig-names").long("use-full-contig-names"))
+                .arg(Arg::new("use-full-contig-names").long("use-full-contig-names"))
                 .arg(
-                    Arg::with_name("min-read-aligned-length")
+                    Arg::new("min-read-aligned-length")
                         .long("min-read-aligned-length")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity")
+                    Arg::new("min-read-percent-identity")
                         .long("min-read-percent-identity")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent")
+                    Arg::new("min-read-aligned-percent")
                         .long("min-read-aligned-percent")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-length-pair")
+                    Arg::new("min-read-aligned-length-pair")
                         .long("min-read-aligned-length-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity-pair")
+                    Arg::new("min-read-percent-identity-pair")
                         .long("min-read-percent-identity-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent-pair")
+                    Arg::new("min-read-aligned-percent-pair")
                         .long("min-read-aligned-percent-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("methods")
-                        .short("m")
+                    Arg::new("methods")
+                        .short('m')
                         .long("method")
                         .long("methods")
                         .takes_value(true)
-                        .multiple(true)
+                        .multiple_values(true)
                         .possible_values(&[
                             "relative_abundance",
                             "mean",
@@ -1306,44 +1307,36 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ])
                         .default_value("relative_abundance"),
                 )
+                .arg(Arg::new("trim-min").long("trim-min").default_value("5"))
+                .arg(Arg::new("trim-max").long("trim-max").default_value("95"))
                 .arg(
-                    Arg::with_name("trim-min")
-                        .long("trim-min")
-                        .default_value("5"),
-                )
-                .arg(
-                    Arg::with_name("trim-max")
-                        .long("trim-max")
-                        .default_value("95"),
-                )
-                .arg(
-                    Arg::with_name("min-covered-fraction")
+                    Arg::new("min-covered-fraction")
                         .long("min-covered-fraction")
                         .default_value("10"),
                 )
                 .arg(
-                    Arg::with_name("contig-end-exclusion")
+                    Arg::new("contig-end-exclusion")
                         .long("contig-end-exclusion")
                         .default_value("75"),
                 )
-                .arg(Arg::with_name("no-zeros").long("no-zeros"))
-                .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
-                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
-                .arg(Arg::with_name("include-secondary").long("include-secondary"))
+                .arg(Arg::new("no-zeros").long("no-zeros"))
+                .arg(Arg::new("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::new("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::new("include-secondary").long("include-secondary"))
                 .arg(
-                    Arg::with_name("output-file")
+                    Arg::new("output-file")
                         .takes_value(true)
                         .long("output-file")
-                        .short("o"),
+                        .short('o'),
                 )
                 .arg(
-                    Arg::with_name("output-format")
+                    Arg::new("output-format")
                         .long("output-format")
                         .possible_values(&["sparse", "dense"])
                         .default_value("dense"),
                 )
                 .arg(
-                    Arg::with_name("dereplicate")
+                    Arg::new("dereplicate")
                         .long("dereplicate")
                         .conflicts_with("reference")
                         .conflicts_with("bam-files")
@@ -1351,19 +1344,19 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("single-genome"),
                 )
                 .arg(
-                    Arg::with_name("dereplication-ani")
+                    Arg::new("dereplication-ani")
                         .long("dereplication-ani")
                         .takes_value(true)
                         .default_value(galah::DEFAULT_ANI),
                 )
                 .arg(
-                    Arg::with_name("dereplication-prethreshold-ani")
+                    Arg::new("dereplication-prethreshold-ani")
                         .long("dereplication-prethreshold-ani")
                         .takes_value(true)
                         .default_value(galah::DEFAULT_PRETHRESHOLD_ANI),
                 )
                 .arg(
-                    Arg::with_name("dereplication-quality-formula")
+                    Arg::new("dereplication-quality-formula")
                         .long("dereplication-quality-formula")
                         .possible_values(&[
                             "completeness-4contamination",
@@ -1375,99 +1368,97 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-precluster-method")
+                    Arg::new("dereplication-precluster-method")
                         .long("dereplication-precluster-method")
                         .possible_values(&["dashing", "finch"])
                         .default_value(galah::DEFAULT_PRECLUSTER_METHOD)
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-aligned-fraction")
+                    Arg::new("dereplication-aligned-fraction")
                         .long("dereplication-aligned-fraction")
                         .default_value(galah::DEFAULT_ALIGNED_FRACTION)
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-fragment-length")
+                    Arg::new("dereplication-fragment-length")
                         .long("dereplication-fragment-length")
                         .default_value(galah::DEFAULT_FRAGMENT_LENGTH)
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-output-cluster-definition")
+                    Arg::new("dereplication-output-cluster-definition")
                         .long("dereplication-output-cluster-definition")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-output-representative-fasta-directory")
+                    Arg::new("dereplication-output-representative-fasta-directory")
                         .long("dereplication-output-representative-fasta-directory")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-output-representative-fasta-directory-copy")
+                    Arg::new("dereplication-output-representative-fasta-directory-copy")
                         .long("dereplication-output-representative-fasta-directory-copy")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("dereplication-output-representative-list")
+                    Arg::new("dereplication-output-representative-list")
                         .long("dereplication-output-representative-list")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("checkm-tab-table")
+                    Arg::new("checkm-tab-table")
                         .long("checkm-tab-table")
                         .conflicts_with("reference")
-                        .conflicts_with("bam-file")
+                        .conflicts_with("bam-files")
                         .conflicts_with("separator")
                         .conflicts_with("single-genome")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("genome-info")
+                    Arg::new("genome-info")
                         .long("genome-info")
                         .conflicts_with("reference")
-                        .conflicts_with("bam-file")
+                        .conflicts_with("bam-files")
                         .conflicts_with("separator")
                         .conflicts_with("single-genome")
                         .conflicts_with("checkm-tab-table")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-completeness")
+                    Arg::new("min-completeness")
                         .long("min-completeness")
                         .requires("checkm-tab-table")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("max-contamination")
+                    Arg::new("max-contamination")
                         .long("max-contamination")
                         .requires("checkm-tab-table")
                         .takes_value(true),
-                )
-                .arg(Arg::with_name("verbose").short("v").long("verbose"))
-                .arg(Arg::with_name("quiet").short("q").long("quiet")),
+                ),
         )
         .subcommand(
-            SubCommand::with_name("contig")
+            add_clap_verbosity_flags(Command::new("contig"))
                 .about("Calculate coverage of contigs")
-                .help(CONTIG_HELP.as_str())
-                .arg(Arg::with_name("full-help").long("full-help"))
-                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
+                .override_help(CONTIG_HELP.as_str())
+                .arg(Arg::new("full-help").long("full-help"))
+                .arg(Arg::new("full-help-roff").long("full-help-roff"))
                 .arg(
-                    Arg::with_name("bam-files")
-                        .short("b")
+                    Arg::new("bam-files")
+                        .short('b')
                         .long("bam-files")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true),
                 )
-                .arg(Arg::with_name("sharded").long("sharded").required(false))
+                .arg(Arg::new("sharded").long("sharded").required(false))
                 .arg(
-                    Arg::with_name("read1")
-                        .short("-1")
-                        .multiple(true)
+                    Arg::new("read1")
+                        .short('1')
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read2")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1478,12 +1469,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("read2")
-                        .short("-2")
-                        .multiple(true)
+                    Arg::new("read2")
+                        .short('2')
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read1")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1494,12 +1485,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("coupled")
-                        .short("-c")
+                    Arg::new("coupled")
+                        .short('c')
                         .long("coupled")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "interleaved",
@@ -1510,11 +1501,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("interleaved")
+                    Arg::new("interleaved")
                         .long("interleaved")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1525,11 +1516,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("single")
+                    Arg::new("single")
                         .long("single")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1540,48 +1531,48 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("reference")
-                        .short("-r")
+                    Arg::new("reference")
+                        .short('r')
                         .long("reference")
                         .takes_value(true)
-                        .multiple(true)
-                        .required_unless_one(&["bam-files", "full-help", "full-help-roff"])
+                        .multiple_values(true)
+                        .required_unless_present_any(&["bam-files", "full-help", "full-help-roff"])
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("bam-file-cache-directory")
+                    Arg::new("bam-file-cache-directory")
                         .long("bam-file-cache-directory")
                         .takes_value(true)
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::with_name("threads")
-                        .short("-t")
+                    Arg::new("threads")
+                        .short('t')
                         .long("threads")
                         .default_value("1")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("mapper")
-                        .short("p")
+                    Arg::new("mapper")
+                        .short('p')
                         .long("mapper")
                         .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
-                    Arg::with_name("minimap2-params")
+                    Arg::new("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
                         .allow_hyphen_values(true),
                 )
                 .arg(
-                    Arg::with_name("minimap2-reference-is-index")
+                    Arg::new("minimap2-reference-is-index")
                         .long("minimap2-reference-is-index")
                         .requires("reference"),
                 )
                 .arg(
-                    Arg::with_name("bwa-params")
+                    Arg::new("bwa-params")
                         .long("bwa-params")
                         .long("bwa-parameters")
                         .takes_value(true)
@@ -1589,50 +1580,50 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
-                    Arg::with_name("discard-unmapped")
+                    Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("bam-file-cache-directory"),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-length")
+                    Arg::new("min-read-aligned-length")
                         .long("min-read-aligned-length")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity")
+                    Arg::new("min-read-percent-identity")
                         .long("min-read-percent-identity")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent")
+                    Arg::new("min-read-aligned-percent")
                         .long("min-read-aligned-percent")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-length-pair")
+                    Arg::new("min-read-aligned-length-pair")
                         .long("min-read-aligned-length-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity-pair")
+                    Arg::new("min-read-percent-identity-pair")
                         .long("min-read-percent-identity-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent-pair")
+                    Arg::new("min-read-aligned-percent-pair")
                         .long("min-read-aligned-percent-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("methods")
-                        .short("m")
+                    Arg::new("methods")
+                        .short('m')
                         .long("method")
                         .long("methods")
                         .takes_value(true)
-                        .multiple(true)
+                        .multiple_values(true)
                         .possible_values(&[
                             "mean",
                             "trimmed_mean",
@@ -1650,137 +1641,127 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .default_value("mean"),
                 )
                 .arg(
-                    Arg::with_name("min-covered-fraction")
+                    Arg::new("min-covered-fraction")
                         .long("min-covered-fraction")
                         .default_value("0"),
                 )
                 .arg(
-                    Arg::with_name("contig-end-exclusion")
+                    Arg::new("contig-end-exclusion")
                         .long("contig-end-exclusion")
                         .default_value("75"),
                 )
+                .arg(Arg::new("trim-min").long("trim-min").default_value("5"))
+                .arg(Arg::new("trim-max").long("trim-max").default_value("95"))
+                .arg(Arg::new("no-zeros").long("no-zeros"))
+                .arg(Arg::new("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::new("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::new("include-secondary").long("include-secondary"))
                 .arg(
-                    Arg::with_name("trim-min")
-                        .long("trim-min")
-                        .default_value("5"),
-                )
-                .arg(
-                    Arg::with_name("trim-max")
-                        .long("trim-max")
-                        .default_value("95"),
-                )
-                .arg(Arg::with_name("no-zeros").long("no-zeros"))
-                .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
-                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
-                .arg(Arg::with_name("include-secondary").long("include-secondary"))
-                .arg(
-                    Arg::with_name("output-file")
+                    Arg::new("output-file")
                         .takes_value(true)
                         .long("output-file")
-                        .short("o"),
+                        .short('o'),
                 )
                 .arg(
-                    Arg::with_name("output-format")
+                    Arg::new("output-format")
                         .long("output-format")
                         .possible_values(&["sparse", "dense"])
                         .default_value("dense"),
-                )
-                .arg(Arg::with_name("verbose").short("v").long("verbose"))
-                .arg(Arg::with_name("quiet").short("q").long("quiet")),
+                ),
         )
         .subcommand(
-            SubCommand::with_name("filter")
+            Command::new("filter") // Do not use add_clap_verbosity_flags since -v shouldn't be used here, specify manually below
                 .about("Remove alignments with insufficient identity")
-                .help(FILTER_HELP.as_str())
-                .arg(Arg::with_name("full-help").long("full-help"))
-                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
+                .override_help(FILTER_HELP.as_str())
+                .arg(Arg::new("full-help").long("full-help"))
+                .arg(Arg::new("full-help-roff").long("full-help-roff"))
                 .arg(
-                    Arg::with_name("bam-files")
-                        .short("b")
+                    Arg::new("bam-files")
+                        .short('b')
                         .long("bam-files")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(&["full-help", "full-help-roff"]),
                 )
                 .arg(
-                    Arg::with_name("output-bam-files")
-                        .short("o")
+                    Arg::new("output-bam-files")
+                        .short('o')
                         .long("output-bam-files")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(&["full-help", "full-help-roff"]),
                 )
-                .arg(Arg::with_name("inverse").long("inverse"))
+                .arg(Arg::new("inverse").long("inverse"))
                 .arg(
-                    Arg::with_name("min-read-aligned-length")
+                    Arg::new("min-read-aligned-length")
                         .long("min-read-aligned-length")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity")
+                    Arg::new("min-read-percent-identity")
                         .long("min-read-percent-identity")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent")
+                    Arg::new("min-read-aligned-percent")
                         .long("min-read-aligned-percent")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-length-pair")
+                    Arg::new("min-read-aligned-length-pair")
                         .long("min-read-aligned-length-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-percent-identity-pair")
+                    Arg::new("min-read-percent-identity-pair")
                         .long("min-read-percent-identity-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
                 .arg(
-                    Arg::with_name("min-read-aligned-percent-pair")
+                    Arg::new("min-read-aligned-percent-pair")
                         .long("min-read-aligned-percent-pair")
                         .takes_value(true)
                         .requires("proper-pairs-only"),
                 )
-                .arg(Arg::with_name("proper-pairs-only").long("proper-pairs-only"))
-                .arg(Arg::with_name("exclude-supplementary").long("exclude-supplementary"))
-                .arg(Arg::with_name("include-secondary").long("include-secondary"))
+                .arg(Arg::new("proper-pairs-only").long("proper-pairs-only"))
+                .arg(Arg::new("exclude-supplementary").long("exclude-supplementary"))
+                .arg(Arg::new("include-secondary").long("include-secondary"))
                 .arg(
-                    Arg::with_name("threads")
+                    Arg::new("threads")
                         .long("threads")
-                        .short("t")
+                        .short('t')
                         .default_value("1"),
                 )
                 .arg(
-                    Arg::with_name("verbose")
-                        // .short("v") // Do not use since could be confused with
+                    Arg::new("verbose")
+                        // .short( 'v') // Do not use since could be confused with
                         // inverse (a la grep -v)
                         .long("verbose"),
                 )
-                .arg(Arg::with_name("quiet").short("q").long("quiet")),
+                .arg(Arg::new("quiet").short('q').long("quiet")),
         )
         .subcommand(
-            SubCommand::with_name("make")
+            add_clap_verbosity_flags(Command::new("make"))
                 .about("Generate BAM files through mapping")
-                .help(MAKE_HELP.as_str())
-                .arg(Arg::with_name("full-help").long("full-help"))
-                .arg(Arg::with_name("full-help-roff").long("full-help-roff"))
+                .override_help(MAKE_HELP.as_str())
+                .arg(Arg::new("full-help").long("full-help"))
+                .arg(Arg::new("full-help-roff").long("full-help-roff"))
                 .arg(
-                    Arg::with_name("output-directory")
-                        .short("-o")
+                    Arg::new("output-directory")
+                        .short('o')
                         .long("output-directory")
                         .takes_value(true)
-                        .required_unless_one(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(&["full-help", "full-help-roff"]),
                 )
                 .arg(
-                    Arg::with_name("read1")
-                        .short("-1")
-                        .multiple(true)
+                    Arg::new("read1")
+                        .short('1')
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read2")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "coupled",
                             "interleaved",
                             "single",
@@ -1789,12 +1770,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ]),
                 )
                 .arg(
-                    Arg::with_name("read2")
-                        .short("-2")
-                        .multiple(true)
+                    Arg::new("read2")
+                        .short('2')
+                        .multiple_values(true)
                         .takes_value(true)
                         .requires("read1")
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "coupled",
                             "interleaved",
                             "single",
@@ -1803,12 +1784,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ]),
                 )
                 .arg(
-                    Arg::with_name("coupled")
-                        .short("-c")
+                    Arg::new("coupled")
+                        .short('c')
                         .long("coupled")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "read1",
                             "interleaved",
                             "single",
@@ -1817,11 +1798,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ]),
                 )
                 .arg(
-                    Arg::with_name("interleaved")
+                    Arg::new("interleaved")
                         .long("interleaved")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "read1",
                             "coupled",
                             "single",
@@ -1830,11 +1811,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ]),
                 )
                 .arg(
-                    Arg::with_name("single")
+                    Arg::new("single")
                         .long("single")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&[
+                        .required_unless_present_any(&[
                             "read1",
                             "coupled",
                             "interleaved",
@@ -1843,81 +1824,67 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         ]),
                 )
                 .arg(
-                    Arg::with_name("reference")
-                        .short("-r")
+                    Arg::new("reference")
+                        .short('r')
                         .long("reference")
-                        .multiple(true)
+                        .multiple_values(true)
                         .takes_value(true)
-                        .required_unless_one(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(&["full-help", "full-help-roff"]),
                 )
                 .arg(
-                    Arg::with_name("threads")
-                        .short("-t")
+                    Arg::new("threads")
+                        .short('t')
                         .long("threads")
                         .default_value("1")
                         .takes_value(true),
                 )
-                .arg(Arg::with_name("discard-unmapped").long("discard-unmapped"))
+                .arg(Arg::new("discard-unmapped").long("discard-unmapped"))
                 .arg(
-                    Arg::with_name("mapper")
-                        .short("p")
+                    Arg::new("mapper")
+                        .short('p')
                         .long("mapper")
                         .possible_values(MAPPING_SOFTWARE_LIST)
                         .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
-                    Arg::with_name("minimap2-params")
+                    Arg::new("minimap2-params")
                         .long("minimap2-params")
                         .long("minimap2-parameters")
                         .takes_value(true)
                         .allow_hyphen_values(true),
                 )
                 .arg(
-                    Arg::with_name("minimap2-reference-is-index")
+                    Arg::new("minimap2-reference-is-index")
                         .long("minimap2-reference-is-index")
                         .requires("reference"),
                 )
                 .arg(
-                    Arg::with_name("bwa-params")
+                    Arg::new("bwa-params")
                         .long("bwa-params")
                         .long("bwa-parameters")
                         .conflicts_with("minimap2-params")
                         .takes_value(true)
                         .allow_hyphen_values(true)
                         .requires("reference"),
-                )
-                .arg(
-                    Arg::with_name("verbose")
-                        // .short("v") // Do not use since could be confused with
-                        // inverse (a la grep -v)
-                        .long("verbose"),
-                )
-                .arg(Arg::with_name("quiet").short("q").long("quiet")),
+                ),
         )
         .subcommand(
-            SubCommand::with_name("shell-completion")
+            add_clap_verbosity_flags(Command::new("shell-completion"))
                 .about("Generate a shell completion script for coverm")
                 .arg(
-                    Arg::with_name("output-file")
-                        .short("-o")
+                    Arg::new("output-file")
+                        .short('o')
                         .long("output-file")
                         .takes_value(true)
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name("shell")
+                    Arg::new("shell")
                         .long("shell")
                         .takes_value(true)
                         .required(true)
-                        .possible_values(&Shell::variants()),
-                )
-                .arg(
-                    Arg::with_name("verbose")
-                        // .short("v") // Do not use since could be confused with
-                        // inverse (a la grep -v)
-                        .long("verbose"),
-                )
-                .arg(Arg::with_name("quiet").short("q").long("quiet")),
+                        .possible_values(Shell::possible_values()),
+                ),
         );
 
     app = galah::cluster_argument_parsing::add_cluster_subcommand(app);

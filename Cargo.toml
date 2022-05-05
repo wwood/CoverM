@@ -16,7 +16,8 @@ default-run = "coverm"
 [dependencies]
 bio = "0.41.0"
 rust-htslib = { version="0.38.*", default-features = false }
-clap = "2.*"
+clap = { version="3.*", features = ["cargo"] } # cargo feature required for crate_version!
+clap_complete = "3.*"
 log = "0.4.*"
 env_logger = "0.9.*"
 nix = "0.24.*"
@@ -27,10 +28,10 @@ lazy_static = "1.4.0"
 rand = "0.8.*"
 serde = "1.0"
 version-compare = "0.1.0"
-bird_tool_utils = "0.3.0"
-#bird_tool_utils = { path = "/home/ben/git/bird_tool_utils-local" }
-galah = "0.3.0"
-#galah = { path = "/home/ben/git/galah-local" }
+# bird_tool_utils = "0.3.0"
+bird_tool_utils = { git = "https://github.com/wwood/bird_tool_utils" }
+# galah = "0.3.0"
+galah = { git = "https://github.com/wwood/galah" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
 needletail = "0.4.*"

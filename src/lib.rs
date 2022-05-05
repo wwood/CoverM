@@ -30,6 +30,7 @@ extern crate tempfile;
 #[macro_use]
 extern crate serde;
 extern crate clap;
+extern crate clap_complete;
 #[macro_use]
 extern crate lazy_static;
 extern crate bird_tool_utils;
