@@ -1,6 +1,8 @@
+use needletail::parse_fastx_file;
 use std;
 use std::collections::HashSet;
 use std::io::Read;
+use std::path::Path;
 use std::process;
 
 use bam_generator::MappingProgram;
@@ -204,14 +206,28 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         let mut writer = bio::io::fasta::Writer::new(&tmpfile);
         let mut genome_names: HashSet<String> = HashSet::new();
 
+        // NOTE: A lot of this code is shared with genome_parsing#read_genome_fasta_files
         for file in fasta_file_paths {
             let mut something_written = false;
             let path = std::path::Path::new(file);
-            let reader = bio::io::fasta::Reader::from_file(path)
-                .expect(&format!("Unable to read fasta file {}", file));
+            let mut reader =
+                parse_fastx_file(path).expect(&format!("Unable to read fasta file {}", file));
+
+            // Remove .gz .bz .xz from file names if present
+            let mut genome_name1 =
+                String::from(path.to_str().expect("File name string conversion problem"));
+            if let Some(i) = genome_name1.rfind(".gz") {
+                genome_name1.truncate(i);
+            } else if let Some(i) = genome_name1.rfind(".bz") {
+                genome_name1.truncate(i);
+            } else if let Some(i) = genome_name1.rfind(".xz") {
+                genome_name1.truncate(i);
+            }
+            let path1 = Path::new(&genome_name1);
 
             let genome_name = String::from(
-                path.file_stem()
+                path1
+                    .file_stem()
                     .expect("Problem while determining file stem")
                     .to_str()
                     .expect("File name string conversion problem"),
@@ -220,20 +236,37 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
                 error!("The genome name {} was derived from >1 file", genome_name);
                 process::exit(1);
             }
-            for record in reader.records() {
+            while let Some(record) = reader.next() {
+                let record_expected =
+                    record.expect(&format!("Failed to parse record in fasta file {:?}", path));
+
+                if record_expected.format() != needletail::parser::Format::Fasta {
+                    panic!(
+                        "File {:?} is not a fasta file, but a {:?}",
+                        path,
+                        record_expected.format()
+                    );
+                }
+
                 something_written = true;
                 something_written_at_all = true;
-                let r = record.unwrap();
+                let contig_name = String::from(
+                    std::str::from_utf8(record_expected.id())
+                        .expect("UTF-8 conversion problem in contig name"),
+                );
                 writer
                     .write(
                         &format!(
                             "{}{}{}",
                             genome_name,
                             CONCATENATED_FASTA_FILE_SEPARATOR,
-                            r.id()
+                            match contig_name.split_once(' ') {
+                                Some((contig, _)) => contig.to_string(),
+                                None => contig_name,
+                            }
                         ),
-                        r.desc(),
-                        r.seq(),
+                        None,
+                        &record_expected.seq(),
                     )
                     .unwrap()
             }

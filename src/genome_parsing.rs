@@ -13,6 +13,7 @@ pub fn read_genome_fasta_files(
 ) -> GenomesAndContigs {
     let mut contig_to_genome = GenomesAndContigs::new();
 
+    // NOTE: A lot of this code is shared with mapping_index_maintenance.rs#generate_concatenated_fasta_file
     for file in fasta_file_paths {
         let path = Path::new(file);
         let mut reader =
