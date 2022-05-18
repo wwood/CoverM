@@ -164,4 +164,4 @@ positions sorted by coverage.
 CoverM is made available under GPL3+. See LICENSE.txt for details. Copyright Ben
 Woodcroft.
 
-Developed by Ben Woodcroft at the Queensland University of Technology [Microbiome Research Group](https://www.qut.edu.au/news?id=159549).
+Developed by Ben Woodcroft at the Queensland University of Technology [Centre for Microbiome Research](https://research.qut.edu.au/cmr/).
