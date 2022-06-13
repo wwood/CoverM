@@ -11,8 +11,6 @@ use CONCATENATED_FASTA_FILE_SEPARATOR;
 use tempdir::TempDir;
 use tempfile::NamedTempFile;
 
-/// Actually a trait for all kinds of mapping indices, just too lazy to change
-/// the name.
 pub trait MappingIndex {
     fn index_path(&self) -> &String;
 }
@@ -156,31 +154,67 @@ impl Drop for TemporaryIndexStruct {
     }
 }
 
-pub fn generate_bwa_index(
-    reference_path: &str,
-    index_creation_parameters: Option<&str>,
-) -> Box<dyn MappingIndex> {
+fn check_for_bwa_index_existence(reference_path: &str) -> bool {
     let bwa_extensions = vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"];
     let num_extensions = bwa_extensions.len();
-    let mut num_existing: u8 = 0;
+    let mut num_existing: usize = 0;
     for extension in bwa_extensions {
         if std::path::Path::new(&format!("{}.{}", reference_path, extension)).exists() {
             num_existing += 1;
         }
     }
     if num_existing == 0 {
+        return false;
+    } else if num_existing == num_extensions {
+        return true;
+    } else {
+        error!("BWA index appears to be incomplete, cannot continue.");
+        process::exit(1);
+    }
+}
+
+/// Check that a reference exists, or that a corresponding index exists.
+pub fn check_reference_existence(reference_path: &str, mapping_program: &MappingProgram) {
+    let ref_path = std::path::Path::new(reference_path);
+    match mapping_program {
+        MappingProgram::BWA_MEM => {
+            if check_for_bwa_index_existence(reference_path) {
+                return;
+            }
+        }
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_NO_PRESET => {}
+    };
+
+    if !ref_path.exists() {
+        panic!(
+            "The reference specified '{}' does not appear to exist",
+            &reference_path
+        );
+    } else if !ref_path.is_file() {
+        panic!(
+            "The reference specified '{}' should be a file, not e.g. a directory",
+            &reference_path
+        );
+    }
+}
+
+pub fn generate_bwa_index(
+    reference_path: &str,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    if check_for_bwa_index_existence(reference_path) {
+        info!("BWA index appears to be complete, so going ahead and using it.");
+        return Box::new(VanillaBwaIndexStuct::new(reference_path));
+    } else {
         return Box::new(TemporaryIndexStruct::new(
             MappingProgram::BWA_MEM,
             reference_path,
             None,
             index_creation_parameters,
         ));
-    } else if num_existing as usize != num_extensions {
-        error!("BWA index appears to be incomplete, cannot continue.");
-        process::exit(1);
-    } else {
-        info!("BWA index appears to be complete, so going ahead and using it.");
-        return Box::new(VanillaBwaIndexStuct::new(reference_path));
     }
 }
 

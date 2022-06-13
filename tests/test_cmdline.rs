@@ -652,6 +652,31 @@ genome6	0",
     }
 
     #[test]
+    fn test_bwa_prefix_no_original() {
+        // https://github.com/wwood/CoverM/issues/112
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-p",
+                "bwa-mem",
+                "-r",
+                "tests/data/bwa_ref_without_original/2seqs.fasta",
+                "--single",
+                "tests/data/2seqs.fasta",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Contig	Mean\n\
+                 2seqs.fasta/2seqs.fasta	seq1	1\n\
+                 2seqs.fasta/2seqs.fasta	seq2	1\n",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_metabat_include_supplementary() {
         Assert::main_binary()
             .with_args(&[

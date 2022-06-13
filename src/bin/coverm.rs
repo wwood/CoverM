@@ -7,6 +7,7 @@ use coverm::external_command_checker;
 use coverm::filter;
 use coverm::genome_exclusion::*;
 use coverm::genomes_and_contigs::GenomesAndContigs;
+use coverm::mapping_index_maintenance::check_reference_existence;
 use coverm::mapping_parameters::*;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::shard_bam_reader::*;
@@ -270,7 +271,10 @@ fn main() {
                 let (concatenated_genomes, genomes_and_contigs_option) =
                     match m.is_present("reference") {
                         true => {
-                            check_reference_file(m.value_of("reference").unwrap());
+                            check_reference_existence(
+                                m.value_of("reference").unwrap(),
+                                &mapping_program,
+                            );
                             match genome_fasta_files_opt {
                                 Some(genome_paths) => (
                                     None,
