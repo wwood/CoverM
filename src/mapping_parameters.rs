@@ -76,11 +76,13 @@ impl<'a> MappingParameters<'a> {
         }
 
         match mapping_program {
-            MappingProgram::MINIMAP2_ONT | MappingProgram::MINIMAP2_PB => {
+            MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_HIFI => {
                 if !read1.is_empty() || !interleaved.is_empty() {
                     error!(
                         "Paired-end read input specified to be mapped \
-                        with minimap2-ont or minimap2-pb, which is presumably \
+                        with minimap2-ont, minimap2-pb, or minimap2-hifi which is presumably \
                         incorrect. Mapping paired reads can be run via \
                         minimap2-no-params if -ont or -pb mapping \
                         is desired."
