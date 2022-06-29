@@ -1626,6 +1626,37 @@ genome6	26.697144
     }
 
     #[test]
+    fn test_hifi_two_samples() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "rpkm",
+                "mean",
+                "count",
+                "-p",
+                "minimap2-hifi",
+                "--single",
+                "tests/data/ont.reads.fq.gz",
+                "tests/data/ont.reads.fq.gz",
+                "-r",
+                "tests/data/ont.ref.fna",
+                "-v",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count	ont.ref.fna/ont.reads.fq.gz RPKM	ont.ref.fna/ont.reads.fq.gz Mean	ont.ref.fna/ont.reads.fq.gz Read Count\n\
+                ctg4	1887.6234	0.020537598	3	1887.6234	0.020537598	3\n\
+                ctg5	478.18173	0.0026476856	1	478.18173	0.0026476856	1\n\
+                ctg6	252.69275	0.002099011	1	252.69275	0.002099011	1\n")
+            .stderr()
+            .contains(
+                    "Running DB indexing command: \"minimap2\" \"-x\" \"map-hifi\" \"-t\" \"1\" \"-d\"")
+            .unwrap();
+    }
+
+    #[test]
     fn test_minimap2_no_preset_with_params() {
         Assert::main_binary()
             .with_args(&[

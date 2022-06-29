@@ -63,6 +63,7 @@ impl TemporaryIndexStruct {
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
         };
         match &mapping_program {
@@ -74,6 +75,7 @@ impl TemporaryIndexStruct {
             }
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_PB
             | MappingProgram::MINIMAP2_NO_PRESET => {
                 match &mapping_program {
@@ -82,6 +84,9 @@ impl TemporaryIndexStruct {
                     }
                     MappingProgram::MINIMAP2_ONT => {
                         cmd.arg("-x").arg("map-ont");
+                    }
+                    MappingProgram::MINIMAP2_HIFI => {
+                        cmd.arg("-x").arg("map-hifi");
                     }
                     MappingProgram::MINIMAP2_PB => {
                         cmd.arg("-x").arg("map-pb");
@@ -184,6 +189,7 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_NO_PRESET => {}
     };

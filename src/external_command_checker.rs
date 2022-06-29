@@ -10,7 +10,7 @@ pub fn check_for_bwa() {
 pub fn check_for_minimap2() {
     check_for_external_command_presence("minimap2", "which minimap2")
         .expect("Failed to find installed minimap2");
-    default_version_check("minimap2", "2.21-r1071", false, None)
+    default_version_check("minimap2", "2.24-r1122", false, None)
         .expect("Failed to find sufficient version of minimap2");
 }
 

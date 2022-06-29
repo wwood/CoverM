@@ -49,6 +49,7 @@ pub enum MappingProgram {
     MINIMAP2_SR,
     MINIMAP2_ONT,
     MINIMAP2_PB,
+    MINIMAP2_HIFI,
     MINIMAP2_NO_PRESET,
 }
 
@@ -392,6 +393,7 @@ pub fn generate_named_bam_readers_from_reads(
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_NO_PRESET => Some(0),
     };
 
@@ -852,6 +854,7 @@ pub fn build_mapping_command(
         // minimap2 auto-detects interleaved based on read names
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_NO_PRESET => "",
         MappingProgram::BWA_MEM => match read_format {
@@ -885,6 +888,7 @@ pub fn build_mapping_command(
                         MappingProgram::BWA_MEM => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
+                        MappingProgram::MINIMAP2_HIFI => "-x map-hifi",
                         MappingProgram::MINIMAP2_PB => "-x map-pb",
                         MappingProgram::MINIMAP2_NO_PRESET => "",
                     }

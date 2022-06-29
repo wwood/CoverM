@@ -16,6 +16,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-sr",
     "minimap2-ont",
     "minimap2-pb",
+    "minimap2-hifi",
     "minimap2-no-preset",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
@@ -64,6 +65,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     &[
                         &monospace_roff("minimap2-pb"),
                         &format!("minimap2 with '{}' option", &monospace_roff("-x map-pb"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-hifi"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-hifi"))
                     ],
                     &[
                         &monospace_roff("minimap2-no-preset"),

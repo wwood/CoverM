@@ -95,6 +95,7 @@ impl<'a> MappingParameters<'a> {
             MappingProgram::BWA_MEM => "bwa-params",
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_PB
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
         };
