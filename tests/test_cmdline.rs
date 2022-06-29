@@ -2754,6 +2754,16 @@ genome6~random_sequence_length_11003	0	0	0
             .contains("found 2 reads mapped out of 4 total (50.00%)")
             .unwrap();
     }
+
+    #[test]
+    fn test_completion_generation() {
+        Assert::main_binary()
+            .with_args(&["shell-completion", "-o", "/dev/stdout", "--shell", "bash"])
+            .succeeds()
+            .stdout()
+            .contains("genome")
+            .unwrap()
+    }
 }
 
 // TODO: Add mismatching bases test

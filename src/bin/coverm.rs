@@ -664,9 +664,9 @@ fn main() {
             let m = matches.subcommand_matches("shell-completion").unwrap();
             set_log_level(m, true);
             let mut file = std::fs::File::create(m.value_of("output-file").unwrap())
-                .expect("failed to open file");
+                .expect("failed to open output file");
 
-            if let Ok(generator) = matches.value_of_t::<Shell>("generator") {
+            if let Ok(generator) = m.value_of_t::<Shell>("shell") {
                 let mut cmd = build_cli();
                 info!("Generating completion script for shell {}", generator);
                 let name = cmd.get_name().to_string();

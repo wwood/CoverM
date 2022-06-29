@@ -1893,7 +1893,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("shell")
                         .takes_value(true)
                         .required(true)
-                        .possible_values(Shell::possible_values()),
+                        .allow_invalid_utf8(true)
+                        .value_parser(value_parser!(Shell)),
                 ),
         );
 
