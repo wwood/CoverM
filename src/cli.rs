@@ -13,6 +13,7 @@ fn bold(s: &str) -> String {
 
 const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "bwa-mem",
+    "bwa-mem2",
     "minimap2-sr",
     "minimap2-ont",
     "minimap2-pb",
@@ -59,6 +60,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &format!("bwa mem using default parameters")
                     ],
                     &[
+                        &monospace_roff("bwa-mem2"),
+                        &format!("bwa-mem2 using default parameters")
+                    ],
+                    &[
                         &monospace_roff("minimap2-ont"),
                         &format!("minimap2 with '{}' option", &monospace_roff("-x map-ont"))
                     ],
@@ -89,7 +94,7 @@ fn add_mapping_options(manual: Manual) -> Manual {
                 "Treat reference as a minimap2 database, not as a FASTA file. [default: not set]",
             ))
             .option(Opt::new("PARAMS").long("--bwa-params").help(
-                "Extra parameters to provide to BWA. Note \
+                "Extra parameters to provide to BWA or BWA-MEM2. Note \
         that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
@@ -392,7 +397,7 @@ pub fn make_full_help() -> Manual {
                         (with {}), \
                         or BWA index stem (with {}). [required]",
                 monospace_roff("--minimap2-reference-is-index"),
-                monospace_roff("-p bwa-mem"),
+                monospace_roff("-p bwa-mem/bwa-mem2"),
             ),
         )),
     );
@@ -476,7 +481,7 @@ pub fn contig_full_help() -> Manual {
                     then reads will be mapped to references \
                     separately as sharded BAMs. [required unless {} is specified]",
                 monospace_roff("--minimap2-reference-is-index"),
-                monospace_roff("-p bwa-mem"),
+                monospace_roff("-p bwa-mem/bwa-mem2"),
                 monospace_roff("--sharded"),
                 monospace_roff("-b/--bam-files")
             ),
@@ -650,7 +655,7 @@ pub fn genome_full_help() -> Manual {
                     by concatenating input genomes. In these situations, {} can \
                     be optionally specified if an alternate reference sequence set is desired.",
                     monospace_roff("--minimap2-reference-is-index"),
-                    monospace_roff("-p bwa-mem"),
+                    monospace_roff("-p bwa-mem/bwa-mem2"),
                     monospace_roff("--sharded"),
                     bold("NOTE"),
                     monospace_roff("--genome-fasta-files"),

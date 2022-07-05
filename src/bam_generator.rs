@@ -46,6 +46,7 @@ pub trait NamedBamReaderGenerator<T> {
 #[allow(non_camel_case_types)]
 pub enum MappingProgram {
     BWA_MEM,
+    BWA_MEM2,
     MINIMAP2_SR,
     MINIMAP2_ONT,
     MINIMAP2_PB,
@@ -388,7 +389,7 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM => None,
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -857,7 +858,7 @@ pub fn build_mapping_command(
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_NO_PRESET => "",
-        MappingProgram::BWA_MEM => match read_format {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => "",
         },
@@ -872,7 +873,8 @@ pub fn build_mapping_command(
     return format!(
         "{} {} -t {} {} '{}' {}",
         match mapping_program {
-            MappingProgram::BWA_MEM => "bwa-mem2 mem".to_string(),
+            MappingProgram::BWA_MEM => "bwa mem".to_string(),
+            MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             _ => {
                 let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
                     "Failed to create {:?} minimap2 split_prefix file",
@@ -885,7 +887,7 @@ pub fn build_mapping_command(
                         .to_str()
                         .expect("Failed to convert split prefix tempfile path to str"),
                     match mapping_program {
-                        MappingProgram::BWA_MEM => unreachable!(),
+                        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

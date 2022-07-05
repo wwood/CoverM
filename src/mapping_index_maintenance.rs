@@ -59,7 +59,8 @@ impl TemporaryIndexStruct {
             mapping_program, reference_path
         );
         let mut cmd = match mapping_program {
-            MappingProgram::BWA_MEM => std::process::Command::new("bwa-mem2"),
+            MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
+            MappingProgram::BWA_MEM2 => std::process::Command::new("bwa-mem2"),
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
@@ -67,7 +68,7 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
         };
         match &mapping_program {
-            MappingProgram::BWA_MEM => {
+            MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
                 cmd.arg("index")
                     .arg("-p")
                     .arg(&index_path)
@@ -91,7 +92,9 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_PB => {
                         cmd.arg("-x").arg("map-pb");
                     }
-                    MappingProgram::MINIMAP2_NO_PRESET | MappingProgram::BWA_MEM => {}
+                    MappingProgram::MINIMAP2_NO_PRESET
+                    | MappingProgram::BWA_MEM
+                    | MappingProgram::BWA_MEM2 => {}
                 };
                 match num_threads {
                     Some(t) => {
@@ -159,8 +162,12 @@ impl Drop for TemporaryIndexStruct {
     }
 }
 
-fn check_for_bwa_index_existence(reference_path: &str) -> bool {
-    let bwa_extensions = vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"];
+fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &MappingProgram) -> bool {
+    let bwa_extensions = match mapping_program {
+        MappingProgram::BWA_MEM => vec!["amb", "ann", "bwt", "pac", "sa"],
+        MappingProgram::BWA_MEM2 => vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"],
+        _ => unreachable!(),
+    };
     let num_extensions = bwa_extensions.len();
     let mut num_existing: usize = 0;
     for extension in bwa_extensions {
@@ -182,8 +189,8 @@ fn check_for_bwa_index_existence(reference_path: &str) -> bool {
 pub fn check_reference_existence(reference_path: &str, mapping_program: &MappingProgram) {
     let ref_path = std::path::Path::new(reference_path);
     match mapping_program {
-        MappingProgram::BWA_MEM => {
-            if check_for_bwa_index_existence(reference_path) {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+            if check_for_bwa_index_existence(reference_path, &mapping_program) {
                 return;
             }
         }
@@ -210,13 +217,14 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
 pub fn generate_bwa_index(
     reference_path: &str,
     index_creation_parameters: Option<&str>,
+    mapping_program: MappingProgram,
 ) -> Box<dyn MappingIndex> {
-    if check_for_bwa_index_existence(reference_path) {
+    if check_for_bwa_index_existence(reference_path, &mapping_program) {
         info!("BWA index appears to be complete, so going ahead and using it.");
         return Box::new(VanillaBwaIndexStuct::new(reference_path));
     } else {
         return Box::new(TemporaryIndexStruct::new(
-            MappingProgram::BWA_MEM,
+            mapping_program,
             reference_path,
             None,
             index_creation_parameters,

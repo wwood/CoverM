@@ -693,10 +693,13 @@ fn setup_mapping_index(
     mapping_program: MappingProgram,
 ) -> Option<Box<dyn coverm::mapping_index_maintenance::MappingIndex>> {
     match mapping_program {
-        MappingProgram::BWA_MEM => Some(coverm::mapping_index_maintenance::generate_bwa_index(
-            reference_wise_params.reference,
-            None,
-        )),
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+            Some(coverm::mapping_index_maintenance::generate_bwa_index(
+                reference_wise_params.reference,
+                None,
+                mapping_program,
+            ))
+        }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -767,6 +770,7 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     let mapping_program = match m.value_of("mapper") {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
+        Some("bwa-mem2") => MappingProgram::BWA_MEM2,
         Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
         Some("minimap2-ont") => MappingProgram::MINIMAP2_ONT,
         Some("minimap2-pb") => MappingProgram::MINIMAP2_PB,
@@ -781,6 +785,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
     match mapping_program {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
+        }
+        MappingProgram::BWA_MEM2 => {
+            external_command_checker::check_for_bwa_mem2();
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT

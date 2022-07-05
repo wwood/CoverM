@@ -613,6 +613,8 @@ genome6	0",
                 "contig",
                 "--output-format",
                 "sparse",
+                "-p",
+                "bwa-mem",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--single",
@@ -652,6 +654,78 @@ genome6	0",
     }
 
     #[test]
+    fn test_bwa_mem2_parameters() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-p",
+                "bwa-mem2",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/2seqs.fasta",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Contig	Mean\n\
+                 2seqs.fasta/2seqs.fasta	seq1	1\n\
+                 2seqs.fasta/2seqs.fasta	seq2	1\n",
+            )
+            .unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-p",
+                "bwa-mem2",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--bwa-parameters",
+                "'-k 5000'", // seed length longer than both sequences
+                "--single",
+                "tests/data/2seqs.fasta",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Contig	Mean\n\
+                 2seqs.fasta/2seqs.fasta	seq1	0\n\
+                 2seqs.fasta/2seqs.fasta	seq2	0\n",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_bwa_mem2_genome() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "-p",
+                "bwa-mem2",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/2seqs.fasta",
+                "--single-genome",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Genome	Relative Abundance (%)\n\
+                 2seqs.fasta/2seqs.fasta	unmapped	0\n\
+                 2seqs.fasta/2seqs.fasta	genome1	100\n",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_bwa_prefix_no_original() {
         // https://github.com/wwood/CoverM/issues/112
         Assert::main_binary()
@@ -660,7 +734,7 @@ genome6	0",
                 "--output-format",
                 "sparse",
                 "-p",
-                "bwa-mem",
+                "bwa-mem2",
                 "-r",
                 "tests/data/bwa_ref_without_original/2seqs.fasta",
                 "--single",
@@ -1351,6 +1425,34 @@ genome6	26.697144
                 "make",
                 "--mapper",
                 "bwa-mem",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna.bwa1",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let bam = td
+            .path()
+            .join("7seqs.fna.bwa1.reads_for_seq1_and_seq2.1.fq.gz.bam");
+        assert!(bam.is_file());
+        Assert::command(&["samtools", "view", "-H", bam.to_str().unwrap()])
+            .stdout()
+            .contains("PN:bwa")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_make_with_bwa_mem2() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--mapper",
+                "bwa-mem2",
                 "--coupled",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",

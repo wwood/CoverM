@@ -94,7 +94,7 @@ impl<'a> MappingParameters<'a> {
         }
 
         let mapping_parameters_arg = match mapping_program {
-            MappingProgram::BWA_MEM => "bwa-params",
+            MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => "bwa-params",
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_HIFI
