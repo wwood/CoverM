@@ -167,8 +167,8 @@ impl ReferenceSortedBamFilter {
                             else {
                                 warn!(
                                     "Found a mapping record marked as being a proper pair, \
-                                     but mtid != tid, indicating it was an improper pair. Record was {:?}",
-                                    record);
+                                     but mtid != tid, indicating it was an improper pair. Record was {:?} with name {}",
+                                    record, qname);
                             }
                         }
                         Some(record1) => {
