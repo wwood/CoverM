@@ -10,7 +10,7 @@ jobs:
         shell: bash -l {0}
     strategy:
         matrix:
-            os: ["ubuntu-latest"]
+            os: ["ubuntu-latest", "macos-latest"]
     steps:
       - uses: actions/checkout@v2
       - uses: conda-incubator/setup-miniconda@v2
