@@ -726,7 +726,7 @@ genome6	0",
     }
 
     #[test]
-    fn test_bwa_prefix_no_original() {
+    fn test_bwa_mem2_prefix_no_original() {
         // https://github.com/wwood/CoverM/issues/112
         Assert::main_binary()
             .with_args(&[

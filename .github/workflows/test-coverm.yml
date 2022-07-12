@@ -49,4 +49,4 @@ jobs:
           conda list
       - name: Run test
         run: |
-            cargo test
+            cargo test -- --skip bwa_mem2
