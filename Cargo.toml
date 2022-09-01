@@ -14,7 +14,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.41.0"
+bio = "0.42.0"
 rust-htslib = { version="0.39.*", default-features = false }
 clap = { version="3.*", features = ["cargo"] } # cargo feature required for crate_version!
 clap_complete = "3.*"
