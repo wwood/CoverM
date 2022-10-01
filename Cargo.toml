@@ -17,7 +17,7 @@ default-run = "coverm"
 bio = "0.41.0"
 rust-htslib = { version="0.39.*", default-features = false }
 clap = { version="3.*", features = ["cargo"] } # cargo feature required for crate_version!
-clap_complete = "3.*"
+clap_complete = "4.*"
 log = "0.4.*"
 env_logger = "0.9.*"
 nix = "0.24.*"
