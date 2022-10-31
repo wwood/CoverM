@@ -8,5 +8,5 @@ dependencies:
   - minimap2 >=2.24
   - bwa >=0.7.17
   - bwa-mem2
-  - dashing >= 0.4.0
+  - dashing >= 0.4.0, < 1.0 # dashing 1.0 build gives illegal instruction errors.
   - fastani >= 1.3
