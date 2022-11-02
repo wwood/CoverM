@@ -66,6 +66,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         .map(|estimator| estimator.calculate_coverage(&vec![0]))
                         .collect();
                     let has_nonzero_coverage = coverages.iter().any(|&coverage| coverage > 0.0);
+                    debug!("Found coverages {:?}", coverages);
                     debug!("Found nonzero coverage?: {}", has_nonzero_coverage);
                     if has_nonzero_coverage {
                         *num_mapped_reads_total += num_mapped_reads_in_current_contig;
@@ -79,9 +80,12 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                             coverages.iter().zip(coverage_estimators.iter_mut())
                         {
                             estimator.print_coverage(&coverage, coverage_taker);
-                            estimator.setup();
                         }
                         coverage_taker.finish_entry();
+                    }
+                    // Reset coverage estimators
+                    for estimator in coverage_estimators.iter_mut() {
+                        estimator.setup();
                     }
                 }
                 if print_zero_coverage_contigs {
