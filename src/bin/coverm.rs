@@ -624,7 +624,12 @@ fn main() {
                 let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
                 let ref_string = reference_wise_params.reference;
 
+                // Ensure there is no duplication in output files e.g.
+                // https://github.com/wwood/CoverM/issues/128
+                let mut unique_names = HashSet::new();
                 for p in reference_wise_params {
+                    let name =
+                        generate_cached_bam_file_name(output_directory, p.reference, p.read1);
                     bam_readers.push(
                         coverm::bam_generator::generate_bam_maker_generator_from_reads(
                             mapping_program,
@@ -636,11 +641,15 @@ fn main() {
                             p.read2,
                             p.read_format.clone(),
                             p.threads,
-                            &generate_cached_bam_file_name(output_directory, p.reference, p.read1),
+                            &name.clone(),
                             discard_unmapped_reads,
                             p.mapping_options,
                         ),
                     );
+                    if !unique_names.insert(name.clone()) {
+                        error!("Duplicate output file name: {}", name);
+                        std::process::exit(1);
+                    }
                 }
 
                 debug!("Finished BAM setup");
