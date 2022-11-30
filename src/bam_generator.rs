@@ -311,16 +311,23 @@ pub fn generate_named_bam_readers_from_reads(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let mapping_log = tempfile::NamedTempFile::new().expect(&format!(
-        "Failed to create {:?} log tempfile",
-        mapping_program
-    ));
-    let samtools2_log =
-        tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
+    let mapping_log = tempfile::Builder::new()
+        .prefix("coverm-mapping-log")
+        .tempfile()
+        .expect(&format!(
+            "Failed to create {:?} log tempfile",
+            mapping_program
+        ));
+    let samtools2_log = tempfile::Builder::new()
+        .prefix("coverm-samtools2-log")
+        .tempfile()
+        .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
     // borrow checker.
-    let samtools_view_cache_log =
-        tempfile::NamedTempFile::new().expect("Failed to create cache samtools view log tempfile");
+    let samtools_view_cache_log = tempfile::Builder::new()
+        .prefix("coverm-samtools-view-log")
+        .tempfile()
+        .expect("Failed to create cache samtools view log tempfile");
 
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
@@ -715,16 +722,23 @@ pub fn generate_bam_maker_generator_from_reads(
     discard_unmapped: bool,
     mapping_options: Option<&str>,
 ) -> NamedBamMakerGenerator {
-    let mapping_log = tempfile::NamedTempFile::new().expect(&format!(
-        "Failed to create {:?} log tempfile",
-        mapping_program
-    ));
-    let samtools2_log =
-        tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
+    let mapping_log = tempfile::Builder::new()
+        .prefix("coverm-mapping-log")
+        .tempfile()
+        .expect(&format!(
+            "Failed to create {:?} log tempfile",
+            mapping_program
+        ));
+    let samtools2_log = tempfile::Builder::new()
+        .prefix("coverm-samtools2-log")
+        .tempfile()
+        .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
     // borrow checker.
-    let samtools_view_cache_log =
-        tempfile::NamedTempFile::new().expect("Failed to create cache samtools view log tempfile");
+    let samtools_view_cache_log = tempfile::Builder::new()
+        .prefix("coverm-samtools-view-log")
+        .tempfile()
+        .expect("Failed to create cache samtools view log tempfile");
 
     let mapping_command = build_mapping_command(
         mapping_program,
@@ -876,10 +890,13 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             _ => {
-                let split_prefix = tempfile::NamedTempFile::new().expect(&format!(
-                    "Failed to create {:?} minimap2 split_prefix file",
-                    mapping_program
-                ));
+                let split_prefix = tempfile::Builder::new()
+                    .prefix("coverm-minimap2-split-index")
+                    .tempfile()
+                    .expect(&format!(
+                        "Failed to create {:?} minimap2 split_prefix file",
+                        mapping_program
+                    ));
                 format!(
                     "minimap2 --split-prefix {} -a {}",
                     split_prefix

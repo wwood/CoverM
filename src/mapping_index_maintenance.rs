@@ -9,7 +9,7 @@ use bam_generator::MappingProgram;
 use CONCATENATED_FASTA_FILE_SEPARATOR;
 
 use tempdir::TempDir;
-use tempfile::NamedTempFile;
+use tempfile::{Builder, NamedTempFile};
 
 pub trait MappingIndex {
     fn index_path(&self) -> &String;
@@ -247,7 +247,10 @@ pub fn generate_minimap2_index(
 }
 
 pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> NamedTempFile {
-    let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+    let tmpfile: NamedTempFile = Builder::new()
+        .prefix("coverm-concatenated-fasta")
+        .tempfile()
+        .unwrap();
     let mut something_written_at_all = false;
     {
         // scope so writer, which borrows tmpfile, goes out of scope.

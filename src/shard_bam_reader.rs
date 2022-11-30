@@ -347,8 +347,10 @@ where
         let sort_temp_fifo_path = tmp_dir.path().join("sort_temp.pipe");
         // let sort_input_fifo_path = tmp_dir.join("sort_input.pipe");
         // let sort_output_fifo_path = tmp_dir.join("sort_output.pipe");
-        let sort_log_file =
-            tempfile::NamedTempFile::new().expect("Failed to create samtools sort log tempfile");
+        let sort_log_file = tempfile::Builder::new()
+            .prefix("coverm-shard-sort-log")
+            .tempfile()
+            .expect("Failed to create samtools sort log tempfile");
 
         // create new fifo and give read, write and execute rights to the owner.
         // This is required because we cannot open a Rust stream as a BAM file
@@ -586,16 +588,23 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
         .expect(&format!("Error creating named pipe {:?}", fifo_path));
 
-    let mapping_log = tempfile::NamedTempFile::new().expect(&format!(
-        "Failed to create {:?} log tempfile",
-        mapping_program
-    ));
-    let samtools2_log =
-        tempfile::NamedTempFile::new().expect("Failed to create second samtools log tempfile");
+    let mapping_log = tempfile::Builder::new()
+        .prefix("coverm-shard-mapping-log")
+        .tempfile()
+        .expect(&format!(
+            "Failed to create {:?} log tempfile",
+            mapping_program
+        ));
+    let samtools2_log = tempfile::Builder::new()
+        .prefix("coverm-shard-samtools2-log")
+        .tempfile()
+        .expect("Failed to create second samtools log tempfile");
     // tempfile does not need to be created but easier to create than get around
     // borrow checker.
-    let samtools_view_cache_log =
-        tempfile::NamedTempFile::new().expect("Failed to create cache samtools view log tempfile");
+    let samtools_view_cache_log = tempfile::Builder::new()
+        .prefix("coverm-shard-samtools-view-log")
+        .tempfile()
+        .expect("Failed to create cache samtools view log tempfile");
 
     let cached_bam_file_args = match cached_bam_file {
         Some(path) => {
