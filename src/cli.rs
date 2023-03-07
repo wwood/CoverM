@@ -341,7 +341,10 @@ pub fn filter_full_help() -> Manual {
         "Only keep reads which are unmapped or \
                 align below thresholds. Note that output \
                 records may still be marked as mapped \
-                if they do not meet the thresholds. [default: not set]",
+                if they do not meet the thresholds. When used with \
+                --proper-pairs, only proper pairs which fail alignment \
+                thresholds are output i.e. it does not \"invert\" the \
+                proper pairs flag. [default: not set]",
     ));
     manual = add_verbosity_flags(manual);
     manual = add_help_options(manual);
