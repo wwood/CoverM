@@ -14,13 +14,13 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
 default-run = "coverm"
 
 [dependencies]
-bio = "0.41.0"
-rust-htslib = { version="0.39.*", default-features = false }
+bio = "1.1.0"
+rust-htslib = { version="0.41.*", default-features = false }
 clap = { version="3.*", features = ["cargo"] } # cargo feature required for crate_version!
 clap_complete = "3.*"
 log = "0.4.*"
-env_logger = "0.9.*"
-nix = "0.24.*"
+env_logger = "0.10.*"
+nix = "0.26.*"
 tempdir = "0.3.*"
 tempfile = "3.*"
 ansi_term = "0.12"
@@ -34,7 +34,7 @@ bird_tool_utils = { git = "https://github.com/wwood/bird_tool_utils" }
 galah = { git = "https://github.com/wwood/galah" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
-needletail = "0.4.*"
+needletail = "0.5.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
