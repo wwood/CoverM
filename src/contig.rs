@@ -16,12 +16,12 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
     coverage_estimators: &mut Vec<CoverageEstimator>,
     print_zero_coverage_contigs: bool,
     flag_filters: &FlagFilter,
-    threads: usize,
+    threads: u16,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-        bam_generated.set_threads(threads);
+        bam_generated.set_threads(threads as usize);
 
         let stoit_name = &(bam_generated.name().to_string());
         coverage_taker.start_stoit(stoit_name);

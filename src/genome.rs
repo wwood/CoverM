@@ -26,13 +26,13 @@ pub fn mosdepth_genome_coverage_with_contig_names<
     print_zero_coverage_genomes: bool,
     flag_filters: &FlagFilter,
     coverage_estimators: &mut Vec<CoverageEstimator>,
-    threads: usize,
+    threads: u16,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
     let mut is_first_bam = true;
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-        bam_generated.set_threads(threads);
+        bam_generated.set_threads(threads as usize);
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
@@ -425,7 +425,7 @@ pub fn mosdepth_genome_coverage<
     coverage_estimators: &mut Vec<CoverageEstimator>,
     flag_filters: &FlagFilter,
     single_genome: bool,
-    threads: usize,
+    threads: u16,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
     debug!(
@@ -434,7 +434,7 @@ pub fn mosdepth_genome_coverage<
     );
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
-        bam_generated.set_threads(threads);
+        bam_generated.set_threads(threads as usize);
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);

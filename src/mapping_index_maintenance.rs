@@ -41,7 +41,7 @@ impl TemporaryIndexStruct {
     pub fn new(
         mapping_program: MappingProgram,
         reference_path: &str,
-        num_threads: Option<usize>,
+        num_threads: Option<u16>,
         index_creation_options: Option<&str>,
     ) -> TemporaryIndexStruct {
         // Generate a BWA/minimap index in a temporary directory, where the
@@ -234,7 +234,7 @@ pub fn generate_bwa_index(
 
 pub fn generate_minimap2_index(
     reference_path: &str,
-    num_threads: Option<usize>,
+    num_threads: Option<u16>,
     index_creation_parameters: Option<&str>,
     mapping_program: MappingProgram,
 ) -> Box<dyn MappingIndex> {

@@ -53,7 +53,7 @@ fn main() {
             let m = matches.subcommand_matches("genome").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(&m, genome_full_help());
             set_log_level(m, true);
-            print_stream = OutputWriter::generate(m.value_of("output-file"));
+            print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
             let genome_names_content: Vec<u8>;
 
@@ -64,10 +64,10 @@ fn main() {
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
-            let genomes_and_contigs_option_predereplication = if m.is_present("sharded")
-                && !m.is_present("separator")
-                && !m.is_present("dereplicate")
-                && !m.is_present("single-genome")
+            let genomes_and_contigs_option_predereplication = if m.get_flag("sharded")
+                && !m.contains_id("separator")
+                && !m.get_flag("dereplicate")
+                && !m.get_flag("single-genome")
             {
                 parse_all_genome_definitions(&m)
             } else {
@@ -88,9 +88,9 @@ fn main() {
                 GenomesAndContigsType,
             }
             let genome_exclusion_type = {
-                if m.is_present("sharded") {
-                    if m.is_present("exclude-genomes-from-deshard") {
-                        let filename = m.value_of("exclude-genomes-from-deshard").unwrap();
+                if m.get_flag("sharded") {
+                    if m.contains_id("exclude-genomes-from-deshard") {
+                        let filename = m.get_one::<String>("exclude-genomes-from-deshard").unwrap();
                         genome_names_content = std::fs::read(filename).expect(&format!(
                             "Failed to open file '{}' containing list of excluded genomes",
                             filename
@@ -142,8 +142,12 @@ fn main() {
                 }
             };
 
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            if m.contains_id("bam-files") {
+                let bam_files: Vec<&str> = m
+                    .get_many::<String>("bam-files")
+                    .unwrap()
+                    .map(|s| &**s)
+                    .collect();
 
                 // Associate genomes and contig names, if required
                 let genomes_and_contigs_option = parse_all_genome_definitions(&m);
@@ -166,9 +170,9 @@ fn main() {
                         &genomes_and_contigs_option,
                         &mut print_stream,
                     );
-                } else if m.is_present("sharded") {
+                } else if m.get_flag("sharded") {
                     external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
+                    let sort_threads = *m.get_one::<u16>("threads").unwrap();
                     // Seems crazy, but I cannot work out how to make this more
                     // DRY, without making GenomeExclusion into an enum.
                     match genome_exclusion_type {
@@ -238,7 +242,7 @@ fn main() {
                                 );
                                 process::exit(1);
                             }
-                            if m.is_present("checkm-tab-table") || m.is_present("genome-info") {
+                            if m.contains_id("checkm-tab-table") || m.contains_id("genome-info") {
                                 let genomes_after_filtering =
                                     galah::cluster_argument_parsing::filter_genomes_through_checkm(
                                         &paths,
@@ -269,10 +273,10 @@ fn main() {
                 };
 
                 let (concatenated_genomes, genomes_and_contigs_option) =
-                    match m.is_present("reference") {
+                    match m.contains_id("reference") {
                         true => {
                             check_reference_existence(
-                                m.value_of("reference").unwrap(),
+                                m.get_one::<String>("reference").unwrap(),
                                 &mapping_program,
                             );
                             match genome_fasta_files_opt {
@@ -283,7 +287,7 @@ fn main() {
                                         &genome_paths.iter().map(|s| s.as_str()).collect(),
                                     ),
                                 ),
-                                None => match m.value_of("genome-definition") {
+                                None => match m.get_one::<String>("genome-definition") {
                                     Some(definition_path) => (
                                         None,
                                         Some(coverm::genome_parsing::read_genome_definition_file(
@@ -296,7 +300,7 @@ fn main() {
                         }
                         false => {
                             // Dereplicate if required
-                            let dereplicated_genomes: Vec<String> = if m.is_present("dereplicate") {
+                            let dereplicated_genomes: Vec<String> = if m.get_flag("dereplicate") {
                                 dereplicate(&m, &genome_fasta_files_opt.unwrap())
                             } else {
                                 genome_fasta_files_opt.unwrap()
@@ -315,8 +319,8 @@ fn main() {
                                     list_of_genome_fasta_files,
                                 ),
                             ),
-                            None
-                            )
+                            None,
+                        )
                         }
                     };
 
@@ -344,7 +348,7 @@ fn main() {
                         &genomes_and_contigs_option,
                         &mut print_stream,
                     );
-                } else if m.is_present("sharded") {
+                } else if m.get_flag("sharded") {
                     match genome_exclusion_type {
                         GenomeExclusionTypes::NoneType => {
                             run_genome(
@@ -419,8 +423,16 @@ fn main() {
             bird_tool_utils::clap_utils::print_full_help_if_needed(&m, filter_full_help());
             set_log_level(m, true);
 
-            let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
-            let output_bam_files: Vec<&str> = m.values_of("output-bam-files").unwrap().collect();
+            let bam_files: Vec<&str> = m
+                .get_many::<String>("bam-files")
+                .unwrap()
+                .map(|x| &**x)
+                .collect();
+            let output_bam_files: Vec<&str> = m
+                .get_many::<String>("output-bam-files")
+                .unwrap()
+                .map(|x| &**x)
+                .collect();
             if bam_files.len() != output_bam_files.len() {
                 error!("The number of input BAM files must be the same as the number output");
                 process::exit(1);
@@ -428,7 +440,7 @@ fn main() {
 
             let filter_params = FilterParameters::generate_from_clap(m);
 
-            let num_threads: u16 = m.value_of_t("threads").unwrap();
+            let num_threads: u16 = *m.get_one::<u16>("threads").unwrap();
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
                 let reader =
@@ -449,7 +461,7 @@ fn main() {
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,
-                    !m.is_present("inverse"),
+                    !m.get_flag("inverse"),
                 );
 
                 let mut record = bam::record::Record::new();
@@ -473,23 +485,27 @@ fn main() {
             let m = matches.subcommand_matches("contig").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(&m, contig_full_help());
             set_log_level(m, true);
-            let print_zeros = !m.is_present("no-zeros");
+            let print_zeros = !m.get_flag("no-zeros");
 
             // Add metabat filtering params since we are running contig
             let mut filter_params1 = FilterParameters::generate_from_clap(m);
             filter_params1.add_metabat_filtering_if_required(m);
             let filter_params = filter_params1;
 
-            let threads = m.value_of("threads").unwrap().parse().unwrap();
-            print_stream = OutputWriter::generate(m.value_of("output-file"));
+            let threads = *m.get_one::<u16>("threads").unwrap();
+            print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker =
                 estimators_and_taker.print_headers(&"Contig", print_stream.clone());
 
-            if m.is_present("bam-files") {
-                let bam_files: Vec<&str> = m.values_of("bam-files").unwrap().collect();
+            if m.contains_id("bam-files") {
+                let bam_files: Vec<&str> = m
+                    .get_many::<String>("bam-files")
+                    .unwrap()
+                    .map(|x| &**x)
+                    .collect();
                 if filter_params.doing_filtering() {
                     let bam_readers =
                         coverm::bam_generator::generate_filtered_bam_readers_from_bam_files(
@@ -510,13 +526,12 @@ fn main() {
                         threads,
                         &mut print_stream,
                     );
-                } else if m.is_present("sharded") {
+                } else if m.get_flag("sharded") {
                     external_command_checker::check_for_samtools();
-                    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
                     let bam_readers =
                         coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                             bam_files,
-                            sort_threads,
+                            threads,
                             &NoExclusionGenomeFilter {},
                         );
                     run_contig(
@@ -568,7 +583,7 @@ fn main() {
                         threads,
                         &mut print_stream,
                     );
-                } else if m.is_present("sharded") {
+                } else if m.get_flag("sharded") {
                     let generator_sets = get_sharded_bam_readers(
                         m,
                         mapping_program,
@@ -613,11 +628,11 @@ fn main() {
             let mapping_program = parse_mapping_program(&m);
             external_command_checker::check_for_samtools();
 
-            let output_directory = m.value_of("output-directory").unwrap();
+            let output_directory = m.get_one::<String>("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
             let params = MappingParameters::generate_from_clap(&m, mapping_program, &None);
             let mut generator_sets = vec![];
-            let discard_unmapped_reads = m.is_present("discard-unmapped");
+            let discard_unmapped_reads = m.get_flag("discard-unmapped");
 
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
@@ -672,7 +687,7 @@ fn main() {
         Some("shell-completion") => {
             let m = matches.subcommand_matches("shell-completion").unwrap();
             set_log_level(m, true);
-            let mut file = std::fs::File::create(m.value_of("output-file").unwrap())
+            let mut file = std::fs::File::create(m.get_one::<String>("output-file").unwrap())
                 .expect("failed to open output file");
 
             if let Some(generator) = m.get_one::<Shell>("shell").copied() {
@@ -714,9 +729,9 @@ fn setup_mapping_index(
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_NO_PRESET => {
-            if m.is_present("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
+            if m.get_flag("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
-                if m.is_present("minimap2-reference-is-index") {
+                if m.get_flag("minimap2-reference-is-index") {
                     warn!(
                         "Minimap2 uses mapping parameters defined when the index was created, \
                     not parameters defined when mapping. Proceeding on the assumption that you \
@@ -727,8 +742,11 @@ fn setup_mapping_index(
             } else {
                 Some(coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
-                    Some(m.value_of("threads").unwrap().parse::<usize>().unwrap()),
-                    Some(m.value_of("minimap2-params").unwrap_or("")),
+                    Some(*m.get_one::<u16>("threads").unwrap()),
+                    Some(
+                        m.get_one::<String>("minimap2-params")
+                            .unwrap_or(&"".to_string()),
+                    ),
                     mapping_program,
                 ))
             }
@@ -777,7 +795,7 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
 }
 
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
-    let mapping_program = match m.value_of("mapper") {
+    let mapping_program = match m.get_one::<String>("mapper").map(|x| &**x) {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
         Some("bwa-mem2") => MappingProgram::BWA_MEM2,
         Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
@@ -788,7 +806,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
-            m.value_of("mapper")
+            m.get_one::<String>("mapper")
         ),
     };
     match mapping_program {
@@ -822,23 +840,23 @@ fn extract_genomes_and_contigs_option(
     m: &clap::ArgMatches,
     genome_fasta_files: &Vec<&str>,
 ) -> Option<GenomesAndContigs> {
-    match m.is_present("genome-definition") {
+    match m.contains_id("genome-definition") {
         true => Some(coverm::genome_parsing::read_genome_definition_file(
-            m.value_of("genome-definition").unwrap(),
+            m.get_one::<String>("genome-definition").unwrap(),
         )),
         false => Some(coverm::genome_parsing::read_genome_fasta_files(
             &genome_fasta_files,
-            m.is_present("use-full-contig-names"),
+            m.get_flag("use-full-contig-names"),
         )),
     }
 }
 
 fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContigs> {
-    if m.is_present("single-genome") || m.is_present("separator") {
+    if m.get_flag("single-genome") || m.contains_id("separator") {
         None
-    } else if m.is_present("genome-definition") {
+    } else if m.contains_id("genome-definition") {
         Some(coverm::genome_parsing::read_genome_definition_file(
-            m.value_of("genome-definition").unwrap(),
+            m.get_one::<String>("genome-definition").unwrap(),
         ))
     } else {
         extract_genomes_and_contigs_option(
@@ -853,19 +871,20 @@ fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContig
 }
 
 fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
-    match m.is_present(parameter) {
-        true => {
-            let mut percentage: f32 = m.value_of_t(parameter).unwrap();
-            if percentage >= 1.0 && percentage <= 100.0 {
-                percentage = percentage / 100.0;
-            } else if percentage < 0.0 || percentage > 100.0 {
-                error!("Invalid alignment percentage: '{}'", percentage);
-                process::exit(1);
-            }
-            info!("Using {} {}%", parameter, percentage * 100.0);
-            percentage
+    if m.contains_id(parameter) {
+        let mut percentage: f32 = *m.get_one::<f32>(parameter).unwrap_or(&0.0);
+        if percentage >= 1.0 && percentage <= 100.0 {
+            percentage = percentage / 100.0;
+        } else if percentage < 0.0 || percentage > 100.0 {
+            error!("Invalid alignment percentage: '{}'", percentage);
+            process::exit(1);
         }
-        false => 0.0,
+        if m.value_source(parameter) == Some(clap::parser::ValueSource::CommandLine) {
+            info!("Using {} {}%", parameter, percentage * 100.0);
+        }
+        percentage
+    } else {
+        0.0
     }
 }
 
@@ -873,13 +892,17 @@ impl EstimatorsAndTaker {
     pub fn generate_from_clap(m: &clap::ArgMatches, stream: OutputWriter) -> EstimatorsAndTaker {
         let mut estimators = vec![];
         let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
-        let contig_end_exclusion = m.value_of_t("contig-end-exclusion").unwrap();
+        let contig_end_exclusion = *m.get_one::<u64>("contig-end-exclusion").unwrap();
 
-        let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+        let methods: Vec<&str> = m
+            .get_many::<String>("methods")
+            .unwrap()
+            .map(|x| &**x)
+            .collect();
         let mut columns_to_normalise: Vec<usize> = vec![];
 
         let taker;
-        let output_format = m.value_of("output-format").unwrap();
+        let output_format = m.get_one::<String>("output-format").unwrap().as_str();
         let printer;
         let mut rpkm_column = None;
         let mut tpm_column = None;
@@ -1065,21 +1088,12 @@ impl EstimatorsAndTaker {
 }
 
 fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
-    let single_genome = m.is_present("single-genome");
+    let single_genome = m.get_flag("single-genome");
     if single_genome {
         Some("0".as_bytes()[0])
-    } else if m.is_present("separator") {
-        let separator_str = m.value_of("separator").unwrap().as_bytes();
-        if separator_str.len() != 1 {
-            eprintln!(
-                "error: Separator can only be a single character, found {} ({}).",
-                separator_str.len(),
-                str::from_utf8(separator_str).unwrap()
-            );
-            process::exit(1);
-        }
-        Some(separator_str[0])
-    } else if m.is_present("bam-files") || m.is_present("reference") {
+    } else if m.contains_id("separator") {
+        m.get_one::<char>("separator").map(|c| *c as u8)
+    } else if m.contains_id("bam-files") || m.contains_id("reference") {
         // Argument parsing enforces that genomes have been specified as FASTA
         // files.
         None
@@ -1101,10 +1115,10 @@ fn run_genome<
     genomes_and_contigs_option: &Option<GenomesAndContigs>,
     print_stream: &mut OutputWriter,
 ) {
-    let print_zeros = !m.is_present("no-zeros");
+    let print_zeros = !m.get_flag("no-zeros");
     let flag_filter = FilterParameters::generate_from_clap(&m).flag_filters;
-    let single_genome = m.is_present("single-genome");
-    let threads = m.value_of("threads").unwrap().parse().unwrap();
+    let single_genome = m.get_flag("single-genome");
+    let threads = *m.get_one::<u16>("threads").unwrap();
     let reads_mapped = match separator.is_some() || single_genome {
         true => coverm::genome::mosdepth_genome_coverage(
             bam_generators,
@@ -1143,10 +1157,11 @@ fn run_genome<
 }
 
 fn doing_metabat(m: &clap::ArgMatches) -> bool {
-    if !m.is_present("methods") {
-        return false;
-    }
-    let methods: Vec<&str> = m.values_of("methods").unwrap().collect();
+    let methods: Vec<&str> = m
+        .get_many::<String>("methods")
+        .unwrap()
+        .map(|x| &**x)
+        .collect();
     if methods.contains(&"metabat") {
         if methods.len() > 1 {
             error!("Cannot specify the metabat method with any other coverage methods");
@@ -1172,20 +1187,16 @@ impl FilterParameters {
     pub fn generate_from_clap(m: &clap::ArgMatches) -> FilterParameters {
         let f = FilterParameters {
             flag_filters: FlagFilter {
-                include_improper_pairs: !m.is_present("proper-pairs-only"),
-                include_secondary: m.is_present("include-secondary"),
-                include_supplementary: !m.is_present("exclude-supplementary"),
+                include_improper_pairs: !m.get_flag("proper-pairs-only"),
+                include_secondary: m.get_flag("include-secondary"),
+                include_supplementary: !m.get_flag("exclude-supplementary"),
             },
-            min_aligned_length_single: match m.is_present("min-read-aligned-length") {
-                true => m.value_of_t("min-read-aligned-length").unwrap(),
-                false => 0,
-            },
+            min_aligned_length_single: *m.get_one::<u32>("min-read-aligned-length").unwrap_or(&0),
             min_percent_identity_single: parse_percentage(&m, "min-read-percent-identity"),
             min_aligned_percent_single: parse_percentage(&m, "min-read-aligned-percent"),
-            min_aligned_length_pair: match m.is_present("min-read-aligned-length-pair") {
-                true => m.value_of_t("min-read-aligned-length-pair").unwrap(),
-                false => 0,
-            },
+            min_aligned_length_pair: *m
+                .get_one::<u32>("min-read-aligned-length-pair")
+                .unwrap_or(&0),
             min_percent_identity_pair: parse_percentage(&m, "min-read-percent-identity-pair"),
             min_aligned_percent_pair: parse_percentage(&m, "min-read-aligned-percent-pair"),
         };
@@ -1228,11 +1239,11 @@ where
     T: GenomeExclusion,
 {
     // Check the output BAM directory actually exists and is writeable
-    if m.is_present("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    if m.contains_id("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
     }
-    let discard_unmapped = m.is_present("discard-unmapped");
-    let sort_threads = m.value_of("threads").unwrap().parse::<i32>().unwrap();
+    let discard_unmapped = m.get_flag("discard-unmapped");
+    let sort_threads = *m.get_one::<u16>("threads").unwrap();
     let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
     let mut bam_readers = vec![];
     let mut concatenated_reference_name: Option<String> = None;
@@ -1254,11 +1265,11 @@ where
         };
         let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
-            match m.is_present("bam-file-cache-directory") {
+            match m.contains_id("bam-file-cache-directory") {
                 false => None,
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(),
+                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
                         match reference_tempfile {
                             Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
                             None => reference,
@@ -1321,10 +1332,10 @@ fn get_streamed_bam_readers<'a>(
     reference_tempfile: &'a Option<NamedTempFile>,
 ) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
-    if m.is_present("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    if m.contains_id("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
     }
-    let discard_unmapped = m.is_present("discard-unmapped");
+    let discard_unmapped = m.get_flag("discard-unmapped");
 
     let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
     let mut generator_set = vec![];
@@ -1335,11 +1346,11 @@ fn get_streamed_bam_readers<'a>(
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
-            match m.is_present("bam-file-cache-directory") {
+            match m.contains_id("bam-file-cache-directory") {
                 false => None,
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(),
+                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
                         match reference_tempfile {
                             Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
                             None => reference,
@@ -1496,10 +1507,10 @@ fn get_streamed_filtered_bam_readers(
     filter_params: &FilterParameters,
 ) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
-    if m.is_present("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.value_of("bam-file-cache-directory").unwrap());
+    if m.contains_id("bam-file-cache-directory") {
+        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
     }
-    let discard_unmapped = m.is_present("discard-unmapped");
+    let discard_unmapped = m.get_flag("discard-unmapped");
 
     let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
     let mut generator_set = vec![];
@@ -1510,11 +1521,11 @@ fn get_streamed_filtered_bam_readers(
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
             let bam_file_cache_path;
-            match m.is_present("bam-file-cache-directory") {
+            match m.contains_id("bam-file-cache-directory") {
                 false => None,
                 true => {
                     bam_file_cache_path = generate_cached_bam_file_name(
-                        m.value_of("bam-file-cache-directory").unwrap(),
+                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
                         match reference_tempfile {
                             Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
                             None => reference,
@@ -1572,7 +1583,7 @@ fn run_contig<
     bam_readers: Vec<T>,
     print_zeros: bool,
     flag_filters: FlagFilter,
-    threads: usize,
+    threads: u16,
     print_stream: &mut OutputWriter,
 ) {
     let reads_mapped = coverm::contig::contig_coverage(

@@ -302,7 +302,7 @@ where
 {
     pub stoit_name: String,
     pub read_sorted_bam_readers: Vec<bam::Reader>,
-    pub sort_threads: i32,
+    pub sort_threads: u16,
     pub genome_exclusion: &'a T,
 }
 
@@ -521,7 +521,7 @@ impl NamedBamReader for ShardedBamReader {
 // BAM reader that chooses the best place for each read to map to.
 pub fn generate_sharded_bam_reader_from_bam_files<'a, T>(
     bam_paths: Vec<&str>,
-    sort_threads: i32,
+    sort_threads: u16,
     genome_exclusion: &'a T,
 ) -> Vec<ShardedBamReaderGenerator<'a, T>>
 where

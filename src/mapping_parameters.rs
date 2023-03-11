@@ -29,14 +29,22 @@ impl<'a> MappingParameters<'a> {
         mapping_program: MappingProgram,
         reference_tempfile: &'a Option<NamedTempFile>,
     ) -> MappingParameters<'a> {
-        let mut read1: Vec<&str> = vec![];
-        let mut read2: Vec<&str> = vec![];
-        let mut interleaved: Vec<&str> = vec![];
-        let mut unpaired: Vec<&str> = vec![];
+        let mut read1: Vec<_> = vec![];
+        let mut read2: Vec<_> = vec![];
+        let mut interleaved: Vec<_> = vec![];
+        let mut unpaired: Vec<_> = vec![];
 
-        if m.is_present("read1") {
-            read1 = m.values_of("read1").unwrap().collect();
-            read2 = m.values_of("read2").unwrap().collect();
+        if m.contains_id("read1") {
+            read1 = m
+                .get_many::<String>("read1")
+                .unwrap()
+                .map(|s| s.as_str())
+                .collect();
+            read2 = m
+                .get_many::<String>("read2")
+                .unwrap()
+                .map(|s| s.as_str())
+                .collect();
             if read1.len() != read2.len() {
                 error!(
                     "When specifying paired reads with the -1 and -2 flags, \
@@ -50,8 +58,12 @@ impl<'a> MappingParameters<'a> {
         }
 
         // Parse --coupled
-        if m.is_present("coupled") {
-            let coupled: Vec<&str> = m.values_of("coupled").unwrap().collect();
+        if m.contains_id("coupled") {
+            let coupled: Vec<_> = m
+                .get_many::<String>("coupled")
+                .unwrap()
+                .map(|s| s.as_str())
+                .collect();
             if coupled.len() % 2 != 0 {
                 error!(
                     "The --coupled flag must be set with pairs of read \
@@ -68,11 +80,19 @@ impl<'a> MappingParameters<'a> {
             }
         }
 
-        if m.is_present("interleaved") {
-            interleaved = m.values_of("interleaved").unwrap().collect();
+        if m.contains_id("interleaved") {
+            interleaved = m
+                .get_many::<String>("interleaved")
+                .unwrap()
+                .map(|s| s.as_str())
+                .collect();
         }
-        if m.is_present("single") {
-            unpaired = m.values_of("single").unwrap().collect();
+        if m.contains_id("single") {
+            unpaired = m
+                .get_many::<String>("single")
+                .unwrap()
+                .map(|s| s.as_str())
+                .collect();
         }
 
         match mapping_program {
@@ -101,9 +121,9 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_PB
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
         };
-        let mapping_options = match m.is_present(mapping_parameters_arg) {
+        let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {
-                let params = m.value_of(mapping_parameters_arg);
+                let params = m.get_one::<String>(mapping_parameters_arg);
                 params
             }
             false => None,
@@ -116,29 +136,25 @@ impl<'a> MappingParameters<'a> {
         return MappingParameters {
             references: match reference_tempfile {
                 Some(r) => vec![r.path().to_str().unwrap()],
-                None => match m.values_of("reference") {
+                None => match m.get_many::<String>("reference") {
                     Some(refs) => refs
                         .collect::<Vec<_>>()
                         .into_iter()
                         .map(|r| {
                             check_reference_existence(r, &mapping_program);
-                            r
+                            r.as_str()
                         })
                         .collect(),
                     None => vec![],
                 },
             },
-            threads: m
-                .value_of("threads")
-                .unwrap()
-                .parse::<u16>()
-                .expect("Failed to convert threads argument into integer"),
+            threads: *m.get_one::<u16>("threads").unwrap(),
             read1: read1,
             read2: read2,
             interleaved: interleaved,
             unpaired: unpaired,
             iter_reference_index: 0,
-            mapping_options: mapping_options,
+            mapping_options: mapping_options.map(|x| &**x),
         };
     }
 
