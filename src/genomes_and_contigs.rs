@@ -15,7 +15,7 @@ where
         }
         index += 1;
     }
-    return Err("Element not found in slice");
+    Err("Element not found in slice")
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,7 +35,7 @@ impl GenomesAndContigs {
     pub fn establish_genome(&mut self, genome_name: String) -> usize {
         let index = self.genomes.len();
         self.genomes.push(genome_name);
-        return index;
+        index
     }
 
     pub fn insert(&mut self, contig_name: String, genome_index: usize) {
@@ -73,9 +73,6 @@ impl GenomesAndContigs {
     }
 
     pub fn genome_index_of_contig(&self, contig_name: &String) -> Option<usize> {
-        match self.contig_to_genome.get(contig_name) {
-            Some(index) => Some(*index),
-            None => None,
-        }
+        self.contig_to_genome.get(contig_name).copied()
     }
 }

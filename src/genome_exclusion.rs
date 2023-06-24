@@ -53,11 +53,10 @@ impl<'a> GenomeExclusion for SeparatorGenomeExclusionFilter<'a> {
             "contig name {:?}, separator {:?}",
             contig_name, self.split_char
         );
-        let offset = find_first(contig_name, self.split_char).expect(
-            &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+        let offset = find_first(contig_name, self.split_char).unwrap_or_else(|_| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                      self.split_char));
-        let genome = &contig_name[(0..offset)];
-        return self.excluded_genomes.contains(genome);
+        let genome = &contig_name[0..offset];
+        self.excluded_genomes.contains(genome)
     }
 }
 
@@ -88,9 +87,9 @@ mod tests {
             excluded_genomes: hashset,
         };
 
-        assert_eq!(ex.is_excluded(b"contig1"), true);
-        assert_eq!(ex.is_excluded(b"contig2"), true);
-        assert_eq!(ex.is_excluded(b"contig20"), false);
+        assert!(ex.is_excluded(b"contig1"));
+        assert!(ex.is_excluded(b"contig2"));
+        assert!(!ex.is_excluded(b"contig20"));
     }
 
     #[test]
@@ -101,7 +100,7 @@ mod tests {
             split_char: b"="[0],
             excluded_genomes: hashset,
         };
-        assert_eq!(true, ex.is_excluded(b"genomeYes=contig1"));
-        assert_eq!(false, ex.is_excluded(b"genomeNo=contig1"));
+        assert!(ex.is_excluded(b"genomeYes=contig1"));
+        assert!(!ex.is_excluded(b"genomeNo=contig1"));
     }
 }

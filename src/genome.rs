@@ -36,7 +36,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
-        coverage_taker.start_stoit(&stoit_name);
+        coverage_taker.start_stoit(stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
@@ -130,7 +130,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 let tid = original_tid as u32;
                 if tid != last_tid || doing_first {
                     debug!("Came across a new tid {}", tid);
-                    if doing_first == true {
+                    if doing_first {
                         doing_first = false;
                     } else {
                         if tid < last_tid {
@@ -159,7 +159,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     }
 
                     ups_and_downs =
-                        vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
+                        vec![0; header.target_len(tid).expect("Corrupt BAM file?") as usize];
                     num_mapped_reads_in_current_contig = 0;
                     total_edit_distance_in_current_contig = 0;
                     total_indels_in_current_contig = 0;
@@ -278,7 +278,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     num_mapped_reads_total += reads_mapped_in_each_genome[i];
                 }
                 if print_zero_coverage_genomes || any_nonzero_coverage {
-                    coverage_taker.start_entry(i, &genome);
+                    coverage_taker.start_entry(i, genome);
                     for (j, ref mut coverage_estimator) in
                         per_genome_coverage_estimators[i].iter_mut().enumerate()
                     {
@@ -319,7 +319,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
 
         bam_generated.finish();
     }
-    return reads_mapped_vector;
+    reads_mapped_vector
 }
 
 #[derive(PartialEq, Debug)]
@@ -348,7 +348,7 @@ fn print_last_genomes<T: CoverageTaker>(
     //    debug!("ups_and_downs {:?}", &ups_and_downs);
     for coverage_estimator in coverage_estimators.iter_mut() {
         coverage_estimator.add_contig(
-            &ups_and_downs,
+            ups_and_downs,
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig - total_indels_in_current_contig,
         );
@@ -365,34 +365,32 @@ fn print_last_genomes<T: CoverageTaker>(
         .collect();
     let positive_coverage = coverages.iter().any(|c| *c > 0.0);
 
-    if print_zero_coverage_genomes || positive_coverage {
-        if last_genome.is_some() {
-            coverage_taker.start_entry(
-                unobserved_contig_length_and_first_tid.first_tid,
+    if (print_zero_coverage_genomes || positive_coverage) && last_genome.is_some() {
+        coverage_taker.start_entry(
+            unobserved_contig_length_and_first_tid.first_tid,
+            str::from_utf8(last_genome.unwrap()).unwrap(),
+        );
+        for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
+            let coverage = coverages[i];
+            debug!(
+                "Found coverage {} for genome {} i.e. coverage estimator {}",
+                coverage,
                 &str::from_utf8(last_genome.unwrap()).unwrap(),
+                i
             );
-            for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-                let coverage = coverages[i];
-                debug!(
-                    "Found coverage {} for genome {} i.e. coverage estimator {}",
-                    coverage,
-                    &str::from_utf8(last_genome.unwrap()).unwrap(),
-                    i
-                );
 
-                // Print coverage of previous genome
-                if coverage > 0.0 {
-                    coverage_estimator.print_coverage(&coverage, coverage_taker);
-                } else {
-                    coverage_estimator.print_zero_coverage(
-                        coverage_taker,
-                        // Length coverage is always >0, so this 0 is never used
-                        9,
-                    );
-                }
+            // Print coverage of previous genome
+            if coverage > 0.0 {
+                coverage_estimator.print_coverage(&coverage, coverage_taker);
+            } else {
+                coverage_estimator.print_zero_coverage(
+                    coverage_taker,
+                    // Length coverage is always >0, so this 0 is never used
+                    9,
+                );
             }
-            coverage_taker.finish_entry();
         }
+        coverage_taker.finish_entry();
     }
     // Reset all estimators
     for coverage_estimator in coverage_estimators.iter_mut() {
@@ -403,14 +401,14 @@ fn print_last_genomes<T: CoverageTaker>(
             last_genome,
             current_genome,
             tid_to_print_zeros_to,
-            &coverage_estimators,
-            &target_names,
+            coverage_estimators,
+            target_names,
             split_char,
             coverage_taker,
-            &header,
+            header,
         );
     }
-    return positive_coverage;
+    positive_coverage
 }
 
 pub fn mosdepth_genome_coverage<
@@ -438,7 +436,7 @@ pub fn mosdepth_genome_coverage<
 
         let stoit_name = &(bam_generated.name().to_string());
         debug!("Working on stoit {}", stoit_name);
-        coverage_taker.start_stoit(&stoit_name);
+        coverage_taker.start_stoit(stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
 
@@ -468,7 +466,7 @@ pub fn mosdepth_genome_coverage<
                     break;
                 }
             }
-            return extras;
+            extras
         };
 
         let fill_genome_length_backwards_to_last =
@@ -492,7 +490,7 @@ pub fn mosdepth_genome_coverage<
                         break;
                     }
                 }
-                return extras;
+                extras
             };
 
         let mut last_tid: u32 = 0;
@@ -530,7 +528,7 @@ pub fn mosdepth_genome_coverage<
                 let tid = original_tid as u32;
                 let current_genome: &[u8] = match single_genome {
                     true => "".as_bytes(),
-                    false => extract_genome(tid as u32, &target_names, split_char),
+                    false => extract_genome(tid, &target_names, split_char),
                 };
                 if tid != last_tid || doing_first {
                     debug!(
@@ -546,7 +544,7 @@ pub fn mosdepth_genome_coverage<
                         error!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
                         panic!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
                     }
-                    if doing_first == true {
+                    if doing_first {
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
                             coverage_estimator.setup()
                         }
@@ -567,7 +565,7 @@ pub fn mosdepth_genome_coverage<
                                 None,
                                 current_genome,
                                 tid,
-                                &coverage_estimators,
+                                coverage_estimators,
                                 &target_names,
                                 split_char,
                                 coverage_taker,
@@ -594,7 +592,7 @@ pub fn mosdepth_genome_coverage<
                             .unobserved_contig_lengths
                             .append(&mut fill_genome_length_backwards_to_last(
                                 tid,
-                                last_tid as u32,
+                                last_tid,
                                 current_genome,
                             ));
                     } else {
@@ -613,7 +611,7 @@ pub fn mosdepth_genome_coverage<
                             .unobserved_contig_lengths
                             .append(&mut fill_genome_length_backwards_to_last(
                                 tid,
-                                last_tid as u32,
+                                last_tid,
                                 last_genome.unwrap(),
                             ));
 
@@ -651,12 +649,12 @@ pub fn mosdepth_genome_coverage<
                         debug!(
                             "Setting unobserved contig length to be {:?} for genome {}",
                             unobserved_contig_length_and_first_tid.unobserved_contig_lengths,
-                            str::from_utf8(&current_genome).unwrap()
+                            str::from_utf8(current_genome).unwrap()
                         );
                     }
 
                     ups_and_downs =
-                        vec![0; header.target_len(tid as u32).expect("Corrupt BAM file?") as usize];
+                        vec![0; header.target_len(tid).expect("Corrupt BAM file?") as usize];
                     num_mapped_reads_in_current_contig = 0;
                     total_edit_distance_in_current_contig = 0;
                     total_indels_in_current_contig = 0;
@@ -782,16 +780,15 @@ pub fn mosdepth_genome_coverage<
 
         bam_generated.finish();
     }
-    return reads_mapped_vector;
+    reads_mapped_vector
 }
 
 fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) -> &'a [u8] {
     let target_name = target_names[tid as usize];
     trace!("target name {:?}, separator {:?}", target_name, split_char);
-    let offset = find_first(target_name, split_char).expect(
-        &format!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+    let offset = find_first(target_name, split_char).unwrap_or_else(|_| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                  str::from_utf8(target_name).unwrap()));
-    return &target_name[(0..offset)];
+    &target_name[0..offset]
 }
 
 fn fill_genome_length_backwards(
@@ -816,7 +813,7 @@ fn fill_genome_length_backwards(
 
     let mut extras: Vec<u64> = vec![];
     let mut my_tid = current_tid - 1;
-    while single_genome || extract_genome(my_tid, &target_names, split_char) == target_genome {
+    while single_genome || extract_genome(my_tid, target_names, split_char) == target_genome {
         extras.push(
             header
                 .target_len(my_tid)
@@ -825,7 +822,7 @@ fn fill_genome_length_backwards(
         if my_tid == 0 {
             return UnobservedLengthAndFirstTid {
                 unobserved_contig_lengths: extras,
-                first_tid: 0 as usize,
+                first_tid: 0_usize,
             };
         } else {
             my_tid -= 1;
@@ -836,10 +833,10 @@ fn fill_genome_length_backwards(
         extras,
         my_tid + 1
     );
-    return UnobservedLengthAndFirstTid {
+    UnobservedLengthAndFirstTid {
         unobserved_contig_lengths: extras,
         first_tid: (my_tid + 1) as usize,
-    };
+    }
 }
 
 // Print zero coverage for genomes that have no reads mapped. Genomes are
@@ -865,7 +862,7 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     // Gah.
     let mut last_first_id = None;
     loop {
-        let genome = extract_genome(tid, &target_names, split_char);
+        let genome = extract_genome(tid, target_names, split_char);
         debug!(
             "in print_previous_zero_coverage_genomes2: tid {}, genome {}",
             tid,
@@ -896,7 +893,7 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
         if tid == 0 {
             break;
         }
-        tid = tid - 1;
+        tid -= 1;
     }
     match last_first_id {
         Some(id) => {
@@ -914,14 +911,14 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     for i in (0..genomes_to_print.len()).rev() {
         coverage_taker.start_entry(
             genome_first_tids[i],
-            &str::from_utf8(genomes_to_print[i]).unwrap(),
+            str::from_utf8(genomes_to_print[i]).unwrap(),
         );
         for coverage_estimator in pileup_coverage_estimators {
             coverage_estimator.print_zero_coverage(coverage_taker, genomes_unobserved_length[i]);
         }
         coverage_taker.finish_entry();
     }
-    return pileup_coverage_estimators;
+    pileup_coverage_estimators
 }
 
 #[cfg(test)]
@@ -973,7 +970,7 @@ mod tests {
             .read_to_end(&mut buf)
             .unwrap();
         assert_eq!(expected, str::from_utf8(&buf).unwrap());
-        return res;
+        res
     }
 
     fn test_streaming_with_stream_pileup_counts<
@@ -1017,7 +1014,7 @@ mod tests {
             .read_to_end(&mut buf)
             .unwrap();
         assert_eq!(expected, str::from_utf8(&buf).unwrap());
-        return res;
+        res
     }
 
     fn test_contig_names_with_stream<R: NamedBamReader, G: NamedBamReaderGenerator<R>>(
@@ -1057,7 +1054,7 @@ mod tests {
             .read_to_end(&mut buf)
             .unwrap();
         assert_eq!(expected, str::from_utf8(&buf).unwrap());
-        return res;
+        res
     }
 
     fn test_contig_names_with_stream_pileup_counts<
@@ -1099,7 +1096,7 @@ mod tests {
             .read_to_end(&mut buf)
             .unwrap();
         assert_eq!(expected, str::from_utf8(&buf).unwrap());
-        return res;
+        res
     }
 
     #[test]
@@ -1107,7 +1104,7 @@ mod tests {
         test_streaming_with_stream(
             "2seqs.reads_for_seq1\tse\t0.6\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            'q' as u8,
+            b'q',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
             false,
@@ -1136,7 +1133,7 @@ mod tests {
         test_streaming_with_stream(
             "2seqs.reads_for_seq2\tse\t0.6\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq2.bam"]),
-            'q' as u8,
+            b'q',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
             false,
@@ -1167,7 +1164,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            'e' as u8,
+            b'e',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
             false,
@@ -1200,7 +1197,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            'e' as u8,
+            b'e',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.76, 0, false)],
             false,
@@ -1233,7 +1230,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            'e' as u8,
+            b'e',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.759, 0, false)],
             false,
@@ -1266,7 +1263,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            'e' as u8,
+            b'e',
             true,
             &mut vec![CoverageEstimator::new_estimator_trimmed_mean(
                 0.1, 0.9, 0.759, 0,
@@ -1301,7 +1298,7 @@ mod tests {
         test_streaming_with_stream_pileup_counts(
             "2seqs.reads_for_seq1_and_seq2\ts\t0\t482\n2seqs.reads_for_seq1_and_seq2\ts\t1\t922\n2seqs.reads_for_seq1_and_seq2\ts\t2\t371\n2seqs.reads_for_seq1_and_seq2\ts\t3\t164\n2seqs.reads_for_seq1_and_seq2\ts\t4\t61\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
-            'e' as u8,
+            b'e',
             true,
             &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0,0)),
             false,
@@ -1328,7 +1325,7 @@ mod tests {
         test_streaming_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
             false,
@@ -1337,7 +1334,7 @@ mod tests {
         test_streaming_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            '~' as u8,
+            b'~',
             false,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
             false,
@@ -1352,7 +1349,7 @@ mod tests {
                 vec!["tests/data/shard1.bam", "tests/data/shard2.bam"],
                 4,
                 &NoExclusionGenomeFilter{}),
-            '~' as u8,
+            b'~',
             true,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
             false,
@@ -1364,7 +1361,7 @@ mod tests {
         let mut hashset: HashSet<&[u8]> = HashSet::new();
         hashset.insert(b"genome3");
         let ex = SeparatorGenomeExclusionFilter {
-            split_char: '~' as u8,
+            split_char: b'~',
             excluded_genomes: hashset,
         };
         test_streaming_with_stream(
@@ -1379,7 +1376,7 @@ mod tests {
                 4,
                 &ex,
             ),
-            '~' as u8,
+            b'~',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.1, 0, false)],
             false,
@@ -1392,7 +1389,7 @@ mod tests {
         test_streaming_with_stream(
             "7seqs.reads_for_seq1_and_seq2\tgenome1\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2\t0\n7seqs.reads_for_seq1_and_seq2\tgenome3\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0,false)),
             false,
@@ -1406,7 +1403,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
             false,
@@ -1425,7 +1422,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             false,
             &mut vec![CoverageEstimator::new_estimator_covered_bases(0.0)],
             false,
@@ -1444,7 +1441,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             false,
             &mut vec![CoverageEstimator::new_estimator_covered_bases(0.0)],
             false,
@@ -1605,7 +1602,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1.with_unmapped.bam",
             ]),
-            '\0' as u8,
+            b'\0',
             true,
             &mut vec![CoverageEstimator::new_estimator_mean(0.1, 0, true)],
             false,
@@ -1625,7 +1622,7 @@ mod tests {
         test_streaming_with_stream(
             "2seqs.reads_for_seq1\tgenome1\t0.6\t0\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            'q' as u8,
+            b'q',
             true,
             &mut vec![
                 CoverageEstimator::new_estimator_mean(0.0, 0, false),
@@ -1643,7 +1640,7 @@ mod tests {
         test_streaming_with_stream(
             "2seqs.reads_for_seq1\tgenome1\t0\t0.6\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
-            'q' as u8,
+            b'q',
             true,
             &mut vec![
                 CoverageEstimator::new_estimator_trimmed_mean(0.0, 0.05, 0.0, 0),
@@ -1662,7 +1659,7 @@ mod tests {
             "7seqs.reads_for_seq1\tgenome1\t0\t0\n7seqs.reads_for_seq1\tgenome2\t1.2\t0\n7seqs.reads_for_seq1\tgenome3\t0\t0\n7seqs.reads_for_seq1\tgenome4\t0\t0\n7seqs.reads_for_seq1\tgenome5\t0\t0\n7seqs.reads_for_seq1\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec!(
                 CoverageEstimator::new_estimator_mean(0.0,0,false),
@@ -1680,7 +1677,7 @@ mod tests {
             "7seqs.reads_for_seq1\tgenome1\t0\t0\n7seqs.reads_for_seq1\tgenome2\t0\t1.2\n7seqs.reads_for_seq1\tgenome3\t0\t0\n7seqs.reads_for_seq1\tgenome4\t0\t0\n7seqs.reads_for_seq1\tgenome5\t0\t0\n7seqs.reads_for_seq1\tgenome6\t0\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec!(
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
@@ -1694,13 +1691,13 @@ mod tests {
 
     #[test]
     fn test_fill_genome_length_backwards1() {
-        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let bam = bam::Reader::from_path("tests/data/7seqs.reads_for_seq1.bam").unwrap();
         let uf = fill_genome_length_backwards(
             2,
             "genome2".as_bytes(),
             false,
             &bam.header().target_names(),
-            '~' as u8,
+            b'~',
             bam.header(),
         );
         assert_eq!(vec![0; 0], uf.unobserved_contig_lengths);
@@ -1709,13 +1706,13 @@ mod tests {
 
     #[test]
     fn test_fill_genome_length_backwards2() {
-        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let bam = bam::Reader::from_path("tests/data/7seqs.reads_for_seq1.bam").unwrap();
         let uf = fill_genome_length_backwards(
             1,
             "genome1".as_bytes(),
             false,
             &bam.header().target_names(),
-            '~' as u8,
+            b'~',
             bam.header(),
         );
         assert_eq!(vec![11000], uf.unobserved_contig_lengths);
@@ -1724,13 +1721,13 @@ mod tests {
 
     #[test]
     fn test_fill_genome_length_backwards3() {
-        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let bam = bam::Reader::from_path("tests/data/7seqs.reads_for_seq1.bam").unwrap();
         let uf = fill_genome_length_backwards(
             5,
             "genome5".as_bytes(),
             false,
             &bam.header().target_names(),
-            '~' as u8,
+            b'~',
             bam.header(),
         );
         assert_eq!(
@@ -1748,16 +1745,16 @@ mod tests {
         let mut coverage_taker = CoverageTakerType::new_cached_single_float_coverage_taker(1);
         let estimator = CoverageEstimator::new_estimator_mean(0.0, 0, false);
         coverage_taker.start_stoit("dummy");
-        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let bam = bam::Reader::from_path("tests/data/7seqs.reads_for_seq1.bam").unwrap();
         print_previous_zero_coverage_genomes2(
             None,
             "genome2".as_bytes(),
             2,
             &vec![estimator],
             &bam.header().target_names(),
-            '~' as u8,
+            b'~',
             &mut coverage_taker,
-            &bam.header(),
+            bam.header(),
         );
         match coverage_taker {
             CoverageTakerType::CachedSingleFloatCoverageTaker {
@@ -1777,16 +1774,16 @@ mod tests {
         let mut coverage_taker = CoverageTakerType::new_cached_single_float_coverage_taker(1);
         let estimator = CoverageEstimator::new_estimator_length();
         coverage_taker.start_stoit("dummy");
-        let bam = bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1.bam").unwrap();
+        let bam = bam::Reader::from_path("tests/data/7seqs.reads_for_seq1.bam").unwrap();
         print_previous_zero_coverage_genomes2(
             None,
             "genome2".as_bytes(),
             2,
             &vec![estimator],
             &bam.header().target_names(),
-            '~' as u8,
+            b'~',
             &mut coverage_taker,
-            &bam.header(),
+            bam.header(),
         );
         match coverage_taker {
             CoverageTakerType::CachedSingleFloatCoverageTaker {
@@ -1828,7 +1825,7 @@ mod tests {
                 "tests/data/7seqs.reads_for_seq1.bam",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec![
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
@@ -1873,7 +1870,7 @@ mod tests {
                 "tests/data/7seqs.reads_for_seq1.bam",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec![
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
@@ -1916,7 +1913,7 @@ mod tests {
                 "tests/data/7seqs.reads_for_seq1.bam",
                 "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
             ]),
-            '~' as u8,
+            b'~',
             true,
             &mut vec![
                 // All genomes do not pass the min covered fraction threshold.

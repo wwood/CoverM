@@ -17,7 +17,7 @@ pub fn read_genome_fasta_files(
     for file in fasta_file_paths {
         let path = Path::new(file);
         let mut reader =
-            parse_fastx_file(path).expect(&format!("Unable to read fasta file {}", file));
+            parse_fastx_file(path).unwrap_or_else(|_| panic!("Unable to read fasta file {}", file));
 
         // Remove .gz .bz .xz from file names if present
         let mut genome_name1 =
@@ -44,8 +44,8 @@ pub fn read_genome_fasta_files(
         }
         let genome_index = contig_to_genome.establish_genome(genome_name);
         while let Some(record) = reader.next() {
-            let record_expected =
-                record.expect(&format!("Failed to parse record in fasta file {:?}", path));
+            let record_expected = record
+                .unwrap_or_else(|_| panic!("Failed to parse record in fasta file {:?}", path));
 
             if record_expected.format() != needletail::parser::Format::Fasta {
                 panic!(
@@ -69,14 +69,16 @@ pub fn read_genome_fasta_files(
             contig_to_genome.insert(contig, genome_index);
         }
     }
-    return contig_to_genome;
+    contig_to_genome
 }
 
 pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndContigs {
-    let f = std::fs::File::open(definition_file_path).expect(&format!(
-        "Unable to find/read genome definition file {}",
-        definition_file_path
-    ));
+    let f = std::fs::File::open(definition_file_path).unwrap_or_else(|_| {
+        panic!(
+            "Unable to find/read genome definition file {}",
+            definition_file_path
+        )
+    });
     let file = std::io::BufReader::new(&f);
     let mut contig_to_genome: HashMap<String, String> = HashMap::new();
     let mut genome_to_contig: HashMap<String, Vec<String>> = HashMap::new();
@@ -85,7 +87,7 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
 
     for line_res in file.lines() {
         let line = line_res.expect("Read error on genome definition file");
-        let v: Vec<&str> = line.split("\t").collect();
+        let v: Vec<&str> = line.split('\t').collect();
         if v.len() == 2 {
             let genome = v[0].trim();
             let contig = v[1]
@@ -113,7 +115,7 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
                 genome_to_contig.insert(genome.to_string(), vec![contig.to_string()]);
                 genome_order.push(genome.to_string());
             }
-        } else if v.len() == 0 {
+        } else if v.is_empty() {
             continue;
         } else {
             error!(
@@ -140,7 +142,7 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
             gc.insert(contig.to_string(), genome_index);
         }
     }
-    return gc;
+    gc
 }
 
 #[cfg(test)]

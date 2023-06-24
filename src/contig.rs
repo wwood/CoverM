@@ -79,7 +79,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         for (coverage, estimator) in
                             coverages.iter().zip(coverage_estimators.iter_mut())
                         {
-                            estimator.print_coverage(&coverage, coverage_taker);
+                            estimator.print_coverage(coverage, coverage_taker);
                         }
                         coverage_taker.finish_entry();
                     }
@@ -238,7 +238,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
 
         bam_generated.finish();
     }
-    return reads_mapped_vector;
+    reads_mapped_vector
 }
 
 fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
@@ -256,7 +256,7 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
             my_tid as usize,
             std::str::from_utf8(target_names[my_tid as usize]).unwrap(),
         );
-        for ref coverage_estimator in coverage_estimators.iter() {
+        for coverage_estimator in coverage_estimators.iter() {
             coverage_estimator
                 .print_zero_coverage(coverage_taker, header.target_len(my_tid as u32).unwrap());
         }
@@ -311,7 +311,7 @@ mod tests {
             .read_to_end(&mut buf)
             .unwrap();
         assert_eq!(expected, str::from_utf8(&buf).unwrap());
-        return reads_mapped_vec;
+        reads_mapped_vec
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
     fn test_one_read_of_pair_mapped() {
         // In the second read, tid is != -1, because the first in the pair is assigned somewhere.
         test_with_stream(
-            &("1read_of_pair_mapped\t73.20100900_E1D.16_contig_9606\t0.011293635\n".to_owned()),
+            "1read_of_pair_mapped\t73.20100900_E1D.16_contig_9606\t0.011293635\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/1read_of_pair_mapped.bam"]),
             &mut vec![CoverageEstimator::new_estimator_mean(0.0, 75, true)],
             false,
@@ -514,7 +514,7 @@ mod tests {
     fn test_variance_estimator_all_bases_covered() {
         // In the past this threw up a underflow error
         test_with_stream(
-            &("k141_2005182	k141_2005182	5.107387\n".to_owned()),
+            "k141_2005182	k141_2005182	5.107387\n",
             generate_named_bam_readers_from_bam_files(vec!["tests/data/k141_2005182.bam"]),
             &mut vec![CoverageEstimator::new_estimator_variance(0.0, 75)],
             false,
@@ -526,9 +526,8 @@ mod tests {
     fn test_reads_not_counting_when_sufficient_min_covered() {
         // In the past this threw up a underflow error
         let reads_mapped = test_with_stream(
-            &("2seqs.reads_for_seq1_and_seq2	seq1	1.3049262\n\
-               2seqs.reads_for_seq1_and_seq2	seq2	0.6862065\n"
-                .to_owned()),
+            "2seqs.reads_for_seq1_and_seq2	seq1	1.3049262\n\
+               2seqs.reads_for_seq1_and_seq2	seq2	0.6862065\n",
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),
@@ -549,7 +548,7 @@ mod tests {
     fn test_reads_not_counting_when_insufficient_min_covered() {
         // In the past this threw up a underflow error
         let reads_mapped = test_with_stream(
-            &("".to_owned()),
+            "",
             generate_named_bam_readers_from_bam_files(vec![
                 "tests/data/2seqs.reads_for_seq1_and_seq2.bam",
             ]),

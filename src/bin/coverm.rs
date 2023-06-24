@@ -51,7 +51,7 @@ fn main() {
     match matches.subcommand_name() {
         Some("genome") => {
             let m = matches.subcommand_matches("genome").unwrap();
-            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, genome_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, genome_full_help());
             set_log_level(m, true);
             print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
@@ -60,7 +60,7 @@ fn main() {
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker =
-                estimators_and_taker.print_headers(&"Genome", print_stream.clone());
+                estimators_and_taker.print_headers("Genome", print_stream.clone());
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -69,7 +69,7 @@ fn main() {
                 && !m.get_flag("dereplicate")
                 && !m.get_flag("single-genome")
             {
-                parse_all_genome_definitions(&m)
+                parse_all_genome_definitions(m)
             } else {
                 None
             };
@@ -83,18 +83,20 @@ fn main() {
             let mut genome_exclusion_genomes_and_contigs: Option<GenomesAndContigsExclusionFilter> =
                 None;
             enum GenomeExclusionTypes {
-                SeparatorType,
-                NoneType,
-                GenomesAndContigsType,
+                Separator,
+                None,
+                GenomesAndContigs,
             }
             let genome_exclusion_type = {
                 if m.get_flag("sharded") {
                     if m.contains_id("exclude-genomes-from-deshard") {
                         let filename = m.get_one::<String>("exclude-genomes-from-deshard").unwrap();
-                        genome_names_content = std::fs::read(filename).expect(&format!(
-                            "Failed to open file '{}' containing list of excluded genomes",
-                            filename
-                        ));
+                        genome_names_content = std::fs::read(filename).unwrap_or_else(|_| {
+                            panic!(
+                                "Failed to open file '{}' containing list of excluded genomes",
+                                filename
+                            )
+                        });
                         let mut genome_names_hash: HashSet<&[u8]> = HashSet::new();
                         for n in genome_names_content.split(|s| *s == b"\n"[0]) {
                             if n != b"" {
@@ -104,19 +106,19 @@ fn main() {
                         if genome_names_hash.is_empty() {
                             warn!("No genomes read in that are to be excluded from desharding process");
                             genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter {});
-                            GenomeExclusionTypes::NoneType
+                            GenomeExclusionTypes::None
                         } else {
                             info!("Read in {} distinct genomes to exclude from desharding process e.g. '{}'",
                                   genome_names_hash.len(),
                                   std::str::from_utf8(genome_names_hash.iter().next().unwrap())
                                   .unwrap());
-                            if separator.is_some() {
+                            if let Some(s) = separator {
                                 genome_exclusion_filter_separator_type =
                                     Some(SeparatorGenomeExclusionFilter {
-                                        split_char: separator.unwrap(),
+                                        split_char: s,
                                         excluded_genomes: genome_names_hash,
                                     });
-                                GenomeExclusionTypes::SeparatorType
+                                GenomeExclusionTypes::Separator
                             } else {
                                 match genomes_and_contigs_option_predereplication {
                                     Some(ref gc) => {
@@ -125,7 +127,7 @@ fn main() {
                                                 genomes_and_contigs: gc,
                                                 excluded_genomes: genome_names_hash,
                                             });
-                                        GenomeExclusionTypes::GenomesAndContigsType
+                                        GenomeExclusionTypes::GenomesAndContigs
                                     }
                                     None => unreachable!(),
                                 }
@@ -134,11 +136,11 @@ fn main() {
                     } else {
                         debug!("Not excluding any genomes during the deshard process");
                         genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter {});
-                        GenomeExclusionTypes::NoneType
+                        GenomeExclusionTypes::None
                     }
                 } else {
                     genome_exclusion_filter_non_type = Some(NoExclusionGenomeFilter {});
-                    GenomeExclusionTypes::NoneType
+                    GenomeExclusionTypes::None
                 }
             };
 
@@ -150,7 +152,7 @@ fn main() {
                     .collect();
 
                 // Associate genomes and contig names, if required
-                let genomes_and_contigs_option = parse_all_genome_definitions(&m);
+                let genomes_and_contigs_option = parse_all_genome_definitions(m);
 
                 if filter_params.doing_filtering() {
                     run_genome(
@@ -176,7 +178,7 @@ fn main() {
                     // Seems crazy, but I cannot work out how to make this more
                     // DRY, without making GenomeExclusion into an enum.
                     match genome_exclusion_type {
-                        GenomeExclusionTypes::NoneType => {
+                        GenomeExclusionTypes::None => {
                             run_genome(
                                 coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                                     bam_files,
@@ -188,7 +190,7 @@ fn main() {
                                 &genomes_and_contigs_option,
                                 &mut print_stream,);
                         }
-                        GenomeExclusionTypes::SeparatorType => {
+                        GenomeExclusionTypes::Separator => {
                             run_genome(
                                 coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                                     bam_files,
@@ -200,7 +202,7 @@ fn main() {
                                 &genomes_and_contigs_option,
                                 &mut print_stream,);
                         }
-                        GenomeExclusionTypes::GenomesAndContigsType => {
+                        GenomeExclusionTypes::GenomesAndContigs => {
                             run_genome(
                                 coverm::shard_bam_reader::generate_sharded_bam_reader_from_bam_files(
                                     bam_files,
@@ -224,7 +226,7 @@ fn main() {
                     );
                 }
             } else {
-                let mapping_program = parse_mapping_program(&m);
+                let mapping_program = parse_mapping_program(m);
                 external_command_checker::check_for_samtools();
 
                 // If genomes defined by file, then potentially dereplicate. If
@@ -234,9 +236,9 @@ fn main() {
                 // list of genome fasta files.
 
                 let genome_fasta_files_opt = {
-                    match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, false) {
+                    match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(m, false) {
                         Ok(paths) => {
-                            if paths.len() == 0 {
+                            if paths.is_empty() {
                                 error!(
                                     "Genome paths were described, but ultimately none were found"
                                 );
@@ -246,7 +248,7 @@ fn main() {
                                 let genomes_after_filtering =
                                     galah::cluster_argument_parsing::filter_genomes_through_checkm(
                                         &paths,
-                                        &m,
+                                        m,
                                         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
                                     )
                                     .expect("Error parsing CheckM-related options");
@@ -254,7 +256,7 @@ fn main() {
                                     "After filtering by CheckM, {} genomes remained",
                                     genomes_after_filtering.len()
                                 );
-                                if genomes_after_filtering.len() == 0 {
+                                if genomes_after_filtering.is_empty() {
                                     error!("All genomes were filtered out, so none remain to be mapped to");
                                     process::exit(1);
                                 }
@@ -283,7 +285,7 @@ fn main() {
                                 Some(genome_paths) => (
                                     None,
                                     extract_genomes_and_contigs_option(
-                                        &m,
+                                        m,
                                         &genome_paths.iter().map(|s| s.as_str()).collect(),
                                     ),
                                 ),
@@ -301,7 +303,7 @@ fn main() {
                         false => {
                             // Dereplicate if required
                             let dereplicated_genomes: Vec<String> = if m.get_flag("dereplicate") {
-                                dereplicate(&m, &genome_fasta_files_opt.unwrap())
+                                dereplicate(m, &genome_fasta_files_opt.unwrap())
                             } else {
                                 genome_fasta_files_opt.unwrap()
                             };
@@ -350,7 +352,7 @@ fn main() {
                     );
                 } else if m.get_flag("sharded") {
                     match genome_exclusion_type {
-                        GenomeExclusionTypes::NoneType => {
+                        GenomeExclusionTypes::None => {
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
@@ -365,7 +367,7 @@ fn main() {
                                 &mut print_stream,
                             );
                         }
-                        GenomeExclusionTypes::SeparatorType => {
+                        GenomeExclusionTypes::Separator => {
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
@@ -380,7 +382,7 @@ fn main() {
                                 &mut print_stream,
                             );
                         }
-                        GenomeExclusionTypes::GenomesAndContigsType => {
+                        GenomeExclusionTypes::GenomesAndContigs => {
                             run_genome(
                                 get_sharded_bam_readers(
                                     m,
@@ -420,7 +422,7 @@ fn main() {
         }
         Some("filter") => {
             let m = matches.subcommand_matches("filter").unwrap();
-            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, filter_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, filter_full_help());
             set_log_level(m, true);
 
             let bam_files: Vec<&str> = m
@@ -443,12 +445,12 @@ fn main() {
             let num_threads: u16 = *m.get_one::<u16>("threads").unwrap();
 
             for (bam, output) in bam_files.iter().zip(output_bam_files.iter()) {
-                let reader =
-                    bam::Reader::from_path(bam).expect(&format!("Unable to find BAM file {}", bam));
+                let reader = bam::Reader::from_path(bam)
+                    .unwrap_or_else(|_| panic!("Unable to find BAM file {}", bam));
                 let header = bam::header::Header::from_template(reader.header());
                 let mut writer =
                     bam::Writer::from_path(output, &header, rust_htslib::bam::Format::Bam)
-                        .expect(&format!("Failed to write BAM file {}", output));
+                        .unwrap_or_else(|_| panic!("Failed to write BAM file {}", output));
                 writer
                     .set_threads(num_threads as usize)
                     .expect("Failed to set num threads in writer");
@@ -483,7 +485,7 @@ fn main() {
         }
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
-            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, contig_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, contig_full_help());
             set_log_level(m, true);
             let print_zeros = !m.get_flag("no-zeros");
 
@@ -498,7 +500,7 @@ fn main() {
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker =
-                estimators_and_taker.print_headers(&"Contig", print_stream.clone());
+                estimators_and_taker.print_headers("Contig", print_stream.clone());
 
             if m.contains_id("bam-files") {
                 let bam_files: Vec<&str> = m
@@ -555,7 +557,7 @@ fn main() {
                     );
                 }
             } else {
-                let mapping_program = parse_mapping_program(&m);
+                let mapping_program = parse_mapping_program(m);
                 external_command_checker::check_for_samtools();
 
                 if filter_params.doing_filtering() {
@@ -613,7 +615,7 @@ fn main() {
                         &mut estimators_and_taker,
                         all_generators,
                         print_zeros,
-                        filter_params.flag_filters.clone(),
+                        filter_params.flag_filters,
                         threads,
                         &mut print_stream,
                     );
@@ -622,21 +624,21 @@ fn main() {
         }
         Some("make") => {
             let m = matches.subcommand_matches("make").unwrap();
-            bird_tool_utils::clap_utils::print_full_help_if_needed(&m, make_full_help());
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, make_full_help());
             set_log_level(m, true);
 
-            let mapping_program = parse_mapping_program(&m);
+            let mapping_program = parse_mapping_program(m);
             external_command_checker::check_for_samtools();
 
             let output_directory = m.get_one::<String>("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
-            let params = MappingParameters::generate_from_clap(&m, mapping_program, &None);
+            let params = MappingParameters::generate_from_clap(m, mapping_program, &None);
             let mut generator_sets = vec![];
             let discard_unmapped_reads = m.get_flag("discard-unmapped");
 
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
-                let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
+                let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
                 let ref_string = reference_wise_params.reference;
 
                 // Ensure there is no duplication in output files e.g.
@@ -670,7 +672,7 @@ fn main() {
                 debug!("Finished BAM setup");
                 let to_return = BamGeneratorSet {
                     generators: bam_readers,
-                    index: index,
+                    index,
                 };
                 generator_sets.push(to_return);
             }
@@ -762,13 +764,13 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     // Generate clusterer and check for dependencies
     let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
         genome_fasta_files,
-        &m,
+        m,
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
     )
     .expect("Failed to parse galah clustering arguments correctly");
 
     let cluster_outputs = galah::cluster_argument_parsing::setup_galah_outputs(
-        &m,
+        m,
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
     );
 
@@ -824,7 +826,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
             external_command_checker::check_for_minimap2();
         }
     }
-    return mapping_program;
+    mapping_program
 }
 
 struct EstimatorsAndTaker {
@@ -845,7 +847,7 @@ fn extract_genomes_and_contigs_option(
             m.get_one::<String>("genome-definition").unwrap(),
         )),
         false => Some(coverm::genome_parsing::read_genome_fasta_files(
-            &genome_fasta_files,
+            genome_fasta_files,
             m.get_flag("use-full-contig-names"),
         )),
     }
@@ -861,7 +863,7 @@ fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContig
     } else {
         extract_genomes_and_contigs_option(
             m,
-            &bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(&m, true)
+            &bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(m, true)
                 .expect("Failed to parse genome paths")
                 .iter()
                 .map(|s| s.as_str())
@@ -873,9 +875,9 @@ fn parse_all_genome_definitions(m: &clap::ArgMatches) -> Option<GenomesAndContig
 fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
     if m.contains_id(parameter) {
         let mut percentage: f32 = *m.get_one::<f32>(parameter).unwrap_or(&0.0);
-        if percentage >= 1.0 && percentage <= 100.0 {
-            percentage = percentage / 100.0;
-        } else if percentage < 0.0 || percentage > 100.0 {
+        if (1.0..=100.0).contains(&percentage) {
+            percentage /= 100.0;
+        } else if !(0.0..=100.0).contains(&percentage) {
             error!("Invalid alignment percentage: '{}'", percentage);
             process::exit(1);
         }
@@ -891,7 +893,7 @@ fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
 impl EstimatorsAndTaker {
     pub fn generate_from_clap(m: &clap::ArgMatches, stream: OutputWriter) -> EstimatorsAndTaker {
         let mut estimators = vec![];
-        let min_fraction_covered = parse_percentage(&m, "min-covered-fraction");
+        let min_fraction_covered = parse_percentage(m, "min-covered-fraction");
         let contig_end_exclusion = *m.get_one::<u64>("contig-end-exclusion").unwrap();
 
         let methods: Vec<&str> = m
@@ -907,7 +909,7 @@ impl EstimatorsAndTaker {
         let mut rpkm_column = None;
         let mut tpm_column = None;
 
-        if doing_metabat(&m) {
+        if doing_metabat(m) {
             estimators.push(CoverageEstimator::new_estimator_length());
             estimators.push(CoverageEstimator::new_estimator_mean(
                 min_fraction_covered,
@@ -924,23 +926,23 @@ impl EstimatorsAndTaker {
             printer = CoveragePrinter::MetabatAdjustedCoveragePrinter;
         } else {
             for (i, method) in methods.iter().enumerate() {
-                match method {
-                    &"mean" => {
+                match *method {
+                    "mean" => {
                         estimators.push(CoverageEstimator::new_estimator_mean(
                             min_fraction_covered,
                             contig_end_exclusion,
                             false,
                         )); // TODO: Parameterise exclude_mismatches
                     }
-                    &"coverage_histogram" => {
+                    "coverage_histogram" => {
                         estimators.push(CoverageEstimator::new_estimator_pileup_counts(
                             min_fraction_covered,
                             contig_end_exclusion,
                         ));
                     }
-                    &"trimmed_mean" => {
-                        let min = parse_percentage(&m, "trim-min");
-                        let max = parse_percentage(&m, "trim-max");
+                    "trimmed_mean" => {
+                        let min = parse_percentage(m, "trim-min");
+                        let max = parse_percentage(m, "trim-max");
                         estimators.push(CoverageEstimator::new_estimator_trimmed_mean(
                             min,
                             max,
@@ -948,17 +950,17 @@ impl EstimatorsAndTaker {
                             contig_end_exclusion,
                         ));
                     }
-                    &"covered_fraction" => {
+                    "covered_fraction" => {
                         estimators.push(CoverageEstimator::new_estimator_covered_fraction(
                             min_fraction_covered,
                         ));
                     }
-                    &"covered_bases" => {
+                    "covered_bases" => {
                         estimators.push(CoverageEstimator::new_estimator_covered_bases(
                             min_fraction_covered,
                         ));
                     }
-                    &"rpkm" => {
+                    "rpkm" => {
                         if rpkm_column.is_some() {
                             error!("The RPKM column cannot be specified more than once");
                             process::exit(1);
@@ -966,7 +968,7 @@ impl EstimatorsAndTaker {
                         rpkm_column = Some(i);
                         estimators.push(CoverageEstimator::new_estimator_rpkm(min_fraction_covered))
                     }
-                    &"tpm" => {
+                    "tpm" => {
                         if tpm_column.is_some() {
                             error!("The TPM column cannot be specified more than once");
                             process::exit(1);
@@ -974,16 +976,16 @@ impl EstimatorsAndTaker {
                         tpm_column = Some(i);
                         estimators.push(CoverageEstimator::new_estimator_tpm(min_fraction_covered))
                     }
-                    &"variance" => {
+                    "variance" => {
                         estimators.push(CoverageEstimator::new_estimator_variance(
                             min_fraction_covered,
                             contig_end_exclusion,
                         ));
                     }
-                    &"length" => {
+                    "length" => {
                         estimators.push(CoverageEstimator::new_estimator_length());
                     }
-                    &"relative_abundance" => {
+                    "relative_abundance" => {
                         columns_to_normalise.push(i);
                         estimators.push(CoverageEstimator::new_estimator_mean(
                             min_fraction_covered,
@@ -992,10 +994,10 @@ impl EstimatorsAndTaker {
                         ));
                         // TODO: Parameterise exclude_mismatches
                     }
-                    &"count" => {
+                    "count" => {
                         estimators.push(CoverageEstimator::new_estimator_read_count());
                     }
-                    &"reads_per_base" => {
+                    "reads_per_base" => {
                         estimators.push(CoverageEstimator::new_estimator_reads_per_base());
                     }
                     _ => unreachable!(),
@@ -1008,18 +1010,17 @@ impl EstimatorsAndTaker {
                     process::exit(1);
                 } else {
                     debug!("Coverage histogram type coverage taker being used");
-                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream.clone());
+                    taker = CoverageTakerType::new_pileup_coverage_coverage_printer(stream);
                     printer = CoveragePrinter::StreamedCoveragePrinter;
                 }
-            } else if columns_to_normalise.len() == 0
+            } else if columns_to_normalise.is_empty()
                 && rpkm_column.is_none()
                 && tpm_column.is_none()
                 && output_format == "sparse"
             {
                 debug!("Streaming regular coverage output");
-                taker = CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(
-                    stream.clone(),
-                );
+                taker =
+                    CoverageTakerType::new_single_float_coverage_streaming_coverage_printer(stream);
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
@@ -1061,14 +1062,14 @@ impl EstimatorsAndTaker {
             }
         }
 
-        return EstimatorsAndTaker {
-            estimators: estimators,
-            taker: taker,
-            columns_to_normalise: columns_to_normalise,
-            rpkm_column: rpkm_column,
-            tpm_column: tpm_column,
-            printer: printer,
-        };
+        EstimatorsAndTaker {
+            estimators,
+            taker,
+            columns_to_normalise,
+            rpkm_column,
+            tpm_column,
+            printer,
+        }
     }
 
     pub fn print_headers(mut self, entry_type: &str, print_stream: OutputWriter) -> Self {
@@ -1082,8 +1083,8 @@ impl EstimatorsAndTaker {
             headers[*i] = "Relative Abundance (%)".to_string();
         }
         self.printer
-            .print_headers(&entry_type, headers, print_stream);
-        return self;
+            .print_headers(entry_type, headers, print_stream);
+        self
     }
 }
 
@@ -1116,7 +1117,7 @@ fn run_genome<
     print_stream: &mut OutputWriter,
 ) {
     let print_zeros = !m.get_flag("no-zeros");
-    let flag_filter = FilterParameters::generate_from_clap(&m).flag_filters;
+    let flag_filter = FilterParameters::generate_from_clap(m).flag_filters;
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
     let reads_mapped = match separator.is_some() || single_genome {
@@ -1170,7 +1171,7 @@ fn doing_metabat(m: &clap::ArgMatches) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 #[derive(Debug)]
@@ -1192,20 +1193,20 @@ impl FilterParameters {
                 include_supplementary: !m.get_flag("exclude-supplementary"),
             },
             min_aligned_length_single: *m.get_one::<u32>("min-read-aligned-length").unwrap_or(&0),
-            min_percent_identity_single: parse_percentage(&m, "min-read-percent-identity"),
-            min_aligned_percent_single: parse_percentage(&m, "min-read-aligned-percent"),
+            min_percent_identity_single: parse_percentage(m, "min-read-percent-identity"),
+            min_aligned_percent_single: parse_percentage(m, "min-read-aligned-percent"),
             min_aligned_length_pair: *m
                 .get_one::<u32>("min-read-aligned-length-pair")
                 .unwrap_or(&0),
-            min_percent_identity_pair: parse_percentage(&m, "min-read-percent-identity-pair"),
-            min_aligned_percent_pair: parse_percentage(&m, "min-read-aligned-percent-pair"),
+            min_percent_identity_pair: parse_percentage(m, "min-read-percent-identity-pair"),
+            min_aligned_percent_pair: parse_percentage(m, "min-read-aligned-percent-pair"),
         };
         debug!("Filter parameters set as {:?}", f);
-        return f;
+        f
     }
 
     pub fn add_metabat_filtering_if_required(&mut self, m: &clap::ArgMatches) {
-        if doing_metabat(&m) {
+        if doing_metabat(m) {
             info!(
                 "Setting single read percent identity threshold at 0.97 for \
                  MetaBAT adjusted coverage, and not filtering out supplementary, \
@@ -1220,12 +1221,12 @@ impl FilterParameters {
     }
 
     pub fn doing_filtering(&self) -> bool {
-        return self.min_percent_identity_single > 0.0
+        self.min_percent_identity_single > 0.0
             || self.min_percent_identity_pair > 0.0
             || self.min_aligned_percent_single > 0.0
             || self.min_aligned_percent_pair > 0.0
             || self.min_aligned_length_single > 0
-            || self.min_aligned_length_pair > 0;
+            || self.min_aligned_length_pair > 0
     }
 }
 
@@ -1244,13 +1245,13 @@ where
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
     let sort_threads = *m.get_one::<u16>("threads").unwrap();
-    let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(m, mapping_program, reference_tempfile);
     let mut bam_readers = vec![];
     let mut concatenated_reference_name: Option<String> = None;
     let mut concatenated_read_names: Option<String> = None;
 
     for reference_wise_params in params {
-        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
+        let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let reference_name = std::path::Path::new(reference)
@@ -1320,10 +1321,10 @@ where
             concatenated_read_names.unwrap()
         ),
         read_sorted_bam_readers: bam_readers,
-        sort_threads: sort_threads,
-        genome_exclusion: genome_exclusion,
+        sort_threads,
+        genome_exclusion,
     };
-    return vec![gen];
+    vec![gen]
 }
 
 fn get_streamed_bam_readers<'a>(
@@ -1337,11 +1338,11 @@ fn get_streamed_bam_readers<'a>(
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(m, mapping_program, reference_tempfile);
     let mut generator_set = vec![];
     for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
+        let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
@@ -1386,11 +1387,11 @@ fn get_streamed_bam_readers<'a>(
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: index,
+            index,
         };
         generator_set.push(to_return);
     }
-    return generator_set;
+    generator_set
 }
 
 fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &str) -> String {
@@ -1403,19 +1404,17 @@ fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &
         .expect("Unable to covert bam-file-cache-directory name into str")
         .to_string()
         + "/"
-        + &std::path::Path::new(reference)
+        + std::path::Path::new(reference)
             .file_name()
             .expect("Unable to convert reference to file name")
             .to_str()
             .expect("Unable to covert file name into str")
-            .to_string()
         + "."
-        + &std::path::Path::new(read1_path)
+        + std::path::Path::new(read1_path)
             .file_name()
             .expect("Unable to convert read1 name to file name")
             .to_str()
             .expect("Unable to covert file name into str")
-            .to_string()
         + ".bam"
 }
 
@@ -1448,18 +1447,22 @@ fn setup_bam_cache_directory(cache_directory: &str) {
                 };
                 if parent2
                     .canonicalize()
-                    .expect(&format!(
-                        "Unable to canonicalize parent of cache directory {}",
-                        cache_directory
-                    ))
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "Unable to canonicalize parent of cache directory {}",
+                            cache_directory
+                        )
+                    })
                     .is_dir()
                 {
                     if parent2
                         .metadata()
-                        .expect(&format!(
-                            "Unable to get metadata for parent of cache directory {}",
-                            cache_directory
-                        ))
+                        .unwrap_or_else(|_| {
+                            panic!(
+                                "Unable to get metadata for parent of cache directory {}",
+                                cache_directory
+                            )
+                        })
                         .permissions()
                         .readonly()
                     {
@@ -1512,11 +1515,11 @@ fn get_streamed_filtered_bam_readers(
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
 
-    let params = MappingParameters::generate_from_clap(&m, mapping_program, &reference_tempfile);
+    let params = MappingParameters::generate_from_clap(m, mapping_program, reference_tempfile);
     let mut generator_set = vec![];
     for reference_wise_params in params {
         let mut bam_readers = vec![];
-        let index = setup_mapping_index(&reference_wise_params, &m, mapping_program);
+        let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
 
         let reference = reference_wise_params.reference;
         let bam_file_cache = |naming_readset| -> Option<String> {
@@ -1568,11 +1571,11 @@ fn get_streamed_filtered_bam_readers(
         debug!("Finished BAM setup");
         let to_return = BamGeneratorSet {
             generators: bam_readers,
-            index: index,
+            index,
         };
         generator_set.push(to_return);
     }
-    return generator_set;
+    generator_set
 }
 
 fn run_contig<

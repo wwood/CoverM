@@ -51,29 +51,29 @@ impl ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),
             current_reference: -1,
             known_next_read: None,
-            reader: reader,
+            reader,
             filter_single_reads: filtering_single,
-            min_aligned_length_single: min_aligned_length_single,
-            min_percent_identity_single: min_percent_identity_single,
-            min_aligned_percent_single: min_aligned_percent_single,
+            min_aligned_length_single,
+            min_percent_identity_single,
+            min_aligned_percent_single,
             filter_pairs: filtering_pairs,
-            min_aligned_length_pair: min_aligned_length_pair,
-            min_percent_identity_pair: min_percent_identity_pair,
-            min_aligned_percent_pair: min_aligned_percent_pair,
+            min_aligned_length_pair,
+            min_percent_identity_pair,
+            min_aligned_percent_pair,
             num_detected_primary_alignments: 0,
-            flag_filters: flag_filters,
-            filter_out: filter_out,
+            flag_filters,
+            filter_out,
         }
     }
 }
 
 impl ReferenceSortedBamFilter {
-    pub fn read(&mut self, mut record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+    pub fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
         // if doing only singles, remove filter them and return
         if self.filter_single_reads && !self.filter_pairs {
             loop {
-                let res = self.reader.read(&mut record);
-                if res == None {
+                let res = self.reader.read(record);
+                if res.is_none() {
                     return res;
                 }
                 if !record.is_supplementary() && !record.is_secondary() {
@@ -87,7 +87,7 @@ impl ReferenceSortedBamFilter {
                     && (self.flag_filters.include_secondary || !record.is_secondary());
                 if passes_filter1 {
                     let passes_filter2 = single_read_passes_filter(
-                        &record,
+                        record,
                         self.min_aligned_length_single,
                         self.min_percent_identity_single,
                         self.min_aligned_percent_single,
@@ -101,124 +101,121 @@ impl ReferenceSortedBamFilter {
             }
         }
         // else doing pairs, so do as before except maybe filter out single reads too
-        else {
-            if self.known_next_read.is_none() {
-                while self.reader.read(&mut record) == Some(Ok(())) {
-                    debug!("record: {:?}", record);
+        else if self.known_next_read.is_none() {
+            while self.reader.read(record) == Some(Ok(())) {
+                debug!("record: {:?}", record);
 
-                    debug!(
-                        "passed flags, {} {} {}",
-                        record.is_secondary(),
-                        record.is_supplementary(),
-                        !record.is_proper_pair()
-                    );
+                debug!(
+                    "passed flags, {} {} {}",
+                    record.is_secondary(),
+                    record.is_supplementary(),
+                    !record.is_proper_pair()
+                );
 
-                    if !record.is_supplementary() && !record.is_secondary() {
-                        self.num_detected_primary_alignments += 1;
-                    }
+                if !record.is_supplementary() && !record.is_secondary() {
+                    self.num_detected_primary_alignments += 1;
+                }
 
-                    if record.is_unmapped() && !self.filter_out {
-                        return Some(Ok(()));
-                    }
+                if record.is_unmapped() && !self.filter_out {
+                    return Some(Ok(()));
+                }
 
-                    // TODO: make usage ensure flag_filtering when mapping
-                    if record.is_secondary() || record.is_supplementary() {
+                // TODO: make usage ensure flag_filtering when mapping
+                if record.is_secondary() || record.is_supplementary() {
+                    continue;
+                }
+                if !record.is_proper_pair() {
+                    if self.filter_out {
                         continue;
-                    }
-                    if !record.is_proper_pair() {
-                        if self.filter_out {
-                            continue;
-                        } else {
-                            return Some(Ok(()));
-                        }
-                    }
-
-                    // if a new reference ID is encountered, instantiate a new first read set
-                    if record.tid() != self.current_reference {
-                        if self.first_set.len() > 0 {
-                            warn!(
-                                "After processing reference tid '{}', there were pairs \
-                                   of reads marked as proper, but appear to be improperly \
-                                   mapped since only one read was found mapping to this \
-                                   reference",
-                                self.current_reference
-                            );
-                        }
-                        self.current_reference = record.tid();
-                        self.first_set = BTreeMap::new();
-                    }
-
-                    let qname = String::from(
-                        str::from_utf8(record.qname())
-                            .expect("UTF8 error in conversion of read name"),
-                    );
-
-                    match self.first_set.remove(&qname) {
-                        None => {
-                            debug!("Processing qname1 {}", qname);
-                            if record.mtid() == self.current_reference {
-                                // if tlen is +ve and < threshold
-                                // add to first read set
-                                self.first_set
-                                    .insert(Rc::new(qname), Rc::new(record.clone()));
-                            // continue the loop without returning as we need to see the second record
-                            }
-                            // pairs from different contigs are ignored.
-                            else {
-                                warn!(
-                                    "Found a mapping record marked as being a proper pair, \
-                                     but mtid != tid, indicating it was an improper pair. Record was {:?} with name {}",
-                                    record, qname);
-                            }
-                        }
-                        Some(record1) => {
-                            debug!("Testing qname2 {}", qname);
-                            // if filtering single and paired reads then
-                            // both must pass QC, as well as the pair
-                            // together.
-                            let passes_filter = (!self.filter_single_reads
-                                || (single_read_passes_filter(
-                                    &record1,
-                                    self.min_aligned_length_single,
-                                    self.min_percent_identity_single,
-                                    self.min_aligned_percent_single,
-                                ) && single_read_passes_filter(
-                                    &record,
-                                    self.min_aligned_length_single,
-                                    self.min_percent_identity_single,
-                                    self.min_aligned_percent_single,
-                                )))
-                                && read_pair_passes_filter(
-                                    &record,
-                                    &record1,
-                                    self.min_aligned_length_pair,
-                                    self.min_percent_identity_pair,
-                                    self.min_aligned_percent_pair,
-                                );
-                            if (passes_filter && self.filter_out)
-                                || (!passes_filter && !self.filter_out)
-                            {
-                                debug!("Read pair passed QC");
-                                self.known_next_read = Some(record.clone());
-                                record.clone_from(
-                                    &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"),
-                                );
-                                debug!("Returning..");
-                                return Some(Ok(()));
-                            } else {
-                                debug!("Read pair did not pass QC");
-                            }
-                        }
+                    } else {
+                        return Some(Ok(()));
                     }
                 }
 
-                // No more records, we are finished.
-                return None;
-            } else {
-                record.clone_from(self.known_next_read.as_ref().unwrap());
-                self.known_next_read = None;
-                return Some(Ok(()));
+                // if a new reference ID is encountered, instantiate a new first read set
+                if record.tid() != self.current_reference {
+                    if !self.first_set.is_empty() {
+                        warn!(
+                            "After processing reference tid '{}', there were pairs \
+                               of reads marked as proper, but appear to be improperly \
+                               mapped since only one read was found mapping to this \
+                               reference",
+                            self.current_reference
+                        );
+                    }
+                    self.current_reference = record.tid();
+                    self.first_set = BTreeMap::new();
+                }
+
+                let qname = String::from(
+                    str::from_utf8(record.qname()).expect("UTF8 error in conversion of read name"),
+                );
+
+                match self.first_set.remove(&qname) {
+                    None => {
+                        debug!("Processing qname1 {}", qname);
+                        if record.mtid() == self.current_reference {
+                            // if tlen is +ve and < threshold
+                            // add to first read set
+                            self.first_set
+                                .insert(Rc::new(qname), Rc::new(record.clone()));
+                        // continue the loop without returning as we need to see the second record
+                        }
+                        // pairs from different contigs are ignored.
+                        else {
+                            warn!(
+                                "Found a mapping record marked as being a proper pair, \
+                                 but mtid != tid, indicating it was an improper pair. Record was {:?} with name {}",
+                                record, qname);
+                        }
+                    }
+                    Some(record1) => {
+                        debug!("Testing qname2 {}", qname);
+                        // if filtering single and paired reads then
+                        // both must pass QC, as well as the pair
+                        // together.
+                        let passes_filter = (!self.filter_single_reads
+                            || (single_read_passes_filter(
+                                &record1,
+                                self.min_aligned_length_single,
+                                self.min_percent_identity_single,
+                                self.min_aligned_percent_single,
+                            ) && single_read_passes_filter(
+                                record,
+                                self.min_aligned_length_single,
+                                self.min_percent_identity_single,
+                                self.min_aligned_percent_single,
+                            )))
+                            && read_pair_passes_filter(
+                                record,
+                                &record1,
+                                self.min_aligned_length_pair,
+                                self.min_percent_identity_pair,
+                                self.min_aligned_percent_pair,
+                            );
+                        if (passes_filter && self.filter_out)
+                            || (!passes_filter && !self.filter_out)
+                        {
+                            debug!("Read pair passed QC");
+                            self.known_next_read = Some(record.clone());
+                            record.clone_from(
+                                &Rc::try_unwrap(record1).expect("Cannot get strong RC pointer"),
+                            );
+                            debug!("Returning..");
+                            return Some(Ok(()));
+                        } else {
+                            debug!("Read pair did not pass QC");
+                        }
+                    }
+                }
             }
+
+            // No more records, we are finished.
+            None
+        } else {
+            record.clone_from(self.known_next_read.as_ref().unwrap());
+            self.known_next_read = None;
+            Some(Ok(()))
         }
     }
 
@@ -274,7 +271,7 @@ fn read_pair_passes_filter(
     for cig in record1.cigar().iter() {
         match cig {
             Cigar::Match(i) | Cigar::Ins(i) | Cigar::Diff(i) | Cigar::Equal(i) => {
-                aligned_length1 = aligned_length1 + i;
+                aligned_length1 += i;
             }
             _ => {}
         }
@@ -283,7 +280,7 @@ fn read_pair_passes_filter(
     for cig in record2.cigar().iter() {
         match cig {
             Cigar::Match(i) | Cigar::Ins(i) | Cigar::Diff(i) | Cigar::Equal(i) => {
-                aligned_length2 = aligned_length2 + i;
+                aligned_length2 += i;
             }
             _ => {}
         }
@@ -314,7 +311,7 @@ mod tests {
     #[test]
     fn test_hello_world() {
         let reader =
-            bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
+            bam::Reader::from_path("tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -340,13 +337,13 @@ mod tests {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record) == None)
+        assert!(sorted.read(&mut record).is_none())
     }
 
     #[test]
     fn test_hello_world_inverse() {
         let reader =
-            bam::Reader::from_path(&"tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
+            bam::Reader::from_path("tests/data/7seqs.reads_for_seq1_and_seq2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -369,12 +366,12 @@ mod tests {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
-        assert!(sorted.read(&mut record) == None)
+        assert!(sorted.read(&mut record).is_none())
     }
 
     #[test]
     fn test_one_bad_read() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -398,7 +395,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -421,7 +418,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -444,7 +441,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -470,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_one_bad_read_inverse() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -494,7 +491,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -517,7 +514,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.with_extra.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -540,7 +537,7 @@ mod tests {
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
 
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -566,7 +563,7 @@ mod tests {
 
     #[test]
     fn test_filter_single_reads() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -582,8 +579,8 @@ mod tests {
             0.0,
             true,
         ); // perc too high
-        assert_eq!(true, sorted.filter_single_reads);
-        assert_eq!(false, sorted.filter_pairs);
+        assert!(sorted.filter_single_reads);
+        assert!(!sorted.filter_pairs);
         let queries = vec!["2", "3", "4", "1"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
@@ -595,7 +592,7 @@ mod tests {
 
     #[test]
     fn test_filter_single_reads_inverse() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -611,8 +608,8 @@ mod tests {
             0.0,
             false,
         ); // perc too high
-        assert_eq!(true, sorted.filter_single_reads);
-        assert_eq!(false, sorted.filter_pairs);
+        assert!(sorted.filter_single_reads);
+        assert!(!sorted.filter_pairs);
         let queries = vec!["1"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
@@ -624,7 +621,7 @@ mod tests {
 
     #[test]
     fn test_filter_single_and_paired_reads() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -640,8 +637,8 @@ mod tests {
             0.0,
             true,
         ); // perc OK, but pair fails on length
-        assert_eq!(true, sorted.filter_single_reads);
-        assert_eq!(true, sorted.filter_pairs);
+        assert!(sorted.filter_single_reads);
+        assert!(sorted.filter_pairs);
         let queries = vec!["2", "2", "3", "3", "4", "4"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
@@ -653,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_filter_single_and_paired_reads_inverse() {
-        let reader = bam::Reader::from_path(&"tests/data/2seqs.bad_read.1.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/2seqs.bad_read.1.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -669,8 +666,8 @@ mod tests {
             0.0,
             false,
         ); // perc OK, but pair fails on length
-        assert_eq!(true, sorted.filter_single_reads);
-        assert_eq!(true, sorted.filter_pairs);
+        assert!(sorted.filter_single_reads);
+        assert!(sorted.filter_pairs);
         let queries = vec!["1", "1"];
         let mut record = bam::record::Record::new();
         println!("query: {:?}", queries);
@@ -683,7 +680,7 @@ mod tests {
     #[test]
     fn test_first_encountered_read_having_negative_insert_length() {
         // Rare, I think.
-        let reader = bam::Reader::from_path(&"tests/data/eg2.bam").unwrap();
+        let reader = bam::Reader::from_path("tests/data/eg2.bam").unwrap();
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
@@ -700,8 +697,8 @@ mod tests {
             0.0,
             true,
         );
-        assert_eq!(false, sorted.filter_single_reads);
-        assert_eq!(true, sorted.filter_pairs);
+        assert!(!sorted.filter_single_reads);
+        assert!(sorted.filter_pairs);
         let mut num_passing: u64 = 0;
         let mut record = bam::record::Record::new();
         while sorted.read(&mut record) == Some(Ok(())) {

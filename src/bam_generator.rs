@@ -69,7 +69,7 @@ impl NamedBamReader for BamFileNamedReader {
         if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return res;
+        res
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -83,7 +83,7 @@ impl NamedBamReader for BamFileNamedReader {
     }
 
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.num_detected_primary_alignments;
+        self.num_detected_primary_alignments
     }
 }
 
@@ -147,17 +147,17 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
                 panic!("Failure to find or parse BAM file, cannot continue");
             }
         };
-        return StreamingNamedBamReader {
+        StreamingNamedBamReader {
             stoit_name: self.stoit_name,
-            bam_reader: bam_reader,
+            bam_reader,
             tempdir: self.tempdir,
-            processes: processes,
+            processes,
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
             num_detected_primary_alignments: 0,
             minimap2_log_file_index: self.minimap2_log_file_index,
-        };
+        }
     }
 }
 
@@ -197,7 +197,7 @@ pub fn complete_processes(
             let mut contents = String::new();
             tf.into_file()
                 .read_to_string(&mut contents)
-                .expect(&format!("Failed to read log file for {}", description));
+                .unwrap_or_else(|_| panic!("Failed to read log file for {}", description));
             if failed_any {
                 error!("The STDERR for the {:} part was: {}", description, contents);
             } else {
@@ -226,7 +226,7 @@ impl NamedBamReader for StreamingNamedBamReader {
         if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return res;
+        res
     }
     fn header(&self) -> &bam::HeaderView {
         self.bam_reader.header()
@@ -269,7 +269,7 @@ impl NamedBamReader for StreamingNamedBamReader {
     }
 
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.num_detected_primary_alignments;
+        self.num_detected_primary_alignments
     }
 }
 
@@ -284,7 +284,7 @@ pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<Ba
                 .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
                 .to_string(),
             bam_reader: bam::Reader::from_path(path)
-                .expect(&format!("Unable to find BAM file {}", path)),
+                .unwrap_or_else(|_| panic!("Unable to find BAM file {}", path)),
             num_detected_primary_alignments: 0,
         })
         .collect()
@@ -309,15 +309,12 @@ pub fn generate_named_bam_readers_from_reads(
     // This is required because we cannot open a Rust stream as a BAM file with
     // rust-htslib.
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
-        .expect(&format!("Error creating named pipe {:?}", fifo_path));
+        .unwrap_or_else(|_| panic!("Error creating named pipe {:?}", fifo_path));
 
     let mapping_log = tempfile::Builder::new()
         .prefix("coverm-mapping-log")
         .tempfile()
-        .expect(&format!(
-            "Failed to create {:?} log tempfile",
-            mapping_program
-        ));
+        .unwrap_or_else(|_| panic!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::Builder::new()
         .prefix("coverm-samtools2-log")
         .tempfile()
@@ -406,7 +403,7 @@ pub fn generate_named_bam_readers_from_reads(
     };
 
     let mut log_descriptions = vec![
-        format!("{:?}", mapping_program).to_string(),
+        format!("{:?}", mapping_program),
         "samtools sort".to_string(),
     ];
     let mut log_files = vec![mapping_log, samtools2_log];
@@ -426,23 +423,22 @@ pub fn generate_named_bam_readers_from_reads(
                 + "/"
         }
         false => "".to_string(),
-    } + &std::path::Path::new(read1_path)
+    } + std::path::Path::new(read1_path)
         .file_name()
         .expect("Unable to convert read1 name to file name")
         .to_str()
-        .expect("Unable to covert file name into str")
-        .to_string();
+        .expect("Unable to covert file name into str");
 
-    return StreamingNamedBamReaderGenerator {
-        stoit_name: stoit_name,
+    StreamingNamedBamReaderGenerator {
+        stoit_name,
         tempdir: tmp_dir,
-        fifo_path: fifo_path,
+        fifo_path,
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
-        log_files: log_files,
-        minimap2_log_file_index: minimap2_log_file_index,
-    };
+        log_files,
+        minimap2_log_file_index,
+    }
 }
 
 pub struct FilteredBamReader {
@@ -454,11 +450,11 @@ impl NamedBamReader for FilteredBamReader {
     fn name(&self) -> &str {
         &(self.stoit_name)
     }
-    fn read(&mut self, mut record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
-        self.filtered_stream.read(&mut record)
+    fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+        self.filtered_stream.read(record)
     }
     fn header(&self) -> &bam::HeaderView {
-        &self.filtered_stream.reader.header()
+        self.filtered_stream.reader.header()
     }
     fn finish(self) {}
     fn set_threads(&mut self, n_threads: usize) {
@@ -470,7 +466,7 @@ impl NamedBamReader for FilteredBamReader {
         }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.filtered_stream.num_detected_primary_alignments;
+        self.filtered_stream.num_detected_primary_alignments
     }
 }
 
@@ -503,11 +499,11 @@ pub fn generate_filtered_bam_readers_from_bam_files(
             .to_str()
             .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
             .to_string();
-        let reader =
-            bam::Reader::from_path(path).expect(&format!("Unable to find BAM file {}", path));
+        let reader = bam::Reader::from_path(path)
+            .unwrap_or_else(|_| panic!("Unable to find BAM file {}", path));
 
         filtered = FilteredBamReader {
-            stoit_name: stoit_name,
+            stoit_name,
             filtered_stream: ReferenceSortedBamFilter::new(
                 reader,
                 flag_filters.clone(),
@@ -524,7 +520,7 @@ pub fn generate_filtered_bam_readers_from_bam_files(
         generators.push(filtered)
     }
 
-    return generators;
+    generators
 }
 
 pub struct StreamingFilteredNamedBamReader {
@@ -592,15 +588,15 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader>
             self.min_aligned_percent_pair,
             true,
         );
-        return StreamingFilteredNamedBamReader {
+        StreamingFilteredNamedBamReader {
             stoit_name: self.stoit_name,
-            filtered_stream: filtered_stream,
+            filtered_stream,
             tempdir: self.tempdir,
-            processes: processes,
+            processes,
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
-        };
+        }
     }
 }
 
@@ -637,7 +633,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.filtered_stream.num_detected_primary_alignments;
+        self.filtered_stream.num_detected_primary_alignments
     }
 }
 
@@ -672,7 +668,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         bwa_options,
         include_reference_in_stoit_name,
     );
-    return StreamingFilteredNamedBamReaderGenerator {
+    StreamingFilteredNamedBamReaderGenerator {
         stoit_name: streaming.stoit_name,
         tempdir: streaming.tempdir,
         fifo_path: streaming.fifo_path,
@@ -680,14 +676,14 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         command_strings: streaming.command_strings,
         log_file_descriptions: streaming.log_file_descriptions,
         log_files: streaming.log_files,
-        flag_filters: flag_filters,
-        min_aligned_length_single: min_aligned_length_single,
-        min_percent_identity_single: min_percent_identity_single,
-        min_aligned_percent_single: min_aligned_percent_single,
-        min_aligned_length_pair: min_aligned_length_pair,
-        min_percent_identity_pair: min_percent_identity_pair,
-        min_aligned_percent_pair: min_aligned_percent_pair,
-    };
+        flag_filters,
+        min_aligned_length_single,
+        min_percent_identity_single,
+        min_aligned_percent_single,
+        min_aligned_length_pair,
+        min_percent_identity_pair,
+        min_aligned_percent_pair,
+    }
 }
 
 pub struct BamGeneratorSet<T> {
@@ -725,10 +721,7 @@ pub fn generate_bam_maker_generator_from_reads(
     let mapping_log = tempfile::Builder::new()
         .prefix("coverm-mapping-log")
         .tempfile()
-        .expect(&format!(
-            "Failed to create {:?} log tempfile",
-            mapping_program
-        ));
+        .unwrap_or_else(|_| panic!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::Builder::new()
         .prefix("coverm-samtools2-log")
         .tempfile()
@@ -794,7 +787,7 @@ pub fn generate_bam_maker_generator_from_reads(
         .stderr(std::process::Stdio::piped());
 
     let log_descriptions = vec![
-        format!("{:?}", mapping_program).to_string(),
+        format!("{:?}", mapping_program),
         "samtools sort".to_string(),
         "samtools view for cache".to_string(),
     ];
@@ -808,16 +801,15 @@ pub fn generate_bam_maker_generator_from_reads(
             .expect("Unable to covert file name into str")
             .to_string()
             + "/"
-            + &std::path::Path::new(read1_path)
+            + std::path::Path::new(read1_path)
                 .file_name()
                 .expect("Unable to convert read1 name to file name")
                 .to_str()
-                .expect("Unable to covert file name into str")
-                .to_string(),
+                .expect("Unable to covert file name into str"),
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
-        log_files: log_files,
+        log_files,
     };
 }
 
@@ -831,13 +823,13 @@ impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
             i += 1;
             processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
-        return NamedBamMaker {
+        NamedBamMaker {
             stoit_name: self.stoit_name,
-            processes: processes,
+            processes,
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
-        };
+        }
     }
 }
 
@@ -884,7 +876,7 @@ pub fn build_mapping_command(
         ReadFormat::Single => format!("'{}'", read1_path),
     };
 
-    return format!(
+    format!(
         "{} {} -t {} {} '{}' {}",
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
@@ -893,10 +885,12 @@ pub fn build_mapping_command(
                 let split_prefix = tempfile::Builder::new()
                     .prefix("coverm-minimap2-split-index")
                     .tempfile()
-                    .expect(&format!(
-                        "Failed to create {:?} minimap2 split_prefix file",
-                        mapping_program
-                    ));
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "Failed to create {:?} minimap2 split_prefix file",
+                            mapping_program
+                        )
+                    });
                 format!(
                     "minimap2 --split-prefix {} -a {}",
                     split_prefix
@@ -919,5 +913,5 @@ pub fn build_mapping_command(
         read_params1,
         reference,
         read_params2
-    );
+    )
 }

@@ -94,7 +94,7 @@ where
                                     Some(str::from_utf8(record.qname()).unwrap().to_string())
                             }
                             Some(prev) => {
-                                if prev != str::from_utf8(record.qname()).unwrap().to_string() {
+                                if prev != *str::from_utf8(record.qname()).unwrap() {
                                     error!(
                                         "BAM files do not appear to be \
                                               properly sorted by read name. \
@@ -121,10 +121,10 @@ where
             process::exit(1);
         }
         debug!("Read records {:?}", current_alignments);
-        return match some_unfinished {
+        match some_unfinished {
             true => Some(current_alignments),
             false => None,
-        };
+        }
     }
 
     // There is no way to copy a Record into a waiting one, as far as I know,
@@ -134,7 +134,7 @@ where
         to.set(
             from.qname(),
             Some(&CigarString(
-                from.cigar().iter().map(|a| *a).collect::<Vec<Cigar>>(),
+                from.cigar().iter().copied().collect::<Vec<Cigar>>(),
             )),
             from.seq().as_bytes().as_slice(),
             from.qual(),
@@ -195,7 +195,7 @@ where
             self.next_record_to_return = None;
             let tid_now = to_return.tid();
             to_return.set_tid(tid_now + self.tid_offsets[self.winning_index.unwrap()]);
-            return Ok(true);
+            Ok(true)
         } else {
             if self.previous_read_records.is_none() {
                 self.previous_read_records = self.read_a_record_set();
@@ -220,11 +220,11 @@ where
             match self.previous_read_records {
                 None => unreachable!(),
                 Some(ref previous_records) => {
-                    for (i, ref aln1) in previous_records.iter().enumerate() {
+                    for (i, aln1) in previous_records.iter().enumerate() {
                         let tid = aln1.tid();
                         if tid < 0
                             || !self.genome_exclusion.is_excluded(bam_header_target_name(
-                                &self.shard_bam_readers[i].header(),
+                                self.shard_bam_readers[i].header(),
                                 tid as usize,
                             ))
                         {
@@ -232,7 +232,7 @@ where
                             // Unlike BWA-MEM, Minimap2 does not have AS tags
                             // when the read is unmapped.
                             if !aln1.is_unmapped() {
-                                score += aux_as(&aln1);
+                                score += aux_as(aln1);
                             }
                             if !second_read_alignments[i].is_unmapped() {
                                 score += aux_as(&second_read_alignments[i]);
@@ -291,7 +291,7 @@ where
             self.previous_read_records = None;
 
             // Return the first of the pair
-            return Ok(true);
+            Ok(true)
         }
     }
 }
@@ -322,10 +322,9 @@ where
             let mut current_tid: u32 = 0; // I think TID counting should start at 0, 1 returns wrong lengths.
             let names = header.target_names();
             for name in names.iter() {
-                let length = header.target_len(current_tid).expect(&format!(
-                    "Failed to get target length for TID {}",
-                    current_tid
-                ));
+                let length = header.target_len(current_tid).unwrap_or_else(|| {
+                    panic!("Failed to get target length for TID {}", current_tid)
+                });
                 // e.g. @SQ	SN:a62_bin.100.fna=k141_20475	LN:15123
                 let mut current_record = bam::header::HeaderRecord::new(b"SQ");
                 current_record.push_tag(b"SN", &std::str::from_utf8(name).unwrap());
@@ -356,20 +355,16 @@ where
         // This is required because we cannot open a Rust stream as a BAM file
         // with rust-htslib.
         debug!("Creating FIFOs ..");
-        unistd::mkfifo(&sort_input_fifo_path, stat::Mode::S_IRWXU).expect(&format!(
-            "Error creating named pipe {:?}",
-            sort_input_fifo_path
-        ));
-        unistd::mkfifo(&sort_output_fifo_path, stat::Mode::S_IRWXU).expect(&format!(
-            "Error creating named pipe {:?}",
-            sort_output_fifo_path
-        ));
+        unistd::mkfifo(&sort_input_fifo_path, stat::Mode::S_IRWXU)
+            .unwrap_or_else(|_| panic!("Error creating named pipe {:?}", sort_input_fifo_path));
+        unistd::mkfifo(&sort_output_fifo_path, stat::Mode::S_IRWXU)
+            .unwrap_or_else(|_| panic!("Error creating named pipe {:?}", sort_output_fifo_path));
 
         // Instantiate and start Demux struct
         debug!("Instantiating ReadSortedShardedBamReader ..");
         let mut demux = ReadSortedShardedBamReader {
             shard_bam_readers: self.read_sorted_bam_readers,
-            tid_offsets: tid_offsets,
+            tid_offsets,
             previous_read_records: None,
             next_record_to_return: None,
             winning_index: None,
@@ -383,7 +378,7 @@ where
         let sorted_reader_join_handle: std::thread::JoinHandle<bam::Reader> =
             std::thread::spawn(move || {
                 debug!("Starting to open sorted read BAM ..");
-                let reader = bam::Reader::from_path(&sort_output_fifo_path2)
+                let reader = bam::Reader::from_path(sort_output_fifo_path2)
                     .expect("Unable to open reader from samtools sort output FIFO");
                 debug!("Finished opening reader to samtools sort output FIFO..");
                 reader
@@ -440,7 +435,6 @@ where
             while demux
                 .read(&mut record)
                 .expect("Failed to read demux BAM stream")
-                == true
             {
                 debug!(
                     "Writing tid {} for qname {}",
@@ -458,16 +452,16 @@ where
             .join()
             .expect("sorted reader thread failed");
 
-        return ShardedBamReader {
+        ShardedBamReader {
             stoit_name: self.stoit_name,
             bam_reader: reader,
             tempdir: tmp_dir,
             sort_process: sort_child,
-            sort_command_string: sort_command_string,
+            sort_command_string,
             sort_log_file_description: "samtools sort".to_string(),
-            sort_log_file: sort_log_file,
+            sort_log_file,
             num_detected_primary_alignments: 0,
-        };
+        }
     }
 }
 
@@ -491,10 +485,10 @@ impl NamedBamReader for ShardedBamReader {
         if res == Some(Ok(())) && !record.is_secondary() && !record.is_supplementary() {
             self.num_detected_primary_alignments += 1;
         }
-        return res;
+        res
     }
     fn header(&self) -> &bam::HeaderView {
-        &self.bam_reader.header()
+        self.bam_reader.header()
     }
     fn finish(self) {
         complete_processes(
@@ -512,7 +506,7 @@ impl NamedBamReader for ShardedBamReader {
         }
     }
     fn num_detected_primary_alignments(&self) -> u64 {
-        return self.num_detected_primary_alignments;
+        self.num_detected_primary_alignments
     }
 }
 
@@ -537,7 +531,7 @@ where
         .iter()
         .map(|f| {
             debug!("Opening BAM {} ..", f);
-            bam::Reader::from_path(&f).expect(&format!("Unable to open bam file {}", f))
+            bam::Reader::from_path(f).unwrap_or_else(|_| panic!("Unable to open bam file {}", f))
         })
         .collect();
     let stoit_name = bam_paths
@@ -559,12 +553,12 @@ where
         .unwrap();
     debug!("Opened all input BAM files");
     let gen = ShardedBamReaderGenerator {
-        stoit_name: stoit_name,
+        stoit_name,
         read_sorted_bam_readers: bam_readers,
-        sort_threads: sort_threads,
-        genome_exclusion: genome_exclusion,
+        sort_threads,
+        genome_exclusion,
     };
-    return vec![gen];
+    vec![gen]
 }
 
 pub fn generate_named_sharded_bam_readers_from_reads(
@@ -575,7 +569,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
-    discard_unmapped: bool,
+    _discard_unmapped: bool,
     mapping_options: Option<&str>,
 ) -> bam::Reader {
     let tmp_dir = TempDir::new("coverm_fifo").expect("Unable to create temporary directory");
@@ -586,15 +580,12 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     // This is required because we cannot open a Rust stream as a BAM file with
     // rust-htslib.
     unistd::mkfifo(&fifo_path, stat::Mode::S_IRWXU)
-        .expect(&format!("Error creating named pipe {:?}", fifo_path));
+        .unwrap_or_else(|_| panic!("Error creating named pipe {:?}", fifo_path));
 
     let mapping_log = tempfile::Builder::new()
         .prefix("coverm-shard-mapping-log")
         .tempfile()
-        .expect(&format!(
-            "Failed to create {:?} log tempfile",
-            mapping_program
-        ));
+        .unwrap_or_else(|_| panic!("Failed to create {:?} log tempfile", mapping_program));
     let samtools2_log = tempfile::Builder::new()
         .prefix("coverm-shard-samtools2-log")
         .tempfile()
@@ -614,9 +605,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
                 fifo_path,
                 // samtools view
                 // cannot discard unmapped for sharded bam files
-                match discard_unmapped {
-                    _ => "",
-                },
+                "",
                 threads - 1,
                 path,
                 samtools_view_cache_log
@@ -673,7 +662,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         .stderr(std::process::Stdio::piped());
 
     let mut log_descriptions = vec![
-        format!("{:?}", mapping_program).to_string(),
+        format!("{:?}", mapping_program),
         "samtools sort".to_string(),
     ];
     let mut log_files = vec![mapping_log, samtools2_log];
@@ -692,7 +681,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         i += 1;
         processes.push(preprocess.spawn().expect("Unable to execute bash"));
     }
-    return match bam::Reader::from_path(&fifo_path) {
+    match bam::Reader::from_path(&fifo_path) {
         Ok(reader) => reader,
         Err(upstream_error) => {
             error!(
@@ -708,7 +697,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
             );
             panic!("Failure to find or parse BAM file, cannot continue");
         }
-    };
+    }
 }
 
 #[cfg(test)]

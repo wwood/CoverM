@@ -48,13 +48,13 @@ impl CoverageTakerType {
         print_stream: OutputWriter,
     ) -> CoverageTakerType {
         CoverageTakerType::SingleFloatCoverageStreamingCoveragePrinter {
-            print_stream: print_stream,
+            print_stream,
             current_stoit: None,
         }
     }
     pub fn new_pileup_coverage_coverage_printer(print_stream: OutputWriter) -> CoverageTakerType {
         CoverageTakerType::PileupCoverageCoveragePrinter {
-            print_stream: print_stream,
+            print_stream,
             current_stoit: None,
             current_entry: None,
         }
@@ -66,7 +66,7 @@ impl CoverageTakerType {
             coverages: vec![],
             current_stoit_index: None,
             current_entry_index: None,
-            num_coverages: num_coverages,
+            num_coverages,
         }
     }
 }
@@ -181,7 +181,7 @@ impl CoverageTaker for CoverageTakerType {
                 ..
             } => coverages[current_stoit_index.unwrap()].push(CoverageEntry {
                 entry_index: current_entry_index.unwrap(),
-                coverage: coverage,
+                coverage,
             }),
         }
     }
@@ -259,12 +259,12 @@ impl<'a> CoverageTakerType {
     pub fn generate_iterator(&'a self) -> CoverageTakerTypeIterator<'a> {
         match self {
             CoverageTakerType::CachedSingleFloatCoverageTaker { stoit_names, .. } => {
-                return CoverageTakerTypeIterator {
-                    coverage_taker_type: &self,
+                CoverageTakerTypeIterator {
+                    coverage_taker_type: self,
                     iter_next_entry_indices: vec![0; stoit_names.len()], // indexes into coverages[stoit]
                     iter_current_stoit_index: 0,                         // indexes into coverages
                     iter_last_entry_order_index: None,                   // index into entry_names
-                };
+                }
             }
             _ => unreachable!(),
         }
@@ -377,7 +377,7 @@ impl Iterator for CoverageTakerTypeIterator<'_> {
                         }
                     }
                 }
-                return None;
+                None
             }
             _ => unreachable!(),
         }

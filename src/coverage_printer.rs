@@ -33,7 +33,7 @@ impl CoveragePrinter {
                     cached_coverage_taker,
                     print_stream,
                     reads_mapped_per_sample,
-                    &columns_to_normalise,
+                    columns_to_normalise,
                     rpkm_column,
                     tpm_column,
                 );
@@ -44,12 +44,12 @@ impl CoveragePrinter {
             } => {
                 debug!("Finalising DenseCachedCoveragePrinter ..");
                 print_dense_cached_coverage_taker(
-                    &(entry_type.as_ref().unwrap()),
+                    entry_type.as_ref().unwrap(),
                     estimator_headers.as_ref().unwrap(),
                     cached_coverage_taker,
                     print_stream,
                     reads_mapped_per_sample,
-                    &columns_to_normalise,
+                    columns_to_normalise,
                     rpkm_column,
                     tpm_column,
                 );
@@ -222,7 +222,7 @@ pub fn print_sparse_cached_coverage_taker(
 
                     // Print unmapped entries at the top
                     let stoit = &stoit_names[current_stoit_index];
-                    if columns_to_normalise.len() > 0 {
+                    if !columns_to_normalise.is_empty() {
                         write!(print_stream, "{}\tunmapped", stoit).unwrap();
                         for (i, column) in columns_to_normalise.iter().enumerate() {
                             if i == 0 {
@@ -392,7 +392,7 @@ pub fn print_dense_cached_coverage_taker(
 
             // Print unmapped entries at the top if needed
             let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec![];
-            if columns_to_normalise.len() > 0 {
+            if !columns_to_normalise.is_empty() {
                 write!(print_stream, "unmapped").unwrap();
                 for (stoit_i, _) in stoit_names.iter().enumerate() {
                     for (i, column) in columns_to_normalise.iter().enumerate() {
@@ -412,7 +412,7 @@ pub fn print_dense_cached_coverage_taker(
                         )
                         .unwrap();
                     }
-                    if columns_to_normalise.len() >= 1 {
+                    if !columns_to_normalise.is_empty() {
                         // Added this check otherwise rust throws
                         // error when there are no columns
                         for _ in (columns_to_normalise[columns_to_normalise.len() - 1] + 1)
@@ -434,8 +434,8 @@ pub fn print_dense_cached_coverage_taker(
                 vec![vec!(None; *num_coverages); stoit_names.len()];
             for ecs in iterator {
                 for i in columns_to_normalise {
-                    coverage_totals[ecs.stoit_index as usize][*i] =
-                        match coverage_totals[ecs.stoit_index as usize][*i] {
+                    coverage_totals[ecs.stoit_index][*i] =
+                        match coverage_totals[ecs.stoit_index][*i] {
                             Some(total) => Some(total + ecs.coverages[*i]),
                             None => Some(ecs.coverages[*i]),
                         }
@@ -443,8 +443,8 @@ pub fn print_dense_cached_coverage_taker(
                 match tpm_column {
                     None => {}
                     Some(i) => {
-                        coverage_totals[ecs.stoit_index as usize][i] =
-                            match coverage_totals[ecs.stoit_index as usize][i] {
+                        coverage_totals[ecs.stoit_index][i] =
+                            match coverage_totals[ecs.stoit_index][i] {
                                 Some(total) => Some(total + ecs.coverages[i]),
                                 None => Some(ecs.coverages[i]),
                             }
@@ -474,7 +474,7 @@ pub fn print_dense_cached_coverage_taker(
                 )
                 .unwrap();
                 for (stoit_i, stoit_entries) in stoit_by_entry_by_coverage.iter().enumerate() {
-                    let ecs = &stoit_entries[my_entry_i as usize];
+                    let ecs = &stoit_entries[my_entry_i];
                     let coverages = &ecs.coverages;
                     for (i, cov) in coverages.iter().enumerate() {
                         if columns_to_normalise.contains(&i) {
@@ -485,7 +485,7 @@ pub fn print_dense_cached_coverage_taker(
                                     // Divide first because then there is less
                                     // rounding errors, particularly when
                                     // coverage == coverage_total
-                                    /coverage_totals[ecs.stoit_index as usize][i].unwrap()
+                                    /coverage_totals[ecs.stoit_index][i].unwrap()
                                     * 100.0
                                     * coverage_multipliers[stoit_i]
                             )
@@ -522,9 +522,7 @@ pub fn print_dense_cached_coverage_taker(
                                     // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
                                     false =>
                                         (coverages[i].ln()
-                                            - coverage_totals[ecs.stoit_index as usize][i]
-                                                .unwrap()
-                                                .ln())
+                                            - coverage_totals[ecs.stoit_index][i].unwrap().ln())
                                         .exp()
                                             * (10u64.pow(6) as f32),
                                 }
@@ -559,7 +557,7 @@ mod tests {
         c.add_single_coverage(1.2);
         let mut stream = Cursor::new(Vec::new());
         print_dense_cached_coverage_taker(
-            &"Contig",
+            "Contig",
             &vec!["mean".to_string(), "std".to_string()],
             &c,
             &mut stream,
@@ -584,7 +582,7 @@ mod tests {
         c.add_single_coverage(1.2);
         let mut stream = Cursor::new(Vec::new());
         print_dense_cached_coverage_taker(
-            &"Contig",
+            "Contig",
             &vec!["mean".to_string(), "std".to_string()],
             &c,
             &mut stream,

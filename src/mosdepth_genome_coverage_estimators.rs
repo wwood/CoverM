@@ -109,9 +109,9 @@ impl CoverageEstimator {
             num_covered_bases: 0,
             num_mapped_reads: 0,
             total_mismatches: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
-            contig_end_exclusion: contig_end_exclusion,
-            exclude_mismatches: exclude_mismatches,
+            min_fraction_covered_bases,
+            contig_end_exclusion,
+            exclude_mismatches,
         }
     }
     pub fn new_estimator_trimmed_mean(
@@ -125,10 +125,10 @@ impl CoverageEstimator {
             observed_contig_length: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
-            min: min,
-            max: max,
-            contig_end_exclusion: contig_end_exclusion,
+            min_fraction_covered_bases,
+            min,
+            max,
+            contig_end_exclusion,
         }
     }
     pub fn new_estimator_pileup_counts(
@@ -140,8 +140,8 @@ impl CoverageEstimator {
             observed_contig_length: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
-            contig_end_exclusion: contig_end_exclusion,
+            min_fraction_covered_bases,
+            contig_end_exclusion,
         }
     }
     pub fn new_estimator_covered_fraction(min_fraction_covered_bases: f32) -> CoverageEstimator {
@@ -149,7 +149,7 @@ impl CoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
+            min_fraction_covered_bases,
         }
     }
     pub fn new_estimator_rpkm(min_fraction_covered_bases: f32) -> CoverageEstimator {
@@ -157,7 +157,7 @@ impl CoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
+            min_fraction_covered_bases,
         }
     }
     pub fn new_estimator_tpm(min_fraction_covered_bases: f32) -> CoverageEstimator {
@@ -165,7 +165,7 @@ impl CoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
+            min_fraction_covered_bases,
         }
     }
     pub fn new_estimator_covered_bases(min_fraction_covered_bases: f32) -> CoverageEstimator {
@@ -173,7 +173,7 @@ impl CoverageEstimator {
             total_bases: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
+            min_fraction_covered_bases,
         }
     }
     pub fn new_estimator_variance(
@@ -185,8 +185,8 @@ impl CoverageEstimator {
             observed_contig_length: 0,
             num_covered_bases: 0,
             num_mapped_reads: 0,
-            min_fraction_covered_bases: min_fraction_covered_bases,
-            contig_end_exclusion: contig_end_exclusion,
+            min_fraction_covered_bases,
+            contig_end_exclusion,
         }
     }
     pub fn new_estimator_length() -> CoverageEstimator {
@@ -368,7 +368,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let start_from = *contig_end_exclusion as usize;
                 let end_at = len - *contig_end_exclusion as usize - 1;
                 for i in 0..len {
-                    let current = ups_and_downs[i as usize];
+                    let current = ups_and_downs[i];
                     cumulative_sum += current;
                     if i >= start_from && i <= end_at {
                         if cumulative_sum > 0 {
@@ -473,7 +473,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let mut cumulative_sum: i32 = 0;
 
                 for i in 0..len {
-                    let current = ups_and_downs[i as usize];
+                    let current = ups_and_downs[i];
                     cumulative_sum += current;
                     if cumulative_sum > 0 {
                         *num_covered_bases += 1
@@ -531,14 +531,14 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
-                    return 0.0;
+                    0.0
                 } else {
                     let calculated_coverage = match exclude_mismatches {
-                        true => (*total_count - (*total_mismatches as u64)) as f32,
+                        true => (*total_count - *total_mismatches) as f32,
                         false => *total_count as f32,
                     } / final_total_bases as f32;
                     debug!("Found mean coverage {}", calculated_coverage);
-                    return calculated_coverage;
+                    calculated_coverage
                 }
             }
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
@@ -558,7 +558,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let total_bases = *observed_contig_length + unobserved_contig_length;
                 debug!("Calculating coverage with num_covered_bases {}, observed_length {}, unobserved_length {:?} and counts {:?}",
                        num_covered_bases, observed_contig_length, unobserved_contig_lengths, counts);
-                let answer = match total_bases {
+
+                match total_bases {
                     0 => 0.0,
                     _ => {
                         if (*num_covered_bases as f32 / total_bases as f32)
@@ -603,19 +604,17 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                                         } else {
                                             total += *num_covered as usize * i;
                                         }
+                                    } else if num_accounted_for > max_index {
+                                        // all coverages are the same in the trimmed set
+                                        total = (max_index - min_index + 1) * i;
+                                        started = true
+                                    } else if num_accounted_for < min_index {
+                                        debug!("too few on first")
                                     } else {
-                                        if num_accounted_for > max_index {
-                                            // all coverages are the same in the trimmed set
-                                            total = (max_index - min_index + 1) * i;
-                                            started = true
-                                        } else if num_accounted_for < min_index {
-                                            debug!("too few on first")
-                                        } else {
-                                            let num_wanted = num_accounted_for - min_index + 1;
-                                            debug!("num wanted2: {}", num_wanted);
-                                            total = num_wanted * i;
-                                            started = true;
-                                        }
+                                        let num_wanted = num_accounted_for - min_index + 1;
+                                        debug!("num wanted2: {}", num_wanted);
+                                        total = num_wanted * i;
+                                        started = true;
                                     }
                                 }
                                 debug!(
@@ -628,8 +627,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             total as f32 / (max_index - min_index) as f32
                         }
                     }
-                };
-                return answer;
+                }
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator {
                 counts: _,
@@ -674,9 +672,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
-                    return 0.0;
+                    0.0
                 } else {
-                    return *num_covered_bases as f32 / final_total_bases as f32;
+                    *num_covered_bases as f32 / final_total_bases as f32
                 }
             }
             CoverageEstimator::NumCoveredBasesCoverageEstimator {
@@ -691,9 +689,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
-                    return 0.0;
+                    0.0
                 } else {
-                    return *num_covered_bases as f32;
+                    *num_covered_bases as f32
                 }
             }
             CoverageEstimator::RPKMCoverageEstimator {
@@ -708,17 +706,17 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
-                    return 0.0;
+                    0.0
                 } else {
                     // Here we do not know the number of mapped reads total.
                     // Instead we divide by that later.
                     debug!("RPKM: {} {}", num_mapped_reads, final_total_bases);
-                    return match final_total_bases == 0 {
+                    match final_total_bases == 0 {
                         true => 0.0,
                         false => {
                             (*num_mapped_reads * (10u64.pow(9))) as f32 / final_total_bases as f32
                         }
-                    };
+                    }
                 }
             }
             CoverageEstimator::TPMCoverageEstimator {
@@ -733,18 +731,18 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     || (*num_covered_bases as f32 / final_total_bases as f32)
                         < *min_fraction_covered_bases
                 {
-                    return 0.0;
+                    0.0
                 } else {
                     // Here we do not know the number of mapped reads total.
                     // Instead we divide by that later.
                     debug!("TPM: {} {}", num_mapped_reads, final_total_bases);
-                    return match final_total_bases == 0 {
+                    match final_total_bases == 0 {
                         true => 0.0,
                         false => {
                             ((*num_mapped_reads as f64).ln() - (final_total_bases as f64).ln())
                                 .exp() as f32
                         }
-                    };
+                    }
                 }
             }
             CoverageEstimator::VarianceGenomeCoverageEstimator {
@@ -770,7 +768,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             0.0
                         } else if total_bases < 3 {
                             0.0
-                        } else if counts.len() == 0 {
+                        } else if counts.is_empty() {
                             0.0 // no mapped reads
                         } else {
                             counts[0] += unobserved_contig_length;

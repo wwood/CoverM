@@ -149,10 +149,10 @@ impl<'a> MappingParameters<'a> {
                 },
             },
             threads: *m.get_one::<u16>("threads").unwrap(),
-            read1: read1,
-            read2: read2,
-            interleaved: interleaved,
-            unpaired: unpaired,
+            read1,
+            read2,
+            interleaved,
+            unpaired,
             iter_reference_index: 0,
             mapping_options: mapping_options.map(|x| &**x),
         };
@@ -163,13 +163,13 @@ impl<'a> MappingParameters<'a> {
     pub fn readsets(&self) -> Vec<(&str, Option<&str>)> {
         let mut to_return: Vec<(&str, Option<&str>)> = vec![];
 
-        for (ref r1, ref r2) in self.read1.iter().zip(self.read2.iter()) {
+        for (r1, r2) in self.read1.iter().zip(self.read2.iter()) {
             to_return.push((r1, Some(r2)))
         }
-        for ref s in self.unpaired.iter() {
-            to_return.push((&s, None))
+        for s in self.unpaired.iter() {
+            to_return.push((s, None))
         }
-        return to_return;
+        to_return
     }
 }
 
@@ -200,7 +200,7 @@ impl<'a> Iterator for MappingParameters<'a> {
         if self.iter_reference_index < self.references.len() {
             let i = self.iter_reference_index;
             self.iter_reference_index += 1;
-            return Some(SingleReferenceMappingParameters {
+            Some(SingleReferenceMappingParameters {
                 reference: self.references[i],
                 threads: self.threads,
                 read1: self.read1.clone(),
@@ -211,9 +211,9 @@ impl<'a> Iterator for MappingParameters<'a> {
                 iter_read_pair_index: 0,
                 iter_interleaved_index: 0,
                 iter_unpaired_index: 0,
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
 }
@@ -225,14 +225,14 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
         if self.iter_read_pair_index < self.read1.len() {
             let i = self.iter_read_pair_index;
             self.iter_read_pair_index += 1;
-            return Some(OneSampleMappingParameters {
+            Some(OneSampleMappingParameters {
                 reference: self.reference,
                 read_format: ReadFormat::Coupled,
                 read1: self.read1[i],
                 read2: Some(self.read2[i]),
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            });
+            })
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
             self.iter_interleaved_index += 1;

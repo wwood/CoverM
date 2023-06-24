@@ -57,11 +57,11 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     ],
                     &[
                         &monospace_roff("bwa-mem"),
-                        &format!("bwa mem using default parameters")
+                        "bwa mem using default parameters"
                     ],
                     &[
                         &monospace_roff("bwa-mem2"),
-                        &format!("bwa-mem2 using default parameters")
+                        "bwa-mem2 using default parameters"
                     ],
                     &[
                         &monospace_roff("minimap2-ont"),
@@ -311,7 +311,7 @@ fn add_verbosity_flags_to_section(section: Section) -> Section {
 
 pub fn filter_full_help() -> Manual {
     let mut manual = Manual::new("coverm filter")
-        .about(&format!(
+        .about(format!(
             "Threshold alignments with insufficient identity (version {})",
             crate_version!()
         ))
@@ -378,7 +378,7 @@ pub fn filter_full_help() -> Manual {
 
 pub fn make_full_help() -> Manual {
     let mut manual = Manual::new("coverm make")
-        .about(&format!(
+        .about(format!(
             "Generate BAM files through mapping (version: {})",
             crate_version!()
         ))
@@ -606,7 +606,7 @@ pub fn contig_full_help() -> Manual {
 
     manual = manual.custom(faq_section());
 
-    return manual;
+    manual
 }
 
 pub fn genome_full_help() -> Manual {
@@ -691,8 +691,8 @@ pub fn genome_full_help() -> Manual {
             .flag(
                 Flag::new()
                     .long("--use-full-contig-names")
-                    .help(&format!("Specify that the input BAM files have been generated with mapping software that includes the full name of each contig \
-                    in the reference definition (i.e. characters after the space), so when reading in genomes, record contig names as such."))
+                    .help("Specify that the input BAM files have been generated with mapping software that includes the full name of each contig \
+                    in the reference definition (i.e. characters after the space), so when reading in genomes, record contig names as such.")
             )
         );
 
@@ -882,8 +882,7 @@ See coverm contig --full-help for further options and further detail.
                 "Example: Calculate MetaBAT adjusted coverage from a sorted BAM file, saving
 the unfiltered BAM files in the saved_bam_files folder:"
             )
-        )
-        .to_string();
+        );
         static ref GENOME_HELP: String = format!(
             "
                             {}
@@ -917,8 +916,7 @@ See coverm genome --full-help for further options and further detail.
             ),
             ansi_term::Colour::Purple
                 .paint("Example: Dereplicate genomes at 99% ANI before mapping unpaired reads:"),
-        )
-        .to_string();
+        );
         static ref FILTER_HELP: String = format!(
             "
                             {}
@@ -946,8 +944,7 @@ See coverm filter --full-help for further options and further detail.
                  records that are still mapped, but align with < 95% identity. Use 16\n\
                  threads for output compression:"
             ),
-        )
-        .to_string();
+        );
         static ref MAKE_HELP: String = format!(
             "
                             {}
@@ -965,8 +962,7 @@ See coverm make --full-help for further options and further detail.
                 "Example: Map pair of read files to the combined_genomes.fna reference,\n\
                 storing sorted BAM files in output_dir/"
             ),
-        )
-        .to_string();
+        );
     }
 
     let mut app = Command::new("coverm")
@@ -1041,7 +1037,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .requires("read2")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1059,7 +1055,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .num_args(1..)
                         .num_args(1..)
                         .requires("read1")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1075,7 +1071,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("coupled")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "interleaved",
@@ -1090,7 +1086,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("interleaved")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1105,7 +1101,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("single")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1174,7 +1170,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "genome-fasta-files",
                             "genome-fasta-directory",
                             "genome-fasta-list",
@@ -1194,7 +1190,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "separator",
                             "genome-fasta-directory",
                             "genome-fasta-list",
@@ -1211,7 +1207,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("separator")
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("single-genome")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "genome-fasta-files",
                             "genome-fasta-list",
                             "separator",
@@ -1228,7 +1224,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "genome-fasta-files",
                             "genome-fasta-directory",
                             "separator",
@@ -1254,7 +1250,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("genome-fasta-files")
                         .conflicts_with("genome-fasta-directory")
                         .conflicts_with("single-genome")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "genome-fasta-files",
                             "genome-fasta-list",
                             "separator",
@@ -1460,6 +1456,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("single-genome"),
                 )
                 .arg(
+                    Arg::new("checkm2-quality-report")
+                        .long("checkm2-quality-report")
+                        .conflicts_with("reference")
+                        .conflicts_with("bam-files")
+                        .conflicts_with("separator")
+                        .conflicts_with("single-genome"),
+                )
+                .arg(
                     Arg::new("genome-info")
                         .long("genome-info")
                         .conflicts_with("reference")
@@ -1511,7 +1515,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .requires("read2")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1527,7 +1531,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .requires("read1")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "coupled",
                             "interleaved",
@@ -1543,7 +1547,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("coupled")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "interleaved",
@@ -1558,7 +1562,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("interleaved")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1573,7 +1577,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("single")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "bam-files",
                             "read1",
                             "coupled",
@@ -1589,7 +1593,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&["bam-files", "full-help", "full-help-roff"])
+                        .required_unless_present_any(["bam-files", "full-help", "full-help-roff"])
                         .conflicts_with("bam-files"),
                 )
                 .arg(
@@ -1764,7 +1768,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("bam-files")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::new("output-bam-files")
@@ -1772,7 +1776,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("output-bam-files")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::new("inverse")
@@ -1866,7 +1870,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("output-directory")
                         .short('o')
                         .long("output-directory")
-                        .required_unless_present_any(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::new("read1")
@@ -1874,7 +1878,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .requires("read2")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "coupled",
                             "interleaved",
                             "single",
@@ -1888,7 +1892,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .requires("read1")
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "coupled",
                             "interleaved",
                             "single",
@@ -1902,7 +1906,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("coupled")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "read1",
                             "interleaved",
                             "single",
@@ -1915,7 +1919,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("interleaved")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "read1",
                             "coupled",
                             "single",
@@ -1928,7 +1932,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("single")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&[
+                        .required_unless_present_any([
                             "read1",
                             "coupled",
                             "interleaved",
@@ -1942,7 +1946,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(&["full-help", "full-help-roff"]),
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
                 )
                 .arg(
                     Arg::new("threads")
@@ -2002,5 +2006,5 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
         );
 
     app = galah::cluster_argument_parsing::add_cluster_subcommand(app);
-    return app;
+    app
 }

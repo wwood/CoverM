@@ -71,7 +71,7 @@ impl FlagFilter {
         if !self.include_improper_pairs && !record.is_proper_pair() {
             return false;
         }
-        return true;
+        true
     }
 }
 
@@ -92,8 +92,9 @@ impl OutputWriter {
                     info!("Writing output to file: {}", file_path);
                     OutputWriter {
                         output_file: Some(Arc::new(std::sync::Mutex::new(
-                            std::fs::File::create(path)
-                                .expect(&format!("Failed to create output file: {}", file_path)),
+                            std::fs::File::create(path).unwrap_or_else(|_| {
+                                panic!("Failed to create output file: {}", file_path)
+                            }),
                         ))),
                     }
                 }
@@ -124,10 +125,7 @@ impl std::io::Write for OutputWriter {
 impl Clone for OutputWriter {
     fn clone(&self) -> OutputWriter {
         OutputWriter {
-            output_file: match &self.output_file {
-                Some(f) => Some(f.clone()),
-                None => None,
-            },
+            output_file: self.output_file.as_ref().cloned(),
         }
     }
 }

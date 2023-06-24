@@ -20,14 +20,14 @@ pub struct VanillaBwaIndexStuct {
 }
 impl VanillaBwaIndexStuct {
     pub fn new(reference_path: &str) -> VanillaBwaIndexStuct {
-        return VanillaBwaIndexStuct {
+        VanillaBwaIndexStuct {
             index_path_internal: reference_path.to_string(),
-        };
+        }
     }
 }
 impl MappingIndex for VanillaBwaIndexStuct {
     fn index_path(&self) -> &String {
-        return &self.index_path_internal;
+        &self.index_path_internal
     }
 }
 
@@ -72,7 +72,7 @@ impl TemporaryIndexStruct {
                 cmd.arg("index")
                     .arg("-p")
                     .arg(&index_path)
-                    .arg(&reference_path);
+                    .arg(reference_path);
             }
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
@@ -102,7 +102,7 @@ impl TemporaryIndexStruct {
                     }
                     None => {}
                 }
-                cmd.arg("-d").arg(&index_path).arg(&reference_path);
+                cmd.arg("-d").arg(&index_path).arg(reference_path);
             }
         };
         match index_creation_options {
@@ -118,23 +118,26 @@ impl TemporaryIndexStruct {
         cmd.stderr(std::process::Stdio::piped());
         debug!("Running DB indexing command: {:?}", cmd);
 
-        let mut process = cmd.spawn().expect(&format!(
-            "Failed to start {:?} index process",
-            mapping_program
-        ));
-        let es = process.wait().expect(&format!(
-            "Failed to glean exitstatus from failing {:?} index process",
-            mapping_program
-        ));
+        let mut process = cmd
+            .spawn()
+            .unwrap_or_else(|_| panic!("Failed to start {:?} index process", mapping_program));
+        let es = process.wait().unwrap_or_else(|_| {
+            panic!(
+                "Failed to glean exitstatus from failing {:?} index process",
+                mapping_program
+            )
+        });
         if !es.success() {
             error!("Error when running {:?} index process.", mapping_program);
             let mut err = String::new();
             process
                 .stderr
-                .expect(&format!(
-                    "Failed to grab stderr from failed {:?} index process",
-                    mapping_program
-                ))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Failed to grab stderr from failed {:?} index process",
+                        mapping_program
+                    )
+                })
                 .read_to_string(&mut err)
                 .expect("Failed to read stderr into string");
             error!("The STDERR was: {:?}", err);
@@ -150,7 +153,7 @@ impl TemporaryIndexStruct {
 }
 impl MappingIndex for TemporaryIndexStruct {
     fn index_path(&self) -> &String {
-        return &self.index_path_internal;
+        &self.index_path_internal
     }
 }
 impl Drop for TemporaryIndexStruct {
@@ -176,7 +179,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
         }
     }
     if num_existing == 0 {
-        return false;
+        false
     } else if num_existing == num_extensions {
         return true;
     } else {
@@ -190,7 +193,7 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
     let ref_path = std::path::Path::new(reference_path);
     match mapping_program {
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
-            if check_for_bwa_index_existence(reference_path, &mapping_program) {
+            if check_for_bwa_index_existence(reference_path, mapping_program) {
                 return;
             }
         }
@@ -221,14 +224,14 @@ pub fn generate_bwa_index(
 ) -> Box<dyn MappingIndex> {
     if check_for_bwa_index_existence(reference_path, &mapping_program) {
         info!("BWA index appears to be complete, so going ahead and using it.");
-        return Box::new(VanillaBwaIndexStuct::new(reference_path));
+        Box::new(VanillaBwaIndexStuct::new(reference_path))
     } else {
-        return Box::new(TemporaryIndexStruct::new(
+        Box::new(TemporaryIndexStruct::new(
             mapping_program,
             reference_path,
             None,
             index_creation_parameters,
-        ));
+        ))
     }
 }
 
@@ -238,12 +241,12 @@ pub fn generate_minimap2_index(
     index_creation_parameters: Option<&str>,
     mapping_program: MappingProgram,
 ) -> Box<dyn MappingIndex> {
-    return Box::new(TemporaryIndexStruct::new(
+    Box::new(TemporaryIndexStruct::new(
         mapping_program,
         reference_path,
         num_threads,
         index_creation_parameters,
-    ));
+    ))
 }
 
 pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> NamedTempFile {
@@ -261,8 +264,8 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         for file in fasta_file_paths {
             let mut something_written = false;
             let path = std::path::Path::new(file);
-            let mut reader =
-                parse_fastx_file(path).expect(&format!("Unable to read fasta file {}", file));
+            let mut reader = parse_fastx_file(path)
+                .unwrap_or_else(|_| panic!("Unable to read fasta file {}", file));
 
             // Remove .gz .bz .xz from file names if present
             let mut genome_name1 =
@@ -288,8 +291,8 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
                 process::exit(1);
             }
             while let Some(record) = reader.next() {
-                let record_expected =
-                    record.expect(&format!("Failed to parse record in fasta file {:?}", path));
+                let record_expected = record
+                    .unwrap_or_else(|_| panic!("Failed to parse record in fasta file {:?}", path));
 
                 if record_expected.format() != needletail::parser::Format::Fasta {
                     panic!(
@@ -335,5 +338,5 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         error!("Concatenated FASTA file to use as a reference is empty");
         process::exit(1);
     }
-    return tmpfile;
+    tmpfile
 }
