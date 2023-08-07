@@ -774,7 +774,17 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
     );
 
-    info!("Dereplicating genome at {}% ANI ..", clusterer.ani * 100.);
+    info!(
+        "Dereplicating genome at {}% ANI ..",
+        match clusterer.clusterer {
+            galah::cluster_argument_parsing::Clusterer::Fastani { threshold, .. } => {
+                threshold
+            }
+            galah::cluster_argument_parsing::Clusterer::Skani { threshold, .. } => {
+                threshold
+            }
+        } * 100.
+    );
     let cluster_indices = clusterer.cluster();
     info!(
         "Finished dereplication, finding {} representative genomes.",

@@ -28,6 +28,7 @@ lazy_static! {
             dereplication_ani_argument: "dereplication-ani".to_string(),
             dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
             dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
+            dereplication_cluster_method_argument: "dereplication-cluster-method".to_string(),
             dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
             dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
             dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
@@ -1412,6 +1413,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "dRep",
                         ])
                         .default_value(galah::DEFAULT_QUALITY_FORMULA),
+                )
+                .arg(
+                    Arg::new("dereplication-cluster-method")
+                        .long("dereplication-cluster-method")
+                        .value_parser(["fastani", "skani"])
+                        .default_value(galah::DEFAULT_CLUSTER_METHOD),
                 )
                 .arg(
                     Arg::new("dereplication-precluster-method")
