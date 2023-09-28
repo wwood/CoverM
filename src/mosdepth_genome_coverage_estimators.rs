@@ -208,7 +208,7 @@ impl CoverageEstimator {
     }
 
     fn calculate_unobserved_bases(
-        unobserved_contig_lengths: &Vec<u64>,
+        unobserved_contig_lengths: &[u64],
         contig_end_exclusion: u64,
     ) -> u64 {
         let unobserved_not_excluded = unobserved_contig_lengths
@@ -229,14 +229,9 @@ impl CoverageEstimator {
 pub trait MosdepthGenomeCoverageEstimator {
     fn setup(&mut self);
 
-    fn add_contig(
-        &mut self,
-        ups_and_downs: &Vec<i32>,
-        num_mapped_reads: u64,
-        total_mismatches: u64,
-    );
+    fn add_contig(&mut self, ups_and_downs: &[i32], num_mapped_reads: u64, total_mismatches: u64);
 
-    fn calculate_coverage(&mut self, unobserved_contig_lengths: &Vec<u64>) -> f32;
+    fn calculate_coverage(&mut self, unobserved_contig_lengths: &[u64]) -> f32;
 
     fn print_coverage<T: CoverageTaker>(&self, coverage: &f32, coverage_taker: &mut T);
 
@@ -340,7 +335,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
 
     fn add_contig(
         &mut self,
-        ups_and_downs: &Vec<i32>,
+        ups_and_downs: &[i32],
         num_mapped_reads_in_contig: u64,
         total_mismatches_in_contig: u64,
     ) {
@@ -367,8 +362,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let mut cumulative_sum: i32 = 0;
                 let start_from = *contig_end_exclusion as usize;
                 let end_at = len - *contig_end_exclusion as usize - 1;
-                for i in 0..len {
-                    let current = ups_and_downs[i];
+                for (i, current) in ups_and_downs.iter().enumerate() {
                     cumulative_sum += current;
                     if i >= start_from && i <= end_at {
                         if cumulative_sum > 0 {
@@ -472,8 +466,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 *total_bases += len as u64;
                 let mut cumulative_sum: i32 = 0;
 
-                for i in 0..len {
-                    let current = ups_and_downs[i];
+                for current in ups_and_downs.iter() {
                     cumulative_sum += current;
                     if cumulative_sum > 0 {
                         *num_covered_bases += 1
@@ -499,7 +492,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
         }
     }
 
-    fn calculate_coverage(&mut self, unobserved_contig_lengths: &Vec<u64>) -> f32 {
+    fn calculate_coverage(&mut self, unobserved_contig_lengths: &[u64]) -> f32 {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator {
                 total_count,
@@ -577,8 +570,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             let mut num_accounted_for: usize = 0;
                             let mut total: usize = 0;
                             let mut started = false;
-                            let mut i = 0;
-                            for num_covered in counts.iter() {
+                            for (i, num_covered) in counts.iter().enumerate() {
                                 num_accounted_for += *num_covered as usize;
                                 debug!(
                                     "start: i {}, num_accounted_for {}, total {}, min {}, max {}",
@@ -621,8 +613,6 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                                     "end i {}, num_accounted_for {}, total {}",
                                     i, num_accounted_for, total
                                 );
-
-                                i += 1;
                             }
                             total as f32 / (max_index - min_index) as f32
                         }
@@ -763,13 +753,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     0 => 0.0,
                     _ => {
                         if (*num_covered_bases as f32 / total_bases as f32)
-                            < *min_fraction_covered_bases
+                            < *min_fraction_covered_bases || total_bases < 3 ||
+                            // no mapped reads
+                            counts.is_empty()
                         {
                             0.0
-                        } else if total_bases < 3 {
-                            0.0
-                        } else if counts.is_empty() {
-                            0.0 // no mapped reads
                         } else {
                             counts[0] += unobserved_contig_length;
                             // Calculate variance using the shifted method
@@ -917,9 +905,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 coverage_taker.add_single_coverage(*coverage);
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { counts, .. } => {
-                let mut i = 0;
                 debug!("{:?}", counts);
-                for num_covered in counts.iter() {
+                for (i, num_covered) in counts.iter().enumerate() {
                     let cov: u64 = match i {
                         0 => {
                             let c = coverage.floor() as u64;
@@ -931,7 +918,6 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         _ => *num_covered,
                     };
                     coverage_taker.add_coverage_entry(i, cov);
-                    i += 1
                 }
             }
         }

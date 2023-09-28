@@ -15,6 +15,9 @@ use coverm::FlagFilter;
 use coverm::OutputWriter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
 
+extern crate galah;
+use galah::ClusterDistanceFinder;
+
 extern crate rust_htslib;
 use rust_htslib::bam;
 use rust_htslib::bam::Read;
@@ -775,15 +778,8 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     );
 
     info!(
-        "Dereplicating genome at {}% ANI ..",
-        match clusterer.clusterer {
-            galah::cluster_argument_parsing::Clusterer::Fastani { threshold, .. } => {
-                threshold
-            }
-            galah::cluster_argument_parsing::Clusterer::Skani { threshold, .. } => {
-                threshold
-            }
-        } * 100.
+        "Dereplicating genomes at {}% ANI ..",
+        clusterer.clusterer.get_ani_threshold()
     );
     let cluster_indices = clusterer.cluster();
     info!(

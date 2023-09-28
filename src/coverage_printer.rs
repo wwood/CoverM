@@ -88,9 +88,8 @@ impl CoveragePrinter {
                         for (entry_i, _) in stoit_by_entry_by_coverage[0].iter().enumerate() {
                             // Calculate the total average across each sample.
                             let mut total_depth = 0.0;
-                            for stoit_i in 0..stoit_by_entry_by_coverage.len() {
-                                total_depth +=
-                                    stoit_by_entry_by_coverage[stoit_i][entry_i].coverages[1];
+                            for stoit in stoit_by_entry_by_coverage.iter() {
+                                total_depth += stoit[entry_i].coverages[1];
                             }
                             write!(
                                 print_stream,
@@ -102,8 +101,8 @@ impl CoveragePrinter {
                                     / 10000.0
                             )
                             .unwrap();
-                            for stoit_i in 0..coverages.len() {
-                                let c = &stoit_by_entry_by_coverage[stoit_i][entry_i].coverages;
+                            for stoit in stoit_by_entry_by_coverage.iter() {
+                                let c = &stoit[entry_i].coverages;
                                 write!(
                                     print_stream,
                                     "\t{}\t{}",
@@ -346,6 +345,7 @@ pub fn print_sparse_cached_coverage_taker(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn print_dense_cached_coverage_taker(
     entry_type: &str,
     estimator_headers: &Vec<String>,

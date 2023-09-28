@@ -96,22 +96,16 @@ impl TemporaryIndexStruct {
                     | MappingProgram::BWA_MEM
                     | MappingProgram::BWA_MEM2 => {}
                 };
-                match num_threads {
-                    Some(t) => {
-                        cmd.arg("-t").arg(&format!("{}", t));
-                    }
-                    None => {}
+                if let Some(t) = num_threads {
+                    cmd.arg("-t").arg(&format!("{}", t));
                 }
                 cmd.arg("-d").arg(&index_path).arg(reference_path);
             }
         };
-        match index_creation_options {
-            Some(params) => {
-                for s in params.split_whitespace() {
-                    cmd.arg(s);
-                }
+        if let Some(params) = index_creation_options {
+            for s in params.split_whitespace() {
+                cmd.arg(s);
             }
-            None => {}
         };
         // Some BWA versions output log info to stdout. Ignore this.
         cmd.stdout(std::process::Stdio::piped());

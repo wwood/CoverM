@@ -124,10 +124,8 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     fn start(self) -> StreamingNamedBamReader {
         debug!("Starting mapping processes");
         let mut processes = vec![];
-        let mut i = 0;
-        for mut preprocess in self.pre_processes {
+        for (i, mut preprocess) in self.pre_processes.into_iter().enumerate() {
             debug!("Running mapping command: {}", self.command_strings[i]);
-            i += 1;
             processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
         let bam_reader = match bam::Reader::from_path(&self.fifo_path) {
@@ -290,6 +288,7 @@ pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<Ba
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_named_bam_readers_from_reads(
     mapping_program: MappingProgram,
     reference: &str,
@@ -479,6 +478,7 @@ impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_filtered_bam_readers_from_bam_files(
     bam_paths: Vec<&str>,
     flag_filters: FlagFilter,
@@ -637,6 +637,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_filtered_named_bam_readers_from_reads(
     mapping_program: MappingProgram,
     reference: &str,
@@ -707,6 +708,7 @@ pub struct NamedBamMakerGenerator {
     log_files: Vec<tempfile::NamedTempFile>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_bam_maker_generator_from_reads(
     mapping_program: MappingProgram,
     reference: &str,
@@ -817,10 +819,8 @@ impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
     fn start(self) -> NamedBamMaker {
         debug!("Starting mapping processes");
         let mut processes = vec![];
-        let mut i = 0;
-        for mut preprocess in self.pre_processes {
+        for (i, mut preprocess) in self.pre_processes.into_iter().enumerate() {
             debug!("Running mapping command: {}", self.command_strings[i]);
-            i += 1;
             processes.push(preprocess.spawn().expect("Unable to execute bash"));
         }
         NamedBamMaker {

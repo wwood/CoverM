@@ -1,4 +1,5 @@
 use std;
+use std::cmp::Ordering;
 use std::process;
 use std::str;
 
@@ -249,15 +250,16 @@ where
                 }
             };
 
-            let winning_index: usize;
-            if winning_indices.len() > 1 {
-                winning_index = *winning_indices.choose(&mut thread_rng()).unwrap();
-            } else if winning_indices.len() == 1 {
-                winning_index = winning_indices[0];
-            } else {
-                error!("CoverM cannot currently deal with reads that only map to excluded genomes");
-                process::exit(1);
-            }
+            let winning_index = match winning_indices.len().cmp(&1) {
+                Ordering::Greater => *winning_indices.choose(&mut thread_rng()).unwrap(),
+                Ordering::Equal => winning_indices[0],
+                Ordering::Less => {
+                    error!(
+                        "CoverM cannot currently deal with reads that only map to excluded genomes"
+                    );
+                    process::exit(1);
+                }
+            };
             debug!(
                 "Choosing winning index {} from winner pool {:?}",
                 winning_index, winning_indices
@@ -319,18 +321,16 @@ where
         let mut current_tid_offset: i32 = 0;
         for reader in self.read_sorted_bam_readers.iter() {
             let header = reader.header();
-            let mut current_tid: u32 = 0; // I think TID counting should start at 0, 1 returns wrong lengths.
             let names = header.target_names();
-            for name in names.iter() {
-                let length = header.target_len(current_tid).unwrap_or_else(|| {
+            for (current_tid, name) in names.iter().enumerate() {
+                let length = header.target_len(current_tid as u32).unwrap_or_else(|| {
                     panic!("Failed to get target length for TID {}", current_tid)
                 });
                 // e.g. @SQ	SN:a62_bin.100.fna=k141_20475	LN:15123
                 let mut current_record = bam::header::HeaderRecord::new(b"SQ");
-                current_record.push_tag(b"SN", &std::str::from_utf8(name).unwrap());
-                current_record.push_tag(b"LN", &length);
+                current_record.push_tag(b"SN", std::str::from_utf8(name).unwrap());
+                current_record.push_tag(b"LN", length);
                 new_header.push_record(&current_record);
-                current_tid += 1; // increment current tid
             }
 
             tid_offsets.push(current_tid_offset);
@@ -561,6 +561,7 @@ where
     vec![gen]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_named_sharded_bam_readers_from_reads(
     mapping_program: MappingProgram,
     reference: &str,
@@ -675,10 +676,8 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     let pre_processes = vec![cmd];
     let command_strings = vec![format!("bash -c \"{}\"", cmd_string)];
     let mut processes = vec![];
-    let mut i = 0;
-    for mut preprocess in pre_processes {
+    for (i, mut preprocess) in pre_processes.into_iter().enumerate() {
         debug!("Running mapping command: {}", command_strings[i]);
-        i += 1;
         processes.push(preprocess.spawn().expect("Unable to execute bash"));
     }
     match bam::Reader::from_path(&fifo_path) {

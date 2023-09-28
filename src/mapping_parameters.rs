@@ -191,6 +191,10 @@ impl<'a> SingleReferenceMappingParameters<'a> {
     pub fn len(&self) -> usize {
         self.read1.len() + self.interleaved.len() + self.unpaired.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<'a> Iterator for MappingParameters<'a> {

@@ -25,7 +25,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     flag_filters: &FlagFilter,
-    coverage_estimators: &mut Vec<CoverageEstimator>,
+    coverage_estimators: &mut [CoverageEstimator],
     threads: u16,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
@@ -96,7 +96,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<
         }
         let mut per_genome_coverage_estimators = vec![];
         for _ in contigs_and_genomes.genomes.iter() {
-            let cov_clone = coverage_estimators.clone();
+            let mut cov_clone = vec![coverage_estimators[0].clone(); coverage_estimators.len()];
+            cov_clone.clone_from_slice(coverage_estimators);
             per_genome_coverage_estimators.push(cov_clone);
         }
 
@@ -137,24 +138,23 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                             error!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
                             panic!("BAM file appears to be unsorted. Input BAM files must be sorted by reference (i.e. by samtools sort)");
                         }
-                        match reference_number_to_genome_index[last_tid as usize] {
-                            Some(genome_index) => {
-                                debug!(
-                                    "Found {} reads mapped to tid {}",
-                                    num_mapped_reads_in_current_contig, last_tid
+                        if let Some(genome_index) =
+                            reference_number_to_genome_index[last_tid as usize]
+                        {
+                            debug!(
+                                "Found {} reads mapped to tid {}",
+                                num_mapped_reads_in_current_contig, last_tid
+                            );
+                            for ref mut coverage_estimator in
+                                per_genome_coverage_estimators[genome_index].iter_mut()
+                            {
+                                coverage_estimator.add_contig(
+                                    &ups_and_downs,
+                                    num_mapped_reads_in_current_contig,
+                                    total_edit_distance_in_current_contig
+                                        - total_indels_in_current_contig,
                                 );
-                                for ref mut coverage_estimator in
-                                    per_genome_coverage_estimators[genome_index].iter_mut()
-                                {
-                                    coverage_estimator.add_contig(
-                                        &ups_and_downs,
-                                        num_mapped_reads_in_current_contig,
-                                        total_edit_distance_in_current_contig
-                                            - total_indels_in_current_contig,
-                                    );
-                                }
                             }
-                            None => {}
                         }
                     }
 
@@ -229,19 +229,16 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             );
         } else {
             // Record the last contig
-            match reference_number_to_genome_index[last_tid as usize] {
-                Some(genome_index) => {
-                    for ref mut coverage_estimator in
-                        per_genome_coverage_estimators[genome_index].iter_mut()
-                    {
-                        coverage_estimator.add_contig(
-                            &ups_and_downs,
-                            num_mapped_reads_in_current_contig,
-                            total_edit_distance_in_current_contig - total_indels_in_current_contig,
-                        )
-                    }
+            if let Some(genome_index) = reference_number_to_genome_index[last_tid as usize] {
+                for ref mut coverage_estimator in
+                    per_genome_coverage_estimators[genome_index].iter_mut()
+                {
+                    coverage_estimator.add_contig(
+                        &ups_and_downs,
+                        num_mapped_reads_in_current_contig,
+                        total_edit_distance_in_current_contig - total_indels_in_current_contig,
+                    )
                 }
-                None => {}
             }
 
             // Print the coverages of each genome
@@ -328,11 +325,12 @@ struct UnobservedLengthAndFirstTid {
     first_tid: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn print_last_genomes<T: CoverageTaker>(
     num_mapped_reads_in_current_contig: u64,
     last_genome: Option<&[u8]>,
     unobserved_contig_length_and_first_tid: &mut UnobservedLengthAndFirstTid,
-    ups_and_downs: &Vec<i32>,
+    ups_and_downs: &[i32],
     total_edit_distance_in_current_contig: u64,
     total_indels_in_current_contig: u64,
     current_genome: &[u8],
@@ -340,7 +338,7 @@ fn print_last_genomes<T: CoverageTaker>(
     coverage_taker: &mut T,
     print_zero_coverage_genomes: bool,
     single_genome: bool,
-    target_names: &std::vec::Vec<&[u8]>,
+    target_names: &[&[u8]],
     split_char: u8,
     header: &rust_htslib::bam::HeaderView,
     tid_to_print_zeros_to: u32,
@@ -365,32 +363,34 @@ fn print_last_genomes<T: CoverageTaker>(
         .collect();
     let positive_coverage = coverages.iter().any(|c| *c > 0.0);
 
-    if (print_zero_coverage_genomes || positive_coverage) && last_genome.is_some() {
-        coverage_taker.start_entry(
-            unobserved_contig_length_and_first_tid.first_tid,
-            str::from_utf8(last_genome.unwrap()).unwrap(),
-        );
-        for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
-            let coverage = coverages[i];
-            debug!(
-                "Found coverage {} for genome {} i.e. coverage estimator {}",
-                coverage,
-                &str::from_utf8(last_genome.unwrap()).unwrap(),
-                i
+    if print_zero_coverage_genomes || positive_coverage {
+        if let Some(last_genome_name) = last_genome {
+            coverage_taker.start_entry(
+                unobserved_contig_length_and_first_tid.first_tid,
+                str::from_utf8(last_genome.unwrap()).unwrap(),
             );
-
-            // Print coverage of previous genome
-            if coverage > 0.0 {
-                coverage_estimator.print_coverage(&coverage, coverage_taker);
-            } else {
-                coverage_estimator.print_zero_coverage(
-                    coverage_taker,
-                    // Length coverage is always >0, so this 0 is never used
-                    9,
+            for (i, ref mut coverage_estimator) in coverage_estimators.iter_mut().enumerate() {
+                let coverage = coverages[i];
+                debug!(
+                    "Found coverage {} for genome {} i.e. coverage estimator {}",
+                    coverage,
+                    &str::from_utf8(last_genome_name).unwrap(),
+                    i
                 );
+
+                // Print coverage of previous genome
+                if coverage > 0.0 {
+                    coverage_estimator.print_coverage(&coverage, coverage_taker);
+                } else {
+                    coverage_estimator.print_zero_coverage(
+                        coverage_taker,
+                        // Length coverage is always >0, so this 0 is never used
+                        9,
+                    );
+                }
             }
+            coverage_taker.finish_entry();
         }
-        coverage_taker.finish_entry();
     }
     // Reset all estimators
     for coverage_estimator in coverage_estimators.iter_mut() {
@@ -411,6 +411,7 @@ fn print_last_genomes<T: CoverageTaker>(
     positive_coverage
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn mosdepth_genome_coverage<
     R: NamedBamReader,
     G: NamedBamReaderGenerator<R>,
@@ -783,7 +784,7 @@ pub fn mosdepth_genome_coverage<
     reads_mapped_vector
 }
 
-fn extract_genome<'a>(tid: u32, target_names: &'a Vec<&[u8]>, split_char: u8) -> &'a [u8] {
+fn extract_genome<'a>(tid: u32, target_names: &'a [&[u8]], split_char: u8) -> &'a [u8] {
     let target_name = target_names[tid as usize];
     trace!("target name {:?}, separator {:?}", target_name, split_char);
     let offset = find_first(target_name, split_char).unwrap_or_else(|_| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
@@ -795,7 +796,7 @@ fn fill_genome_length_backwards(
     current_tid: u32,
     target_genome: &[u8],
     single_genome: bool,
-    target_names: &Vec<&[u8]>,
+    target_names: &[&[u8]],
     split_char: u8,
     header: &bam::HeaderView,
 ) -> UnobservedLengthAndFirstTid {
@@ -842,12 +843,13 @@ fn fill_genome_length_backwards(
 // Print zero coverage for genomes that have no reads mapped. Genomes are
 // detected from the header, counting backwards from the current tid until the
 // last seen genome is encountered, or we reach the beginning of the tid array.
+#[allow(clippy::too_many_arguments)]
 fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
     last_genome: Option<&[u8]>,
     current_genome: &[u8],
     current_tid: u32,
     pileup_coverage_estimators: &'a Vec<CoverageEstimator>,
-    target_names: &Vec<&[u8]>,
+    target_names: &[&[u8]],
     split_char: u8,
     coverage_taker: &mut T,
     header: &bam::HeaderView,
@@ -873,15 +875,12 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
         } else if genome != my_current_genome {
             // In-between genome encountered for the first time.
             // Push the last
-            match last_first_id {
-                Some(id) => {
-                    if last_genome.is_none() || genome != last_genome.unwrap() {
-                        genome_first_tids.push(id as usize);
-                        genomes_to_print.push(my_current_genome);
-                        genomes_unobserved_length.push(unobserved_length);
-                    }
+            if let Some(id) = last_first_id {
+                if last_genome.is_none() || genome != last_genome.unwrap() {
+                    genome_first_tids.push(id as usize);
+                    genomes_to_print.push(my_current_genome);
+                    genomes_unobserved_length.push(unobserved_length);
                 }
-                None => {}
             }
             my_current_genome = genome;
             last_first_id = Some(tid);
@@ -895,13 +894,10 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
         }
         tid -= 1;
     }
-    match last_first_id {
-        Some(id) => {
-            genome_first_tids.push(id as usize);
-            genomes_to_print.push(my_current_genome);
-            genomes_unobserved_length.push(unobserved_length);
-        }
-        None => {}
+    if let Some(id) = last_first_id {
+        genome_first_tids.push(id as usize);
+        genomes_to_print.push(my_current_genome);
+        genomes_unobserved_length.push(unobserved_length);
     }
     debug!(
         "genomes_to_print {:?}, genome_first_tids {:?}: unobserved: {:?}",
@@ -1023,7 +1019,7 @@ mod tests {
         geco: &GenomesAndContigs,
         print_zero_coverage_contigs: bool,
         proper_pairs_only: bool,
-        coverage_estimators: &mut Vec<CoverageEstimator>,
+        coverage_estimators: &mut [CoverageEstimator],
     ) -> Vec<ReadsMapped> {
         let res;
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
@@ -1066,7 +1062,7 @@ mod tests {
         geco: &GenomesAndContigs,
         print_zero_coverage_contigs: bool,
         proper_pairs_only: bool,
-        coverage_estimators: &mut Vec<CoverageEstimator>,
+        coverage_estimators: &mut [CoverageEstimator],
     ) -> Vec<ReadsMapped> {
         let res;
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
@@ -1124,7 +1120,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.0, 0, false)],
         );
     }
 
@@ -1153,7 +1149,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.0, 0, false)],
         );
     }
 
@@ -1186,7 +1182,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.0, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.0, 0, false)],
         );
     }
 
@@ -1219,7 +1215,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.76, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.76, 0, false)],
         );
     }
 
@@ -1252,7 +1248,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.759, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.759, 0, false)],
         );
     }
 
@@ -1287,7 +1283,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_trimmed_mean(
+            &mut [CoverageEstimator::new_estimator_trimmed_mean(
                 0.1, 0.9, 0.0, 0,
             )],
         );
@@ -1317,7 +1313,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0,0)));
+            &mut [CoverageEstimator::new_estimator_pileup_counts(0.0,0)]);
     }
 
     #[test]
@@ -1485,7 +1481,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![CoverageEstimator::new_estimator_mean(0.1, 0, false)],
+            &mut [CoverageEstimator::new_estimator_mean(0.1, 0, false)],
         );
 
         test_contig_names_with_stream(
@@ -1494,7 +1490,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)));
+            &mut [CoverageEstimator::new_estimator_mean(0.1,0,false)]);
     }
 
     #[test]
@@ -1533,7 +1529,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![
+            &mut [
                 CoverageEstimator::new_estimator_mean(0.1, 0, false),
                 CoverageEstimator::new_estimator_variance(0.1, 0),
             ],
@@ -1545,9 +1541,8 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec!(
-                CoverageEstimator::new_estimator_mean(0.1,0,false),
-                CoverageEstimator::new_estimator_variance(0.1,0)));
+            &mut [CoverageEstimator::new_estimator_mean(0.1,0,false),
+                CoverageEstimator::new_estimator_variance(0.1,0)]);
         assert_eq!(
             vec!(ReadsMapped {
                 num_mapped_reads: 24,
@@ -1580,7 +1575,7 @@ mod tests {
             &geco,
             true,
             false,
-            &mut vec![
+            &mut [
                 CoverageEstimator::new_estimator_mean(0.1, 0, false),
                 CoverageEstimator::new_estimator_variance(0.1, 0),
             ],
@@ -1964,7 +1959,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec![
+            &mut [
                 CoverageEstimator::new_estimator_mean(0.1, 0, false),
                 CoverageEstimator::new_estimator_variance(0.1, 0),
             ],
@@ -1986,7 +1981,7 @@ mod tests {
             &geco,
             false,
             false,
-            &mut vec![
+            &mut [
                 CoverageEstimator::new_estimator_mean(0.99, 0, false),
                 CoverageEstimator::new_estimator_variance(0.99, 0),
             ],

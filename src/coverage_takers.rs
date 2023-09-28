@@ -322,15 +322,15 @@ impl Iterator for CoverageTakerTypeIterator<'_> {
                                 self.iter_next_entry_indices[self.iter_current_stoit_index];
                             let potential_next_stoit_list =
                                 &coverages[self.iter_current_stoit_index];
-                            let struct_to_return;
-                            if chosen_stoit_entry_id >= potential_next_stoit_list.len()
+                            let struct_to_return = if chosen_stoit_entry_id
+                                >= potential_next_stoit_list.len()
                                 || potential_next_stoit_list[chosen_stoit_entry_id].entry_index
                                     != lowest_entry_i
                             {
                                 // There are no more coverages from this stoit,
                                 // now we are just returning zeroes to fill out
                                 // the larger matrix.
-                                struct_to_return = Some(EntryAndCoverages {
+                                Some(EntryAndCoverages {
                                     entry_index: lowest_entry_i,
                                     stoit_index: self.iter_current_stoit_index,
                                     coverages: vec![0.0; *num_coverages],
@@ -346,14 +346,15 @@ impl Iterator for CoverageTakerTypeIterator<'_> {
                                     chosen_stoit_entry_id += 1;
                                 }
 
-                                struct_to_return = Some(EntryAndCoverages {
+                                Some(EntryAndCoverages {
                                     entry_index: lowest_entry_i,
                                     stoit_index: self.iter_current_stoit_index,
                                     coverages: to_return,
                                 })
-                            }
+                            };
 
                             // update the pointers for each stoit
+                            #[allow(clippy::needless_range_loop)]
                             for stoit_i in 0..stoit_names.len() {
                                 if coverages[stoit_i].len() > self.iter_next_entry_indices[stoit_i]
                                     && coverages[stoit_i][self.iter_next_entry_indices[stoit_i]]

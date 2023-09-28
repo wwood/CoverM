@@ -40,7 +40,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             |last_tid,
              tid,
              coverage_estimators: &mut Vec<CoverageEstimator>,
-             ups_and_downs,
+             ups_and_downs: &[i32],
              num_mapped_reads_in_current_contig,
              total_edit_distance_in_current_contig,
              total_indels_in_current_contig,
@@ -56,14 +56,14 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     );
                     for estimator in coverage_estimators.iter_mut() {
                         estimator.add_contig(
-                            &ups_and_downs,
+                            ups_and_downs,
                             num_mapped_reads_in_current_contig,
                             total_edit_distance_in_current_contig - total_indels_in_current_contig,
                         )
                     }
                     let coverages: Vec<f32> = coverage_estimators
                         .iter_mut()
-                        .map(|estimator| estimator.calculate_coverage(&vec![0]))
+                        .map(|estimator| estimator.calculate_coverage(&[0]))
                         .collect();
                     let has_nonzero_coverage = coverages.iter().any(|&coverage| coverage > 0.0);
                     debug!("Found coverages {:?}", coverages);
@@ -134,7 +134,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         last_tid,
                         tid,
                         coverage_estimators,
-                        ups_and_downs,
+                        &ups_and_downs,
                         num_mapped_reads_in_current_contig,
                         total_edit_distance_in_current_contig,
                         total_indels_in_current_contig,
@@ -207,7 +207,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             last_tid,
             target_names.len() as i32,
             coverage_estimators,
-            ups_and_downs,
+            &ups_and_downs,
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig,
             total_indels_in_current_contig,
@@ -244,8 +244,8 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
 fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
     last_tid: i32,
     current_tid: i32,
-    coverage_estimators: &Vec<CoverageEstimator>,
-    target_names: &Vec<&[u8]>,
+    coverage_estimators: &[CoverageEstimator],
+    target_names: &[&[u8]],
     coverage_taker: &mut T,
     header: &bam::HeaderView,
 ) {

@@ -29,6 +29,7 @@ pub struct ReferenceSortedBamFilter {
 }
 
 impl ReferenceSortedBamFilter {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         reader: bam::Reader,
         flag_filters: FlagFilter,
@@ -99,9 +100,8 @@ impl ReferenceSortedBamFilter {
                 }
                 // else this read shall not pass, try another
             }
-        }
-        // else doing pairs, so do as before except maybe filter out single reads too
-        else if self.known_next_read.is_none() {
+        } else if self.known_next_read.is_none() {
+            // else doing pairs, so do as before except maybe filter out single reads too
             while self.reader.read(record) == Some(Ok(())) {
                 debug!("record: {:?}", record);
 
