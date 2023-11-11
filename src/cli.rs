@@ -1417,13 +1417,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("dereplication-cluster-method")
                         .long("dereplication-cluster-method")
-                        .value_parser(["fastani", "skani"])
+                        .value_parser(galah::CLUSTER_METHODS)
                         .default_value(galah::DEFAULT_CLUSTER_METHOD),
                 )
                 .arg(
                     Arg::new("dereplication-precluster-method")
                         .long("dereplication-precluster-method")
-                        .value_parser(["dashing", "finch"])
+                        .value_parser(galah::PRECLUSTER_METHODS)
                         .default_value(galah::DEFAULT_PRECLUSTER_METHOD),
                 )
                 .arg(

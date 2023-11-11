@@ -1,4 +1,4 @@
-//// NOTE: This file is shared as a direct copy of code between cockatoo and coverm
+// NOTE: This file is shared as a direct copy of code between cockatoo and coverm
 
 use genomes_and_contigs::GenomesAndContigs;
 use needletail::parse_fastx_file;
