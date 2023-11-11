@@ -24,3 +24,10 @@ pub fn check_for_samtools() {
     default_version_check("samtools", "1.9", false, None)
         .expect("Failed to find sufficient version of samtools");
 }
+
+pub fn check_for_strobealign() {
+    check_for_external_command_presence("strobealign", "which strobealign")
+        .expect("Failed to find installed strobealign");
+    default_version_check("strobealign", "0.11.0", false, None)
+        .expect("Failed to find sufficient version of strobealign");
+}

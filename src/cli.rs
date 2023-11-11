@@ -19,6 +19,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-pb",
     "minimap2-hifi",
     "minimap2-no-preset",
+    "strobealign",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
@@ -96,6 +97,12 @@ fn add_mapping_options(manual: Manual) -> Manual {
             ))
             .option(Opt::new("PARAMS").long("--bwa-params").help(
                 "Extra parameters to provide to BWA or BWA-MEM2. Note \
+        that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--strobealign-params").help(
+                "Extra parameters to provide to strobealign. Note \
         that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
@@ -1157,6 +1164,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("bwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
+                )
+                .arg(
+                    Arg::new("strobealign-params")
+                        .long("strobealign-params")
+                        .long("strobealign-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
                 ) // TODO: Relax this for autoconcatenation
                 .arg(
                     Arg::new("discard-unmapped")
@@ -1642,6 +1656,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("strobealign-params")
+                        .long("strobealign-params")
+                        .long("strobealign-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("bam-file-cache-directory")
@@ -1991,6 +2012,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("bwa-params")
                         .long("bwa-parameters")
                         .conflicts_with("minimap2-params")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("strobealign-params")
+                        .long("strobealign-params")
+                        .long("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 ),

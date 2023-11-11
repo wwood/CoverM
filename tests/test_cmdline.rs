@@ -2764,6 +2764,110 @@ genome6~random_sequence_length_11003	0	0	0
             .contains("genome")
             .unwrap()
     }
+
+    #[test]
+    fn test_contig_strobealign() {
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t_full = tf.path().to_str().unwrap();
+        std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
+        let t = tf.path().file_name().unwrap().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "strobealign",
+                "--output-format",
+                "sparse",
+                "--min-read-percent-identity-pair",
+                "0.95",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                t_full,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--proper-pairs-only",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                format!(
+                    "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
+{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0",
+                    t, t, t, t, t, t, t
+                )
+                .as_str(),
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_strobealign() {
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t_full = tf.path().to_str().unwrap();
+        std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
+        let t = tf.path().file_name().unwrap().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "strobealign",
+                "-r",
+                t_full,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+                "covered_fraction",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                format!(
+                    "Genome\t{}/reads_for_seq1_and_seq2.1.fq.gz Mean\t{}/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n",
+                    t,t
+                )
+                .as_str(),
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_make_strobealign() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "strobealign",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
 }
 
 // TODO: Add mismatching bases test

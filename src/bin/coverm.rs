@@ -756,6 +756,14 @@ fn setup_mapping_index(
                 ))
             }
         }
+        MappingProgram::STROBEALIGN => {
+            // Pre-indexing is not yet supported for strobealign
+            Some(Box::new(
+                coverm::mapping_index_maintenance::VanillaBwaIndexStuct::new(
+                    reference_wise_params.reference,
+                ),
+            ))
+        }
     }
 }
 
@@ -811,6 +819,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-pb") => MappingProgram::MINIMAP2_PB,
         Some("minimap2-hifi") => MappingProgram::MINIMAP2_HIFI,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
+        Some("strobealign") => MappingProgram::STROBEALIGN,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -830,6 +839,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_NO_PRESET => {
             external_command_checker::check_for_minimap2();
+        }
+        MappingProgram::STROBEALIGN => {
+            external_command_checker::check_for_strobealign();
         }
     }
     mapping_program

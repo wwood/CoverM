@@ -120,6 +120,7 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_PB
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
+            MappingProgram::STROBEALIGN => "strobealign-params",
         };
         let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {
