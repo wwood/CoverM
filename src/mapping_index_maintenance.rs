@@ -13,19 +13,22 @@ use tempfile::{Builder, NamedTempFile};
 
 pub trait MappingIndex {
     fn index_path(&self) -> &String;
+    fn command_prefix(&self) -> &str {
+        ""
+    }
 }
 
-pub struct VanillaBwaIndexStuct {
+pub struct VanillaIndexStruct {
     index_path_internal: String,
 }
-impl VanillaBwaIndexStuct {
-    pub fn new(reference_path: &str) -> VanillaBwaIndexStuct {
-        VanillaBwaIndexStuct {
+impl VanillaIndexStruct {
+    pub fn new(reference_path: &str) -> VanillaIndexStruct {
+        VanillaIndexStruct {
             index_path_internal: reference_path.to_string(),
         }
     }
 }
-impl MappingIndex for VanillaBwaIndexStuct {
+impl MappingIndex for VanillaIndexStruct {
     fn index_path(&self) -> &String {
         &self.index_path_internal
     }
@@ -224,7 +227,7 @@ pub fn generate_bwa_index(
 ) -> Box<dyn MappingIndex> {
     if check_for_bwa_index_existence(reference_path, &mapping_program) {
         info!("BWA index appears to be complete, so going ahead and using it.");
-        Box::new(VanillaBwaIndexStuct::new(reference_path))
+        Box::new(VanillaIndexStruct::new(reference_path))
     } else {
         Box::new(TemporaryIndexStruct::new(
             mapping_program,
@@ -339,4 +342,24 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         process::exit(1);
     }
     tmpfile
+}
+
+pub struct PregeneratedStrobealignIndexStruct {
+    index_path_internal: String,
+}
+impl PregeneratedStrobealignIndexStruct {
+    pub fn new(reference_path: &str) -> PregeneratedStrobealignIndexStruct {
+        PregeneratedStrobealignIndexStruct {
+            index_path_internal: reference_path.to_string(),
+        }
+    }
+}
+impl MappingIndex for PregeneratedStrobealignIndexStruct {
+    fn index_path(&self) -> &String {
+        &self.index_path_internal
+    }
+
+    fn command_prefix(&self) -> &str {
+        "--use-index"
+    }
 }

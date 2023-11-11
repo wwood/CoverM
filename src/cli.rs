@@ -106,6 +106,9 @@ fn add_mapping_options(manual: Manual) -> Manual {
         that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
+            ))
+            .flag(Flag::new().long("--strobealign-use-index").help(
+                "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
             )),
     )
 }
@@ -406,8 +409,10 @@ pub fn make_full_help() -> Manual {
                         genomes or metagenome assembly, or minimap2 \
                         index \
                         (with {}), \
+                        strobealign index (with {}), \
                         or BWA index stem (with {}). [required]",
                 monospace_roff("--minimap2-reference-is-index"),
+                monospace_roff("--strobealign-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
             ),
         )),
@@ -486,12 +491,14 @@ pub fn contig_full_help() -> Manual {
                     genomes or metagenome assembly, or minimap2 \
                     index \
                     (with {}), \
+                    strobealign index (with {}), \
                     or BWA index stem (with {}). \
                     If multiple references FASTA files are \
                     provided and {} is specified, \
                     then reads will be mapped to references \
                     separately as sharded BAMs. [required unless {} is specified]",
                 monospace_roff("--minimap2-reference-is-index"),
+                monospace_roff("--strobealign-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
                 monospace_roff("--sharded"),
                 monospace_roff("-b/--bam-files")
@@ -657,6 +664,7 @@ pub fn genome_full_help() -> Manual {
                     genomes or metagenome assembly, or minimap2 \
                     index \
                     (with {}), \
+                    strobealign index (with {}), \
                     or BWA index stem (with {}). \
                     If multiple reference FASTA files are \
                     provided and {} is specified, \
@@ -666,6 +674,7 @@ pub fn genome_full_help() -> Manual {
                     by concatenating input genomes. In these situations, {} can \
                     be optionally specified if an alternate reference sequence set is desired.",
                     monospace_roff("--minimap2-reference-is-index"),
+                    monospace_roff("--strobealign-use-index"),
                     monospace_roff("-p bwa-mem/bwa-mem2"),
                     monospace_roff("--sharded"),
                     bold("NOTE"),
@@ -1171,7 +1180,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
-                ) // TODO: Relax this for autoconcatenation
+                )
+                .arg(
+                    Arg::new("strobealign-use-index")
+                        .long("strobealign-use-index")
+                        .requires("reference")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                // TODO: Relax this for autoconcatenation
                 .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
@@ -1663,6 +1679,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("strobealign-use-index")
+                        .long("strobealign-use-index")
+                        .requires("reference")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("bam-file-cache-directory")
@@ -2021,6 +2043,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
+                )
+                .arg(
+                    Arg::new("strobealign-use-index")
+                        .long("strobealign-use-index")
+                        .requires("reference")
+                        .action(clap::ArgAction::SetTrue),
                 ),
         )
         .subcommand(

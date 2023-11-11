@@ -642,7 +642,6 @@ fn main() {
             for reference_wise_params in params {
                 let mut bam_readers = vec![];
                 let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
-                let ref_string = reference_wise_params.reference;
 
                 // Ensure there is no duplication in output files e.g.
                 // https://github.com/wwood/CoverM/issues/128
@@ -653,10 +652,7 @@ fn main() {
                     bam_readers.push(
                         coverm::bam_generator::generate_bam_maker_generator_from_reads(
                             mapping_program,
-                            match index {
-                                Some(ref index) => index.index_path(),
-                                None => ref_string,
-                            },
+                            index.as_ref(),
                             p.read1,
                             p.read2,
                             p.read_format.clone(),
@@ -720,14 +716,14 @@ fn setup_mapping_index(
     reference_wise_params: &SingleReferenceMappingParameters,
     m: &clap::ArgMatches,
     mapping_program: MappingProgram,
-) -> Option<Box<dyn coverm::mapping_index_maintenance::MappingIndex>> {
+) -> Box<dyn coverm::mapping_index_maintenance::MappingIndex> {
     match mapping_program {
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
-            Some(coverm::mapping_index_maintenance::generate_bwa_index(
+            coverm::mapping_index_maintenance::generate_bwa_index(
                 reference_wise_params.reference,
                 None,
                 mapping_program,
-            ))
+            )
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -743,9 +739,11 @@ fn setup_mapping_index(
                     passed the correct parameters when creating the minimap2 index."
                     );
                 }
-                None
+                Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                    reference_wise_params.reference,
+                ))
             } else {
-                Some(coverm::mapping_index_maintenance::generate_minimap2_index(
+                coverm::mapping_index_maintenance::generate_minimap2_index(
                     reference_wise_params.reference,
                     Some(*m.get_one::<u16>("threads").unwrap()),
                     Some(
@@ -753,16 +751,29 @@ fn setup_mapping_index(
                             .unwrap_or(&"".to_string()),
                     ),
                     mapping_program,
-                ))
+                )
             }
         }
         MappingProgram::STROBEALIGN => {
-            // Pre-indexing is not yet supported for strobealign
-            Some(Box::new(
-                coverm::mapping_index_maintenance::VanillaBwaIndexStuct::new(
+            // Indexing once for a batch of readsets is not yet supported for strobealign
+            info!("Not pre-generating strobealign index");
+            if m.get_flag("strobealign-use-index") {
+                warn!(
+                    "Strobealign uses mapping parameters defined when the index was created, \
+                not parameters defined when mapping. Proceeding on the assumption that you \
+                passed the correct parameters when creating the strobealign index."
+                );
+
+                Box::new(
+                    coverm::mapping_index_maintenance::PregeneratedStrobealignIndexStruct::new(
+                        reference_wise_params.reference,
+                    ),
+                )
+            } else {
+                Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
                     reference_wise_params.reference,
-                ),
-            ))
+                ))
+            }
         }
     }
 }
@@ -1305,10 +1316,7 @@ where
             bam_readers.push(
                 coverm::shard_bam_reader::generate_named_sharded_bam_readers_from_reads(
                     mapping_program,
-                    match index {
-                        Some(ref index) => index.index_path(),
-                        None => reference,
-                    },
+                    index.as_ref(),
                     p.read1,
                     p.read2,
                     p.read_format.clone(),
@@ -1345,10 +1353,10 @@ where
     vec![gen]
 }
 
-fn get_streamed_bam_readers<'a>(
-    m: &'a clap::ArgMatches,
+fn get_streamed_bam_readers(
+    m: &clap::ArgMatches,
     mapping_program: MappingProgram,
-    reference_tempfile: &'a Option<NamedTempFile>,
+    reference_tempfile: &Option<NamedTempFile>,
 ) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
     if m.contains_id("bam-file-cache-directory") {
@@ -1386,10 +1394,7 @@ fn get_streamed_bam_readers<'a>(
             bam_readers.push(
                 coverm::bam_generator::generate_named_bam_readers_from_reads(
                     mapping_program,
-                    match index {
-                        Some(ref index) => index.index_path(),
-                        None => reference,
-                    },
+                    index.as_ref(),
                     p.read1,
                     p.read2,
                     p.read_format.clone(),
@@ -1563,10 +1568,7 @@ fn get_streamed_filtered_bam_readers(
             bam_readers.push(
                 coverm::bam_generator::generate_filtered_named_bam_readers_from_reads(
                     mapping_program,
-                    match index {
-                        Some(ref index) => index.index_path(),
-                        None => reference,
-                    },
+                    index.as_ref(),
                     p.read1,
                     p.read2,
                     p.read_format.clone(),

@@ -2868,6 +2868,44 @@ genome6~random_sequence_length_11003	0	0	0
             .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
             .is_file());
     }
+
+    #[test]
+    fn test_strobealign_pregenerated_index() {
+        // let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        // let t_full = tf.path().to_str().unwrap();
+        // std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
+        // bird_tool_utils::command::
+        // let t = ""; //tf.path().file_name().unwrap().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "strobealign",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "--strobealign-use-index",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                format!(
+                    "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n"
+                )
+                .as_str(),
+            )
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test

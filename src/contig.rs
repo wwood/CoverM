@@ -269,6 +269,8 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
 mod tests {
     use super::*;
     use genome_exclusion::*;
+    use mapping_index_maintenance::MappingIndex;
+    use mapping_index_maintenance::VanillaIndexStruct;
     use mapping_parameters::*;
     use shard_bam_reader::*;
     use std::io::Read;
@@ -380,6 +382,10 @@ mod tests {
         );
     }
 
+    fn vanilla_index(path_str: &str) -> Box<dyn MappingIndex> {
+        Box::new(VanillaIndexStruct::new(path_str))
+    }
+
     #[test]
     fn test_streaming_bam_file() {
         test_with_stream(
@@ -387,7 +393,7 @@ mod tests {
              7seqs.fna.bwa1/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2\n",
             vec![generate_named_bam_readers_from_reads(
                 MappingProgram::BWA_MEM,
-                "tests/data/7seqs.fna.bwa1",
+                vanilla_index("tests/data/7seqs.fna.bwa1").as_ref(),
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
                 ReadFormat::Coupled,
@@ -577,7 +583,7 @@ mod tests {
              7seqs.fna.bwa1/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0\n",
             vec![generate_named_bam_readers_from_reads(
                 MappingProgram::BWA_MEM,
-                "tests/data/7seqs.fna.bwa1",
+                vanilla_index("tests/data/7seqs.fna.bwa1").as_ref(),
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 Some("tests/data/reads_for_seq1_and_seq2.2.fq.gz"),
                 ReadFormat::Coupled,

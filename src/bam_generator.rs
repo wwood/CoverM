@@ -292,7 +292,7 @@ pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<Ba
 #[allow(clippy::too_many_arguments)]
 pub fn generate_named_bam_readers_from_reads(
     mapping_program: MappingProgram,
-    reference: &str,
+    index: &dyn MappingIndex,
     read1_path: &str,
     read2_path: Option<&str>,
     read_format: ReadFormat,
@@ -353,7 +353,7 @@ pub fn generate_named_bam_readers_from_reads(
         read_format,
         threads,
         read1_path,
-        reference,
+        index,
         read2_path,
         mapping_options,
     );
@@ -414,7 +414,7 @@ pub fn generate_named_bam_readers_from_reads(
 
     let stoit_name = match include_reference_in_stoit_name {
         true => {
-            std::path::Path::new(reference)
+            std::path::Path::new(&index.index_path())
                 .file_name()
                 .expect("Unable to convert reference to file name")
                 .to_str()
@@ -641,7 +641,7 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_filtered_named_bam_readers_from_reads(
     mapping_program: MappingProgram,
-    reference: &str,
+    index: &dyn MappingIndex,
     read1_path: &str,
     read2_path: Option<&str>,
     read_format: ReadFormat,
@@ -660,7 +660,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
 ) -> StreamingFilteredNamedBamReaderGenerator {
     let streaming = generate_named_bam_readers_from_reads(
         mapping_program,
-        reference,
+        index,
         read1_path,
         read2_path,
         read_format,
@@ -690,7 +690,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
 
 pub struct BamGeneratorSet<T> {
     pub generators: Vec<T>,
-    pub index: Option<Box<dyn MappingIndex>>,
+    pub index: Box<dyn MappingIndex>,
 }
 
 pub struct NamedBamMaker {
@@ -712,7 +712,7 @@ pub struct NamedBamMakerGenerator {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_bam_maker_generator_from_reads(
     mapping_program: MappingProgram,
-    reference: &str,
+    index: &dyn MappingIndex,
     read1_path: &str,
     read2_path: Option<&str>,
     read_format: ReadFormat,
@@ -741,7 +741,7 @@ pub fn generate_bam_maker_generator_from_reads(
         read_format,
         threads,
         read1_path,
-        reference,
+        index,
         read2_path,
         mapping_options,
     );
@@ -797,7 +797,7 @@ pub fn generate_bam_maker_generator_from_reads(
     let log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
 
     return NamedBamMakerGenerator {
-        stoit_name: std::path::Path::new(reference)
+        stoit_name: std::path::Path::new(index.index_path())
             .file_name()
             .expect("Unable to convert reference to file name")
             .to_str()
@@ -854,7 +854,7 @@ pub fn build_mapping_command(
     read_format: ReadFormat,
     threads: u16,
     read1_path: &str,
-    reference: &str,
+    reference: &dyn MappingIndex,
     read2_path: Option<&str>,
     mapping_options: Option<&str>,
 ) -> String {
@@ -882,7 +882,7 @@ pub fn build_mapping_command(
     };
 
     format!(
-        "{} {} -t {} {} '{}' {}",
+        "{} {} -t {} {} {} '{}' {}",
         match mapping_program {
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
@@ -919,7 +919,8 @@ pub fn build_mapping_command(
         mapping_options.unwrap_or(""),
         threads,
         read_params1,
-        reference,
+        reference.command_prefix(),
+        reference.index_path(),
         read_params2
     )
 }

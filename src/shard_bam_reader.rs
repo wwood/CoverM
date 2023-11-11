@@ -22,6 +22,7 @@ use tempfile;
 use bam_generator::complete_processes;
 use bam_generator::*;
 use genome_exclusion::*;
+use mapping_index_maintenance::MappingIndex;
 
 use std::ffi;
 use std::slice;
@@ -564,7 +565,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn generate_named_sharded_bam_readers_from_reads(
     mapping_program: MappingProgram,
-    reference: &str,
+    index: &dyn MappingIndex,
     read1_path: &str,
     read2_path: Option<&str>,
     read_format: ReadFormat,
@@ -623,7 +624,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         read_format,
         threads,
         read1_path,
-        reference,
+        index,
         read2_path,
         mapping_options,
     );
