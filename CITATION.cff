@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Aroney
+    given-names: Samuel T. N.
+    orcid: https://orcid.org/0000-0001-9806-5846
+  - family-names: Newell
+    given-names: Rhys J. P.
+    orcid: https://orcid.org/0000-0002-1300-6116
+  - family-names: Nissen
+    given-names: J.
+    orcid: https://orcid.org/0000-0003-2860-7982
+  - family-names: Carmago
+    given-names: A.
+  - family-names: Tyson
+    given-names: Gene W.
+    orcid: https://orcid.org/0000-0001-8559-9427
+  - family-names: Woodcroft
+    given-names: Ben J.
+    orcid: https://orcid.org/0000-0003-0670-7480
+title: "CoverM: Read coverage calculator for metagenomics"
+version: 0.6.1
+date-released: 2021-02-25
