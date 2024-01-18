@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology" />
 
@@ -63,7 +62,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm cluster usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2021-02-25 (coverm 0.6.1)</span>
+<span class="author_bio mbm">2024-01-18 (coverm 0.7.0)</span>
 </div>
 </div>
 </div>
@@ -90,11 +89,11 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm cluster - Cluster genome FASTA files by average nucleotide identity (version 0.6.1)</p>
+<p>CoverM cluster - Cluster genome FASTA files by average nucleotide identity (version 0.7.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
-<p><strong>coverm cluster</strong> &lt;GENOME_INPUTS&gt; &lt;OUTPUT_ARGUMENTS&gt;</p>
+<p><strong>CoverM cluster</strong> &lt;GENOME_INPUTS&gt; &lt;OUTPUT_ARGUMENTS&gt;</p>
 </div>
 <div id="description" class="section level1">
 <h1>DESCRIPTION</h1>
@@ -110,7 +109,7 @@ code span.ot { color: #007020; }
 </dl>
 <!-- -->
 <dl>
-<dt><strong>-d</strong>, <strong>--genome-fasta-directory</strong> <em>PATH</em></dt>
+<dt><strong>d</strong>, <strong>--genome-fasta-directory</strong> <em>PATH</em></dt>
 <dd><p>Directory containing FASTA files of each genome.</p>
 </dd>
 </dl>
@@ -130,14 +129,20 @@ code span.ot { color: #007020; }
 <div id="filtering-parameters" class="section level1">
 <h1>FILTERING PARAMETERS</h1>
 <dl>
+<dt><strong>--checkm2-quality-report</strong> <em>PATH</em></dt>
+<dd><p>CheckM version 2 quality_report.tsv (i.e. the <code>quality_report.tsv</code> in the output directory output of <code>checkm2 predict ..</code>) for defining genome quality, which is used both for filtering and to rank genomes during clustering.</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
 <dt><strong>--checkm-tab-table</strong> <em>PATH</em></dt>
-<dd><p>CheckM tab table (i.e. the output of <code>checkm .. --tab_table -f PATH ..</code>) for defining genome quality, which is used both for filtering and to rank genomes during clustering.</p>
+<dd><p>CheckM tab table (i.e. the output of <code>checkm .. --tab_table -f PATH ..</code>). The information contained is used like <code>--checkm2-quality-report</code>.</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--genome-info</strong> <em>PATH</em></dt>
-<dd><p>dRep style genome info table for defining quality. Used like <code>--checkm-tab-table</code>.</p>
+<dd><p>dRep style genome info table for defining quality. The information contained is used like <code>--checkm2-quality-report</code>.</p>
 </dd>
 </dl>
 <!-- -->
@@ -157,13 +162,13 @@ code span.ot { color: #007020; }
 <h1>CLUSTERING PARAMETERS</h1>
 <dl>
 <dt><strong>--ani</strong> <em>FLOAT</em></dt>
-<dd><p>Overall ANI level to dereplicate at with FastANI. [default: <code>99</code>]</p>
+<dd><p>Overall ANI level to dereplicate at with FastANI. [default: <code>95</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--min-aligned-fraction</strong> <em>FLOAT</em></dt>
-<dd><p>Min aligned fraction of two genomes for clustering. [default: <code>50</code>]</p>
+<dd><p>Min aligned fraction of two genomes for clustering. [default: <code>15</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -203,13 +208,19 @@ code span.ot { color: #007020; }
 </table>
 <dl>
 <dt><strong>--precluster-ani</strong> <em>FLOAT</em></dt>
-<dd><p>Require at least this dashing-derived ANI for preclustering and to avoid FastANI on distant lineages within preclusters. [default: <code>95</code>]</p>
+<dd><p>Require at least this dashing-derived ANI for preclustering and to avoid FastANI on distant lineages within preclusters. [default: <code>90</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--precluster-method</strong> <em>NAME</em></dt>
-<dd><p>method of calculating rough ANI for dereplication. &#39;<code>dashing</code>&#39; for HyperLogLog, &#39;<code>finch</code>&#39; for finch MinHash. [default: <code>dashing</code>]</p>
+<dd><p>method of calculating rough ANI for dereplication. &#39;<code>dashing</code>&#39; for HyperLogLog, &#39;<code>finch</code>&#39; for finch MinHash, &#39;<code>skani</code>&#39; for Skani. [default: <code>skani</code>]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--cluster-method</strong> <em>NAME</em></dt>
+<dd><p>method of calculating ANI. &#39;<code>fastani</code>&#39; for FastANI, &#39;<code>skani</code>&#39; for Skani. [default: <code>skani</code>]</p>
 </dd>
 </dl>
 </div>
@@ -309,6 +320,9 @@ code span.ot { color: #007020; }
 </div>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->

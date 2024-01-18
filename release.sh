@@ -25,7 +25,6 @@ echo "Making static dist .."
 mkdir -p dist/coverm-x86_64-unknown-linux-musl-$VERSION
 cp \
  target/x86_64-unknown-linux-musl/release/coverm \
- target/x86_64-unknown-linux-musl/release/remove_minimap2_duplicated_headers \
  INSTALL.md \
  dist/coverm-x86_64-unknown-linux-musl-$VERSION/
 cd dist

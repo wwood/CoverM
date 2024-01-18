@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology" />
 
@@ -63,7 +62,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm genome usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2021-02-25 (coverm 0.6.1)</span>
+<span class="author_bio mbm">2024-01-18 (coverm 0.7.0)</span>
 </div>
 </div>
 </div>
@@ -96,7 +95,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm genome - Calculate read coverage per-genome (version 0.6.1)</p>
+<p>coverm genome - Calculate read coverage per-genome (version 0.7.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -155,7 +154,7 @@ code span.ot { color: #007020; }
 </dl>
 <!-- -->
 <dl>
-<dt><strong>-d</strong>, <strong>--genome-fasta-directory</strong> <em>PATH</em></dt>
+<dt><strong>d</strong>, <strong>--genome-fasta-directory</strong> <em>PATH</em></dt>
 <dd><p>Directory containing FASTA files of each genome.</p>
 </dd>
 </dl>
@@ -174,7 +173,7 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>-r</strong>, <strong>--reference</strong> <em>PATH</em></dt>
-<dd><p>FASTA file of contigs e.g. concatenated genomes or metagenome assembly, or minimap2 index (with <code>--minimap2-reference-is-index</code>), or BWA index stem (with <code>-p bwa-mem</code>). If multiple references FASTA files are provided and <code>--sharded</code> is specified, then reads will be mapped to references separately as sharded BAMs. <strong>NOTE</strong>: If genomic FASTA files are specified elsewhere (e.g. with <code>--genome-fasta-files</code> or <code>--genome-fasta-directory</code>), then <code>--reference</code> is not needed as a reference FASTA file can be derived by concatenating input genomes. However, while not necessary, <code>--reference</code> can be specified if an alternate reference sequence set is desired.</p>
+<dd><p>FASTA file of contigs e.g. concatenated genomes or metagenome assembly, or minimap2 index (with <code>--minimap2-reference-is-index</code>), strobealign index (with <code>--strobealign-use-index</code>), or BWA index stem (with <code>-p bwa-mem/bwa-mem2</code>). If multiple reference FASTA files are provided and <code>--sharded</code> is specified, then reads will be mapped to references separately as sharded BAMs. <strong>NOTE</strong> : If genomic FASTA files are specified elsewhere (e.g. with <code>--genome-fasta-files</code> or <code>--genome-fasta-directory</code>), then <code>--reference</code> is not needed as a reference FASTA file can be derived by concatenating input genomes. In these situations, <code>--reference</code> can be optionally specified if an alternate reference sequence set is desired.</p>
 </dd>
 </dl>
 <!-- -->
@@ -195,6 +194,12 @@ code span.ot { color: #007020; }
 <dd><p>File containing list of genome_name&lt;tab&gt;contig lines to define the genome of each contig. Requires <code>--reference</code>. [default: not set]</p>
 </dd>
 </dl>
+<!-- -->
+<dl>
+<dt><strong>--use-full-contig-names</strong></dt>
+<dd><p>Specify that the input BAM files have been generated with mapping software that includes the full name of each contig in the reference definition (i.e. characters after the space), so when reading in genomes, record contig names as such.</p>
+</dd>
+</dl>
 </div>
 <div id="dereplication-genome-clustering" class="section level1">
 <h1>DEREPLICATION / GENOME CLUSTERING</h1>
@@ -205,14 +210,20 @@ code span.ot { color: #007020; }
 </dl>
 <!-- -->
 <dl>
+<dt><strong>--checkm2-quality-report</strong> <em>PATH</em></dt>
+<dd><p>CheckM version 2 quality_report.tsv (i.e. the <code>quality_report.tsv</code> in the output directory output of <code>checkm2 predict ..</code>) for defining genome quality, which is used both for filtering and to rank genomes during clustering.</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
 <dt><strong>--checkm-tab-table</strong> <em>PATH</em></dt>
-<dd><p>CheckM tab table (i.e. the output of <code>checkm .. --tab_table -f PATH ..</code>) for defining genome quality, which is used both for filtering and to rank genomes during clustering.</p>
+<dd><p>CheckM tab table (i.e. the output of <code>checkm .. --tab_table -f PATH ..</code>). The information contained is used like <code>--checkm2-quality-report</code>.</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--genome-info</strong> <em>PATH</em></dt>
-<dd><p>dRep style genome info table for defining quality. Used like <code>--checkm-tab-table</code>.</p>
+<dd><p>dRep style genome info table for defining quality. The information contained is used like <code>--checkm2-quality-report</code>.</p>
 </dd>
 </dl>
 <!-- -->
@@ -230,13 +241,13 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--dereplication-ani</strong> <em>FLOAT</em></dt>
-<dd><p>Overall ANI level to dereplicate at with FastANI. [default: <code>99</code>]</p>
+<dd><p>Overall ANI level to dereplicate at with FastANI. [default: <code>95</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--dereplication-aligned-fraction</strong> <em>FLOAT</em></dt>
-<dd><p>Min aligned fraction of two genomes for clustering. [default: <code>50</code>]</p>
+<dd><p>Min aligned fraction of two genomes for clustering. [default: <code>15</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -276,13 +287,19 @@ code span.ot { color: #007020; }
 </table>
 <dl>
 <dt><strong>--dereplication-prethreshold-ani</strong> <em>FLOAT</em></dt>
-<dd><p>Require at least this dashing-derived ANI for preclustering and to avoid FastANI on distant lineages within preclusters. [default: <code>95</code>]</p>
+<dd><p>Require at least this dashing-derived ANI for preclustering and to avoid FastANI on distant lineages within preclusters. [default: <code>90</code>]</p>
 </dd>
 </dl>
 <!-- -->
 <dl>
 <dt><strong>--dereplication-precluster-method</strong> <em>NAME</em></dt>
-<dd><p>method of calculating rough ANI for dereplication. &#39;<code>dashing</code>&#39; for HyperLogLog, &#39;<code>finch</code>&#39; for finch MinHash. [default: <code>dashing</code>]</p>
+<dd><p>method of calculating rough ANI for dereplication. &#39;<code>dashing</code>&#39; for HyperLogLog, &#39;<code>finch</code>&#39; for finch MinHash, &#39;<code>skani</code>&#39; for Skani. [default: <code>skani</code>]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--dereplication-cluster-method</strong> <em>NAME</em></dt>
+<dd><p>method of calculating ANI. &#39;<code>fastani</code>&#39; for FastANI, &#39;<code>skani</code>&#39; for Skani. [default: <code>skani</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -345,12 +362,20 @@ code span.ot { color: #007020; }
 <td align="left">bwa mem using default parameters</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>bwa-mem2</code></td>
+<td align="left">bwa-mem2 using default parameters</td>
+</tr>
+<tr class="even">
 <td align="left"><code>minimap2-ont</code></td>
 <td align="left">minimap2 with &#39;<code>-x map-ont</code>&#39; option</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>minimap2-pb</code></td>
 <td align="left">minimap2 with &#39;<code>-x map-pb</code>&#39; option</td>
+</tr>
+<tr class="even">
+<td align="left"><code>minimap2-hifi</code></td>
+<td align="left">minimap2 with &#39;<code>-x map-hifi</code>&#39; option</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>minimap2-no-preset</code></td>
@@ -372,7 +397,19 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--bwa-params</strong> <em>PARAMS</em></dt>
-<dd><p>Extra parameters to provide to BWA. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+<dd><p>Extra parameters to provide to BWA or BWA-MEM2. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--strobealign-params</strong> <em>PARAMS</em></dt>
+<dd><p>Extra parameters to provide to strobealign. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--strobealign-use-index</strong></dt>
+<dd><p>Use a pregenerated index (one that has been created with &#39;strobealign --create-index&#39;). The --reference option should be specified as the original FASTA file i.e. &#39;ref.fna&#39; not &#39;ref.fna.r100.sti&#39; [default: not set]</p>
 </dd>
 </dl>
 </div>
@@ -425,6 +462,12 @@ code span.ot { color: #007020; }
 <dd><p>Exclude supplementary alignments. [default: not set]</p>
 </dd>
 </dl>
+<!-- -->
+<dl>
+<dt><strong>--include-secondary</strong></dt>
+<dd><p>Include secondary alignments. [default: not set]</p>
+</dd>
+</dl>
 </div>
 <div id="coverage-calculation-options" class="section level1">
 <h1>COVERAGE CALCULATION OPTIONS</h1>
@@ -468,7 +511,7 @@ code span.ot { color: #007020; }
 </tr>
 <tr class="even">
 <td align="left"><code>count</code></td>
-<td align="left">Number of reads aligned toq each genome. Note that a single read may be aligned to multiple genomes with supplementary alignments</td>
+<td align="left">Number of reads aligned to each genome. Note that supplementary alignments are not counted.</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>reads_per_base</code></td>
@@ -486,7 +529,7 @@ code span.ot { color: #007020; }
 </table>
 <dl>
 <dt><strong>--min-covered-fraction</strong> <em>FRACTION</em></dt>
-<dd><p>Genomes with less coverage than this reported as having zero coverage. [default: <code>10</code>]</p>
+<dd><p>Genomes with less covered bases than this are reported as having zero coverage. [default: <code>10</code>]</p>
 </dd>
 </dl>
 <!-- -->
@@ -511,7 +554,7 @@ code span.ot { color: #007020; }
 <div id="output" class="section level1">
 <h1>OUTPUT</h1>
 <dl>
-<dt><strong>o</strong>, <strong>--output-file</strong> <em>FILE</em></dt>
+<dt><strong>-o</strong>, <strong>--output-file</strong> <em>FILE</em></dt>
 <dd><p>Output coverage values to this file, or &#39;-&#39; for STDOUT. [default: output to STDOUT]</p>
 </dd>
 </dl>
@@ -530,7 +573,7 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--bam-file-cache-directory</strong> <em>DIRECTORY</em></dt>
-<dd><p>Output BAM files generated during alignment to this directory. The directory may or may not exist. [default: not set]</p>
+<dd><p>Output BAM files generated during alignment to this directory. The directory may or may not exist. Note that BAM files in this directory contain all mappings, including those that later are excluded by alignment thresholding (e.g. --min-read-percent-identity) or genome-wise thresholding (e.g. --min-covered-fraction). [default: not used]</p>
 </dd>
 </dl>
 <!-- -->
@@ -581,7 +624,7 @@ code span.ot { color: #007020; }
 <div id="frequently-asked-questions-faq" class="section level1">
 <h1>FREQUENTLY ASKED QUESTIONS (FAQ)</h1>
 <p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
-<p><strong>For thresholding arguments e.g. --dereplication-ani and --min-read-percent-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
+<p><strong>For thresholding arguments e.g. \-\-dereplication\-ani and \-\-min\-read\-percent\-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
 </div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
@@ -629,6 +672,9 @@ code span.ot { color: #007020; }
 </div>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->

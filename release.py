@@ -15,7 +15,7 @@ def get_version(relpath):
 
 if __name__ == "__main__":
     print("running release.sh")
-    extern.run("release.sh")
+    extern.run("./release.sh")
 
     version = get_version('Cargo.toml')
     print("version is {}".format(version))
@@ -40,5 +40,5 @@ if __name__ == "__main__":
     extern.run('if [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]]; then exit 1; fi')
 
     extern.run('git tag v{}'.format(version))
-    print("Now run 'cargo publish' and then 'git push && git push --tags' and GitHub actions will build and upload to PyPI".format(version))
+    print("Now run 'cargo publish' and then 'git push && git push --tags'".format(version))
     print("Then make a release, adding changelog info, so Zenodo picks it up")

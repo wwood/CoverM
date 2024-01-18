@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology" />
 
@@ -63,7 +62,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm filter usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2021-02-25 (coverm 0.6.1)</span>
+<span class="author_bio mbm">2024-01-18 (coverm 0.7.0)</span>
 </div>
 </div>
 </div>
@@ -90,7 +89,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm filter - Threshold alignments with insufficient identity (version 0.6.1)</p>
+<p>coverm filter - Threshold alignments with insufficient identity (version 0.7.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -104,7 +103,7 @@ code span.ot { color: #007020; }
 <h1>FLAGS</h1>
 <dl>
 <dt><strong>--inverse</strong></dt>
-<dd><p>Only keep reads which are unmapped or align below thresholds. Note that output records may still be marked as mapped if they do not meet the thresholds. [default: not set]</p>
+<dd><p>Only keep reads which are unmapped or align below thresholds. Note that output records may still be marked as mapped if they do not meet the thresholds. When used with --proper-pairs, only proper pairs which fail alignment thresholds are output i.e. it does not &quot;invert&quot; the proper pairs flag. [default: not set]</p>
 </dd>
 </dl>
 <!-- -->
@@ -207,11 +206,17 @@ code span.ot { color: #007020; }
 <dd><p>Exclude supplementary alignments. [default: not set]</p>
 </dd>
 </dl>
+<!-- -->
+<dl>
+<dt><strong>--include-secondary</strong></dt>
+<dd><p>Include secondary alignments. [default: not set]</p>
+</dd>
+</dl>
 </div>
 <div id="frequently-asked-questions-faq" class="section level1">
 <h1>FREQUENTLY ASKED QUESTIONS (FAQ)</h1>
 <p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
-<p><strong>For thresholding arguments e.g. --dereplication-ani and --min-read-percent-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
+<p><strong>For thresholding arguments e.g. \-\-dereplication\-ani and \-\-min\-read\-percent\-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
 </div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
@@ -256,6 +261,9 @@ code span.ot { color: #007020; }
 </div>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->

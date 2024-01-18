@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology" />
 
@@ -63,7 +62,7 @@ code span.ot { color: #007020; }
 <div class="cover-card table-cell table-middle">
 <span class="author_name">coverm make usage</span>
 <span class="author_bio mbm">Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology</span>
-<span class="author_bio mbm">2021-02-25 (coverm 0.6.1)</span>
+<span class="author_bio mbm">2024-01-18 (coverm 0.7.0)</span>
 </div>
 </div>
 </div>
@@ -92,7 +91,7 @@ code span.ot { color: #007020; }
 <article class="post-content">
 <div id="name" class="section level1">
 <h1>NAME</h1>
-<p>coverm make - Generate BAM files through mapping (version: 0.6.1)</p>
+<p>coverm make - Generate BAM files through mapping (version: 0.7.0)</p>
 </div>
 <div id="synopsis" class="section level1">
 <h1>SYNOPSIS</h1>
@@ -138,7 +137,7 @@ code span.ot { color: #007020; }
 <h1>REFERENCE</h1>
 <dl>
 <dt><strong>-r</strong>, <strong>--reference</strong> <em>PATH</em></dt>
-<dd><p>FASTA file of contigs e.g. concatenated genomes or metagenome assembly, or minimap2 index (with <code>--minimap2-reference-is-index</code>), or BWA index stem (with <code>-p bwa-mem</code>). [required]</p>
+<dd><p>FASTA file of contigs e.g. concatenated genomes or metagenome assembly, or minimap2 index (with <code>--minimap2-reference-is-index</code>), strobealign index (with <code>--strobealign-use-index</code>), or BWA index stem (with <code>-p bwa-mem/bwa-mem2</code>). [required]</p>
 </dd>
 </dl>
 </div>
@@ -163,12 +162,20 @@ code span.ot { color: #007020; }
 <td align="left">bwa mem using default parameters</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>bwa-mem2</code></td>
+<td align="left">bwa-mem2 using default parameters</td>
+</tr>
+<tr class="even">
 <td align="left"><code>minimap2-ont</code></td>
 <td align="left">minimap2 with &#39;<code>-x map-ont</code>&#39; option</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>minimap2-pb</code></td>
 <td align="left">minimap2 with &#39;<code>-x map-pb</code>&#39; option</td>
+</tr>
+<tr class="even">
+<td align="left"><code>minimap2-hifi</code></td>
+<td align="left">minimap2 with &#39;<code>-x map-hifi</code>&#39; option</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>minimap2-no-preset</code></td>
@@ -190,7 +197,19 @@ code span.ot { color: #007020; }
 <!-- -->
 <dl>
 <dt><strong>--bwa-params</strong> <em>PARAMS</em></dt>
-<dd><p>Extra parameters to provide to BWA. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+<dd><p>Extra parameters to provide to BWA or BWA-MEM2. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--strobealign-params</strong> <em>PARAMS</em></dt>
+<dd><p>Extra parameters to provide to strobealign. Note that usage of this parameter has security implications if untrusted input is specified. [default: none]</p>
+</dd>
+</dl>
+<!-- -->
+<dl>
+<dt><strong>--strobealign-use-index</strong></dt>
+<dd><p>Use a pregenerated index (one that has been created with &#39;strobealign --create-index&#39;). The --reference option should be specified as the original FASTA file i.e. &#39;ref.fna&#39; not &#39;ref.fna.r100.sti&#39; [default: not set]</p>
 </dd>
 </dl>
 </div>
@@ -249,7 +268,7 @@ code span.ot { color: #007020; }
 <div id="frequently-asked-questions-faq" class="section level1">
 <h1>FREQUENTLY ASKED QUESTIONS (FAQ)</h1>
 <p><strong>Can the temporary directory used be changed?</strong> CoverM makes use of the system temporary directory (often <code>/tmp</code>) to store intermediate files. This can cause problems if the amount of storage available there is small or used by many programs. To fix, set the <code>TMPDIR</code> environment variable e.g. to set it to use the current directory: <code>TMPDIR=. coverm genome &lt;etc&gt;</code></p>
-<p><strong>For thresholding arguments e.g. --dereplication-ani and --min-read-percent-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
+<p><strong>For thresholding arguments e.g. \-\-dereplication\-ani and \-\-min\-read\-percent\-identity, should a percentage (e.g 97%) or fraction (e.g. 0.97) be specified?</strong> Either is fine, CoverM determines which is being used by virtue of being less than or greater than 1.</p>
 </div>
 <div id="exit-status" class="section level1">
 <h1>EXIT STATUS</h1>
@@ -291,6 +310,9 @@ code span.ot { color: #007020; }
 </div>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
