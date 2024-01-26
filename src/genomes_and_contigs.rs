@@ -3,19 +3,6 @@
 use std::collections::HashMap;
 use std::process;
 
-/// Finds the first occurence of element in a slice
-pub fn find_first<T>(slice: &[T], element: T) -> Result<usize, &'static str>
-where
-    T: std::cmp::PartialEq<T>,
-{
-    for (index, el) in slice.iter().enumerate() {
-        if *el == element {
-            return Ok(index);
-        }
-    }
-    Err("Element not found in slice")
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenomesAndContigs {
     pub genomes: Vec<String>,
@@ -54,10 +41,9 @@ impl GenomesAndContigs {
     }
 
     pub fn genome_index(&self, genome_name: &String) -> Option<usize> {
-        match find_first(self.genomes.as_slice(), genome_name.to_string()) {
-            Ok(index) => Some(index),
-            Err(_) => None,
-        }
+        self.genomes
+            .iter()
+            .position(|genome| genome.eq(genome_name))
     }
 
     pub fn genome_of_contig(&self, contig_name: &String) -> Option<&String> {

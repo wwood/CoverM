@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::str;
 
-use genomes_and_contigs::find_first;
 use genomes_and_contigs::GenomesAndContigs;
 
 pub enum GenomeExcluders<'a> {
@@ -53,7 +52,7 @@ impl<'a> GenomeExclusion for SeparatorGenomeExclusionFilter<'a> {
             "contig name {:?}, separator {:?}",
             contig_name, self.split_char
         );
-        let offset = find_first(contig_name, self.split_char).unwrap_or_else(|_| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+        let offset = contig_name.iter().position(|&c|c == self.split_char).unwrap_or_else(|| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                      self.split_char));
         let genome = &contig_name[0..offset];
         self.excluded_genomes.contains(genome)

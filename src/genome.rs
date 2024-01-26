@@ -10,7 +10,6 @@ use std::str;
 
 use bam_generator::*;
 use coverage_takers::*;
-use genomes_and_contigs::find_first;
 use genomes_and_contigs::GenomesAndContigs;
 use mosdepth_genome_coverage_estimators::*;
 use ReadsMapped;
@@ -787,7 +786,7 @@ pub fn mosdepth_genome_coverage<
 fn extract_genome<'a>(tid: u32, target_names: &'a [&[u8]], split_char: u8) -> &'a [u8] {
     let target_name = target_names[tid as usize];
     trace!("target name {:?}, separator {:?}", target_name, split_char);
-    let offset = find_first(target_name, split_char).unwrap_or_else(|_| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
+    let offset = target_name.iter().position(|&c| c == split_char).unwrap_or_else(|| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                  str::from_utf8(target_name).unwrap()));
     &target_name[0..offset]
 }
