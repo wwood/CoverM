@@ -1,5 +1,5 @@
 name: Test CoverM with Setup-Miniconda From Marketplace
-on: [push]
+on: [push, pull_request]
 
 jobs:
   miniconda_linux:
