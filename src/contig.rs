@@ -307,12 +307,7 @@ mod tests {
                 1,
             );
         }
-        let mut buf = vec![];
-        std::fs::File::open(tf.path())
-            .unwrap()
-            .read_to_end(&mut buf)
-            .unwrap();
-        assert_eq!(expected, str::from_utf8(&buf).unwrap());
+        assert_eq!(expected, std::fs::read_to_string(tf.path()).unwrap());
         reads_mapped_vec
     }
 

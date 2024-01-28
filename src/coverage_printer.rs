@@ -637,15 +637,10 @@ mod tests {
             None,
             None,
         );
-        let mut buf = vec![];
-        std::fs::File::open(tf.path())
-            .unwrap()
-            .read_to_end(&mut buf)
-            .unwrap();
         assert_eq!(
             "contigName\tcontigLen\ttotalAvgDepth\tstoit1.bam\tstoit1.bam-var\tstoit2.bam\tstoit2.bam-var\n\
              contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
              contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
-             str::from_utf8(&buf).unwrap());
+             std::fs::read_to_string(tf.path()).unwrap());
     }
 }
