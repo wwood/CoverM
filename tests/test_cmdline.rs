@@ -2369,17 +2369,11 @@ genome6~random_sequence_length_11003	0	0	0
             .is("")
             .unwrap();
 
-        let mut buf = vec![];
-        std::fs::File::open(tf.path())
-            .unwrap()
-            .read_to_end(&mut buf)
-            .unwrap();
-
         assert_eq!(
             "Sample\tContig\tMean\n\
             2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
             2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0\n",
-            str::from_utf8(&buf).unwrap()
+            std::fs::read_to_string(tf.path()).unwrap()
         )
     }
 
