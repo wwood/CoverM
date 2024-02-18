@@ -77,7 +77,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                             std::str::from_utf8(target_names[last_tid as usize]).unwrap(),
                         );
                         for (coverage, estimator) in
-                            coverages.iter().zip(coverage_estimators.iter_mut())
+                            coverages.into_iter().zip(coverage_estimators.iter_mut())
                         {
                             estimator.print_coverage(coverage, coverage_taker);
                         }

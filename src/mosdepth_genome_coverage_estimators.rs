@@ -233,7 +233,7 @@ pub trait MosdepthGenomeCoverageEstimator {
 
     fn calculate_coverage(&mut self, unobserved_contig_lengths: &[u64]) -> f32;
 
-    fn print_coverage<T: CoverageTaker>(&self, coverage: &f32, coverage_taker: &mut T);
+    fn print_coverage<T: CoverageTaker>(&self, coverage: f32, coverage_taker: &mut T);
 
     fn print_zero_coverage<T: CoverageTaker>(&self, coverage_taker: &mut T, entry_length: u64);
 
@@ -890,7 +890,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
         }
     }
 
-    fn print_coverage<T: CoverageTaker>(&self, coverage: &f32, coverage_taker: &mut T) {
+    fn print_coverage<T: CoverageTaker>(&self, coverage: f32, coverage_taker: &mut T) {
         match self {
             CoverageEstimator::MeanGenomeCoverageEstimator { .. }
             | CoverageEstimator::TrimmedMeanGenomeCoverageEstimator { .. }
@@ -902,7 +902,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             | CoverageEstimator::ReferenceLengthCalculator { .. }
             | CoverageEstimator::ReadCountCalculator { .. }
             | CoverageEstimator::ReadsPerBaseCalculator { .. } => {
-                coverage_taker.add_single_coverage(*coverage);
+                coverage_taker.add_single_coverage(coverage);
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { counts, .. } => {
                 debug!("{:?}", counts);
