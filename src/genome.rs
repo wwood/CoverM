@@ -283,7 +283,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                         // Print coverage of previous genome
                         debug!("Found coverage {} for genome {}", coverage, genome);
                         if coverage > 0.0 {
-                            coverage_estimator.print_coverage(&coverage, coverage_taker);
+                            coverage_estimator.print_coverage(coverage, coverage_taker);
                         } else {
                             coverage_estimator.print_zero_coverage(
                                 coverage_taker,
@@ -379,7 +379,7 @@ fn print_last_genomes<T: CoverageTaker>(
 
                 // Print coverage of previous genome
                 if coverage > 0.0 {
-                    coverage_estimator.print_coverage(&coverage, coverage_taker);
+                    coverage_estimator.print_coverage(coverage, coverage_taker);
                 } else {
                     coverage_estimator.print_zero_coverage(
                         coverage_taker,
