@@ -93,8 +93,7 @@ impl ReferenceSortedBamFilter {
                         self.min_percent_identity_single,
                         self.min_aligned_percent_single,
                     );
-                    if (passes_filter2 && self.filter_out) || (!passes_filter2 && !self.filter_out)
-                    {
+                    if passes_filter2 == self.filter_out {
                         return res;
                     }
                 }
@@ -193,9 +192,7 @@ impl ReferenceSortedBamFilter {
                                 self.min_percent_identity_pair,
                                 self.min_aligned_percent_pair,
                             );
-                        if (passes_filter && self.filter_out)
-                            || (!passes_filter && !self.filter_out)
-                        {
+                        if passes_filter == self.filter_out {
                             debug!("Read pair passed QC");
                             self.known_next_read = Some(record.clone());
                             record.clone_from(
