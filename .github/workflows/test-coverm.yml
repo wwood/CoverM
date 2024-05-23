@@ -3,50 +3,50 @@ on: [push, pull_request]
 
 jobs:
   miniconda_linux:
-    name: Miniconda ${{ matrix.os }}
+    name: Miniconda (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash -l {0}
     strategy:
-        matrix:
-            os: ["ubuntu-latest"]
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.11"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: test
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
           environment-file: coverm.yml
-          auto-activate-base: false
-          mamba-version: "*"
           channels: conda-forge,defaults,bioconda
-      - run: |
-          conda info
-          conda list
+      - name: Conda info
+        shell: bash -el {0}
+        run: conda info
+      - name: Conda list
+        shell: pwsh
+        run: conda list
       - name: Run test
         run: |
             cargo test
   miniconda_osx:
-    name: Miniconda ${{ matrix.os }}
+    name: miniconda_osx (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash -l {0}
     strategy:
-        matrix:
-            os: ["macos-latest"]
+      fail-fast: false
+      matrix:
+        os: ["macos-latest"]
+        python-version: ["3.11"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: test
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
           environment-file: coverm-osx.yml
-          auto-activate-base: false
-          mamba-version: "*"
           channels: conda-forge,defaults,bioconda
-      - run: |
-          conda info
-          conda list
+      - name: Conda info
+        shell: bash -el {0}
+        run: conda info
+      - name: Conda list
+        shell: pwsh
+        run: conda list
       - name: Run test
         run: |
-            cargo test -- --skip bwa_mem2
+          cargo test -- --skip bwa_mem2
