@@ -9,12 +9,12 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.11"]
+        # python-version: ["3.11"]
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          # auto-update-conda: true
+          # python-version: ${{ matrix.python-version }}
           environment-file: environment.yml
           channels: conda-forge,defaults,bioconda
       - name: Conda info
