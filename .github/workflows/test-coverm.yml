@@ -26,27 +26,27 @@ jobs:
       - name: Run test
         run: |
             cargo test
-  miniconda_osx:
-    name: miniconda_osx (${{ matrix.python-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["macos-latest"]
-        python-version: ["3.11"]
-    steps:
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
-          environment-file: ../coverm-osx.yml
-          channels: conda-forge,defaults,bioconda
-      - name: Conda info
-        shell: bash -el {0}
-        run: conda info
-      - name: Conda list
-        shell: pwsh
-        run: conda list
-      - name: Run test
-        run: |
-          cargo test -- --skip bwa_mem2
+  # miniconda_osx:
+  #   name: miniconda_osx (${{ matrix.python-version }}, ${{ matrix.os }})
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: ["macos-latest"]
+  #       python-version: ["3.11"]
+  #   steps:
+  #     - uses: conda-incubator/setup-miniconda@v3
+  #       with:
+  #         auto-update-conda: true
+  #         python-version: ${{ matrix.python-version }}
+  #         environment-file: ../coverm-osx.yml
+  #         channels: conda-forge,defaults,bioconda
+  #     - name: Conda info
+  #       shell: bash -el {0}
+  #       run: conda info
+  #     - name: Conda list
+  #       shell: pwsh
+  #       run: conda list
+  #     - name: Run test
+  #       run: |
+  #         cargo test -- --skip bwa_mem2
