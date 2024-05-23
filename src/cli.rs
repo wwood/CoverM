@@ -525,6 +525,7 @@ pub fn contig_full_help() -> Manual {
                         &monospace_roff("--trim-max"))],
 
                     &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
+                    &[&monospace_roff("covered_fraction"), "Proportion of bases covered by 1 or more reads"],
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each contig in base pairs"],
@@ -766,6 +767,7 @@ pub fn genome_full_help() -> Manual {
                         &monospace_roff("--trim-min"),
                         &monospace_roff("--trim-max"))],    
                     &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
+                    &[&monospace_roff("covered_fraction"), "Proportion of bases covered by 1 or more reads"],
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each genome in base pairs"],
