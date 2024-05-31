@@ -15,7 +15,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          environment-file: CoverM/coverm.yml
+          environment-file: ./coverm.yml
           channels: conda-forge,defaults,bioconda
       - name: Conda info
         shell: bash -el {0}
