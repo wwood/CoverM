@@ -37,12 +37,14 @@ jobs:
         os: ["macos-latest"]
         python-version: ["3.11"]
     steps:
+      - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: coverm-osx.yml
           channels: conda-forge,defaults,bioconda
+          mamba-version: "*"
       - name: Conda info
         shell: bash -el {0}
         run: conda info
