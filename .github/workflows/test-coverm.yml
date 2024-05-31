@@ -11,11 +11,12 @@ jobs:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
     steps:
+      - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          environment-file: ./coverm.yml
+          environment-file: coverm.yml
           channels: conda-forge,defaults,bioconda
           mamba-version: "*"
       - name: Conda info
