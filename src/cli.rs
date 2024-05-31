@@ -58,6 +58,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
                     ],
                     &[
+                        &monospace_roff("strobealign"),
+                        "strobealign using default parameters"
+                    ],
+                    &[
                         &monospace_roff("bwa-mem"),
                         "bwa mem using default parameters"
                     ],
