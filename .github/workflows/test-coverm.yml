@@ -26,6 +26,7 @@ jobs:
         shell: pwsh
         run: conda list
       - name: Run test
+        shell: bash -el {0}
         run: |
             cargo test
   miniconda_osx:
