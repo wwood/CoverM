@@ -471,6 +471,7 @@ pub fn print_dense_cached_coverage_taker(
                     entry_names[stoit_by_entry_by_coverage[0][my_entry_i].entry_index]
                         .as_ref()
                         .unwrap()
+                        .trim_end_matches('\r')
                 )
                 .unwrap();
                 for (stoit_i, stoit_entries) in stoit_by_entry_by_coverage.iter().enumerate() {
@@ -482,7 +483,7 @@ pub fn print_dense_cached_coverage_taker(
                                 print_stream,
                                 "\t{}",
                                 coverages[i]
-                                    // Divide first because then there is less
+                                    // Divide first because then there are fewer
                                     // rounding errors, particularly when
                                     // coverage == coverage_total
                                     /coverage_totals[ecs.stoit_index][i].unwrap()
@@ -553,6 +554,31 @@ mod tests {
         let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        let mut stream = Cursor::new(Vec::new());
+        print_dense_cached_coverage_taker(
+            "Contig",
+            &vec!["mean".to_string(), "std".to_string()],
+            &c,
+            &mut stream,
+            None,
+            &vec![],
+            None,
+            None,
+        );
+        assert_eq!(
+            "Contig\tstoit1 mean\tstoit1 std\n\
+                    contig1\t1.1\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_dense_cached_printer_newline() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1\r");
         c.add_single_coverage(1.1);
         c.add_single_coverage(1.2);
         let mut stream = Cursor::new(Vec::new());
