@@ -191,6 +191,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--mapper",
+                "minimap2-sr",
                 "--contig-end-exclusion",
                 "0",
                 "-r",
@@ -240,6 +242,8 @@ mod tests {
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--mapper",
+                "minimap2-sr",
                 "--output-format",
                 "sparse",
                 "-r",
@@ -1331,6 +1335,36 @@ genome6	26.697144
             .stdout()
             .is(
                 "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
+                 genome3~random_sequence_length_11001	0.11057869\n\
+                 genome4~random_sequence_length_11002	0.11056851\n\
+                 genome5~seq2	0\n\
+                 genome6~random_sequence_length_11003	0.110558316\n\
+                 genome1~random_sequence_length_11000	0.109943785\n\
+                 genome1~random_sequence_length_11010	0.110487066\n\
+                 genome2~seq1	0\n",
+            )
+            .succeeds()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_sharded_contig_input_reads_minimap2() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "minimap2-sr",
+                "-c",
+                "tests/data/7seqs.reads_for_7.1.fq",
+                "tests/data/7seqs.reads_for_7.2.fq",
+                "-r",
+                "tests/data/shard1.fna",
+                "tests/data/shard2.fna",
+                "--sharded",
+            ])
+            .stdout()
+            .is(
+                "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
                  genome3~random_sequence_length_11001	0.110588886\n\
                  genome4~random_sequence_length_11002	0.11057869\n\
                  genome5~seq2	0\n\
@@ -1794,6 +1828,8 @@ genome6	26.697144
         Assert::main_binary()
             .with_args(&[
                 "contig",
+                "--mapper",
+                "minimap2-sr",
                 "-m",
                 "rpkm",
                 "mean",
@@ -2207,6 +2243,50 @@ genome6~random_sequence_length_11003	0	0	0
                 |observed| {
                     assert_equal_table(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
+                        73.20120700_S3D.10\t0.06966771\t0.06644242\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.34\t0.056637306\t0.054271795\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.5\t0.13356309\t0.12263384\n73.20120700_S3D.7\t0.097519465\t0.09129343\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_bug1_minimap2() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "minimap2-sr",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
+                "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-t",
+                "8",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0.05",
+                "--exclude-supplementary",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                         73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                         ",
                         observed,
@@ -2222,6 +2302,8 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--mapper",
+                "minimap2-sr",
                 "-c",
                 "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
                 "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
@@ -2264,6 +2346,8 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
         .with_args(&[
             "genome",
+            "--mapper",
+            "minimap2-sr",
             "-c",
             "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
             "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
@@ -2307,6 +2391,8 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
         .with_args(&[
             "genome",
+            "--mapper",
+            "minimap2-sr",
             "-c",
             "tests/data/rhys_bug/20120700_S3D.head100000.1.fq.gz",
             "tests/data/rhys_bug/20120700_S3D.head100000.2.fq.gz",
@@ -2355,6 +2441,40 @@ genome6~random_sequence_length_11003	0	0	0
                 "contig",
                 "--contig-end-exclusion",
                 "0",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--output-format",
+                "sparse",
+                "--interleaved",
+                "tests/data/bad_reads.interleaved.fq",
+                "-o",
+                t,
+            ])
+            .succeeds()
+            .stdout()
+            .is("")
+            .unwrap();
+
+        assert_eq!(
+            "Sample\tContig\tMean\n\
+            2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.895\n\
+            2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0\n",
+            std::fs::read_to_string(tf.path()).unwrap()
+        )
+    }
+
+    #[test]
+    fn test_contig_output_file_minimap2() {
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--contig-end-exclusion",
+                "0",
+                "--mapper",
+                "minimap2-sr",
                 "-r",
                 "tests/data/2seqs.fasta",
                 "--output-format",
@@ -2538,6 +2658,8 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--mapper",
+                "minimap2-sr",
                 "-m",
                 "mean",
                 "tpm",
@@ -2580,6 +2702,57 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "count",
+                "--genome-fasta-files",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.10.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.12.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.15.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.16.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.34.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.3.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.5.fna",
+                "tests/data/rhys_bug/genomes/73.20120700_S3D.7.fna",
+                "-c",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.1.fq",
+                "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    assert_equal_table(
+                        "Genome	20120700_S3D.stray_read1.1.fq Mean	20120700_S3D.stray_read1.1.fq Covered Fraction	20120700_S3D.stray_read1.1.fq Read Count\n\
+                        73.20120700_S3D.10	0.000008399416	0.000024585164	2\n\
+                        73.20120700_S3D.12	0	0	0\n\
+                        73.20120700_S3D.15	0	0	0\n\
+                        73.20120700_S3D.16	0	0	0\n\
+                        73.20120700_S3D.34	0	0	0\n\
+                        73.20120700_S3D.3	0	0	0\n\
+                        73.20120700_S3D.5	0.000043860742	0.000043714655	2\n\
+                        73.20120700_S3D.7	0	0	0\n\
+                        ",
+                        observed,
+                    )
+                },
+                "table incorrect",
+            )
+            .stderr()
+            .contains("found 4 reads mapped out of 4 total (100.00%)")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genomes_and_contigs_with_supplementary_minimap2() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "minimap2-sr",
                 "-m",
                 "mean",
                 "covered_fraction",
@@ -2679,6 +2852,8 @@ genome6~random_sequence_length_11003	0	0	0
         Assert::main_binary()
             .with_args(&[
                 "genome",
+                "--mapper",
+                "minimap2-sr",
                 "-m",
                 "mean",
                 "covered_fraction",

@@ -258,7 +258,7 @@ pub fn print_sparse_cached_coverage_taker(
                             "{}\t{}",
                             stoit,
                             match &entry_names[*entry_i] {
-                                Some(s) => s,
+                                Some(s) => s.trim_end_matches('\r'),
                                 None => {
                                     error!("Didn't find entry name string as expected");
                                     process::exit(1);
@@ -471,6 +471,7 @@ pub fn print_dense_cached_coverage_taker(
                     entry_names[stoit_by_entry_by_coverage[0][my_entry_i].entry_index]
                         .as_ref()
                         .unwrap()
+                        .trim_end_matches('\r')
                 )
                 .unwrap();
                 for (stoit_i, stoit_entries) in stoit_by_entry_by_coverage.iter().enumerate() {
@@ -482,7 +483,7 @@ pub fn print_dense_cached_coverage_taker(
                                 print_stream,
                                 "\t{}",
                                 coverages[i]
-                                    // Divide first because then there is less
+                                    // Divide first because then there are fewer
                                     // rounding errors, particularly when
                                     // coverage == coverage_total
                                     /coverage_totals[ecs.stoit_index][i].unwrap()
@@ -574,6 +575,31 @@ mod tests {
     }
 
     #[test]
+    fn test_dense_cached_printer_newline() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1\r");
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        let mut stream = Cursor::new(Vec::new());
+        print_dense_cached_coverage_taker(
+            "Contig",
+            &vec!["mean".to_string(), "std".to_string()],
+            &c,
+            &mut stream,
+            None,
+            &vec![],
+            None,
+            None,
+        );
+        assert_eq!(
+            "Contig\tstoit1 mean\tstoit1 std\n\
+                    contig1\t1.1\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap()
+        );
+    }
+
+    #[test]
     fn test_dense_cached_printer_easy_normalised() {
         let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
@@ -642,5 +668,35 @@ mod tests {
              contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
              contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
              std::fs::read_to_string(tf.path()).unwrap());
+    }
+
+    #[test]
+    fn test_sparse_cached_printer_hello_world() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        let mut stream = Cursor::new(Vec::new());
+        print_sparse_cached_coverage_taker(&c, &mut stream, None, &vec![], None, None);
+        assert_eq!(
+            "stoit1\tcontig1\t1.1\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_sparse_cached_printer_newline() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1\r");
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+        let mut stream = Cursor::new(Vec::new());
+        print_sparse_cached_coverage_taker(&c, &mut stream, None, &vec![], None, None);
+        assert_eq!(
+            "stoit1\tcontig1\t1.1\t1.2\n",
+            str::from_utf8(stream.get_ref()).unwrap()
+        );
     }
 }

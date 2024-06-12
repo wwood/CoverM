@@ -21,7 +21,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-no-preset",
     "strobealign",
 ];
-const DEFAULT_MAPPING_SOFTWARE: &str = "minimap2-sr";
+const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
 lazy_static! {
     pub static ref COVERM_CLUSTER_COMMAND_DEFINITION: GalahClustererCommandDefinition = {
@@ -50,12 +50,12 @@ fn add_mapping_options(manual: Manual) -> Manual {
         Section::new("Mapping algorithm options")
             .option(Opt::new("NAME").short("-p").long("--mapper").help(&format!(
                 "Underlying mapping software used {}. One of: {}",
-                default_roff("minimap2-sr"),
+                default_roff("strobealign"),
                 bird_tool_utils::clap_utils::table_roff(&[
                     &["name", "description"],
                     &[
-                        &monospace_roff("minimap2-sr"),
-                        &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
+                        &monospace_roff("strobealign"),
+                        "strobealign using default parameters"
                     ],
                     &[
                         &monospace_roff("bwa-mem"),
@@ -64,6 +64,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     &[
                         &monospace_roff("bwa-mem2"),
                         "bwa-mem2 using default parameters"
+                    ],
+                    &[
+                        &monospace_roff("minimap2-sr"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
                     ],
                     &[
                         &monospace_roff("minimap2-ont"),
