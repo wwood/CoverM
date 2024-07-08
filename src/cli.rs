@@ -414,7 +414,7 @@ pub fn make_full_help() -> Manual {
                         index \
                         (with {}), \
                         strobealign index (with {}), \
-                        or BWA index stem (with {}). [required]",
+                        or BWA index stem (with {}). May be gzip-compressed. [required]",
                 monospace_roff("--minimap2-reference-is-index"),
                 monospace_roff("--strobealign-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
@@ -492,7 +492,7 @@ pub fn contig_full_help() -> Manual {
         Section::new("Reference").option(Opt::new("PATH").short("-r").long("--reference").help(
             &format!(
                 "FASTA file of contigs e.g. concatenated \
-                    genomes or metagenome assembly, or minimap2 \
+                    genomes or metagenome assembly (gzip or uncompressed), or minimap2 \
                     index \
                     (with {}), \
                     strobealign index (with {}), \
@@ -666,7 +666,7 @@ pub fn genome_full_help() -> Manual {
             .option(
                 Opt::new("PATH").short("-r").long("--reference").help(
                     &format!("FASTA file of contigs e.g. concatenated \
-                    genomes or metagenome assembly, or minimap2 \
+                    genomes or metagenome assembly (gzip or uncompressed), or minimap2 \
                     index \
                     (with {}), \
                     strobealign index (with {}), \
