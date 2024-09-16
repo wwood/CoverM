@@ -19,10 +19,12 @@ pub struct ReferenceSortedBamFilter {
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
+    min_mapq_single: u8,
     filter_pairs: bool,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
+    min_mapq_pair: u8,
     pub num_detected_primary_alignments: u64,
     flag_filters: FlagFilter,
     filter_out: bool, // true if we are filtering out reads
@@ -92,6 +94,7 @@ impl ReferenceSortedBamFilter {
                         self.min_aligned_length_single,
                         self.min_percent_identity_single,
                         self.min_aligned_percent_single,
+                        self.min_mapq_single,
                     );
                     if passes_filter2 == self.filter_out {
                         return res;
@@ -179,11 +182,13 @@ impl ReferenceSortedBamFilter {
                                 self.min_aligned_length_single,
                                 self.min_percent_identity_single,
                                 self.min_aligned_percent_single,
+                                self.min_mapq_single,
                             ) && single_read_passes_filter(
                                 record,
                                 self.min_aligned_length_single,
                                 self.min_percent_identity_single,
                                 self.min_aligned_percent_single,
+                                self.min_mapq_single,
                             )))
                             && read_pair_passes_filter(
                                 record,
@@ -191,6 +196,7 @@ impl ReferenceSortedBamFilter {
                                 self.min_aligned_length_pair,
                                 self.min_percent_identity_pair,
                                 self.min_aligned_percent_pair,
+                                self.min_mapq_pair,
                             );
                         if passes_filter == self.filter_out {
                             debug!("Read pair passed QC");
@@ -228,7 +234,12 @@ fn single_read_passes_filter(
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
+    min_mapq_single: u8,
 ) -> bool {
+    if record.mapq() < min_mapq_single {
+        return false;
+    }
+
     let edit_distance1 = nm(record);
 
     let mut aligned: u32 = 0;
@@ -260,7 +271,12 @@ fn read_pair_passes_filter(
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
+    min_mapq_pair: u8,
 ) -> bool {
+    if record1.mapq() < min_mapq_pair || record2.mapq() < min_mapq_pair {
+        return false;
+    }
+
     let edit_distance1 = nm(record1);
     let edit_distance2 = nm(record2);
 
