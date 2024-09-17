@@ -179,6 +179,16 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                         default_roff("0")
                     )),
             )
+            .option(Opt::new("INT").long("--min-mapq").help(&format!(
+                "Exclude reads with a mapping quality \
+                below this value. An INT between 0 and 254. \
+                When thresholding pairs, both reads \
+                are excluded if either has a MAPQ below this value. \
+                If 0, \
+                reads with MAPQ of 255 (mapping quality unavailable) \
+                are excluded. {}",
+                default_roff("not set")
+            )))
             .flag(
                 Flag::new()
                     .long("--proper-pairs-only")
@@ -1327,6 +1337,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .value_parser(clap::value_parser!(f32)),
                 )
                 .arg(
+                    Arg::new("min-mapq")
+                        .long("min-mapq")
+                        .value_parser(clap::value_parser!(u8)),
+                )
+                .arg(
                     Arg::new("min-read-aligned-length-pair")
                         .long("min-read-aligned-length-pair")
                         .value_parser(clap::value_parser!(u32))
@@ -1712,6 +1727,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .value_parser(clap::value_parser!(f32)),
                 )
                 .arg(
+                    Arg::new("min-mapq")
+                        .long("min-mapq")
+                        .value_parser(clap::value_parser!(u8)),
+                )
+                .arg(
                     Arg::new("min-read-aligned-length-pair")
                         .long("min-read-aligned-length-pair")
                         .value_parser(clap::value_parser!(u32))
@@ -1848,6 +1868,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("min-read-percent-identity")
                         .long("min-read-percent-identity")
                         .value_parser(clap::value_parser!(f32)),
+                )
+                .arg(
+                    Arg::new("min-mapq")
+                        .long("min-mapq")
+                        .value_parser(clap::value_parser!(u8)),
                 )
                 .arg(
                     Arg::new("min-read-aligned-percent")

@@ -3119,6 +3119,127 @@ genome6~random_sequence_length_11003	0	0	0
             )
             .unwrap();
     }
+
+    #[test]
+    fn test_cmdline_mapq_filtering_all_out() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "-b",
+                "tests/data/mapq_test.sam",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                // "--min-mapq",
+                // "10",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Genome\tmapq_test Mean\tmapq_test Covered Fraction\n\
+            genome1\t0.009380695\t0.00875193\n")
+            .unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "-b",
+                "tests/data/mapq_test.sam",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                "--min-mapq",
+                "100",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Genome\tmapq_test Mean\tmapq_test Covered Fraction\n\
+            genome1\t0\t0\n")
+            .unwrap();
+    }
+
+    // test mapq filter 51 with single read filtering
+    #[test]
+    fn test_cmdline_mapq_filtering_single_read() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "-b",
+                "tests/data/mapq_test.sam",
+                // "--min-mapq",
+                // "51",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Contig\tmapq_test Mean\tmapq_test Covered Fraction\n\
+            genome1~random_sequence_length_11000\t0\t0\n\
+            genome1~random_sequence_length_11010\t0\t0\n\
+            genome2~seq1\t0.61764705\t0.499\n\
+            genome3~random_sequence_length_11001\t0\t0\n\
+            genome4~random_sequence_length_11002\t0\t0\n\
+            genome5~seq2\t0\t0\n\
+            genome6~random_sequence_length_11003\t0\t0\n")
+            .unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "-b",
+                "tests/data/mapq_test.sam",
+                "--min-mapq",
+                "51",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Contig\tmapq_test Mean\tmapq_test Covered Fraction\n\
+            genome1~random_sequence_length_11000\t0\t0\n\
+            genome1~random_sequence_length_11010\t0\t0\n\
+            genome2~seq1\t0.5294118\t0.4\n\
+            genome3~random_sequence_length_11001\t0\t0\n\
+            genome4~random_sequence_length_11002\t0\t0\n\
+            genome5~seq2\t0\t0\n\
+            genome6~random_sequence_length_11003\t0\t0\n")
+            .unwrap();
+    }
+
+    // test mapq filter 51 with paired read filtering
+    #[test]
+    fn test_cmdline_mapq_filtering_single_read_fail_proper_pairs() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "-b",
+                "tests/data/mapq_test.sam",
+                "--min-mapq",
+                "51",
+                "--proper-pairs-only",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Contig\tmapq_test Mean\tmapq_test Covered Fraction\n\
+            genome1~random_sequence_length_11000\t0\t0\n\
+            genome1~random_sequence_length_11010\t0\t0\n\
+            genome2~seq1\t0.3529412\t0.3\n\
+            genome3~random_sequence_length_11001\t0\t0\n\
+            genome4~random_sequence_length_11002\t0\t0\n\
+            genome5~seq2\t0\t0\n\
+            genome6~random_sequence_length_11003\t0\t0\n")
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test
