@@ -12,6 +12,7 @@ exclude = [ # Max upload is 10MB, as of writing test data was 15MB
   "tests/*",
 ]
 default-run = "coverm"
+edition = "2015"
 
 [dependencies]
 bio = "1.1.0"

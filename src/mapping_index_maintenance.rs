@@ -102,7 +102,7 @@ impl TemporaryIndexStruct {
                     | MappingProgram::STROBEALIGN => {}
                 };
                 if let Some(t) = num_threads {
-                    cmd.arg("-t").arg(&format!("{}", t));
+                    cmd.arg("-t").arg(format!("{}", t));
                 }
                 cmd.arg("-d").arg(&index_path).arg(reference_path);
             }
