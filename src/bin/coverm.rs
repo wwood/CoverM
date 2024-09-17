@@ -165,6 +165,7 @@ fn main() {
                             filter_params.min_aligned_length_single,
                             filter_params.min_percent_identity_single,
                             filter_params.min_aligned_percent_single,
+                            filter_params.min_mapq,
                             filter_params.min_aligned_length_pair,
                             filter_params.min_percent_identity_pair,
                             filter_params.min_aligned_percent_pair,
@@ -463,6 +464,7 @@ fn main() {
                     filter_params.min_aligned_length_single,
                     filter_params.min_percent_identity_single,
                     filter_params.min_aligned_percent_single,
+                    filter_params.min_mapq,
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,
@@ -519,6 +521,7 @@ fn main() {
                             filter_params.min_aligned_length_single,
                             filter_params.min_percent_identity_single,
                             filter_params.min_aligned_percent_single,
+                            filter_params.min_mapq,
                             filter_params.min_aligned_length_pair,
                             filter_params.min_percent_identity_pair,
                             filter_params.min_aligned_percent_pair,
@@ -1209,6 +1212,7 @@ struct FilterParameters {
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
+    min_mapq: u8, // 255 indicates no filtering
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
@@ -1224,6 +1228,7 @@ impl FilterParameters {
             min_aligned_length_single: *m.get_one::<u32>("min-read-aligned-length").unwrap_or(&0),
             min_percent_identity_single: parse_percentage(m, "min-read-percent-identity"),
             min_aligned_percent_single: parse_percentage(m, "min-read-aligned-percent"),
+            min_mapq: *m.get_one::<u8>("min-mapq").unwrap_or(&255),
             min_aligned_length_pair: *m
                 .get_one::<u32>("min-read-aligned-length-pair")
                 .unwrap_or(&0),
@@ -1253,6 +1258,7 @@ impl FilterParameters {
         self.min_percent_identity_single > 0.0
             || self.min_percent_identity_pair > 0.0
             || self.min_aligned_percent_single > 0.0
+            || self.min_mapq < 255
             || self.min_aligned_percent_pair > 0.0
             || self.min_aligned_length_single > 0
             || self.min_aligned_length_pair > 0
@@ -1578,6 +1584,7 @@ fn get_streamed_filtered_bam_readers(
                     filter_params.min_aligned_length_single,
                     filter_params.min_percent_identity_single,
                     filter_params.min_aligned_percent_single,
+                    filter_params.min_mapq,
                     filter_params.min_aligned_length_pair,
                     filter_params.min_percent_identity_pair,
                     filter_params.min_aligned_percent_pair,

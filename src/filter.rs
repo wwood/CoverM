@@ -10,6 +10,8 @@ use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Read;
 use rust_htslib::errors::Result as HtslibResult;
 
+const MAPQ_UNAVAILABLE: u8 = 255;
+
 pub struct ReferenceSortedBamFilter {
     first_set: BTreeMap<Rc<String>, Rc<bam::Record>>,
     current_reference: i32,
@@ -19,12 +21,11 @@ pub struct ReferenceSortedBamFilter {
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
     min_aligned_percent_single: f32,
-    min_mapq_single: u8,
+    min_mapq_single: u8, // 255 indicates no filtering
     filter_pairs: bool,
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
-    min_mapq_pair: u8,
     pub num_detected_primary_alignments: u64,
     flag_filters: FlagFilter,
     filter_out: bool, // true if we are filtering out reads
@@ -38,17 +39,30 @@ impl ReferenceSortedBamFilter {
         min_aligned_length_single: u32,
         min_percent_identity_single: f32,
         min_aligned_percent_single: f32,
+        min_mapq_single: u8,
         min_aligned_length_pair: u32,
         min_percent_identity_pair: f32,
         min_aligned_percent_pair: f32,
         filter_out: bool,
     ) -> ReferenceSortedBamFilter {
-        let filtering_single = min_aligned_length_single > 0
+        let filtering_single_initial = min_aligned_length_single > 0
             || min_percent_identity_single > 0.0
             || min_aligned_percent_single > 0.0;
-        let filtering_pairs = min_aligned_length_pair > 0
+        let filtering_pairs_initial = min_aligned_length_pair > 0
             || min_percent_identity_pair > 0.0
             || min_aligned_percent_pair > 0.0;
+        // MAPQ filtering is only applied if the MAPQ is not 255.
+        // MAPQ filtering doesn't require both single and pair filtering to be enabled, but at least one of them
+        let filtering_single = filtering_single_initial
+            || (!filtering_pairs_initial && min_mapq_single != MAPQ_UNAVAILABLE);
+        // When MAPQ filtering is enabled, filter pairs if we are filtering out proper pairs
+        let filtering_pairs = filtering_pairs_initial
+            || ((!filtering_single || !flag_filters.include_improper_pairs)
+                && min_mapq_single != MAPQ_UNAVAILABLE);
+        debug!(
+            "filtering_single: {}, filtering_pairs: {}",
+            filtering_single, filtering_pairs
+        );
 
         ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),
@@ -59,6 +73,7 @@ impl ReferenceSortedBamFilter {
             min_aligned_length_single,
             min_percent_identity_single,
             min_aligned_percent_single,
+            min_mapq_single,
             filter_pairs: filtering_pairs,
             min_aligned_length_pair,
             min_percent_identity_pair,
@@ -196,7 +211,7 @@ impl ReferenceSortedBamFilter {
                                 self.min_aligned_length_pair,
                                 self.min_percent_identity_pair,
                                 self.min_aligned_percent_pair,
-                                self.min_mapq_pair,
+                                self.min_mapq_single,
                             );
                         if passes_filter == self.filter_out {
                             debug!("Read pair passed QC");
@@ -236,7 +251,9 @@ fn single_read_passes_filter(
     min_aligned_percent_single: f32,
     min_mapq_single: u8,
 ) -> bool {
-    if record.mapq() < min_mapq_single {
+    if min_mapq_single != MAPQ_UNAVAILABLE
+        && (record.mapq() < min_mapq_single || record.mapq() == MAPQ_UNAVAILABLE)
+    {
         return false;
     }
 
@@ -271,9 +288,14 @@ fn read_pair_passes_filter(
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
-    min_mapq_pair: u8,
+    min_mapq_single: u8,
 ) -> bool {
-    if record1.mapq() < min_mapq_pair || record2.mapq() < min_mapq_pair {
+    if min_mapq_single != MAPQ_UNAVAILABLE
+        && (record1.mapq() < min_mapq_single
+            || record2.mapq() < min_mapq_single
+            || record1.mapq() == MAPQ_UNAVAILABLE
+            || record2.mapq() == MAPQ_UNAVAILABLE)
+    {
         return false;
     }
 
@@ -335,6 +357,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             90,
             0.99,
             0.0,
@@ -367,6 +390,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             90,
             0.99,
             0.0,
@@ -395,6 +419,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             250,
             0.99,
             0.0,
@@ -419,6 +444,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             300,
             0.98,
             0.0,
@@ -443,6 +469,7 @@ mod tests {
             0.0,
             0.0,
             0,
+            0,
             0.98,
             0.94,
             true,
@@ -465,6 +492,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             299,
             0.98,
             0.0,
@@ -491,6 +519,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             250,
             0.99,
             0.0,
@@ -515,6 +544,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             300,
             0.98,
             0.0,
@@ -539,6 +569,7 @@ mod tests {
             0.0,
             0.0,
             0,
+            0,
             0.98,
             0.94,
             false,
@@ -561,6 +592,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             299,
             0.98,
             0.0,
@@ -580,13 +612,14 @@ mod tests {
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
-                include_improper_pairs: false,
+                include_improper_pairs: true,
                 include_secondary: false,
                 include_supplementary: false,
             },
             0,
             0.99,
             0.0,
+            0,
             0,
             0.0,
             0.0,
@@ -609,13 +642,14 @@ mod tests {
         let mut sorted = ReferenceSortedBamFilter::new(
             reader,
             FlagFilter {
-                include_improper_pairs: false,
+                include_improper_pairs: true,
                 include_secondary: false,
                 include_supplementary: false,
             },
             0,
             0.99,
             0.0,
+            0,
             0,
             0.0,
             0.0,
@@ -645,6 +679,7 @@ mod tests {
             0,
             0.95,
             0.0,
+            0,
             300,
             0.0,
             0.0,
@@ -674,6 +709,7 @@ mod tests {
             0,
             0.95,
             0.0,
+            0,
             300,
             0.0,
             0.0,
@@ -705,6 +741,7 @@ mod tests {
             0,
             0.0,
             0.0,
+            0,
             1,
             0.0,
             0.0,
@@ -718,5 +755,95 @@ mod tests {
             num_passing += 1;
         }
         assert_eq!(11192, num_passing);
+    }
+
+    #[test]
+    fn test_mapq_filtering_single_reads_no_bads() {
+        let reader = bam::Reader::from_path("tests/data/mapq_test.sam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: true,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            // 1 base required from reads mapped in proper pair, all pass.
+            0,
+            0.0,
+            0.0,
+            1,
+            0,
+            0.0,
+            0.0,
+            true,
+        );
+        assert!(sorted.filter_single_reads);
+        assert!(!sorted.filter_pairs);
+        let queries = vec!["1", "1", "2", "2"];
+        let mut record = bam::record::Record::new();
+        for i in queries {
+            sorted.read(&mut record).expect("").expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_mapq_filtering_single_reads_single_bad() {
+        let reader = bam::Reader::from_path("tests/data/mapq_test.sam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: true,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            // 1 base required from reads mapped in proper pair, all pass.
+            0,
+            0.0,
+            0.0,
+            51,
+            0,
+            0.0,
+            0.0,
+            true,
+        );
+        assert!(sorted.filter_single_reads);
+        assert!(!sorted.filter_pairs);
+        let queries = vec!["1", "2", "2"];
+        let mut record = bam::record::Record::new();
+        for i in queries {
+            sorted.read(&mut record).expect("").expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_mapq_filtering_pairs_one_bad() {
+        let reader = bam::Reader::from_path("tests/data/mapq_test.sam").unwrap();
+        let mut sorted = ReferenceSortedBamFilter::new(
+            reader,
+            FlagFilter {
+                include_improper_pairs: true,
+                include_secondary: false,
+                include_supplementary: false,
+            },
+            // 1 base required from reads mapped in proper pair, all pass.
+            0,
+            0.0,
+            0.0,
+            51,
+            1,
+            0.0,
+            0.0,
+            true,
+        );
+        assert!(!sorted.filter_single_reads);
+        assert!(sorted.filter_pairs);
+        let queries = vec!["2", "2"]; // Only the first of the first pair passes, so both removed
+        let mut record = bam::record::Record::new();
+        for i in queries {
+            sorted.read(&mut record).expect("").expect("");
+            assert_eq!(i, str::from_utf8(record.qname()).unwrap());
+        }
     }
 }
