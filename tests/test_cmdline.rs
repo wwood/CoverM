@@ -3002,8 +3002,6 @@ genome6~random_sequence_length_11003	0	0	0
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--proper-pairs-only",
-                "-p",
-                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -3046,8 +3044,6 @@ genome6~random_sequence_length_11003	0	0	0
                 "-m",
                 "mean",
                 "covered_fraction",
-                "-p",
-                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
