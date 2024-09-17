@@ -13,6 +13,7 @@ pub mod mapping_index_maintenance;
 pub mod mapping_parameters;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod shard_bam_reader;
+pub mod strobealign_aemb;
 
 use rust_htslib::bam::record::Record;
 use std::sync::Arc;
