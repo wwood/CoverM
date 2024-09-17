@@ -85,6 +85,8 @@ mod tests {
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--proper-pairs-only",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -227,6 +229,8 @@ mod tests {
                 "--proper-pairs-only",
                 "--output-format",
                 "sparse",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -277,6 +281,8 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "-s",
                 "~",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .unwrap();
@@ -292,6 +298,8 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .unwrap();
@@ -310,6 +318,8 @@ mod tests {
                 "sparse",
                 "--reference",
                 "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
                 "--bam-file-cache-directory",
                 td.path().to_str().unwrap(),
             ])
@@ -367,28 +377,6 @@ mod tests {
     }
 
     #[test]
-    fn test_make() {
-        let td = tempfile::TempDir::new().unwrap();
-        Assert::main_binary()
-            .with_args(&[
-                "make",
-                "--coupled",
-                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
-                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
-                "--reference",
-                "tests/data/7seqs.fna",
-                "--output-directory",
-                td.path().to_str().unwrap(),
-            ])
-            .succeeds()
-            .unwrap();
-        assert!(td
-            .path()
-            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
-            .is_file());
-    }
-
-    #[test]
     fn test_make_with_mkdir() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
@@ -401,6 +389,8 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "--output-directory",
                 format!("{}/unmade_directory", td.path().to_str().unwrap()).as_str(),
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .unwrap();
@@ -425,6 +415,8 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "-s",
                 "~",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -545,6 +537,8 @@ genome6	0",
                 "tests/data/reads_for_seq1_and_seq2.fna",
                 "-s",
                 "~",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -586,6 +580,8 @@ genome6	0",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--single",
                 "tests/data/reads_for_seq1_and_seq2.fna",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -831,6 +827,8 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "0.01",
                 "--trim-min",
                 "0.009",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -865,6 +863,8 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "0.01",
                 "--trim-min",
                 "0.009",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -897,6 +897,8 @@ k141_109815	362	0.6274	0.6274	0.2349").unwrap();
                 "0.01",
                 "--trim-min",
                 "0.009",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -930,6 +932,8 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "0.01",
                 "--trim-min",
                 "0.009",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -959,6 +963,8 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "0.01",
                 "--trim-min",
                 "0.009",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -982,6 +988,8 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "tests/data/dense_interleaved_single_genome_bug/reads_interleaved2.fna",
                 "--output-format",
                 "dense",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -1104,6 +1112,8 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "tests/data/genomes_dir/",
                 "-x",
                 ".fna",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .unwrap();
@@ -1120,6 +1130,8 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--genome-fasta-directory",
                 "tests/data/genomes_dir/",
+                "-p",
+                "minimap2-sr",
                 "--bam-file-cache-directory",
                 td.path().to_str().unwrap(),
             ])
@@ -1287,6 +1299,8 @@ genome6	26.697144
                 "--proper-pairs-only",
                 "--min-read-aligned-length-pair",
                 "50",
+                "-p",
+                "minimap2-sr",
             ])
             .stderr()
             .contains(
@@ -1309,6 +1323,8 @@ genome6	26.697144
                 "tests/data/7seqs.fna",
                 "--min-read-aligned-length",
                 "50",
+                "-p",
+                "minimap2-sr",
             ])
             .stderr()
             .contains(
@@ -1320,7 +1336,7 @@ genome6	26.697144
     }
 
     #[test]
-    fn test_sharded_contig_input_reads() {
+    fn test_sharded_contig_input_reads_strobealign() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -1408,6 +1424,8 @@ genome6	26.697144
                 "tests/data/7seqs.fna",
                 "--interleaved",
                 "tests/data/reads_for_seq1_and_seq2.fna",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -1434,6 +1452,8 @@ genome6	26.697144
                 "-2",
                 "tests/data/7seqs.reads_for_7.2.fq",
                 "tests/data/random.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -1944,6 +1964,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--dereplicate",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -1986,6 +2008,8 @@ genome6~random_sequence_length_11003	0	0	0
                 td_copy.path().to_str().unwrap(),
                 "--dereplication-output-representative-list",
                 t_reps,
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2046,6 +2070,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--dereplicate",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2071,6 +2097,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "tests/data/set1/checkm.tsv",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2097,6 +2125,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--dereplicate",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2122,6 +2152,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "tests/data/set1/genomeInfo.csv",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2152,6 +2184,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "0",
                 "--single",
                 "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2236,6 +2270,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--min-covered-fraction",
                 "0.05",
                 "--exclude-supplementary",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2243,7 +2279,7 @@ genome6~random_sequence_length_11003	0	0	0
                 |observed| {
                     assert_equal_table(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
-                        73.20120700_S3D.10\t0.06966771\t0.06644242\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.34\t0.056637306\t0.054271795\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.5\t0.13356309\t0.12263384\n73.20120700_S3D.7\t0.097519465\t0.09129343\n\
+                        73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                         ",
                         observed,
                     )
@@ -2432,7 +2468,7 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    fn test_contig_output_file() {
+    fn test_contig_output_file_strobealign() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t = tf.path().to_str().unwrap();
 
@@ -2511,6 +2547,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--coupled",
                 "tests/data/contig_name_clashing/reads_for_genome2.1.fa",
                 "tests/data/contig_name_clashing/reads_for_genome2.2.fa",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2538,6 +2576,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--coupled",
                 "tests/data/contig_name_clashing/reads_for_genome2.1.fa",
                 "tests/data/contig_name_clashing/reads_for_genome2.2.fa",
+                "-p",
+                "minimap2-sr",
             ])
             .fails()
             .stderr()
@@ -2698,7 +2738,7 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    fn test_genomes_and_contigs_with_supplementary() {
+    fn test_genomes_and_contigs_with_supplementary_strobealign() {
         Assert::main_binary()
             .with_args(&[
                 "genome",
@@ -2820,7 +2860,9 @@ genome6~random_sequence_length_11003	0	0	0
                 "tests/data/rhys_bug/20120700_S3D.stray_read1.2.fq",
                 "--min-covered-fraction",
                 "0",
-                "--exclude-supplementary"
+                "--exclude-supplementary",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2905,6 +2947,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "--min-covered-fraction",
                 "0",
                 "--exclude-supplementary",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -2958,6 +3002,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "-2",
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--proper-pairs-only",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
@@ -3000,6 +3046,8 @@ genome6~random_sequence_length_11003	0	0	0
                 "-m",
                 "mean",
                 "covered_fraction",
+                "-p",
+                "minimap2-sr",
             ])
             .succeeds()
             .stdout()
