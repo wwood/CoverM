@@ -527,7 +527,9 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("trimmed_mean"), &format!("Average number of aligned reads overlapping each position after removing the most deeply and shallow-ly covered positions. See {}/{} to adjust.",
                         &monospace_roff("--trim-min"),
                         &monospace_roff("--trim-max"))],
-
+                    &[&monospace_roff("strobealign-aemb"), 
+                        &format!("Mean coverage as estimated by strobealign --aemb, which is faster than the {} method, giving similar but not identical values. See https://github.com/ksahlin/strobealign for details. Cannot currently be used with other methods.",
+                        &monospace_roff("mean"))],
                     &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
                     &[&monospace_roff("covered_fraction"), "Proportion of bases covered by 1 or more reads"],
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
@@ -1747,6 +1749,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "reads_per_base",
                             "rpkm",
                             "tpm",
+                            "strobealign-aemb",
                         ])
                         .default_value("mean")
                         .action(clap::ArgAction::Append)

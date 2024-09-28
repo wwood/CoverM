@@ -160,6 +160,28 @@ impl NamedBamReaderGenerator<StreamingNamedBamReader> for StreamingNamedBamReade
     }
 }
 
+pub fn name_stoit(
+    index_path: &str,
+    read1_path: &str,
+    include_reference_in_stoit_name: bool,
+) -> String {
+    (match include_reference_in_stoit_name {
+        true => (std::path::Path::new(&index_path)
+            .file_name()
+            .expect("Unable to convert reference to file name")
+            .to_str()
+            .expect("Unable to covert file name into str")
+            .to_string()
+            + "/")
+            .to_string(),
+        false => "".to_string(),
+    }) + std::path::Path::new(read1_path)
+        .file_name()
+        .expect("Unable to convert read1 name to file name")
+        .to_str()
+        .expect("Unable to covert file name into str")
+}
+
 pub fn complete_processes(
     processes: Vec<std::process::Child>,
     command_strings: Vec<String>,
@@ -412,22 +434,11 @@ pub fn generate_named_bam_readers_from_reads(
         log_files.push(samtools_view_cache_log);
     }
 
-    let stoit_name = match include_reference_in_stoit_name {
-        true => {
-            std::path::Path::new(&index.index_path())
-                .file_name()
-                .expect("Unable to convert reference to file name")
-                .to_str()
-                .expect("Unable to covert file name into str")
-                .to_string()
-                + "/"
-        }
-        false => "".to_string(),
-    } + std::path::Path::new(read1_path)
-        .file_name()
-        .expect("Unable to convert read1 name to file name")
-        .to_str()
-        .expect("Unable to covert file name into str");
+    let stoit_name = name_stoit(
+        index.index_path(),
+        read1_path,
+        include_reference_in_stoit_name,
+    );
 
     StreamingNamedBamReaderGenerator {
         stoit_name,
@@ -797,18 +808,7 @@ pub fn generate_bam_maker_generator_from_reads(
     let log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
 
     return NamedBamMakerGenerator {
-        stoit_name: std::path::Path::new(index.index_path())
-            .file_name()
-            .expect("Unable to convert reference to file name")
-            .to_str()
-            .expect("Unable to covert file name into str")
-            .to_string()
-            + "/"
-            + std::path::Path::new(read1_path)
-                .file_name()
-                .expect("Unable to convert read1 name to file name")
-                .to_str()
-                .expect("Unable to covert file name into str"),
+        stoit_name: name_stoit(index.index_path(), read1_path, true),
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,

@@ -5,13 +5,14 @@ use tempfile::NamedTempFile;
 use bam_generator::MappingProgram;
 use mapping_index_maintenance::check_reference_existence;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ReadFormat {
     Coupled,
     Interleaved,
     Single,
 }
 
+#[derive(Debug)]
 pub struct MappingParameters<'a> {
     references: Vec<&'a str>,
     threads: u16,
@@ -266,6 +267,7 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct OneSampleMappingParameters<'a> {
     pub reference: &'a str,
     pub read_format: ReadFormat,

@@ -3111,11 +3111,37 @@ genome6~random_sequence_length_11003	0	0	0
             .succeeds()
             .stdout()
             .is(
-                format!(
-                    "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
-                    genome1\t0.040328056\t0.026624106\n"
-                )
+                "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n".to_string()
                 .as_str(),
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_strobelalign_aemb_contig() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-m",
+                "strobealign-aemb",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Strobealign aemb\n\
+                genome1~random_sequence_length_11000\t0\n\
+                genome1~random_sequence_length_11010\t0\n\
+                genome2~seq1\t1.2\n\
+                genome3~random_sequence_length_11001\t0\n\
+                genome4~random_sequence_length_11002\t0\n\
+                genome5~seq2\t1.2\n\
+                genome6~random_sequence_length_11003\t0\n",
             )
             .unwrap();
     }
