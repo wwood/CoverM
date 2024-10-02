@@ -545,7 +545,6 @@ pub fn print_dense_cached_coverage_taker(
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use std::io::Read;
     use std::str;
     use OutputWriter;
 

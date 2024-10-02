@@ -11,6 +11,7 @@ use coverm::mapping_index_maintenance::check_reference_existence;
 use coverm::mapping_parameters::*;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::shard_bam_reader::*;
+use coverm::strobealign_aemb::strobealign_aemb_coverage;
 use coverm::FlagFilter;
 use coverm::OutputWriter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
@@ -505,7 +506,23 @@ fn main() {
             estimators_and_taker =
                 estimators_and_taker.print_headers("Contig", print_stream.clone());
 
-            if m.contains_id("bam-files") {
+            if let CoverageEstimator::StrobealignAembEstimator {} =
+                estimators_and_taker.estimators[0]
+            {
+                let mapping_params =
+                    MappingParameters::generate_from_clap(m, MappingProgram::STROBEALIGN, &None);
+                debug!(
+                    "Running strobealign-aemb coverage with mapping parameters: {:?}",
+                    mapping_params
+                );
+                strobealign_aemb_coverage(
+                    mapping_params,
+                    &mut estimators_and_taker.taker,
+                    threads,
+                    &mut estimators_and_taker.printer,
+                    &mut print_stream,
+                );
+            } else if m.contains_id("bam-files") {
                 let bam_files: Vec<&str> = m
                     .get_many::<String>("bam-files")
                     .unwrap()
@@ -1029,6 +1046,13 @@ impl EstimatorsAndTaker {
                     "reads_per_base" => {
                         estimators.push(CoverageEstimator::new_estimator_reads_per_base());
                     }
+                    "strobealign-aemb" => {
+                        if methods.len() > 1 {
+                            error!("Cannot (currently) specify the strobealign-aemb method with any other coverage methods");
+                            process::exit(1);
+                        }
+                        estimators.push(CoverageEstimator::new_estimator_strobealign_aemb());
+                    }
                     _ => unreachable!(),
                 };
             }
@@ -1086,6 +1110,7 @@ impl EstimatorsAndTaker {
                     CoverageEstimator::ReadCountCalculator { .. } => die("counts"),
                     CoverageEstimator::ReferenceLengthCalculator { .. } => die("length"),
                     CoverageEstimator::ReadsPerBaseCalculator { .. } => die("reads_per_base"),
+                    CoverageEstimator::StrobealignAembEstimator { .. } => die("strobealign-aemb"),
                     _ => {}
                 }
             }

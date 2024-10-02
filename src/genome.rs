@@ -923,7 +923,6 @@ mod tests {
     use rust_htslib::bam::Read;
     use shard_bam_reader::*;
     use std::collections::HashSet;
-    use std::io::Read as _;
     use OutputWriter;
 
     fn test_streaming_with_stream<R: NamedBamReader, G: NamedBamReaderGenerator<R>>(

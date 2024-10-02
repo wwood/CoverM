@@ -36,6 +36,7 @@ galah = "0.4.0"
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
 needletail = "0.5.*"
+csv = "1.*"
 
 [dev-dependencies]
 assert_cli = "0.6.*"

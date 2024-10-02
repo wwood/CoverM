@@ -273,7 +273,6 @@ mod tests {
     use mapping_index_maintenance::VanillaIndexStruct;
     use mapping_parameters::*;
     use shard_bam_reader::*;
-    use std::io::Read;
     use std::str;
     use OutputWriter;
 
