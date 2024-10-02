@@ -18,7 +18,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           environment-file: coverm.yml
           channels: conda-forge,defaults,bioconda
-          mamba-version: "*"
+          miniforge-version: latest
       - name: Conda info
         shell: bash -el {0}
         run: conda info
@@ -45,7 +45,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           environment-file: coverm-osx.yml
           channels: conda-forge,defaults,bioconda
-          mamba-version: "*"
+          miniforge-version: latest
       - name: Conda info
         shell: bash -el {0}
         run: conda info
