@@ -3119,7 +3119,7 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    fn test_strobelalign_aemb_contig() {
+    fn test_strobealign_aemb_contig() {
         Assert::main_binary()
             .with_args(&[
                 "contig",
