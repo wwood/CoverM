@@ -16,7 +16,7 @@ edition = "2015"
 
 [dependencies]
 bio = "2.0.*"
-rust-htslib = { version="0.47.*", default-features = false }
+rust-htslib = { version="0.46.*", default-features = false } # On some systems, https://github.com/rust-bio/rust-htslib/issues/434 bites, so restrict to 0.46
 clap = { version="4.*", features = ["cargo"] } # cargo feature required for crate_version!
 clap_complete = "4.*"
 log = "0.4.*"
