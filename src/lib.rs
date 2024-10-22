@@ -134,15 +134,15 @@ impl Clone for OutputWriter {
 // abstract.
 fn nm(record: &rust_htslib::bam::Record) -> u64 {
     match record.aux("NM".as_bytes()) {
-        Ok(value) => {
-            if let rust_htslib::bam::record::Aux::U8(v) = value {
-                v as u64
-            } else if let rust_htslib::bam::record::Aux::U16(v) = value {
-                v as u64
-            } else {
-                panic!("Unexpected data type of NM aux tag, found {:?}", value)
-            }
-        }
+        Ok(value) => match value {
+            rust_htslib::bam::record::Aux::U8(v) => v as u64,
+            rust_htslib::bam::record::Aux::U16(v) => v as u64,
+            rust_htslib::bam::record::Aux::U32(v) => v as u64,
+            _ => panic!(
+                "Unexpected data type of NM aux tag, found {:?} from record {:?}",
+                value, record
+            ),
+        },
         Err(e) => {
             panic!(
                 "Mapping record encountered that does not have an 'NM' \
