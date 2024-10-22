@@ -13,6 +13,7 @@ pub mod mapping_index_maintenance;
 pub mod mapping_parameters;
 pub mod mosdepth_genome_coverage_estimators;
 pub mod shard_bam_reader;
+pub mod strobealign_aemb;
 
 use rust_htslib::bam::record::Record;
 use std::sync::Arc;
@@ -35,6 +36,7 @@ extern crate clap_complete;
 extern crate lazy_static;
 extern crate bird_tool_utils;
 extern crate bird_tool_utils_man;
+extern crate csv;
 extern crate galah;
 extern crate needletail;
 extern crate roff;

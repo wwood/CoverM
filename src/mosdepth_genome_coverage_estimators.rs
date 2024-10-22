@@ -73,6 +73,7 @@ pub enum CoverageEstimator {
         observed_contig_length: u64,
         num_mapped_reads: u64,
     },
+    StrobealignAembEstimator {},
 }
 
 impl CoverageEstimator {
@@ -93,6 +94,7 @@ impl CoverageEstimator {
             CoverageEstimator::ReferenceLengthCalculator { .. } => vec!["Length"],
             CoverageEstimator::ReadCountCalculator { .. } => vec!["Read Count"],
             CoverageEstimator::ReadsPerBaseCalculator { .. } => vec!["Reads per base"],
+            CoverageEstimator::StrobealignAembEstimator { .. } => vec!["Strobealign aemb"],
         }
     }
 }
@@ -205,6 +207,9 @@ impl CoverageEstimator {
             observed_contig_length: 0,
             num_mapped_reads: 0,
         }
+    }
+    pub fn new_estimator_strobealign_aemb() -> CoverageEstimator {
+        CoverageEstimator::StrobealignAembEstimator {}
     }
 
     fn calculate_unobserved_bases(
@@ -330,6 +335,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *num_mapped_reads = 0;
             }
+            CoverageEstimator::StrobealignAembEstimator { .. } => panic!("Programming error"),
         }
     }
 
@@ -489,6 +495,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *num_mapped_reads += num_mapped_reads_in_contig;
             }
+            CoverageEstimator::StrobealignAembEstimator { .. } => unreachable!(),
         }
     }
 
@@ -798,6 +805,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     / (*observed_contig_length + unobserved_contig_lengths.iter().sum::<u64>())
                         as f32
             }
+            CoverageEstimator::StrobealignAembEstimator {} => unreachable!(),
         }
     }
 
@@ -887,6 +895,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::ReadsPerBaseCalculator { .. } => {
                 CoverageEstimator::new_estimator_reads_per_base()
             }
+            CoverageEstimator::StrobealignAembEstimator { .. } => {
+                CoverageEstimator::new_estimator_strobealign_aemb()
+            }
         }
     }
 
@@ -901,7 +912,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             | CoverageEstimator::VarianceGenomeCoverageEstimator { .. }
             | CoverageEstimator::ReferenceLengthCalculator { .. }
             | CoverageEstimator::ReadCountCalculator { .. }
-            | CoverageEstimator::ReadsPerBaseCalculator { .. } => {
+            | CoverageEstimator::ReadsPerBaseCalculator { .. }
+            | CoverageEstimator::StrobealignAembEstimator { .. } => {
                 coverage_taker.add_single_coverage(coverage);
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { counts, .. } => {
@@ -933,7 +945,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             | CoverageEstimator::TPMCoverageEstimator { .. }
             | CoverageEstimator::VarianceGenomeCoverageEstimator { .. }
             | CoverageEstimator::ReadCountCalculator { .. }
-            | CoverageEstimator::ReadsPerBaseCalculator { .. } => {
+            | CoverageEstimator::ReadsPerBaseCalculator { .. }
+            | CoverageEstimator::StrobealignAembEstimator { .. } => {
                 coverage_taker.add_single_coverage(0.0);
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { .. } => {}
@@ -1006,6 +1019,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 observed_contig_length: _,
                 num_mapped_reads,
             } => *num_mapped_reads,
+            CoverageEstimator::StrobealignAembEstimator { .. } => {
+                panic!("Strobealign AEMB does not calculate number of mapped reads")
+            }
         }
     }
 }
