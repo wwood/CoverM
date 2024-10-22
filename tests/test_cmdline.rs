@@ -3143,6 +3143,8 @@ genome6~random_sequence_length_11003	0	0	0
                 genome5~seq2\t1.2\n\
                 genome6~random_sequence_length_11003\t0\n",
             )
+            .unwrap();
+    }
 
     #[test]
     fn test_cmdline_mapq_filtering_all_out() {
