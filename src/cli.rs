@@ -85,6 +85,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("minimap2-no-preset"),
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
+                    &[
+                        &monospace_roff("strobealign"),
+                        "strobealign using default parameters"
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
