@@ -11,7 +11,9 @@ use coverm::mapping_index_maintenance::check_reference_existence;
 use coverm::mapping_parameters::*;
 use coverm::mosdepth_genome_coverage_estimators::*;
 use coverm::shard_bam_reader::*;
-use coverm::strobealign_aemb::strobealign_aemb_coverage;
+use coverm::strobealign_aemb::{
+    strobealign_aemb_coverage_per_contig, strobealign_aemb_coverage_per_genome,
+};
 use coverm::FlagFilter;
 use coverm::OutputWriter;
 use coverm::CONCATENATED_FASTA_FILE_SEPARATOR;
@@ -148,7 +150,25 @@ fn main() {
                 }
             };
 
-            if m.contains_id("bam-files") {
+            if let CoverageEstimator::StrobealignAembEstimator {} =
+                estimators_and_taker.estimators[0]
+            {
+                let mapping_params =
+                    MappingParameters::generate_from_clap(m, MappingProgram::STROBEALIGN, &None);
+                debug!(
+                    "Running strobealign-aemb coverage with mapping parameters: {:?}",
+                    mapping_params
+                );
+                let genomes_and_contigs_option = parse_all_genome_definitions(m);
+                strobealign_aemb_coverage_per_genome(
+                    mapping_params,
+                    &genomes_and_contigs_option,
+                    &mut estimators_and_taker.taker,
+                    *m.get_one::<u16>("threads").unwrap(),
+                    &mut estimators_and_taker.printer,
+                    &mut print_stream,
+                );
+            } else if m.contains_id("bam-files") {
                 let bam_files: Vec<&str> = m
                     .get_many::<String>("bam-files")
                     .unwrap()
@@ -332,6 +352,7 @@ fn main() {
                     };
 
                 if filter_params.doing_filtering() {
+                    // TODO: disallow strobealign-aemb
                     debug!("Mapping and filtering..");
                     let generator_sets = get_streamed_filtered_bam_readers(
                         m,
@@ -356,6 +377,7 @@ fn main() {
                         &mut print_stream,
                     );
                 } else if m.get_flag("sharded") {
+                    // TODO: disallow strobealign-aemb
                     match genome_exclusion_type {
                         GenomeExclusionTypes::None => {
                             run_genome(
@@ -517,7 +539,7 @@ fn main() {
                     "Running strobealign-aemb coverage with mapping parameters: {:?}",
                     mapping_params
                 );
-                strobealign_aemb_coverage(
+                strobealign_aemb_coverage_per_contig(
                     mapping_params,
                     &mut estimators_and_taker.taker,
                     threads,
@@ -1391,6 +1413,7 @@ fn get_streamed_bam_readers(
 ) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
     if m.contains_id("bam-file-cache-directory") {
+        // TODO: disallow with strobealign-aemb (or when doing "direct estimation" of abundance).
         setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
     }
     let discard_unmapped = m.get_flag("discard-unmapped");

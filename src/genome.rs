@@ -249,15 +249,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             for (ref_id, genome_id_option) in reference_number_to_genome_index.iter().enumerate() {
                 let ref_id_u32: u32 = ref_id as u32;
                 trace!("Seen {:?}", seen_ref_ids);
-                match genome_id_option {
-                    Some(genome_id) => {
-                        if !seen_ref_ids.contains(&ref_id_u32) {
-                            debug!("Getting target #{} from header names", ref_id_u32);
-                            unobserved_lengths[*genome_id]
-                                .push(header.target_len(ref_id_u32).unwrap())
-                        }
+                if let Some(genome_id) = genome_id_option {
+                    if !seen_ref_ids.contains(&ref_id_u32) {
+                        debug!("Getting target #{} from header names", ref_id_u32);
+                        unobserved_lengths[*genome_id].push(header.target_len(ref_id_u32).unwrap())
                     }
-                    None => {}
                 }
             }
             // print the genomes out

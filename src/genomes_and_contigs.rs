@@ -53,7 +53,7 @@ impl GenomesAndContigs {
         }
     }
 
-    pub fn genome_index_of_contig(&self, contig_name: &String) -> Option<usize> {
+    pub fn genome_index_of_contig(&self, contig_name: &str) -> Option<usize> {
         self.contig_to_genome.get(contig_name).copied()
     }
 }

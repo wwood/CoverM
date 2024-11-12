@@ -1381,6 +1381,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "reads_per_base",
                             "rpkm",
                             "tpm",
+                            "strobealign-aemb",
                         ])
                         .default_value("relative_abundance"),
                 )
