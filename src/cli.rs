@@ -734,10 +734,10 @@ pub fn genome_full_help() -> Manual {
         Flag::new().long("--dereplicate").help(
             "Do genome dereplication via average nucleotide \
         identity (ANI) - choose a genome to represent \
-        all within a small distance, using Dashing for \
-        preclustering and FastANI for final ANI \
-        calculation. When this flag is used, dereplication occurs \
-        transparently through the Galah method (https://github.com/wwood/galah) [default: not set]",
+        all within a small distance, using Skani for \
+        clustering by default. When this flag is used, \
+        dereplication occurs transparently through the \
+        Galah method (https://github.com/wwood/galah) [default: not set]",
         ),
     );
     derep_section =
