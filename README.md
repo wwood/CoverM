@@ -87,6 +87,7 @@ and some mapping software:
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
 
 For dereplication:
+* [skani](https://github.com/bluenote-1577/skani) v0.1.1
 * [Dashing](https://github.com/dnbaker/dashing) v0.4.0
 * [FastANI](https://github.com/ParBLiSS/FastANI) v1.3
 
