@@ -83,6 +83,7 @@ Or, these can be installed manually:
   operating systems.
 
 and some mapping software:
+* [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0
 * [minimap2](https://github.com/lh3/minimap2) v2.21
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
 
