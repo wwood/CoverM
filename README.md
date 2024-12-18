@@ -82,12 +82,12 @@ Or, these can be installed manually:
 * [man](http://man-db.nongnu.org/), which is installed by default on most Linux
   operating systems.
 
-and some mapping software:
+and one of these for mapping:
 * [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0
 * [minimap2](https://github.com/lh3/minimap2) v2.21
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
 
-For dereplication:
+and one of these for genome dereplication:
 * [skani](https://github.com/bluenote-1577/skani) v0.1.1
 * [Dashing](https://github.com/dnbaker/dashing) v0.4.0
 * [FastANI](https://github.com/ParBLiSS/FastANI) v1.3
