@@ -30,7 +30,7 @@ impl GenomesAndContigs {
             error!(
                 "The contig '{}' has been assigned to multiple genomes, \
                     at least '{}' and '{}'. You may try not using \
-                    --reference and let coverm generate a reference of \
+                    --reference/--bam-files and let coverm generate a reference of \
                     concatenated contigs, or rename the contigs in your \
                     genome file(s).",
                 contig_name, genome_prev, genome_current
