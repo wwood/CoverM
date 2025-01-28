@@ -10,6 +10,7 @@
 		- [Shell completion](#shell-completion)
 	- [Usage](#usage)
 	- [Calculation methods](#calculation-methods)
+	- [Citation](#citation)
 	- [License](#license)
 
 # CoverM
@@ -161,6 +162,12 @@ together. For instance, if a 2000bp contig with all positions having 1X coverage
 is in a genome with 2,000,000bp contig with no reads mapped, then the
 trimmed_mean will be 0 as all positions in the 2000bp are in the top 5% of
 positions sorted by coverage.
+
+## Citation
+
+If you use CoverM in your research, please cite the following publication:
+
+Aroney, S.T., Newell, R.J., Nissen, J.N., Camargo, A.P., Tyson, G.W. and Woodcroft, B.J., 2025. CoverM: Read alignment statistics for metagenomics. arXiv preprint arXiv:2501.11217. https://doi.org/10.48550/arXiv.2501.11217
 
 ## License
 
