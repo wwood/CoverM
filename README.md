@@ -10,6 +10,7 @@
 		- [Shell completion](#shell-completion)
 	- [Usage](#usage)
 	- [Calculation methods](#calculation-methods)
+	- [Demo](#demo)
 	- [Citation](#citation)
 	- [License](#license)
 
@@ -162,6 +163,60 @@ together. For instance, if a 2000bp contig with all positions having 1X coverage
 is in a genome with 2,000,000bp contig with no reads mapped, then the
 trimmed_mean will be 0 as all positions in the 2000bp are in the top 5% of
 positions sorted by coverage.
+
+## Demo
+
+Download a test dataset of 8 genomes and 1 sample of paired-end reads
+
+```bash
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.1.fq.gz
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.2.fq.gz
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_1.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_2.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_3.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_4.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_5.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_6.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_7.fna
+wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_8.fna
+```
+
+Run CoverM
+
+```bash
+coverm genome \
+  --coupled sample_1.1.fq.gz sample_1.2.fq.gz \
+  --genome-fasta-files \
+    genome_1.fna genome_2.fna genome_3.fna genome_4.fna \
+    genome_5.fna genome_6.fna genome_7.fna genome_8.fna \
+  -t 8 \
+  -m mean relative_abundance covered_fraction \
+  -o output_coverm.tsv
+```
+
+This should have created the file `output_coverm.tsv` and logged the following message:
+`coverm::genome] In sample 'sample_1.1.fq.gz', found 48254 reads mapped out of 100000 total (48.25%)`.
+This indicates that 48.25% of the reads from our sample mapped to the genomes. So our genomes represent about half of the diversity in the sample.
+
+Looking in `output_coverm.tsv`, we find columns with the following headings:
+
+- `Genome`: The name of the genome
+- `sample_1.1.fq.gz Mean`: The mean read coverage from sample_1 across the given genome, i.e. the average height across the genome if reads aligned were stacked on top of each other.
+- `sample_1.1.fq.gz Relative Abundance (%)`: The relative abundance of the genome within sample_1. This metric accounts for differing genome sizes by using the proportion of mean coverage rather than the proportion of reads.
+- `sample_1.1.fq.gz Covered Fraction`: The proportion of the genome that is covered by at least one read.
+
+Each row represents a genome, and the columns represent the coverage metrics calculated for that genome for each provided sample.
+For instance, the row for `genome_1` shows that the mean coverage of this genome is `0.941`, the relative abundance is `25.9`%, and the covered fraction is `0.528`.
+Again, the row for `genome_5` shows that the mean coverage of this genome is `0.0`, the relative abundance is `0.0`%, and the covered fraction is `0.0`.
+This indicates that `genome_1` is well represented in the sample, while `genome_5` is not present at all.
+There are 3 other genomes with varying coverage, and 3 other genomes with 0 coverage.
+
+You may have noticed that the coverage fraction for most genomes is rather low. This is because the reads have been sub-sampled to 100,000 reads.
+The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes. Notably, the relative abundances are very similar.
+The output from the full sample can be downloaded as follows: `wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/output_coverm_full.tsv`
+
+There is an additional row named `unmapped` which represents the coverage metrics for the reads that did not map to any of the provided genomes.
+This is only applicable to the relative abundance metric (among those we selected), and we can see that 51% of the reads were unmapped.
 
 ## Citation
 
