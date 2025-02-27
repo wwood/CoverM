@@ -166,7 +166,8 @@ positions sorted by coverage.
 
 ## Demo
 
-Download a test dataset of 8 genomes and 1 sample of paired-end reads
+Download a test dataset of 8 genomes and 1 sample of paired-end reads.
+This sample and genomes come from permafrost samples in Abisko, Sweden (see [doi](https://doi.org/10.1101/2025.02.07.636677) for more details).
 
 ```bash
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.1.fq.gz
@@ -213,7 +214,7 @@ There are 3 other genomes with varying coverage, and 3 other genomes with 0 cove
 
 You may have noticed that the coverage fraction for most genomes is rather low. This is because the reads have been sub-sampled to 100,000 reads.
 The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes. Notably, the relative abundances are very similar.
-The output from the full sample can be downloaded as follows: `wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/output_coverm_full.tsv`
+The output from the full sample can be found [here](https://github.com/wwood/CoverM/blob/main/demo/output_coverm_full.tsv).
 
 There is an additional row named `unmapped` which represents the coverage metrics for the reads that did not map to any of the provided genomes.
 This is only applicable to the relative abundance metric (among those we selected), and we can see that 51% of the reads were unmapped.
