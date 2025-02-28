@@ -166,8 +166,14 @@ positions sorted by coverage.
 
 ## Demo
 
-Download a test dataset of 8 genomes and 1 sample of paired-end reads.
+A common use case for CoverM is to calculate the coverage or relative abundance of a set of genomes in a metagenomic sample.
+This can be useful for assessing the proportion of the diversity in the sample that is represented by the genomes, and for comparing the abundance of genomes across samples.
+Here we will demonstrate how to calculate the coverage of 8 genomes in a sample of paired-end reads.
+We will assume that you have already installed CoverM and its dependencies (see above if not).
+
+First we will download the test dataset of 8 genomes and 1 sample of paired-end reads.
 This sample and genomes come from permafrost samples in Abisko, Sweden (see [doi](https://doi.org/10.1101/2025.02.07.636677) for more details).
+The sample has been sub-sampled to 100,000 reads to speed up this demo.
 
 ```bash
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.1.fq.gz
@@ -182,7 +188,11 @@ wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_8.fna
 ```
 
-Run CoverM
+Next, we can actually run CoverM.
+We use `--coupled` to specify the paired-end reads, and `--genome-fasta-files` to specify the genomes.
+We also specify the number of threads to use with `-t`, and the coverage metrics we want to calculate with `-m`.
+We will calculate the mean coverage, relative abundance, and covered fraction for each genome in the sample.
+The output will be written to `output_coverm.tsv`.
 
 ```bash
 coverm genome \
