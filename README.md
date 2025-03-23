@@ -185,8 +185,9 @@ Again, the row for `genome_5` shows that the mean coverage of this genome is `0.
 This indicates that `genome_1` is well represented in the sample, while `genome_5` is not present at all.
 There are 3 other genomes with varying coverage, and 3 other genomes with 0 coverage.
 
-You may have noticed that the coverage fraction for most genomes is rather low. This is because the reads have been sub-sampled to 100,000 reads.
-The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes. Notably, the relative abundances are very similar.
+You may have noticed that the covered fraction for most genomes is rather low. This is because the reads have been sub-sampled to 100,000 reads.
+The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes.
+In contrast, the relative abundance estimations do not change much when calculated with the full set of reads.
 The output from the full sample can be found [here](https://github.com/wwood/CoverM/blob/main/demo/output_coverm_full.tsv).
 
 There is an additional row named `unmapped` which represents the metrics for the reads that did not map to any of the provided genomes.
