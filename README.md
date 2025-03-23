@@ -134,6 +134,11 @@ This sample and genomes come from permafrost samples in Abisko, Sweden (see [doi
 The sample has been sub-sampled to 100,000 reads to speed up this demo.
 
 ```bash
+# Create a directory for the demo
+mkdir ~/coverm_demo
+cd ~/coverm_demo
+
+# Download files
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.1.fq.gz
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/sample_1.2.fq.gz
 wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_1.fna
