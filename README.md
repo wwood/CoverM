@@ -153,7 +153,7 @@ wget https://raw.githubusercontent.com/wwood/CoverM/refs/heads/main/demo/genome_
 
 Next, we can actually run CoverM.
 We use `--coupled` to specify the paired-end reads, and `--genome-fasta-files` to specify the genomes.
-We also specify the number of threads to use with `-t`, and the coverage metrics we want to calculate with `-m`.
+We also specify the number of threads to use with `-t`, and the metrics we want to calculate with `-m`.
 We will calculate the mean coverage, relative abundance, and covered fraction for each genome in the sample.
 The output will be written to `output_coverm.tsv`.
 
@@ -179,7 +179,7 @@ Looking in `output_coverm.tsv`, we find columns with the following headings:
 - `sample_1.1.fq.gz Relative Abundance (%)`: The relative abundance of the genome within sample_1. This metric accounts for differing genome sizes by using the proportion of mean coverage rather than the proportion of reads.
 - `sample_1.1.fq.gz Covered Fraction`: The proportion of the genome that is covered by at least one read.
 
-Each row represents a genome, and the columns represent the coverage metrics calculated for that genome for each provided sample.
+Each row represents a genome, and the columns represent the metrics calculated for that genome for each provided sample.
 For instance, the row for `genome_1` shows that the mean coverage of this genome is `0.941`, the relative abundance is `25.9`%, and the covered fraction is `0.528`.
 Again, the row for `genome_5` shows that the mean coverage of this genome is `0.0`, the relative abundance is `0.0`%, and the covered fraction is `0.0`.
 This indicates that `genome_1` is well represented in the sample, while `genome_5` is not present at all.
@@ -189,7 +189,7 @@ You may have noticed that the coverage fraction for most genomes is rather low. 
 The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes. Notably, the relative abundances are very similar.
 The output from the full sample can be found [here](https://github.com/wwood/CoverM/blob/main/demo/output_coverm_full.tsv).
 
-There is an additional row named `unmapped` which represents the coverage metrics for the reads that did not map to any of the provided genomes.
+There is an additional row named `unmapped` which represents the metrics for the reads that did not map to any of the provided genomes.
 This is only applicable to the relative abundance metric (among those we selected), and we can see that 51% of the reads were unmapped.
 
 ## Calculation methods
