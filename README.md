@@ -172,6 +172,20 @@ This should have created the file `output_coverm.tsv` and logged the following m
 `coverm::genome] In sample 'sample_1.1.fq.gz', found 48254 reads mapped out of 100000 total (48.25%)`.
 This indicates that 48.25% of the reads from our sample mapped to the genomes. So our genomes represent about half of the diversity in the sample.
 
+The file `output_coverm.tsv` should look like this:
+
+| Genome   | sample_1.1.fq.gz Mean | sample_1.1.fq.gz Relative Abundance (%) | sample_1.1.fq.gz Covered Fraction |
+|----------|-----------------------|-----------------------------------------|-----------------------------------|
+| unmapped | NA                    | 51.746                                  | NA                                |
+| genome_1 | 0.9410575             | 25.87694                                | 0.52770287                        |
+| genome_2 | 0.40274984            | 11.074703                               | 0.27789244                        |
+| genome_3 | 0.20988818            | 5.7714467                               | 0.15818907                        |
+| genome_4 | 0.20114066            | 5.5309105                               | 0.1509256                         |
+| genome_5 | 0                     | 0                                       | 0                                 |
+| genome_6 | 0                     | 0                                       | 0                                 |
+| genome_7 | 0                     | 0                                       | 0                                 |
+| genome_8 | 0                     | 0                                       | 0                                 |
+
 Looking in `output_coverm.tsv`, we find columns with the following headings:
 
 - `Genome`: The name of the genome
@@ -188,7 +202,19 @@ There are 3 other genomes with varying coverage, and 3 other genomes with 0 cove
 You may have noticed that the covered fraction for most genomes is rather low. This is because the reads have been sub-sampled to 100,000 reads.
 The full sample has 76,618,686 reads and produces covered fractions of 1 for all present genomes.
 In contrast, the relative abundance estimations do not change much when calculated with the full set of reads.
-The output from the full sample can be found [here](https://github.com/wwood/CoverM/blob/main/demo/output_coverm_full.tsv).
+The output from the full sample can be found [here](https://github.com/wwood/CoverM/blob/main/demo/output_coverm_full.tsv), or see below.
+
+| Genome   | 713_CPN1-1-X0.1.fq.gz Mean | 713_CPN1-1-X0.1.fq.gz Relative Abundance (%) | 713_CPN1-1-X0.1.fq.gz Covered Fraction |
+|----------|----------------------------|----------------------------------------------|----------------------------------------|
+| unmapped | NA                         | 50.81075                                     | NA                                     |
+| genome_1 | 732.317                    | 26.360964                                    | 0.999935                               |
+| genome_2 | 304.20364                  | 10.950313                                    | 1                                      |
+| genome_3 | 165.43732                  | 5.9551897                                    | 0.99993813                             |
+| genome_4 | 159.31432                  | 5.734782                                     | 0.9999948                              |
+| genome_5 | 0                          | 0                                            | 0                                      |
+| genome_6 | 0                          | 0                                            | 0                                      |
+| genome_7 | 0                          | 0                                            | 0                                      |
+| genome_8 | 5.2227674                  | 0.18800214                                   | 0.29310852                             |
 
 There is an additional row named `unmapped` which represents the metrics for the reads that did not map to any of the provided genomes.
 This is only applicable to the relative abundance metric (among those we selected), and we can see that 51% of the reads were unmapped.
