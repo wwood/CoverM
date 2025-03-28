@@ -937,10 +937,9 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
             ])
             .succeeds()
             .stdout()
-            .contains(
-                "reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669
-reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
-            )
+            .contains("reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669")
+            .stdout()
+            .contains("reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849")
             .unwrap();
     }
 
