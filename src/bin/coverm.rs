@@ -313,6 +313,13 @@ fn main() {
                                 genome_fasta_files_opt.unwrap()
                             };
                             info!("Profiling {} genomes", dereplicated_genomes.len());
+                            debug!(
+                                "Dereplicated genomes: {:?}",
+                                dereplicated_genomes
+                                    .iter()
+                                    .map(|s| s.as_str())
+                                    .collect::<Vec<_>>()
+                            );
 
                             let list_of_genome_fasta_files = &dereplicated_genomes;
                             info!(

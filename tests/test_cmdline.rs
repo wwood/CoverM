@@ -910,6 +910,41 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
     }
 
     #[test]
+    fn test_compressed_input_genome_fasta_files_directory_and_extension() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "-m",
+                "trimmed_mean",
+                "mean",
+                "covered_fraction",
+                "--no-zeros",
+                "-c",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir_compressed/",
+                "--genome-fasta-extension",
+                ".fna.gz",
+                "--trim-max",
+                "0.01",
+                "--trim-min",
+                "0.009",
+                "-p",
+                "minimap2-sr",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669
+reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_no_zeroes_missing_column_bug_separator() {
         Assert::main_binary()
             .with_args(&[

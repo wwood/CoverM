@@ -150,11 +150,9 @@ where
         to.set_insert_size(from.insert_size());
         to.set_tid(from.tid());
         // Remove previous NM tag if exists
-        match &to.aux("NM".as_bytes()) {
-            Ok(_) => to
-                .remove_aux(b"NM")
-                .expect("Failed to remove previous NM aux value when cloning"),
-            Err(_) => {}
+        if to.aux("NM".as_bytes()).is_ok() {
+            to.remove_aux(b"NM")
+                .expect("Failed to remove previous NM aux value when cloning")
         };
         match &from.aux("NM".as_bytes()) {
             Ok(value) => {
