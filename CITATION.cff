@@ -21,5 +21,5 @@ authors:
     orcid: https://orcid.org/0000-0003-0670-7480
 title: "CoverM: Read alignment statistics for metagenomics"
 version: 0.7.0
-doi: 10.48550/arXiv.2501.11217
+doi: 10.1093/bioinformatics/btaf147
 date-released: 2024-01-18
