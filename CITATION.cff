@@ -1,5 +1,6 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use CoverM, please cite the following paper."
+title: "CoverM: Read alignment statistics for metagenomics"
 authors:
   - family-names: Aroney
     given-names: Samuel T. N.
@@ -19,7 +20,9 @@ authors:
   - family-names: Woodcroft
     given-names: Ben J.
     orcid: https://orcid.org/0000-0003-0670-7480
-title: "CoverM: Read alignment statistics for metagenomics"
-version: 0.7.0
+date-released: 2025-04-01
 doi: 10.1093/bioinformatics/btaf147
-date-released: 2024-01-18
+url: https://doi.org/10.1093/bioinformatics/btaf147
+version: "41:4"
+type: article
+journal: "Bioinformatics"
