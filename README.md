@@ -265,7 +265,7 @@ positions sorted by coverage.
 
 If you use CoverM in your research, please cite the following publication:
 
-Aroney, S.T., Newell, R.J., Nissen, J.N., Camargo, A.P., Tyson, G.W. and Woodcroft, B.J., 2025. CoverM: Read alignment statistics for metagenomics. arXiv preprint arXiv:2501.11217. https://doi.org/10.48550/arXiv.2501.11217
+Aroney, S.T., Newell, R.J., Nissen, J.N., Camargo, A.P., Tyson, G.W. and Woodcroft, B.J., 2025. CoverM: Read alignment statistics for metagenomics, Bioinformatics 41:4, https://doi.org/10.1093/bioinformatics/btaf147.
 
 ## License
 
