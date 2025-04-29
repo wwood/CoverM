@@ -2,6 +2,30 @@ cff-version: 1.2.0
 message: "If you use CoverM, please cite the following paper."
 title: "CoverM: Read alignment statistics for metagenomics"
 authors:
+- family-names: Aroney
+  given-names: Samuel T. N.
+  orcid: https://orcid.org/0000-0001-9806-5846
+- family-names: Newell
+  given-names: Rhys J. P.
+  orcid: https://orcid.org/0000-0002-1300-6116
+- family-names: Nissen
+  given-names: J.
+  orcid: https://orcid.org/0000-0003-2860-7982
+- family-names: Camargo
+  given-names: Antonio P.
+  orcid: https://orcid.org/0000-0003-3913-2484
+- family-names: Tyson
+  given-names: Gene W.
+  orcid: https://orcid.org/0000-0001-8559-9427
+- family-names: Woodcroft
+  given-names: Ben J.
+  orcid: https://orcid.org/0000-0003-0670-7480
+date-released: 2025-04-01
+url: "https://doi.org/10.1093/bioinformatics/btaf147"
+version: 0.7.0
+preferred-citation:
+  type: article
+  authors:
   - family-names: Aroney
     given-names: Samuel T. N.
     orcid: https://orcid.org/0000-0001-9806-5846
@@ -20,9 +44,11 @@ authors:
   - family-names: Woodcroft
     given-names: Ben J.
     orcid: https://orcid.org/0000-0003-0670-7480
-date-released: 2025-04-01
-doi: 10.1093/bioinformatics/btaf147
-url: https://doi.org/10.1093/bioinformatics/btaf147
-version: "41:4"
-type: article
-journal: "Bioinformatics"
+  doi: "10.1093/bioinformatics/btaf147"
+  journal: "Bioinformatics"
+  month: 4
+  start: btaf147
+  title: "CoverM: Read alignment statistics for metagenomics"
+  issue: 4
+  volume: 41
+  year: 2025
