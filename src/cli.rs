@@ -604,6 +604,11 @@ pub fn contig_full_help() -> Manual {
                 Flag::new()
                     .long("--discard-unmapped")
                     .help("Exclude unmapped reads from cached BAM files. [default: not set]"),
+            )
+            .option(
+                Opt::new("FILE")
+                    .long("output-filtered-bam-files")
+                    .help("Path to output filtered BAM file(s). Conflicts with --methods aemb."),
             ),
     );
 
@@ -1660,6 +1665,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("bam-file-cache-directory")
                         .long("bam-file-cache-directory")
                         .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("output-filtered-bam-files")
+                        .long("output-filtered-bam-files")
+                        .help("Path to output filtered BAM file(s). Conflicts with --methods aemb."),
                 )
                 .arg(
                     Arg::new("threads")

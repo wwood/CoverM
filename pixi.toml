@@ -1,0 +1,28 @@
+[workspace]
+name = "coverm"
+version = "0.1.0"
+description = "CoverM tool for computing various forms of DNA sequence coverage calculations"
+channels = [
+    "conda-forge",
+    "bioconda",
+]
+
+# Core dependencies that work across all platforms
+[feature.common.dependencies]
+samtools = ">=1.9"
+coreutils = "*"
+minimap2 = ">=2.24"
+bwa = ">=0.7.17"
+fastani = ">=1.3"
+extern = "*"
+
+# x86_64-specific dependencies
+[feature.main.dependencies]
+bwa-mem2 = "*"
+dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
+strobealign = ">=0.14.0"  # tests use a pregenerated v3 database
+
+# Define environments
+[environments]
+default = ["main","common"]  # Environment with x86_64-specific tools
+osx = ["common"]  # Environment with common tools only

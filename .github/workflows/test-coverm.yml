@@ -28,7 +28,7 @@ jobs:
       - name: Run test
         shell: bash -el {0}
         run: |
-            cargo test
+            cargo clippy -- -D warnings && cargo fmt --all -- --check && cargo test
   miniconda_osx:
     name: miniconda_osx (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}

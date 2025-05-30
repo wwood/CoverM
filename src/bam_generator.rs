@@ -545,6 +545,7 @@ pub struct StreamingFilteredNamedBamReader {
     command_strings: Vec<String>,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
+    output_filtered_bam_stream: Option<bam::Writer>,
 }
 
 pub struct StreamingFilteredNamedBamReaderGenerator {
@@ -563,6 +564,7 @@ pub struct StreamingFilteredNamedBamReaderGenerator {
     min_aligned_percent_pair: f32,
     log_file_descriptions: Vec<String>,
     log_files: Vec<tempfile::NamedTempFile>,
+    output_filtered_bam_path: Option<String>,
 }
 
 impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader>
@@ -592,6 +594,21 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader>
             }
         };
 
+        // If there's a output_filtered_bam_file, open it for writing
+        let output_filtered_bam_stream = match self.output_filtered_bam_path {
+            Some(path) => {
+                let output_filtered_bam_stream = bam::Writer::from_path(
+                    path,
+                    &bam::header::Header::from_template(bam_reader.header()),
+                    bam::Format::Bam,
+                )
+                .expect("Failed to open output filtered BAM file for writing");
+                // TODO: Set compression level, num threads?
+                Some(output_filtered_bam_stream)
+            }
+            None => None,
+        };
+
         let filtered_stream = ReferenceSortedBamFilter::new(
             bam_reader,
             self.flag_filters,
@@ -612,6 +629,7 @@ impl NamedBamReaderGenerator<StreamingFilteredNamedBamReader>
             command_strings: self.command_strings,
             log_file_descriptions: self.log_file_descriptions,
             log_files: self.log_files,
+            output_filtered_bam_stream,
         }
     }
 }
@@ -621,6 +639,14 @@ impl NamedBamReader for StreamingFilteredNamedBamReader {
         &(self.stoit_name)
     }
     fn read(&mut self, record: &mut bam::record::Record) -> Option<HtslibResult<()>> {
+        // Write the record to the output filtered BAM stream if it exists
+        if let Some(ref mut output_stream) = self.output_filtered_bam_stream {
+            if !record.is_secondary() && !record.is_supplementary() {
+                output_stream
+                    .write(record)
+                    .expect("Failed to write record to output filtered BAM stream");
+            }
+        }
         self.filtered_stream.read(record)
     }
     fn header(&self) -> &bam::HeaderView {
@@ -662,6 +688,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
     read_format: ReadFormat,
     threads: u16,
     cached_bam_file: Option<&str>,
+    output_filtered_bam_files: Vec<&str>,
     flag_filters: FlagFilter,
     min_aligned_length_single: u32,
     min_percent_identity_single: f32,
@@ -702,6 +729,7 @@ pub fn generate_filtered_named_bam_readers_from_reads(
         min_aligned_length_pair,
         min_percent_identity_pair,
         min_aligned_percent_pair,
+        output_filtered_bam_file,
     }
 }
 
