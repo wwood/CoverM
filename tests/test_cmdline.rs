@@ -3300,6 +3300,26 @@ genome6~random_sequence_length_11003	0	0	0
             genome6~random_sequence_length_11003\t0\t0\n")
             .unwrap();
     }
+
+    #[test]
+    fn test_single_genome_anir() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "anir",
+                "-b",
+                "tests/data/2seqs.bad_read.1.with_supplementary.bam",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Genome\t2seqs.bad_read.1.with_supplementary ANIr\n\
+            genome1\t0.999\n")
+            .unwrap();
+    }
 }
 
 // TODO: Add mismatching bases test

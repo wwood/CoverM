@@ -1056,6 +1056,9 @@ impl EstimatorsAndTaker {
                     "reads_per_base" => {
                         estimators.push(CoverageEstimator::new_estimator_reads_per_base());
                     }
+                    "anir" => {
+                        estimators.push(CoverageEstimator::new_estimator_anir());
+                    }
                     "strobealign-aemb" => {
                         if methods.len() > 1 {
                             error!("Cannot (currently) specify the strobealign-aemb method with any other coverage methods");
@@ -1120,6 +1123,7 @@ impl EstimatorsAndTaker {
                     CoverageEstimator::ReadCountCalculator { .. } => die("counts"),
                     CoverageEstimator::ReferenceLengthCalculator { .. } => die("length"),
                     CoverageEstimator::ReadsPerBaseCalculator { .. } => die("reads_per_base"),
+                    CoverageEstimator::AverageIdentityEstimator { .. } => die("anir"),
                     CoverageEstimator::StrobealignAembEstimator { .. } => die("strobealign-aemb"),
                     _ => {}
                 }
