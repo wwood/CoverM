@@ -247,6 +247,7 @@ The difference coverage measures would be:
 | length | 1000 |  | The contig's length is 1000bp. |
 | count | 2 |  | 2 reads are mapped. |
 | reads_per_base | 0.002 | 2/1000 | 2 reads are mapped over 1000bp. |
+| anir | 0.95 | (sum identity of reads)/number of reads | Average BLAST-like identity of mapped reads |
 | metabat | contigLen 1000, totalAvgDepth 0.02235294, bam depth 0.02235294, variance 0.01961962 | | Reproduction of the [MetaBAT](https://bitbucket.org/berkeleylab/metabat) 'jgi_summarize_bam_contig_depths' tool output, producing [identical output](https://bitbucket.org/berkeleylab/metabat/issues/48/jgi_summarize_bam_contig_depths-coverage). |
 | coverage_histogram | 20 bases with coverage 1, 980 bases with coverage 0 | | The number of positions with each different coverage are tallied. |
 | rpkm | 1000000 | 2 * 10^9 / 1000 / 2 | Calculation here assumes no other reads map to other contigs. See https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ for an explanation of RPKM and TPM. Note that this calculates the RPKM contigs (or genomes in `genome` mode), not individual genes.|

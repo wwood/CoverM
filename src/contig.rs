@@ -35,16 +35,18 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
         let mut num_mapped_reads_in_current_contig: u64 = 0;
         let mut total_indels_in_current_contig: u64 = 0;
         let mut total_edit_distance_in_current_contig: u64 = 0;
+        let mut sum_identity_in_current_contig: f64 = 0.0;
 
         let mut process_previous_contigs =
             |last_tid,
              tid,
              coverage_estimators: &mut Vec<CoverageEstimator>,
              ups_and_downs: &[i32],
-             num_mapped_reads_in_current_contig,
-             total_edit_distance_in_current_contig,
-             total_indels_in_current_contig,
-             num_mapped_reads_total: &mut u64| {
+            num_mapped_reads_in_current_contig,
+            total_edit_distance_in_current_contig,
+            total_indels_in_current_contig,
+            sum_identity_in_current_contig: &mut f64,
+            num_mapped_reads_total: &mut u64| {
                 if last_tid != -2 {
                     debug!(
                         "Found {} reads mapped to tid {}, with total edit \
@@ -59,6 +61,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                             ups_and_downs,
                             num_mapped_reads_in_current_contig,
                             total_edit_distance_in_current_contig - total_indels_in_current_contig,
+                            *sum_identity_in_current_contig,
                         )
                     }
                     let coverages: Vec<f32> = coverage_estimators
@@ -87,6 +90,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     for estimator in coverage_estimators.iter_mut() {
                         estimator.setup();
                     }
+                    *sum_identity_in_current_contig = 0.0;
                 }
                 if print_zero_coverage_contigs {
                     print_previous_zero_coverage_contigs(
@@ -138,6 +142,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         num_mapped_reads_in_current_contig,
                         total_edit_distance_in_current_contig,
                         total_indels_in_current_contig,
+                        &mut sum_identity_in_current_contig,
                         &mut num_mapped_reads_total,
                     );
                     ups_and_downs =
@@ -150,6 +155,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     num_mapped_reads_in_current_contig = 0;
                     total_edit_distance_in_current_contig = 0;
                     total_indels_in_current_contig = 0;
+                    sum_identity_in_current_contig = 0.0;
                 }
 
                 if !record.is_supplementary() && !record.is_secondary() {
@@ -162,6 +168,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     std::str::from_utf8(record.qname()).unwrap()
                 );
                 let mut cursor: usize = record.pos() as usize;
+                let mut aligned_len: u64 = 0;
                 for cig in record.cigar().iter() {
                     trace!("Found cigar {:} from {}", cig, cursor);
                     match cig {
@@ -179,10 +186,12 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                                 ups_and_downs[final_pos] -= 1;
                             }
                             cursor += cig.len() as usize;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::Del(_) => {
                             cursor += cig.len() as usize;
                             total_indels_in_current_contig += cig.len() as u64;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::RefSkip(_) => {
                             // if D or N, move the cursor
@@ -190,6 +199,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         }
                         Cigar::Ins(_) => {
                             total_indels_in_current_contig += cig.len() as u64;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
@@ -197,7 +207,12 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
 
                 // Determine the number of mismatching bases in this read by
                 // looking at the NM tag.
-                total_edit_distance_in_current_contig += nm(&record);
+                let edit = nm(&record);
+                total_edit_distance_in_current_contig += edit;
+                if !record.is_supplementary() && !record.is_secondary() && aligned_len > 0 {
+                    sum_identity_in_current_contig +=
+                        (aligned_len as f64 - edit as f64) / aligned_len as f64;
+                }
 
                 trace!("At end of loop")
             }
@@ -211,6 +226,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig,
             total_indels_in_current_contig,
+            &mut sum_identity_in_current_contig,
             &mut num_mapped_reads_total,
         );
 
