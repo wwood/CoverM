@@ -222,7 +222,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                         // looking at the NM tag.
                         let edit = nm(&record);
                         total_edit_distance_in_current_contig += edit;
-                        if aligned_len > 0 {
+                        if !record.is_supplementary() && aligned_len > 0 {
                             sum_identity_in_current_contig +=
                                 (aligned_len as f64 - edit as f64) / aligned_len as f64;
                         }
@@ -518,6 +518,7 @@ pub fn mosdepth_genome_coverage<
         let mut num_mapped_reads_in_current_genome: u64 = 0;
         let mut total_edit_distance_in_current_contig: u64 = 0;
         let mut total_indels_in_current_contig: u64 = 0;
+        let mut sum_identity_in_current_contig: f64 = 0.0;
         loop {
             match bam_generated.read(&mut record) {
                 None => {
@@ -672,6 +673,7 @@ pub fn mosdepth_genome_coverage<
                     num_mapped_reads_in_current_contig = 0;
                     total_edit_distance_in_current_contig = 0;
                     total_indels_in_current_contig = 0;
+                    sum_identity_in_current_contig = 0.0;
                     last_tid = tid;
                 }
 
@@ -688,6 +690,7 @@ pub fn mosdepth_genome_coverage<
                     num_mapped_reads_in_current_genome += 1;
                 }
                 let mut cursor: usize = record.pos() as usize;
+                let mut aligned_len: u64 = 0;
                 for cig in record.cigar().iter() {
                     trace!("Found cigar {:} from {}", cig, cursor);
                     match cig {
@@ -705,16 +708,19 @@ pub fn mosdepth_genome_coverage<
                                 ups_and_downs[final_pos] -= 1;
                             }
                             cursor += cig.len() as usize;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::Del(_) => {
                             cursor += cig.len() as usize;
                             total_indels_in_current_contig += cig.len() as u64;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::RefSkip(_) => {
                             cursor += cig.len() as usize;
                         }
                         Cigar::Ins(_) => {
                             total_indels_in_current_contig += cig.len() as u64;
+                            aligned_len += cig.len() as u64;
                         }
                         Cigar::SoftClip(_) | Cigar::HardClip(_) | Cigar::Pad(_) => {}
                     }
@@ -722,7 +728,12 @@ pub fn mosdepth_genome_coverage<
 
                 // Determine the number of mismatching bases in this read by
                 // looking at the NM tag.
-                total_edit_distance_in_current_contig += nm(&record);
+                let edit = nm(&record);
+                total_edit_distance_in_current_contig += edit;
+                if !record.is_supplementary() && !record.is_secondary() && aligned_len > 0 {
+                    sum_identity_in_current_contig +=
+                        (aligned_len as f64 - edit as f64) / aligned_len as f64;
+                }
             }
         }
 

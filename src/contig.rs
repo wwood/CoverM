@@ -45,7 +45,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig,
             total_indels_in_current_contig,
-            sum_identity_in_current_contig,
+            sum_identity_in_current_contig: &mut f64,
             num_mapped_reads_total: &mut u64| {
                 if last_tid != -2 {
                     debug!(
@@ -61,7 +61,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                             ups_and_downs,
                             num_mapped_reads_in_current_contig,
                             total_edit_distance_in_current_contig - total_indels_in_current_contig,
-                            sum_identity_in_current_contig,
+                            *sum_identity_in_current_contig,
                         )
                     }
                     let coverages: Vec<f32> = coverage_estimators
@@ -90,7 +90,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                     for estimator in coverage_estimators.iter_mut() {
                         estimator.setup();
                     }
-                    sum_identity_in_current_contig = 0.0;
+                    *sum_identity_in_current_contig = 0.0;
                 }
                 if print_zero_coverage_contigs {
                     print_previous_zero_coverage_contigs(
@@ -142,7 +142,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         num_mapped_reads_in_current_contig,
                         total_edit_distance_in_current_contig,
                         total_indels_in_current_contig,
-                        sum_identity_in_current_contig,
+                        &mut sum_identity_in_current_contig,
                         &mut num_mapped_reads_total,
                     );
                     ups_and_downs =
@@ -209,7 +209,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                 // looking at the NM tag.
                 let edit = nm(&record);
                 total_edit_distance_in_current_contig += edit;
-                if aligned_len > 0 {
+                if !record.is_supplementary() && !record.is_secondary() && aligned_len > 0 {
                     sum_identity_in_current_contig +=
                         (aligned_len as f64 - edit as f64) / aligned_len as f64;
                 }
@@ -226,7 +226,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
             num_mapped_reads_in_current_contig,
             total_edit_distance_in_current_contig,
             total_indels_in_current_contig,
-            sum_identity_in_current_contig,
+            &mut sum_identity_in_current_contig,
             &mut num_mapped_reads_total,
         );
 
