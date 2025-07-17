@@ -650,7 +650,6 @@ pub fn mosdepth_genome_coverage<
                             num_mapped_reads_total += num_mapped_reads_in_current_genome;
                         }
                         num_mapped_reads_in_current_genome = 0;
-                        sum_identity_in_current_contig = 0.0;
                         last_genome = Some(current_genome);
 
                         unobserved_contig_length_and_first_tid = fill_genome_length_backwards(
