@@ -9,6 +9,7 @@ channels = [
 platforms = [
     "linux-64",
     "osx-64",
+    "osx-arm64",
 ]
 
 # Core dependencies that work across all platforms
