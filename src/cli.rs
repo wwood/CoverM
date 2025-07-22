@@ -29,9 +29,13 @@ lazy_static! {
             dereplication_ani_argument: "dereplication-ani".to_string(),
             dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
             dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
-            dereplication_cluster_method_argument: "dereplication-cluster-method".to_string(),
             dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
+            dereplication_cluster_method_argument: "dereplication-cluster-method".to_string(),
             dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
+            dereplication_small_genomes_argument: "dereplication-small-genomes".to_string(),
+            dereplication_cluster_contigs_argument: "dereplication-cluster-contigs".to_string(),
+            dereplication_small_contigs_argument: "dereplication-small-contigs".to_string(),
+            dereplication_large_contigs_argument: "dereplication-large-contigs".to_string(),
             dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
             dereplication_output_cluster_definition_file: "dereplication-output-cluster-definition"
                 .to_string(),
@@ -1471,22 +1475,42 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .default_value(galah::DEFAULT_QUALITY_FORMULA),
                 )
                 .arg(
-                    Arg::new("dereplication-cluster-method")
-                        .long("dereplication-cluster-method")
-                        .value_parser(galah::CLUSTER_METHODS)
-                        .default_value(galah::DEFAULT_CLUSTER_METHOD),
-                )
-                .arg(
                     Arg::new("dereplication-precluster-method")
                         .long("dereplication-precluster-method")
                         .value_parser(galah::PRECLUSTER_METHODS)
                         .default_value(galah::DEFAULT_PRECLUSTER_METHOD),
                 )
                 .arg(
+                    Arg::new("dereplication-cluster-method")
+                        .long("dereplication-cluster-method")
+                        .value_parser(galah::CLUSTER_METHODS)
+                        .default_value(galah::DEFAULT_CLUSTER_METHOD),
+                )
+                .arg(
                     Arg::new("dereplication-aligned-fraction")
                         .long("dereplication-aligned-fraction")
                         .default_value(galah::DEFAULT_ALIGNED_FRACTION)
                         .value_parser(clap::value_parser!(f32)),
+                )
+                .arg(
+                    Arg::new("dereplication-small-genomes")
+                        .long("dereplication-small-genomes")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("dereplication-cluster-contigs")
+                        .long("dereplication-cluster-contigs")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("dereplication-small-contigs")
+                        .long("dereplication-small-contigs")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("dereplication-large-contigs")
+                        .long("dereplication-large-contigs")
+                        .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
                     Arg::new("dereplication-fragment-length")

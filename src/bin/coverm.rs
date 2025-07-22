@@ -813,6 +813,8 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     // Generate clusterer and check for dependencies
     let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
         genome_fasta_files,
+        &None, // No additional genome files
+        false, // Not using a different mode
         m,
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
     )
@@ -843,6 +845,7 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         cluster_outputs,
         &cluster_indices,
         &clusterer.genome_fasta_paths,
+        None, // No additional output parameter needed
     );
 
     reps

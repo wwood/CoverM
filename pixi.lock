@@ -58,6 +58,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.12-8_cp312.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/readline-8.2-h8c095d6_2.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/samtools-1.21-h50ea8bc_0.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/linux-64/skani-0.2.2-ha6fb395_2.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/strobealign-0.14.0-h43eeafb_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.28-h4ee821c_8.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
@@ -105,6 +106,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.8-8_cp38.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/readline-8.2-h7cca4af_2.conda
       - conda: https://conda.anaconda.org/bioconda/osx-64/samtools-1.21-h94387ee_0.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/osx-64/skani-0.2.2-hdc87acc_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-64/tk-8.6.13-h1abcd95_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/xz-5.8.1-h357f2ed_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/xz-gpl-tools-5.8.1-h357f2ed_2.conda
@@ -150,6 +152,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.13-8_cp313.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.2-h1d1bf99_2.conda
       - conda: https://conda.anaconda.org/bioconda/osx-arm64/samtools-1.22.1-h267f7b9_0.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/osx-arm64/skani-0.2.2-h15efd92_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tk-8.6.13-h892fb3f_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025b-h78e105d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-h6491c7d_2.conda
@@ -1501,6 +1504,37 @@ packages:
   license: MIT
   size: 487801
   timestamp: 1752527988280
+- conda: https://conda.anaconda.org/bioconda/linux-64/skani-0.2.2-ha6fb395_2.tar.bz2
+  sha256: d1891e7cb9aa94312181db024571dfd49d933be4a47ad3dee15acc6154d8cc37
+  md5: 5bca611ce2d96b0a138cf46d7d486f03
+  depends:
+  - libgcc >=13
+  - libstdcxx >=13
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  size: 815619
+  timestamp: 1734135594692
+- conda: https://conda.anaconda.org/bioconda/osx-64/skani-0.2.2-hdc87acc_2.tar.bz2
+  sha256: fcfa0d2fc0d2a043704b33789283f473a2ee047c96298ba19e42ef953d4696e9
+  md5: c2a661c090023248b8db9aa08810a7d9
+  depends:
+  - libcxx >=18
+  constrains:
+  - __osx >=10.13
+  license: MIT
+  size: 704046
+  timestamp: 1733965904455
+- conda: https://conda.anaconda.org/bioconda/osx-arm64/skani-0.2.2-h15efd92_2.tar.bz2
+  sha256: fb43d0058837e0b34c94dd903a32e0cf0e76a79b3746ed8559e762e08408bf7a
+  md5: cfc1209112175a91be4fc95befd54c91
+  depends:
+  - libcxx >=18
+  constrains:
+  - __osx >=11.0
+  license: MIT
+  size: 705725
+  timestamp: 1733964969656
 - conda: https://conda.anaconda.org/bioconda/linux-64/strobealign-0.14.0-h43eeafb_0.tar.bz2
   sha256: 391ed8ba51af510a92e5c5a1e2746ffb4297e6659e009da5f0ecf5b5341bee20
   md5: 7190c1d5e7ddd45635fb93af805b1ce3
