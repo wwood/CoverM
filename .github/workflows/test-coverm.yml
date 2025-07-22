@@ -1,9 +1,9 @@
-name: Test CoverM with Setup-Miniconda From Marketplace
+name: Test CoverM with Pixi
 on: [push, pull_request]
 
 jobs:
-  miniconda_linux:
-    name: Miniconda (${{ matrix.python-version }}, ${{ matrix.os }})
+  pixi_test_dependencies_locked:
+    name: Pixi test_dependencies_locked (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -11,26 +11,58 @@ jobs:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
-          environment-file: coverm.yml
-          channels: conda-forge,defaults,bioconda
-          miniforge-version: latest
-      - name: Conda info
-        shell: bash -el {0}
-        run: conda info
-      - name: Conda list
-        shell: pwsh
-        run: conda list
-      - name: Run test
-        shell: bash -el {0}
+      - uses: actions/checkout@v3
+
+      - name: Install Pixi
         run: |
-            cargo test
-  miniconda_osx:
-    name: miniconda_osx (${{ matrix.python-version }}, ${{ matrix.os }})
+          curl -fsSL https://pixi.sh/install.sh | bash
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+      - name: Show environment info
+        run: |
+          pixi run -e dev --frozen pixi info
+          pixi run -e dev --frozen pixi list
+
+      - name: Run tests with Pixi
+        run: |
+          pixi run -e dev --frozen cargo test
+
+  # Run after removing lock file so dependences are unlocked
+  pixi_test_dependencies_optimistic:
+    name: Pixi test_dependencies_optimistic (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Pixi
+        run: |
+          curl -fsSL https://pixi.sh/install.sh | bash
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+      - name: Remove lock file
+        run: |
+          rm -fv pixi.lock
+
+      - name: Create dev environment
+        run: |
+          pixi run -e dev pixi info
+
+      - name: Show environment info
+        run: |
+          pixi run -e dev pixi list
+
+      - name: Run tests with Pixi
+        run: |
+          pixi run -e dev cargo test
+
+  # OSX tests
+  pixi_test_dependencies_locked_osx:
+    name: Pixi test_dependencies_locked (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -38,21 +70,51 @@ jobs:
         os: ["macos-latest"]
         python-version: ["3.8"] # Must use 3.8 so that minimap2 installs
     steps:
-      - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
-          environment-file: coverm-osx.yml
-          channels: conda-forge,defaults,bioconda
-          miniforge-version: latest
-      - name: Conda info
-        shell: bash -el {0}
-        run: conda info
-      - name: Conda list
-        shell: pwsh
-        run: conda list
-      - name: Run test
-        shell: bash -el {0}
+      - uses: actions/checkout@v3
+
+      - name: Install Pixi
         run: |
-          cargo test -- --skip bwa_mem2 --skip strobealign
+          curl -fsSL https://pixi.sh/install.sh | bash
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+      - name: Show environment info
+        run: |
+          pixi run -e dev --frozen pixi info
+          pixi run -e dev --frozen pixi list
+
+      - name: Run tests with Pixi
+        run: |
+          pixi run -e dev --frozen cargo test -- --skip bwa_mem2 --skip strobealign
+
+  # Run after removing lock file so dependences are unlocked
+  pixi_test_dependencies_optimistic_osx:
+    name: Pixi test_dependencies_optimistic (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["macos-latest"]
+        python-version: ["3.8"] # Must use 3.8 so that minimap2 installs
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Pixi
+        run: |
+          curl -fsSL https://pixi.sh/install.sh | bash
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+      - name: Remove lock file
+        run: |
+          rm -fv pixi.lock
+
+      - name: Create dev environment
+        run: |
+          pixi run -e dev pixi info
+
+      - name: Show environment info
+        run: |
+          pixi run -e dev pixi list
+
+      - name: Run tests with Pixi
+        run: |
+          pixi run -e dev cargo test -- --skip bwa_mem2 --skip strobealign
