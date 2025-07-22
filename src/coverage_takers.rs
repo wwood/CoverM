@@ -104,7 +104,7 @@ impl CoverageTaker for CoverageTakerType {
                 print_stream,
                 current_stoit,
             } => match current_stoit {
-                Some(stoit) => write!(print_stream, "{}\t{}", stoit, entry_name).unwrap(),
+                Some(stoit) => write!(print_stream, "{stoit}\t{entry_name}").unwrap(),
                 None => unreachable!(),
             },
             CoverageTakerType::PileupCoverageCoveragePrinter {
@@ -166,7 +166,7 @@ impl CoverageTaker for CoverageTakerType {
                 if coverage == 0.0 {
                     write!(print_stream, "\t0").unwrap()
                 } else {
-                    write!(print_stream, "\t{}", coverage).unwrap()
+                    write!(print_stream, "\t{coverage}").unwrap()
                 }
             }
             CoverageTakerType::PileupCoverageCoveragePrinter { .. } => {
@@ -206,12 +206,7 @@ impl CoverageTaker for CoverageTakerType {
                     Some(ref entry) => entry,
                     None => unreachable!(),
                 };
-                writeln!(
-                    print_stream,
-                    "{}\t{}\t{}\t{}",
-                    stoit, entry, num_reads, num_bases
-                )
-                .unwrap();
+                writeln!(print_stream, "{stoit}\t{entry}\t{num_reads}\t{num_bases}").unwrap();
             }
         }
     }

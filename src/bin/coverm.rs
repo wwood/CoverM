@@ -1332,7 +1332,7 @@ where
             .expect("Unable to covert file name into str")
             .to_string();
         concatenated_reference_name = match concatenated_reference_name {
-            Some(prev) => Some(format!("{}|{}", prev, reference_name)),
+            Some(prev) => Some(format!("{prev}|{reference_name}")),
             None => Some(reference_name),
         };
         let bam_file_cache = |naming_readset| -> Option<String> {
@@ -1375,7 +1375,7 @@ where
                 .expect("Unable to covert file name into str")
                 .to_string();
             concatenated_read_names = match concatenated_read_names {
-                Some(prev) => Some(format!("{}|{}", prev, name)),
+                Some(prev) => Some(format!("{prev}|{name}")),
                 None => Some(name.to_string()),
             };
         }

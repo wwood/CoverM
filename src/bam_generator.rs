@@ -367,7 +367,7 @@ pub fn generate_named_bam_readers_from_reads(
                     .expect("Failed to convert tempfile path to str")
             )
         }
-        None => format!("> {:?}", fifo_path),
+        None => format!("> {fifo_path:?}"),
     };
 
     let mapping_command = build_mapping_command(
@@ -813,13 +813,13 @@ pub fn generate_bam_maker_generator_from_reads(
     ];
     let log_files = vec![mapping_log, samtools2_log, samtools_view_cache_log];
 
-    return NamedBamMakerGenerator {
+    NamedBamMakerGenerator {
         stoit_name: name_stoit(index.index_path(), read1_path, true),
         pre_processes: vec![cmd],
         command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
         log_file_descriptions: log_descriptions,
         log_files,
-    };
+    }
 }
 
 impl NamedBamReaderGenerator<NamedBamMaker> for NamedBamMakerGenerator {
@@ -882,9 +882,9 @@ pub fn build_mapping_command(
     };
 
     let read_params2 = match read_format {
-        ReadFormat::Interleaved => format!("'{}'", read1_path),
+        ReadFormat::Interleaved => format!("'{read1_path}'"),
         ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
-        ReadFormat::Single => format!("'{}'", read1_path),
+        ReadFormat::Single => format!("'{read1_path}'"),
     };
 
     format!(

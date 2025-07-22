@@ -102,7 +102,7 @@ impl TemporaryIndexStruct {
                     | MappingProgram::STROBEALIGN => {}
                 };
                 if let Some(t) = num_threads {
-                    cmd.arg("-t").arg(format!("{}", t));
+                    cmd.arg("-t").arg(format!("{t}"));
                 }
                 cmd.arg("-d").arg(&index_path).arg(reference_path);
             }
@@ -147,10 +147,10 @@ impl TemporaryIndexStruct {
             process::exit(1);
         }
         info!("Finished generating {:?} index.", mapping_program);
-        return TemporaryIndexStruct {
+        TemporaryIndexStruct {
             index_path_internal: index_path.to_string_lossy().to_string(),
             tempdir: td,
-        };
+        }
     }
 }
 impl MappingIndex for TemporaryIndexStruct {
@@ -176,7 +176,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
     let num_extensions = bwa_extensions.len();
     let mut num_existing: usize = 0;
     for extension in bwa_extensions {
-        if std::path::Path::new(&format!("{}.{}", reference_path, extension)).exists() {
+        if std::path::Path::new(&format!("{reference_path}.{extension}")).exists() {
             num_existing += 1;
         }
     }

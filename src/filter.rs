@@ -277,9 +277,9 @@ fn single_read_passes_filter(
         aligned as f32 / record.seq().len() as f32
     );
 
-    return aligned >= min_aligned_length_single
+    aligned >= min_aligned_length_single
         && aligned as f32 / record.seq().len() as f32 >= min_aligned_percent_single
-        && 1.0 - edit_distance1 as f32 / aligned as f32 >= min_percent_identity_single;
+        && 1.0 - edit_distance1 as f32 / aligned as f32 >= min_percent_identity_single
 }
 
 fn read_pair_passes_filter(
@@ -332,11 +332,11 @@ fn read_pair_passes_filter(
         aligned as f32 / ((record1.seq().len() + record2.seq().len()) as f32)
     );
 
-    return aligned >= min_aligned_length_pair
+    aligned >= min_aligned_length_pair
         && aligned as f32 / (record1.seq().len() + record2.seq().len()) as f32
             >= min_aligned_percent_pair
         && 1.0 - ((edit_distance1 + edit_distance2) as f32 / aligned as f32)
-            >= min_percent_identity_pair;
+            >= min_percent_identity_pair
 }
 
 #[cfg(test)]

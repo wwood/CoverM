@@ -42,11 +42,11 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
              tid,
              coverage_estimators: &mut Vec<CoverageEstimator>,
              ups_and_downs: &[i32],
-            num_mapped_reads_in_current_contig,
-            total_edit_distance_in_current_contig,
-            total_indels_in_current_contig,
-            sum_identity_in_current_contig: &mut f64,
-            num_mapped_reads_total: &mut u64| {
+             num_mapped_reads_in_current_contig,
+             total_edit_distance_in_current_contig,
+             total_indels_in_current_contig,
+             sum_identity_in_current_contig: &mut f64,
+             num_mapped_reads_total: &mut u64| {
                 if last_tid != -2 {
                     debug!(
                         "Found {} reads mapped to tid {}, with total edit \

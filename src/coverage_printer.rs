@@ -129,9 +129,9 @@ impl CoveragePrinter {
         match self {
             CoveragePrinter::StreamedCoveragePrinter
             | CoveragePrinter::SparseCachedCoveragePrinter => {
-                write!(print_stream, "Sample\t{}", entry_type_str).unwrap();
+                write!(print_stream, "Sample\t{entry_type_str}").unwrap();
                 for h in estimator_headers_vec {
-                    write!(print_stream, "\t{}", h).unwrap();
+                    write!(print_stream, "\t{h}").unwrap();
                 }
                 writeln!(print_stream).unwrap();
             }
@@ -222,7 +222,7 @@ pub fn print_sparse_cached_coverage_taker(
                     // Print unmapped entries at the top
                     let stoit = &stoit_names[current_stoit_index];
                     if !columns_to_normalise.is_empty() {
-                        write!(print_stream, "{}\tunmapped", stoit).unwrap();
+                        write!(print_stream, "{stoit}\tunmapped").unwrap();
                         for (i, column) in columns_to_normalise.iter().enumerate() {
                             if i == 0 {
                                 for _ in 0..*column {
@@ -373,10 +373,10 @@ pub fn print_dense_cached_coverage_taker(
             );
 
             // Print headers
-            write!(print_stream, "{}", entry_type).unwrap();
+            write!(print_stream, "{entry_type}").unwrap();
             for stoit_name in stoit_names {
                 for estimator_header in estimator_headers {
-                    write!(print_stream, "\t{} {}", stoit_name, estimator_header).unwrap();
+                    write!(print_stream, "\t{stoit_name} {estimator_header}").unwrap();
                 }
             }
             writeln!(print_stream).unwrap();
@@ -530,7 +530,7 @@ pub fn print_dense_cached_coverage_taker(
                             )
                             .unwrap();
                         } else {
-                            write!(print_stream, "\t{}", cov).unwrap();
+                            write!(print_stream, "\t{cov}").unwrap();
                         }
                     }
                 }
