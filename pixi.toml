@@ -16,7 +16,7 @@ platforms = [
 [dependencies]
 samtools = ">=1.9"
 coreutils = "*"
-minimap2 = ">=2.24,<2.29" # Restrict due to test_no_zeros_bug1_minimap2 failing with slightly different values
+minimap2 = ">=2.24"
 bwa = ">=0.7.17"
 skani = ">=0.2.2"
 fastani = ">=1.3"

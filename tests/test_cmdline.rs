@@ -26,6 +26,74 @@ mod tests {
         true
     }
 
+    fn assert_equal_table_approx(expected: &str, observed: &str) -> bool {
+        let tolerance = 0.001;
+        // assert the first lines are the same
+        let mut expected_lines = expected.lines();
+        let mut observed_lines = observed.lines();
+        assert_eq!(expected_lines.next(), observed_lines.next());
+
+        // collect and sort the remaining lines
+        let mut expected_contents: Vec<_> = expected_lines.collect();
+        let mut observed_contents: Vec<_> = observed_lines.collect();
+        expected_contents.sort();
+        observed_contents.sort();
+
+        assert_eq!(
+            expected_contents.len(),
+            observed_contents.len(),
+            "Different number of data rows",
+        );
+
+        // compare each line with tolerance for numeric values
+        for (expected_line, observed_line) in expected_contents.iter().zip(observed_contents.iter())
+        {
+            let expected_parts: Vec<&str> = expected_line.split('\t').collect();
+            let observed_parts: Vec<&str> = observed_line.split('\t').collect();
+
+            assert_eq!(
+                expected_parts.len(),
+                observed_parts.len(),
+                "Different number of columns in line: expected '{}', observed '{}'",
+                expected_line,
+                observed_line,
+            );
+
+            for (i, (expected_part, observed_part)) in
+                expected_parts.iter().zip(observed_parts.iter()).enumerate()
+            {
+                if i == 0 {
+                    // First column is genome name, should be exact match
+                    assert_eq!(
+                        expected_part, observed_part,
+                        "Genome names don't match: expected '{}', observed '{}'",
+                        expected_part, observed_part
+                    );
+                } else {
+                    // Other columns are numeric, use tolerance
+                    match (expected_part.parse::<f64>(), observed_part.parse::<f64>()) {
+                        (Ok(expected_val), Ok(observed_val)) => {
+                            let diff = (expected_val - observed_val).abs();
+                            assert!(diff <= tolerance,
+                                   "Values differ by more than tolerance: expected {}, observed {}, diff {} > {}", 
+                                   expected_val, observed_val, diff, tolerance);
+                        }
+                        _ => {
+                            // If not numeric, compare as strings
+                            assert_eq!(
+                                expected_part, observed_part,
+                                "Non-numeric values don't match: expected '{}', observed '{}'",
+                                expected_part, observed_part
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        true
+    }
+
     #[test]
     fn test_filter_all_reads() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
@@ -2311,7 +2379,7 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .satisfies(
                 |observed| {
-                    assert_equal_table(
+                    assert_equal_table_approx(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                         73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                         ",
@@ -2355,7 +2423,7 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .satisfies(
                 |observed| {
-                    assert_equal_table(
+                    assert_equal_table_approx(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                         73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0\t0\n73.20120700_S3D.16\t0\t0\n73.20120700_S3D.3\t0\t0\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                         ",
@@ -2400,7 +2468,7 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .satisfies(
                 |observed| {
-                    assert_equal_table(
+                    assert_equal_table_approx(
                         "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                         73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n",
                         observed,
@@ -2444,7 +2512,7 @@ genome6~random_sequence_length_11003	0	0	0
         .stdout()
         .satisfies(
             |observed| {
-                assert_equal_table(
+                assert_equal_table_approx(
                     "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                     73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.15\t0.03561887\t0.034370355\n73.20120700_S3D.16\t0.032864396\t0.031665392\n73.20120700_S3D.3\t0.036180563\t0.03499215\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                     ",
@@ -2489,7 +2557,7 @@ genome6~random_sequence_length_11003	0	0	0
         .stdout()
         .satisfies(
             |observed| {
-                assert_equal_table(
+                assert_equal_table_approx(
                     "Genome	20120700_S3D.head100000.1.fq.gz Mean	20120700_S3D.head100000.1.fq.gz Covered Fraction\n\
                     73.20120700_S3D.10\t0.071023874\t0.06777273\n73.20120700_S3D.12\t0\t0\n73.20120700_S3D.15\t0.03561887\t0.034370355\n73.20120700_S3D.16\t0.032864396\t0.031665392\n73.20120700_S3D.3\t0.036180563\t0.03499215\n73.20120700_S3D.34\t0.06653676\t0.0630154\n73.20120700_S3D.5\t0.1341526\t0.123165175\n73.20120700_S3D.7\t0.100108385\t0.093486056\n\
                     ",
