@@ -32,8 +32,8 @@ version-compare = "0.2.0"
 # bird_tool_utils = "0.5.0"
 bird_tool_utils = { git = "https://github.com/wwood/bird_tool_utils" }
 # bird_tool_utils = { path = "../bird_tool_utils" }
-galah = "0.4.0"
-# galah = { git = "https://github.com/wwood/galah" }
+# galah = "0.4.0"
+galah = { git = "https://github.com/wwood/galah", rev = "a351847532c82a22743fd8e6da5643689960d46a" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
 needletail = "0.5.*"
