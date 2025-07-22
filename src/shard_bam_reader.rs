@@ -32,7 +32,7 @@ fn bam_header_target_name(header: &bam::HeaderView, tid: usize) -> &[u8] {
     let names = unsafe {
         slice::from_raw_parts(header.inner().target_name, header.target_count() as usize)
     };
-    return unsafe { ffi::CStr::from_ptr(names[tid]).to_bytes() };
+    unsafe { ffi::CStr::from_ptr(names[tid]).to_bytes() }
 }
 
 pub struct ReadSortedShardedBamReader<'a, T>
@@ -546,7 +546,7 @@ where
         .fold(None, {
             |acc, s| match acc {
                 None => Some(s),
-                Some(prev) => Some(format!("{}|{}", prev, s)),
+                Some(prev) => Some(format!("{prev}|{s}")),
             }
         })
         .unwrap();
@@ -614,7 +614,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
                     .expect("Failed to convert tempfile path to str")
             )
         }
-        None => format!("> {:?}", fifo_path),
+        None => format!("> {fifo_path:?}"),
     };
 
     let mapping_command = build_mapping_command(

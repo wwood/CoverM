@@ -352,7 +352,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *num_mapped_reads = 0;
             }
-            CoverageEstimator::AverageIdentityEstimator { sum_identity, num_reads } => {
+            CoverageEstimator::AverageIdentityEstimator {
+                sum_identity,
+                num_reads,
+            } => {
                 *sum_identity = 0.0;
                 *num_reads = 0;
             }
@@ -517,7 +520,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *num_mapped_reads += num_mapped_reads_in_contig;
             }
-            CoverageEstimator::AverageIdentityEstimator { sum_identity, num_reads } => {
+            CoverageEstimator::AverageIdentityEstimator {
+                sum_identity,
+                num_reads,
+            } => {
                 *num_reads += num_mapped_reads_in_contig;
                 *sum_identity += sum_identity_in_contig;
             }
@@ -831,7 +837,10 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     / (*observed_contig_length + unobserved_contig_lengths.iter().sum::<u64>())
                         as f32
             }
-            CoverageEstimator::AverageIdentityEstimator { sum_identity, num_reads } => {
+            CoverageEstimator::AverageIdentityEstimator {
+                sum_identity,
+                num_reads,
+            } => {
                 if *num_reads == 0 {
                     0.0
                 } else {

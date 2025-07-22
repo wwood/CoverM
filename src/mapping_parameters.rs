@@ -135,7 +135,7 @@ impl<'a> MappingParameters<'a> {
             mapping_program, mapping_options
         );
 
-        return MappingParameters {
+        MappingParameters {
             references: match reference_tempfile {
                 Some(r) => vec![r.path().to_str().unwrap()],
                 None => match m.get_many::<String>("reference") {
@@ -157,7 +157,7 @@ impl<'a> MappingParameters<'a> {
             unpaired,
             iter_reference_index: 0,
             mapping_options: mapping_options.map(|x| &**x),
-        };
+        }
     }
 
     // Return a Vec of str + Option<str> where each entry is a read pair or
