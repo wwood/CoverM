@@ -79,12 +79,12 @@ jobs:
 
       - name: Show environment info
         run: |
-          pixi run -e osx --frozen pixi info
-          pixi run -e osx --frozen pixi list
+          pixi run --frozen pixi info
+          pixi run --frozen pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e osx --frozen cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run --frozen cargo test -- --skip bwa_mem2 --skip strobealign
 
   # Run after removing lock file so dependences are unlocked
   pixi_test_dependencies_optimistic_osx:
@@ -109,12 +109,12 @@ jobs:
 
       - name: Create environment
         run: |
-          pixi run -e osx pixi info
+          pixi run pixi info
 
       - name: Show environment info
         run: |
-          pixi run -e osx pixi list
+          pixi run pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e osx cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run cargo test -- --skip bwa_mem2 --skip strobealign
