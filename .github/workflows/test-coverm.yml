@@ -20,12 +20,12 @@ jobs:
 
       - name: Show environment info
         run: |
-          pixi run -e dev --frozen pixi info
-          pixi run -e dev --frozen pixi list
+          pixi run --frozen pixi info
+          pixi run --frozen pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e dev --frozen cargo test
+          pixi run --frozen cargo test
 
   # Run after removing lock file so dependences are unlocked
   pixi_test_dependencies_optimistic:
@@ -48,17 +48,17 @@ jobs:
         run: |
           rm -fv pixi.lock
 
-      - name: Create dev environment
+      - name: Create environment
         run: |
-          pixi run -e dev pixi info
+          pixi run pixi info
 
       - name: Show environment info
         run: |
-          pixi run -e dev pixi list
+          pixi run pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e dev cargo test
+          pixi run cargo test
 
   # OSX tests
   pixi_test_dependencies_locked_osx:
@@ -79,12 +79,12 @@ jobs:
 
       - name: Show environment info
         run: |
-          pixi run -e dev --frozen pixi info
-          pixi run -e dev --frozen pixi list
+          pixi run -e osx --frozen pixi info
+          pixi run -e osx --frozen pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e dev --frozen cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run -e osx --frozen cargo test -- --skip bwa_mem2 --skip strobealign
 
   # Run after removing lock file so dependences are unlocked
   pixi_test_dependencies_optimistic_osx:
@@ -107,14 +107,14 @@ jobs:
         run: |
           rm -fv pixi.lock
 
-      - name: Create dev environment
+      - name: Create environment
         run: |
-          pixi run -e dev pixi info
+          pixi run -e osx pixi info
 
       - name: Show environment info
         run: |
-          pixi run -e dev pixi list
+          pixi run -e osx pixi list
 
       - name: Run tests with Pixi
         run: |
-          pixi run -e dev cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run -e osx cargo test -- --skip bwa_mem2 --skip strobealign
