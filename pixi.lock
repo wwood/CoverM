@@ -142,7 +142,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-h1590b86_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.1-h8359307_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-20.1.8-hbb9b287_0.conda
-      - conda: https://conda.anaconda.org/bioconda/osx-arm64/minimap2-2.30-hba9b596_0.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/osx-arm64/minimap2-2.28-hba9b596_4.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.5-h5e97a16_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.5.1-h81ee809_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/perl-5.32.1-7_h4614cfb_perl5.conda
@@ -1256,16 +1256,16 @@ packages:
   license_family: MIT
   size: 519918
   timestamp: 1724719800719
-- conda: https://conda.anaconda.org/bioconda/osx-arm64/minimap2-2.30-hba9b596_0.tar.bz2
-  sha256: cdb32f97fa222a0113dea48dab8a3b0bc251f270f1140733f9ba59be981c6404
-  md5: 227f3a61a8a0df309eff38a5635640a0
+- conda: https://conda.anaconda.org/bioconda/osx-arm64/minimap2-2.28-hba9b596_4.tar.bz2
+  sha256: 214ce2dc6e34d94bfc721c06fd365ffcbff5a0cd72bdeb53d78d86a012826d4e
+  md5: 595462fa84ed7fecb4211c0788b7ff09
   depends:
   - k8
   - libzlib >=1.3.1,<2.0a0
   license: MIT
   license_family: MIT
-  size: 493142
-  timestamp: 1750027275243
+  size: 465913
+  timestamp: 1734062255583
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
   sha256: 3fde293232fa3fca98635e1167de6b7c7fda83caf24b9d6c91ec9eefb4f4d586
   md5: 47e340acb35de30501a76c7c799c41d7
