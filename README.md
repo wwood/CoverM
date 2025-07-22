@@ -52,28 +52,29 @@ cargo install coverm
 
 ### Development version
 To run an unreleased version of CoverM, after installing
-[Rust](https://www.rust-lang.org/) and any additional dependencies listed below:
+[Rust](https://www.rust-lang.org/), [pixi](https://pixi.sh) can be used to install dependencies:
 
 ```
 git clone https://github.com/wwood/CoverM
 cd CoverM
-cargo run -- genome ...etc...
+pixi install -a
+pixi run cargo run -- genome ...etc...
 ```
 
 To run tests:
 
 ```
-cargo build
-cargo test
+pixi run cargo build
+pixi run cargo test
 ```
 
 ### Dependencies
 For the full suite of options, additional programs must also be installed, when
 installing from source or for development.
 
-These can be installed using the conda YAML environment definition:
+These can be installed using pixi:
 ```
-conda env create -n coverm -f coverm.yml
+pixi install -a
 ```
 
 Or, these can be installed manually:
