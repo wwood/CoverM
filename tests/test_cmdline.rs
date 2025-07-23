@@ -1,10 +1,14 @@
 extern crate assert_cli;
+extern crate rust_htslib;
 extern crate tempfile;
 
 #[cfg(test)]
 mod tests {
     use assert_cli::Assert;
     extern crate tempfile;
+    use rust_htslib::bam::header::{Header, HeaderRecord};
+    use rust_htslib::bam::Read as BamRead;
+    use rust_htslib::bam::{self, Record};
     use std;
     use std::io::Read;
     use std::io::Write;
@@ -3387,6 +3391,320 @@ genome6~random_sequence_length_11003	0	0	0
             .is("Genome\t2seqs.bad_read.1.with_supplementary ANIr\n\
             genome1\t0.999\n")
             .unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_2p5_gb_bam_filter() {
+        // Create a new BAM header
+        let mut header = Header::new();
+
+        // Add HD (header) line
+        let mut hd_record = HeaderRecord::new(b"HD");
+        hd_record.push_tag(b"VN", "1.6");
+        hd_record.push_tag(b"SO", "coordinate");
+        header.push_record(&hd_record);
+
+        // Add a reference sequence
+        let mut sq_record = HeaderRecord::new(b"SQ");
+        sq_record.push_tag(b"SN", "chr1");
+        sq_record.push_tag(b"LN", "248956422");
+        header.push_record(&sq_record);
+
+        // Calculate target size for header (2.5GB = 2.5 * 1024^3 bytes)
+        let target_header_size = 2_684_354_560u64; // 2.5GB in bytes
+
+        // Create a large comment to inflate the header size
+        // We'll add multiple CO (comment) records with large strings
+        let base_header_size = header.to_bytes().len() as u64;
+        let remaining_size = target_header_size.saturating_sub(base_header_size);
+
+        // Each CO record has some overhead (about 20 bytes), so we need to account for that
+        let chunk_size = 1024 * 1024; // 1MB chunks
+        let overhead_per_chunk = 20; // Approximate overhead for CO record
+        let content_per_chunk = chunk_size - overhead_per_chunk;
+
+        let num_chunks = (remaining_size / chunk_size) as usize;
+        let last_chunk_size = remaining_size % chunk_size;
+
+        println!(
+            "Creating header with {} chunks of {}MB each",
+            num_chunks,
+            chunk_size / (1024 * 1024)
+        );
+
+        // Add large comment records
+        for i in 0..num_chunks {
+            let mut co_record = HeaderRecord::new(b"CO");
+            let comment = "X".repeat(content_per_chunk as usize);
+            co_record.push_tag(b"", &comment); // Empty tag name for comment content
+            header.push_record(&co_record);
+
+            if i % 100 == 0 {
+                println!("Added chunk {}/{}", i, num_chunks);
+            }
+        }
+
+        // Add final chunk if needed
+        if last_chunk_size > overhead_per_chunk as u64 {
+            let mut co_record = HeaderRecord::new(b"CO");
+            let comment = "X".repeat((last_chunk_size - overhead_per_chunk as u64) as usize);
+            co_record.push_tag(b"", &comment);
+            header.push_record(&co_record);
+        }
+
+        println!(
+            "Header creation complete. Estimated size: {} bytes",
+            header.to_bytes().len()
+        );
+
+        // Create output BAM file
+        let output_path = "large_header.bam";
+        let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam)
+            .expect("Failed to create BAM writer");
+
+        println!("Writing BAM file with large header...");
+
+        // Create a single read mapping
+        let mut record = Record::new();
+
+        // Set read properties
+        let seq = b"ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG"; // 40bp read
+        let qual = vec![30u8; seq.len()]; // Quality scores (Phred+33)
+        let cigar = bam::record::CigarString(vec![bam::record::Cigar::Match(40)]);
+        record.set(b"read_001", Some(&cigar), seq, &qual);
+        record.set_pos(1000); // Position (1-based in SAM, 0-based in BAM)
+        record.set_tid(0); // Reference ID (0 for first/only reference)
+        record.set_mapq(60); // Mapping quality
+        record.set_flags(99); // Flags: paired, properly paired, first in pair
+        record.set_mpos(1100); // Mate position
+        record.set_mtid(0); // Mate reference ID
+        record.set_insert_size(200); // Insert size
+
+        // Add some auxiliary tags
+        record
+            .push_aux(b"NM", bam::record::Aux::U8(0))
+            .expect("push_aux"); // Edit distance
+        record
+            .push_aux(b"MD", bam::record::Aux::String("40"))
+            .expect("push_aux 2"); // Mismatch string
+        record
+            .push_aux(b"AS", bam::record::Aux::U16(40))
+            .expect("push_aux 3"); // Alignment score
+
+        // Write the record
+        writer.write(&record).expect("write record issue");
+
+        println!("BAM file '{}' created successfully!", output_path);
+        println!("File contains:");
+        println!(
+            "- Header size: ~{:.2} GB",
+            header.to_bytes().len() as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+        println!("- One mapped read at position chr1:1001");
+
+        // run filter, expect a single line
+        let filtered_output_path = "filtered_large_header.bam";
+        Assert::main_binary()
+            .with_args(&[
+                "filter",
+                "--min-read-aligned-length",
+                "30",
+                "-b",
+                output_path,
+                "-o",
+                filtered_output_path,
+            ])
+            .succeeds()
+            .unwrap();
+        // Assert that the filtered output BAM file exists and contains 1 read
+        let mut filtered_reader =
+            bam::Reader::from_path(filtered_output_path).expect("Failed to create BAM reader");
+        let mut filtered_count = 0;
+        for _ in filtered_reader.records() {
+            filtered_count += 1;
+        }
+        assert_eq!(filtered_count, 1);
+
+        // Now filter out the read
+        let filtered_output_path = "filtered_large_header_no_reads.bam";
+        Assert::main_binary()
+            .with_args(&[
+                "filter",
+                "--min-read-aligned-length",
+                "41",
+                "-b",
+                output_path,
+                "-o",
+                filtered_output_path,
+            ])
+            .succeeds()
+            .unwrap();
+        // Assert that the filtered output BAM file exists and contains 0 reads
+        let mut filtered_reader =
+            bam::Reader::from_path(filtered_output_path).expect("Failed to create BAM reader");
+        let mut filtered_count = 0;
+        for _ in filtered_reader.records() {
+            filtered_count += 1;
+        }
+        assert_eq!(filtered_count, 0);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_4p5_gb_bam_filter() {
+        // Create a new BAM header
+        let mut header = Header::new();
+
+        // Add HD (header) line
+        let mut hd_record = HeaderRecord::new(b"HD");
+        hd_record.push_tag(b"VN", "1.6");
+        hd_record.push_tag(b"SO", "coordinate");
+        header.push_record(&hd_record);
+
+        // Add a reference sequence
+        let mut sq_record = HeaderRecord::new(b"SQ");
+        sq_record.push_tag(b"SN", "chr1");
+        sq_record.push_tag(b"LN", "248956422");
+        header.push_record(&sq_record);
+
+        // Calculate target size for header (4.5GB = 4.5 * 1024^3 bytes)
+        let target_header_size = 4_828_809_728u64; // 4.5GB in bytes
+
+        // Create a large comment to inflate the header size
+        // We'll add multiple CO (comment) records with large strings
+        let base_header_size = header.to_bytes().len() as u64;
+        let remaining_size = target_header_size.saturating_sub(base_header_size);
+
+        // Each CO record has some overhead (about 20 bytes), so we need to account for that
+        let chunk_size = 1024 * 1024; // 1MB chunks
+        let overhead_per_chunk = 20; // Approximate overhead for CO record
+        let content_per_chunk = chunk_size - overhead_per_chunk;
+
+        let num_chunks = (remaining_size / chunk_size) as usize;
+        let last_chunk_size = remaining_size % chunk_size;
+
+        println!(
+            "Creating header with {} chunks of {}MB each",
+            num_chunks,
+            chunk_size / (1024 * 1024)
+        );
+
+        // Add large comment records
+        for i in 0..num_chunks {
+            let mut co_record = HeaderRecord::new(b"CO");
+            let comment = "X".repeat(content_per_chunk as usize);
+            co_record.push_tag(b"", &comment); // Empty tag name for comment content
+            header.push_record(&co_record);
+
+            if i % 100 == 0 {
+                println!("Added chunk {}/{}", i, num_chunks);
+            }
+        }
+
+        // Add final chunk if needed
+        if last_chunk_size > overhead_per_chunk as u64 {
+            let mut co_record = HeaderRecord::new(b"CO");
+            let comment = "X".repeat((last_chunk_size - overhead_per_chunk as u64) as usize);
+            co_record.push_tag(b"", &comment);
+            header.push_record(&co_record);
+        }
+
+        println!(
+            "Header creation complete. Estimated size: {} bytes",
+            header.to_bytes().len()
+        );
+
+        // Create output BAM file
+        let output_path = "large_header.4p5.bam";
+        let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam)
+            .expect("Failed to create BAM writer");
+
+        println!("Writing BAM file with large header...");
+
+        // Create a single read mapping
+        let mut record = Record::new();
+
+        // Set read properties
+        let seq = b"ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG"; // 40bp read
+        let qual = vec![30u8; seq.len()]; // Quality scores (Phred+33)
+        let cigar = bam::record::CigarString(vec![bam::record::Cigar::Match(40)]);
+        record.set(b"read_001", Some(&cigar), seq, &qual);
+        record.set_pos(1000); // Position (1-based in SAM, 0-based in BAM)
+        record.set_tid(0); // Reference ID (0 for first/only reference)
+        record.set_mapq(60); // Mapping quality
+        record.set_flags(99); // Flags: paired, properly paired, first in pair
+        record.set_mpos(1100); // Mate position
+        record.set_mtid(0); // Mate reference ID
+        record.set_insert_size(200); // Insert size
+
+        // Add some auxiliary tags
+        record
+            .push_aux(b"NM", bam::record::Aux::U8(0))
+            .expect("push_aux"); // Edit distance
+        record
+            .push_aux(b"MD", bam::record::Aux::String("40"))
+            .expect("push_aux 2"); // Mismatch string
+        record
+            .push_aux(b"AS", bam::record::Aux::U16(40))
+            .expect("push_aux 3"); // Alignment score
+
+        // Write the record
+        writer.write(&record).expect("write record issue");
+
+        println!("BAM file '{}' created successfully!", output_path);
+        println!("File contains:");
+        println!(
+            "- Header size: ~{:.2} GB",
+            header.to_bytes().len() as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+        println!("- One mapped read at position chr1:1001");
+
+        // run filter, expect a single line
+        let filtered_output_path = "filtered_large_header.bam";
+        Assert::main_binary()
+            .with_args(&[
+                "filter",
+                "--min-read-aligned-length",
+                "30",
+                "-b",
+                output_path,
+                "-o",
+                filtered_output_path,
+            ])
+            .succeeds()
+            .unwrap();
+        // Assert that the filtered output BAM file exists and contains 1 read
+        let mut filtered_reader =
+            bam::Reader::from_path(filtered_output_path).expect("Failed to create BAM reader");
+        let mut filtered_count = 0;
+        for _ in filtered_reader.records() {
+            filtered_count += 1;
+        }
+        assert_eq!(filtered_count, 1);
+
+        // Now filter out the read
+        let filtered_output_path = "filtered_large_header_no_reads.bam";
+        Assert::main_binary()
+            .with_args(&[
+                "filter",
+                "--min-read-aligned-length",
+                "41",
+                "-b",
+                output_path,
+                "-o",
+                filtered_output_path,
+            ])
+            .succeeds()
+            .unwrap();
+        // Assert that the filtered output BAM file exists and contains 0 reads
+        let mut filtered_reader =
+            bam::Reader::from_path(filtered_output_path).expect("Failed to create BAM reader");
+        let mut filtered_count = 0;
+        for _ in filtered_reader.records() {
+            filtered_count += 1;
+        }
+        assert_eq!(filtered_count, 0);
     }
 }
 
