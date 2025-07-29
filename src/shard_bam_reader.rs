@@ -66,7 +66,7 @@ where
                     current_alignment = bam::Record::new();
                     match reader.read(&mut current_alignment) {
                         None => {
-                            debug!("BAM reader #{} appears to be finished", i);
+                            debug!("BAM reader #{i} appears to be finished");
                             some_finished = true;
                             break;
                         }
@@ -83,8 +83,7 @@ where
                         error!(
                             "This code can only handle paired-end \
                                 input (at the moment), sorry. Found \
-                                record {:?}",
-                            record
+                                record {record:?}"
                         );
                         process::exit(1);
                     }
@@ -122,7 +121,7 @@ where
             error!("Unexpectedly one BAM file input finished while another had further reads");
             process::exit(1);
         }
-        debug!("Read records {:?}", current_alignments);
+        debug!("Read records {current_alignments:?}");
         match some_unfinished {
             true => Some(current_alignments),
             false => None,
@@ -211,7 +210,7 @@ where
                 .expect("Unexpectedly was able to read a first read set, but not a second. Hmm.");
 
             debug!("Previous records {:?}", self.previous_read_records);
-            debug!("Second read records {:?}", second_read_alignments);
+            debug!("Second read records {second_read_alignments:?}");
 
             // Decide which pair is the winner
             // Cannot use max_by_key() here since we want a random winner
@@ -260,8 +259,7 @@ where
                 }
             };
             debug!(
-                "Choosing winning index {} from winner pool {:?}",
-                winning_index, winning_indices
+                "Choosing winning index {winning_index} from winner pool {winning_indices:?}"
             );
 
             // Set the next read to return
@@ -401,7 +399,7 @@ where
             //sort_log_file.path().to_str()
             //   .expect("Failed to convert tempfile log path to str")
         );
-        debug!("Running cmd_string: {}", sort_command_string);
+        debug!("Running cmd_string: {sort_command_string}");
         let mut cmd = std::process::Command::new("bash");
         cmd.arg("-c").arg(&sort_command_string);
         //.stderr(std::process::Stdio::piped())
@@ -529,7 +527,7 @@ where
     let bam_readers = bam_paths
         .iter()
         .map(|f| {
-            debug!("Opening BAM {} ..", f);
+            debug!("Opening BAM {f} ..");
             bam::Reader::from_path(f).unwrap_or_else(|_| panic!("Unable to open bam file {}", f))
         })
         .collect();
@@ -655,7 +653,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         // Caching (or not)
         cached_bam_file_args
     );
-    debug!("Queuing cmd_string: {}", cmd_string);
+    debug!("Queuing cmd_string: {cmd_string}");
     let mut cmd = std::process::Command::new("bash");
     cmd.arg("-c")
         .arg(&cmd_string)
@@ -683,8 +681,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
         Ok(reader) => reader,
         Err(upstream_error) => {
             error!(
-                "Failed to correctly find or parse BAM file at {:?}: {}",
-                fifo_path, upstream_error
+                "Failed to correctly find or parse BAM file at {fifo_path:?}: {upstream_error}"
             );
             complete_processes(
                 processes,

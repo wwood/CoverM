@@ -199,9 +199,9 @@ pub fn complete_processes(
         if failed || log_enabled!(log::Level::Debug) {
             if failed {
                 failed_any = true;
-                error!("Error when running mapping process. Exitstatus was {:?}. Command run was: {:?}", es, command_strings);
+                error!("Error when running mapping process. Exitstatus was {es:?}. Command run was: {command_strings:?}");
             } else {
-                debug!("Successfully finished process {:?}", process);
+                debug!("Successfully finished process {process:?}");
             }
             let mut err = String::new();
             process
@@ -209,7 +209,7 @@ pub fn complete_processes(
                 .expect("Failed to grab stderr from failed mapping process")
                 .read_to_string(&mut err)
                 .expect("Failed to read stderr into string");
-            debug!("The overall STDERR was: {:?}", err);
+            debug!("The overall STDERR was: {err:?}");
             overall_stderrs.push(err);
         }
     }
@@ -220,9 +220,9 @@ pub fn complete_processes(
                 .read_to_string(&mut contents)
                 .unwrap_or_else(|_| panic!("Failed to read log file for {}", description));
             if failed_any {
-                error!("The STDERR for the {:} part was: {}", description, contents);
+                error!("The STDERR for the {description:} part was: {contents}");
             } else {
-                debug!("The STDERR for the {:} part was: {}", description, contents);
+                debug!("The STDERR for the {description:} part was: {contents}");
             }
         }
     }
@@ -235,7 +235,7 @@ pub fn complete_processes(
     // tempdir gets dropped before the process is finished. Hopefully putting a
     // compiler fence here stops this.
     compiler_fence(Ordering::SeqCst);
-    debug!("After fence, for tempdir {:?}", tempdir);
+    debug!("After fence, for tempdir {tempdir:?}");
 }
 
 impl NamedBamReader for StreamingNamedBamReader {
@@ -263,7 +263,7 @@ impl NamedBamReader for StreamingNamedBamReader {
                     .read_to_string(&mut contents)
                     .expect("Failed to read minimap2 log file to string");
                 if contents.contains("query files have different number of records") {
-                    error!("The STDERR for the minimap2 part was: {}", contents);
+                    error!("The STDERR for the minimap2 part was: {contents}");
                     error!(
                         "Not continuing since when input file pairs have \
                         unequal numbers of reads this usually means \
@@ -407,7 +407,7 @@ pub fn generate_named_bam_readers_from_reads(
         // Caching (or not)
         cached_bam_file_args
     );
-    debug!("Queuing cmd_string: {}", cmd_string);
+    debug!("Queuing cmd_string: {cmd_string}");
     let mut cmd = std::process::Command::new("bash");
     cmd.arg("-c")
         .arg(&cmd_string)
@@ -800,7 +800,7 @@ pub fn generate_bam_maker_generator_from_reads(
             .to_str()
             .expect("Failed to convert tempfile path to str")
     );
-    debug!("Queuing cmd_string: {}", cmd_string);
+    debug!("Queuing cmd_string: {cmd_string}");
     let mut cmd = std::process::Command::new("bash");
     cmd.arg("-c")
         .arg(&cmd_string)

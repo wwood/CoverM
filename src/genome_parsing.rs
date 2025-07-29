@@ -39,7 +39,7 @@ pub fn read_genome_fasta_files(
                 .expect("File name string conversion problem"),
         );
         if contig_to_genome.genome_index(&genome_name).is_some() {
-            error!("The genome name {} was derived from >1 file", genome_name);
+            error!("The genome name {genome_name} was derived from >1 file");
             process::exit(1);
         }
         let genome_index = contig_to_genome.establish_genome(genome_name);
@@ -97,8 +97,7 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
             if contig_to_genome.contains_key(contig) {
                 if contig_to_genome[contig] != genome {
                     error!(
-                        "The contig name '{}' was assigned to multiple genomes",
-                        contig
+                        "The contig name '{contig}' was assigned to multiple genomes"
                     );
                     process::exit(1);
                 }
@@ -119,9 +118,8 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
             continue;
         } else {
             error!(
-                "The line \"{}\" in the genome definition file is not a \
-                    genome name and contig name separated by a tab",
-                line
+                "The line \"{line}\" in the genome definition file is not a \
+                    genome name and contig name separated by a tab"
             );
             process::exit(1);
         }

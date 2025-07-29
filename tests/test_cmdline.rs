@@ -58,9 +58,7 @@ mod tests {
             assert_eq!(
                 expected_parts.len(),
                 observed_parts.len(),
-                "Different number of columns in line: expected '{}', observed '{}'",
-                expected_line,
-                observed_line,
+                "Different number of columns in line: expected '{expected_line}', observed '{observed_line}'",
             );
 
             for (i, (expected_part, observed_part)) in
@@ -70,8 +68,7 @@ mod tests {
                     // First column is genome name, should be exact match
                     assert_eq!(
                         expected_part, observed_part,
-                        "Genome names don't match: expected '{}', observed '{}'",
-                        expected_part, observed_part
+                        "Genome names don't match: expected '{expected_part}', observed '{observed_part}'"
                     );
                 } else {
                     // Other columns are numeric, use tolerance
@@ -86,8 +83,7 @@ mod tests {
                             // If not numeric, compare as strings
                             assert_eq!(
                                 expected_part, observed_part,
-                                "Non-numeric values don't match: expected '{}', observed '{}'",
-                                expected_part, observed_part
+                                "Non-numeric values don't match: expected '{expected_part}', observed '{observed_part}'"
                             );
                         }
                     }
@@ -164,14 +160,13 @@ mod tests {
             .stdout()
             .contains(
                 format!(
-                    "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0",
-                    t, t, t, t, t, t, t
+                    "{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0"
                 )
                 .as_str(),
             )
@@ -3113,14 +3108,13 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .contains(
                 format!(
-                    "{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
-{}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0",
-                    t, t, t, t, t, t, t
+                    "{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11010\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.2
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome3~random_sequence_length_11001\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome4~random_sequence_length_11002\t0
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome5~seq2\t1.2
+{t}/reads_for_seq1_and_seq2.1.fq.gz\tgenome6~random_sequence_length_11003\t0"
                 )
                 .as_str(),
             )
@@ -3155,9 +3149,8 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .is(
                 format!(
-                    "Genome\t{}/reads_for_seq1_and_seq2.1.fq.gz Mean\t{}/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
-                    genome1\t0.040328056\t0.026624106\n",
-                    t,t
+                    "Genome\t{t}/reads_for_seq1_and_seq2.1.fq.gz Mean\t{t}/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n"
                 )
                 .as_str(),
             )
@@ -3441,14 +3434,14 @@ genome6~random_sequence_length_11003	0	0	0
             header.push_record(&co_record);
 
             if i % 100 == 0 {
-                println!("Added chunk {}/{}", i, num_chunks);
+                println!("Added chunk {i}/{num_chunks}");
             }
         }
 
         // Add final chunk if needed
-        if last_chunk_size > overhead_per_chunk as u64 {
+        if last_chunk_size > overhead_per_chunk {
             let mut co_record = HeaderRecord::new(b"CO");
-            let comment = "X".repeat((last_chunk_size - overhead_per_chunk as u64) as usize);
+            let comment = "X".repeat((last_chunk_size - overhead_per_chunk) as usize);
             co_record.push_tag(b"", &comment);
             header.push_record(&co_record);
         }
@@ -3495,7 +3488,7 @@ genome6~random_sequence_length_11003	0	0	0
         // Write the record
         writer.write(&record).expect("write record issue");
 
-        println!("BAM file '{}' created successfully!", output_path);
+        println!("BAM file '{output_path}' created successfully!");
         println!("File contains:");
         println!(
             "- Header size: ~{:.2} GB",
@@ -3598,14 +3591,14 @@ genome6~random_sequence_length_11003	0	0	0
             header.push_record(&co_record);
 
             if i % 100 == 0 {
-                println!("Added chunk {}/{}", i, num_chunks);
+                println!("Added chunk {i}/{num_chunks}");
             }
         }
 
         // Add final chunk if needed
-        if last_chunk_size > overhead_per_chunk as u64 {
+        if last_chunk_size > overhead_per_chunk {
             let mut co_record = HeaderRecord::new(b"CO");
-            let comment = "X".repeat((last_chunk_size - overhead_per_chunk as u64) as usize);
+            let comment = "X".repeat((last_chunk_size - overhead_per_chunk) as usize);
             co_record.push_tag(b"", &comment);
             header.push_record(&co_record);
         }
@@ -3652,7 +3645,7 @@ genome6~random_sequence_length_11003	0	0	0
         // Write the record
         writer.write(&record).expect("write record issue");
 
-        println!("BAM file '{}' created successfully!", output_path);
+        println!("BAM file '{output_path}' created successfully!");
         println!("File contains:");
         println!(
             "- Header size: ~{:.2} GB",

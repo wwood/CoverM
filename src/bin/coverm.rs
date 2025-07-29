@@ -524,8 +524,7 @@ fn main() {
                 let mapping_params =
                     MappingParameters::generate_from_clap(m, MappingProgram::STROBEALIGN, &None);
                 debug!(
-                    "Running strobealign-aemb coverage with mapping parameters: {:?}",
-                    mapping_params
+                    "Running strobealign-aemb coverage with mapping parameters: {mapping_params:?}"
                 );
                 strobealign_aemb_coverage(
                     mapping_params,
@@ -694,7 +693,7 @@ fn main() {
                         ),
                     );
                     if !unique_names.insert(name.clone()) {
-                        error!("Duplicate output file name: {}", name);
+                        error!("Duplicate output file name: {name}");
                         std::process::exit(1);
                     }
                 }
@@ -710,7 +709,7 @@ fn main() {
             let mut i = 1;
             for generator_set in generator_sets {
                 for generator in generator_set.generators {
-                    info!("Running mapping number {} ..", i);
+                    info!("Running mapping number {i} ..");
                     generator.start().finish();
                     i += 1;
                 }
@@ -725,7 +724,7 @@ fn main() {
 
             if let Some(generator) = m.get_one::<Shell>("shell").copied() {
                 let mut cmd = build_cli();
-                info!("Generating completion script for shell {}", generator);
+                info!("Generating completion script for shell {generator}");
                 let name = cmd.get_name().to_string();
                 generate(generator, &mut cmd, name, &mut file);
             }
@@ -747,15 +746,13 @@ fn main() {
 // Run by all subcommands, even if some checks aren't appropriate.
 fn manually_check_args_at_runtime(m: &clap::ArgMatches) {
     // Check if the arguments are defined in this command before using contains_id
-    if (m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
-        || (m.try_get_one::<f32>("max-contamination").is_ok() && m.contains_id("max-contamination"))
-    {
-        if !m.contains_id("checkm-tab-table")
+    if ((m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
+        || (m.try_get_one::<f32>("max-contamination").is_ok() && m.contains_id("max-contamination")))
+        && !m.contains_id("checkm-tab-table")
             && !m.contains_id("checkm2-quality-report")
             && !m.contains_id("genome-info") {
             error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
         }
-    }
 }
 
 fn setup_mapping_index(
@@ -853,12 +850,12 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         "Finished dereplication, finding {} representative genomes.",
         cluster_indices.len()
     );
-    debug!("Found cluster indices: {:?}", cluster_indices);
+    debug!("Found cluster indices: {cluster_indices:?}");
     let reps = cluster_indices
         .iter()
         .map(|cluster| genome_fasta_files[cluster[0]].clone())
         .collect::<Vec<_>>();
-    debug!("Found cluster representatives: {:?}", reps);
+    debug!("Found cluster representatives: {reps:?}");
 
     galah::cluster_argument_parsing::write_galah_outputs(
         cluster_outputs,
@@ -956,7 +953,7 @@ fn parse_percentage(m: &clap::ArgMatches, parameter: &str) -> f32 {
         if (1.0..=100.0).contains(&percentage) {
             percentage /= 100.0;
         } else if !(0.0..=100.0).contains(&percentage) {
-            error!("Invalid alignment percentage: '{}'", percentage);
+            error!("Invalid alignment percentage: '{percentage}'");
             process::exit(1);
         }
         if m.value_source(parameter) == Some(clap::parser::ValueSource::CommandLine) {
@@ -1112,8 +1109,7 @@ impl EstimatorsAndTaker {
                 printer = CoveragePrinter::StreamedCoveragePrinter;
             } else {
                 debug!(
-                    "Cached regular coverage taker with columns to normlise: {:?} and rpkm_column: {:?} and tpm_column: {:?}",
-                    columns_to_normalise, rpkm_column, tpm_column
+                    "Cached regular coverage taker with columns to normlise: {columns_to_normalise:?} and rpkm_column: {rpkm_column:?} and tpm_column: {tpm_column:?}"
                 );
                 taker = CoverageTakerType::new_cached_single_float_coverage_taker(estimators.len());
                 printer = match output_format {
@@ -1131,12 +1127,11 @@ impl EstimatorsAndTaker {
         if min_fraction_covered != 0.0 {
             let die = |estimator_name| {
                 error!(
-                    "The '{}' coverage estimator cannot be used when \
+                    "The '{estimator_name}' coverage estimator cannot be used when \
                      --min-covered-fraction is > 0 as it does not calculate \
                      the covered fraction. You may wish to set the \
                      --min-covered-fraction to 0 and/or run this estimator \
-                     separately.",
-                    estimator_name
+                     separately."
                 );
                 process::exit(1)
             };
@@ -1293,7 +1288,7 @@ impl FilterParameters {
             min_percent_identity_pair: parse_percentage(m, "min-read-percent-identity-pair"),
             min_aligned_percent_pair: parse_percentage(m, "min-read-aligned-percent-pair"),
         };
-        debug!("Filter parameters set as {:?}", f);
+        debug!("Filter parameters set as {f:?}");
         f
     }
 
@@ -1370,7 +1365,7 @@ where
                         },
                         naming_readset,
                     );
-                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    info!("Caching BAM file to {bam_file_cache_path}");
                     Some(bam_file_cache_path)
                 }
             }
@@ -1448,7 +1443,7 @@ fn get_streamed_bam_readers(
                         },
                         naming_readset,
                     );
-                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    info!("Caching BAM file to {bam_file_cache_path}");
                     Some(bam_file_cache_path)
                 }
             }
@@ -1483,8 +1478,7 @@ fn get_streamed_bam_readers(
 
 fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &str) -> String {
     debug!(
-        "Constructing BAM file cache name in directory {}, reference {}, read1_path {}",
-        directory, reference, read1_path
+        "Constructing BAM file cache name in directory {directory}, reference {reference}, read1_path {read1_path}"
     );
     std::path::Path::new(directory)
         .to_str()
@@ -1515,14 +1509,12 @@ fn setup_bam_cache_directory(cache_directory: &str) {
             .readonly()
         {
             error!(
-                "Cache directory {} does not appear to be writeable, not continuing",
-                cache_directory
+                "Cache directory {cache_directory} does not appear to be writeable, not continuing"
             );
             process::exit(1);
         } else {
             info!(
-                "Writing BAM files to already existing directory {}",
-                cache_directory
+                "Writing BAM files to already existing directory {cache_directory}"
             )
         }
     } else {
@@ -1555,25 +1547,23 @@ fn setup_bam_cache_directory(cache_directory: &str) {
                     {
                         error!(
                             "The parent directory of the (currently non-existent) \
-                             cache directory {} is not writeable, not continuing",
-                            cache_directory
+                             cache directory {cache_directory} is not writeable, not continuing"
                         );
                         process::exit(1);
                     } else {
-                        info!("Creating cache directory {}", cache_directory);
+                        info!("Creating cache directory {cache_directory}");
                         std::fs::create_dir(path).expect("Unable to create cache directory");
                     }
                 } else {
                     error!(
-                        "The parent directory of the cache directory {} does not \
-                         yet exist, so not creating that cache directory, and not continuing.",
-                        cache_directory
+                        "The parent directory of the cache directory {cache_directory} does not \
+                         yet exist, so not creating that cache directory, and not continuing."
                     );
                     process::exit(1);
                 }
             }
             None => {
-                error!("Cannot create root directory {}", cache_directory);
+                error!("Cannot create root directory {cache_directory}");
                 process::exit(1);
             }
         }
@@ -1622,7 +1612,7 @@ fn get_streamed_filtered_bam_readers(
                         },
                         naming_readset,
                     );
-                    info!("Caching BAM file to {}", bam_file_cache_path);
+                    info!("Caching BAM file to {bam_file_cache_path}");
                     Some(bam_file_cache_path)
                 }
             }

@@ -83,7 +83,7 @@ pub struct OutputWriter {
 
 impl OutputWriter {
     pub fn generate(file_path_opt: Option<&str>) -> OutputWriter {
-        debug!("Generating output writer from path {:?}", file_path_opt);
+        debug!("Generating output writer from path {file_path_opt:?}");
         match file_path_opt {
             Some(file_path) => {
                 if file_path == "-" {
@@ -91,7 +91,7 @@ impl OutputWriter {
                     OutputWriter { output_file: None }
                 } else {
                     let path = std::path::Path::new(&file_path);
-                    info!("Writing output to file: {}", file_path);
+                    info!("Writing output to file: {file_path}");
                     OutputWriter {
                         output_file: Some(Arc::new(std::sync::Mutex::new(
                             std::fs::File::create(path).unwrap_or_else(|_| {

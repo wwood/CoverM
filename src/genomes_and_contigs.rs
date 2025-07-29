@@ -28,12 +28,11 @@ impl GenomesAndContigs {
             let genome_prev = &self.genomes[*previous_index];
             let genome_current = &self.genomes[genome_index];
             error!(
-                "The contig '{}' has been assigned to multiple genomes, \
-                    at least '{}' and '{}'. You may try not using \
+                "The contig '{contig_name}' has been assigned to multiple genomes, \
+                    at least '{genome_prev}' and '{genome_current}'. You may try not using \
                     --reference/--bam-files and let coverm generate a reference of \
                     concatenated contigs, or rename the contigs in your \
-                    genome file(s).",
-                contig_name, genome_prev, genome_current
+                    genome file(s)."
             );
             process::exit(1);
         }

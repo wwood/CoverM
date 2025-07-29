@@ -131,8 +131,7 @@ impl<'a> MappingParameters<'a> {
             false => None,
         };
         debug!(
-            "Setting mapper {:?} options as '{:?}'",
-            mapping_program, mapping_options
+            "Setting mapper {mapping_program:?} options as '{mapping_options:?}'"
         );
 
         MappingParameters {

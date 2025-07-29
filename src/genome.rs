@@ -34,7 +34,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
         bam_generated.set_threads(threads as usize);
 
         let stoit_name = &(bam_generated.name().to_string());
-        debug!("Working on stoit {}", stoit_name);
+        debug!("Working on stoit {stoit_name}");
         coverage_taker.start_stoit(stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
@@ -75,8 +75,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             );
         }
         trace!(
-            "Reference number to genomes: {:?}",
-            reference_number_to_genome_index
+            "Reference number to genomes: {reference_number_to_genome_index:?}"
         );
         if num_refs_in_genomes == 0 {
             error!("Error: There are no found reference sequences that are a part of a genome");
@@ -87,9 +86,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 contigs_and_genomes.contig_to_genome.len() as u32 - num_refs_in_genomes;
             if num_unreferenced > 0 {
                 warn!(
-                    "Found {} contig(s) that were defined as being part of a genome, \
-                       but were not reference sequences in BAM files.",
-                    num_unreferenced
+                    "Found {num_unreferenced} contig(s) that were defined as being part of a genome, \
+                       but were not reference sequences in BAM files."
                 )
             }
         }
@@ -130,7 +128,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 // if mapped
                 let tid = original_tid as u32;
                 if tid != last_tid || doing_first {
-                    debug!("Came across a new tid {}", tid);
+                    debug!("Came across a new tid {tid}");
                     if doing_first {
                         doing_first = false;
                     } else {
@@ -142,8 +140,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                             reference_number_to_genome_index[last_tid as usize]
                         {
                             debug!(
-                                "Found {} reads mapped to tid {}",
-                                num_mapped_reads_in_current_contig, last_tid
+                                "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}"
                             );
                             for ref mut coverage_estimator in
                                 per_genome_coverage_estimators[genome_index].iter_mut()
@@ -184,7 +181,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                         let mut cursor: usize = record.pos() as usize;
                         let mut aligned_len: u64 = 0;
                         for cig in record.cigar().iter() {
-                            trace!("Found cigar {:} from {}", cig, cursor);
+                            trace!("Found cigar {cig:} from {cursor}");
                             match cig {
                                 Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                                     // if M, X, or =, increment start and decrement end index
@@ -234,9 +231,8 @@ pub fn mosdepth_genome_coverage_with_contig_names<
         let mut num_mapped_reads_total: u64 = 0;
         if doing_first && bam_generated.num_detected_primary_alignments() == 0 {
             warn!(
-                "No primary alignments were observed for sample {} \
-                   - perhaps something went wrong in the mapping?",
-                stoit_name
+                "No primary alignments were observed for sample {stoit_name} \
+                   - perhaps something went wrong in the mapping?"
             );
         } else {
             // Record the last contig
@@ -261,10 +257,10 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             }
             for (ref_id, genome_id_option) in reference_number_to_genome_index.iter().enumerate() {
                 let ref_id_u32: u32 = ref_id as u32;
-                trace!("Seen {:?}", seen_ref_ids);
+                trace!("Seen {seen_ref_ids:?}");
                 if let Some(genome_id) = genome_id_option {
                     if !seen_ref_ids.contains(&ref_id_u32) {
-                        debug!("Getting target #{} from header names", ref_id_u32);
+                        debug!("Getting target #{ref_id_u32} from header names");
                         unobserved_lengths[*genome_id].push(header.target_len(ref_id_u32).unwrap())
                     }
                 }
@@ -290,7 +286,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                         let coverage = coverages[j];
 
                         // Print coverage of previous genome
-                        debug!("Found coverage {} for genome {}", coverage, genome);
+                        debug!("Found coverage {coverage} for genome {genome}");
                         if coverage > 0.0 {
                             coverage_estimator.print_coverage(coverage, coverage_taker);
                         } else {
@@ -446,7 +442,7 @@ pub fn mosdepth_genome_coverage<
         bam_generated.set_threads(threads as usize);
 
         let stoit_name = &(bam_generated.name().to_string());
-        debug!("Working on stoit {}", stoit_name);
+        debug!("Working on stoit {stoit_name}");
         coverage_taker.start_stoit(stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
@@ -586,8 +582,7 @@ pub fn mosdepth_genome_coverage<
                         }
                     } else if current_genome == last_genome.unwrap() {
                         debug!(
-                            "Found {} reads mapped to tid {}",
-                            num_mapped_reads_in_current_contig, last_tid
+                            "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}"
                         );
                         for ref mut coverage_estimator in coverage_estimators.iter_mut() {
                             coverage_estimator.add_contig(
@@ -600,7 +595,7 @@ pub fn mosdepth_genome_coverage<
                         }
                         // Collect the length of reference sequences from this
                         // genome that had no hits that were just skipped over.
-                        debug!("Filling unobserved from {} to {}", last_tid, tid);
+                        debug!("Filling unobserved from {last_tid} to {tid}");
                         unobserved_contig_length_and_first_tid
                             .unobserved_contig_lengths
                             .append(&mut fill_genome_length_backwards_to_last(
@@ -610,8 +605,7 @@ pub fn mosdepth_genome_coverage<
                             ));
                     } else {
                         debug!(
-                            "Found {} reads mapped to tid {}",
-                            num_mapped_reads_in_current_contig, last_tid
+                            "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}"
                         );
                         // Collect the length of refs from the end of the last genome that had no hits
                         debug!(
@@ -691,7 +685,7 @@ pub fn mosdepth_genome_coverage<
                 let mut cursor: usize = record.pos() as usize;
                 let mut aligned_len: u64 = 0;
                 for cig in record.cigar().iter() {
-                    trace!("Found cigar {:} from {}", cig, cursor);
+                    trace!("Found cigar {cig:} from {cursor}");
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or =, increment start and decrement end index
@@ -738,9 +732,8 @@ pub fn mosdepth_genome_coverage<
 
         if doing_first && bam_generated.num_detected_primary_alignments() == 0 {
             warn!(
-                "No primary alignments were observed for sample {} \
-                   - perhaps something went wrong in the mapping?",
-                stoit_name
+                "No primary alignments were observed for sample {stoit_name} \
+                   - perhaps something went wrong in the mapping?"
             );
         } else {
             // Print the last genome
@@ -750,8 +743,7 @@ pub fn mosdepth_genome_coverage<
             }
 
             debug!(
-                "Found {} reads mapped to tid {}",
-                num_mapped_reads_in_current_contig, last_tid
+                "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}"
             );
             // Collect the length of refs from the end of the last genome that had no hits
             debug!(
@@ -810,7 +802,7 @@ pub fn mosdepth_genome_coverage<
 
 fn extract_genome<'a>(tid: u32, target_names: &'a [&[u8]], split_char: u8) -> &'a [u8] {
     let target_name = target_names[tid as usize];
-    trace!("target name {:?}, separator {:?}", target_name, split_char);
+    trace!("target name {target_name:?}, separator {split_char:?}");
     let offset = target_name.iter().position(|&c| c == split_char).unwrap_or_else(|| panic!("Contig name {} does not contain split symbol, so cannot determine which genome it belongs to",
                  str::from_utf8(target_name).unwrap()));
     &target_name[0..offset]
@@ -924,8 +916,7 @@ fn print_previous_zero_coverage_genomes2<'a, T: CoverageTaker>(
         genomes_unobserved_length.push(unobserved_length);
     }
     debug!(
-        "genomes_to_print {:?}, genome_first_tids {:?}: unobserved: {:?}",
-        genomes_to_print, genome_first_tids, genomes_unobserved_length
+        "genomes_to_print {genomes_to_print:?}, genome_first_tids {genome_first_tids:?}: unobserved: {genomes_unobserved_length:?}"
     );
 
     for i in (0..genomes_to_print.len()).rev() {

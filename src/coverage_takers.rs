@@ -123,8 +123,7 @@ impl CoverageTaker for CoverageTakerType {
                 ..
             } => {
                 debug!(
-                    "Starting an entry with ID {} and name {}",
-                    entry_order_id, entry_name
+                    "Starting an entry with ID {entry_order_id} and name {entry_name}"
                 );
                 // if the first time this entry has been seen, record its name.
                 if entry_order_id >= entry_names.len() {
@@ -145,8 +144,7 @@ impl CoverageTaker for CoverageTakerType {
                                 "Found a difference amongst the reference sets used for \
                                     mapping. For this (non-streaming) usage of CoverM, all \
                                     BAM files must have the same set of reference sequences. \
-                                    Previous entry was {}, new is {}",
-                                prev, entry_name
+                                    Previous entry was {prev}, new is {entry_name}"
                             );
                             process::exit(1);
                         }
@@ -721,7 +719,7 @@ mod tests {
 
         let mut it = c.generate_iterator();
 
-        println!("it: {:?}", it);
+        println!("it: {it:?}");
         assert_eq!(
             Some(EntryAndCoverages {
                 entry_index: 0,
@@ -730,7 +728,7 @@ mod tests {
             }),
             it.next()
         );
-        println!("it: {:?}", it);
+        println!("it: {it:?}");
         assert_eq!(
             Some(EntryAndCoverages {
                 entry_index: 1,

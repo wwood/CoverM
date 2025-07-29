@@ -172,10 +172,9 @@ pub fn print_sparse_cached_coverage_taker(
             num_coverages,
         } => {
             debug!(
-                "Generating iterator for cached coverage taker with stoit names {:?},\
-                    entry_names {:?}\
-                    num_coverages {}",
-                stoit_names, entry_names, num_coverages
+                "Generating iterator for cached coverage taker with stoit names {stoit_names:?},\
+                    entry_names {entry_names:?}\
+                    num_coverages {num_coverages}"
             );
             // Print the relative abundance of each genome, with an
             // 'unmapped' entry for reads that don't map.
@@ -217,7 +216,7 @@ pub fn print_sparse_cached_coverage_taker(
                             coverage_totals[i] = Some(total_coverage);
                         }
                     }
-                    debug!("Found coverage totals: {:?}", coverage_totals);
+                    debug!("Found coverage totals: {coverage_totals:?}");
 
                     // Print unmapped entries at the top
                     let stoit = &stoit_names[current_stoit_index];
@@ -366,10 +365,9 @@ pub fn print_dense_cached_coverage_taker(
             num_coverages,
         } => {
             debug!(
-                "Generating iterator for cached coverage taker with stoit names {:?},\
-                    entry_names {:?}\
-                    num_coverages {}",
-                stoit_names, entry_names, num_coverages
+                "Generating iterator for cached coverage taker with stoit names {stoit_names:?},\
+                    entry_names {entry_names:?}\
+                    num_coverages {num_coverages}"
             );
 
             // Print headers
@@ -458,10 +456,9 @@ pub fn print_dense_cached_coverage_taker(
                 stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
             }
             debug!(
-                "stoit_by_entry_by_coverage: {:?}",
-                stoit_by_entry_by_coverage
+                "stoit_by_entry_by_coverage: {stoit_by_entry_by_coverage:?}"
             );
-            debug!("Coverage multipliers: {:?}", coverage_multipliers);
+            debug!("Coverage multipliers: {coverage_multipliers:?}");
 
             // Print out coverages iterating over entry IDs.
             for my_entry_i in 0..(stoit_by_entry_by_coverage[0].len()) {

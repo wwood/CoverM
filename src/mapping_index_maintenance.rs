@@ -58,8 +58,7 @@ impl TemporaryIndexStruct {
         );
 
         info!(
-            "Generating {:?} index for {} ..",
-            mapping_program, reference_path
+            "Generating {mapping_program:?} index for {reference_path} .."
         );
         let mut cmd = match mapping_program {
             MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
@@ -118,7 +117,7 @@ impl TemporaryIndexStruct {
         // Some BWA versions output log info to stdout. Ignore this.
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-        debug!("Running DB indexing command: {:?}", cmd);
+        debug!("Running DB indexing command: {cmd:?}");
 
         let mut process = cmd
             .spawn()
@@ -130,7 +129,7 @@ impl TemporaryIndexStruct {
             )
         });
         if !es.success() {
-            error!("Error when running {:?} index process.", mapping_program);
+            error!("Error when running {mapping_program:?} index process.");
             let mut err = String::new();
             process
                 .stderr
@@ -142,11 +141,11 @@ impl TemporaryIndexStruct {
                 })
                 .read_to_string(&mut err)
                 .expect("Failed to read stderr into string");
-            error!("The STDERR was: {:?}", err);
-            error!("Cannot continue after {:?} index failed.", mapping_program);
+            error!("The STDERR was: {err:?}");
+            error!("Cannot continue after {mapping_program:?} index failed.");
             process::exit(1);
         }
-        info!("Finished generating {:?} index.", mapping_program);
+        info!("Finished generating {mapping_program:?} index.");
         TemporaryIndexStruct {
             index_path_internal: index_path.to_string_lossy().to_string(),
             tempdir: td,
@@ -290,7 +289,7 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
                     .expect("File name string conversion problem"),
             );
             if genome_names.contains(&genome_name) {
-                error!("The genome name {} was derived from >1 file", genome_name);
+                error!("The genome name {genome_name} was derived from >1 file");
                 process::exit(1);
             }
             while let Some(record) = reader.next() {
@@ -330,8 +329,7 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
             genome_names.insert(genome_name);
             if !something_written {
                 error!(
-                    "FASTA file {} appears to be empty as no sequences were contained in it",
-                    file
+                    "FASTA file {file} appears to be empty as no sequences were contained in it"
                 );
                 process::exit(1);
             }

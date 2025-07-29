@@ -49,12 +49,8 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
              num_mapped_reads_total: &mut u64| {
                 if last_tid != -2 {
                     debug!(
-                        "Found {} reads mapped to tid {}, with total edit \
-                        distance {} and {} indels",
-                        num_mapped_reads_in_current_contig,
-                        last_tid,
-                        total_edit_distance_in_current_contig,
-                        total_indels_in_current_contig
+                        "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}, with total edit \
+                        distance {total_edit_distance_in_current_contig} and {total_indels_in_current_contig} indels"
                     );
                     for estimator in coverage_estimators.iter_mut() {
                         estimator.add_contig(
@@ -69,8 +65,8 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                         .map(|estimator| estimator.calculate_coverage(&[0]))
                         .collect();
                     let has_nonzero_coverage = coverages.iter().any(|&coverage| coverage > 0.0);
-                    debug!("Found coverages {:?}", coverages);
-                    debug!("Found nonzero coverage?: {}", has_nonzero_coverage);
+                    debug!("Found coverages {coverages:?}");
+                    debug!("Found nonzero coverage?: {has_nonzero_coverage}");
                     if has_nonzero_coverage {
                         *num_mapped_reads_total += num_mapped_reads_in_current_contig;
                     }
@@ -119,7 +115,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                 }
             }
 
-            trace!("Starting with a new read.. {:?}", record);
+            trace!("Starting with a new read.. {record:?}");
             if !flag_filters.passes(&record) {
                 trace!("Skipping read based on flag filtering");
                 continue;
@@ -170,7 +166,7 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
                 let mut cursor: usize = record.pos() as usize;
                 let mut aligned_len: u64 = 0;
                 for cig in record.cigar().iter() {
-                    trace!("Found cigar {:} from {}", cig, cursor);
+                    trace!("Found cigar {cig:} from {cursor}");
                     match cig {
                         Cigar::Match(_) | Cigar::Diff(_) | Cigar::Equal(_) => {
                             // if M, X, or = increment start and decrement end index
@@ -246,9 +242,8 @@ pub fn contig_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Cove
 
         if bam_generated.num_detected_primary_alignments() == 0 {
             warn!(
-                "No primary alignments were observed for sample {} \
-                   - perhaps something went wrong in the mapping?",
-                stoit_name
+                "No primary alignments were observed for sample {stoit_name} \
+                   - perhaps something went wrong in the mapping?"
             );
         }
 
@@ -267,7 +262,7 @@ fn print_previous_zero_coverage_contigs<T: CoverageTaker>(
 ) {
     let mut my_tid = last_tid + 1;
     while my_tid < current_tid {
-        debug!("printing zero coverage for tid {}", my_tid);
+        debug!("printing zero coverage for tid {my_tid}");
         coverage_taker.start_entry(
             my_tid as usize,
             std::str::from_utf8(target_names[my_tid as usize]).unwrap(),

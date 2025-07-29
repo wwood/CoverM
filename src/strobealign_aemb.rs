@@ -25,7 +25,7 @@ pub fn strobealign_aemb_coverage(
     let mut mapping_results: Vec<MappingResultStruct> = vec![];
     for p1 in mapping_parameters {
         for p2 in p1 {
-            debug!("Processing mapping parameters: {:?}", p2);
+            debug!("Processing mapping parameters: {p2:?}");
             let mapping_result = tempfile::Builder::new()
                 .prefix("coverm-strobealign-aemb-mapping-result")
                 .tempfile()
@@ -61,7 +61,7 @@ pub fn strobealign_aemb_coverage(
     // Run each command in serial, and complete each process
     // before starting the next one.
     for cmd_string in commands {
-        debug!("Queuing cmd_string: {}", cmd_string);
+        debug!("Queuing cmd_string: {cmd_string}");
         let mut cmd = std::process::Command::new("bash");
         cmd.arg("-c")
             .arg(&cmd_string)

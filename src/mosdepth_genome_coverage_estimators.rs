@@ -403,9 +403,8 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     }
                 }
                 debug!(
-                    "After adding contig, have total_count {}, total_bases {}, \
-                        num_covered_bases {}, mismatches {}",
-                    total_count, total_bases, num_covered_bases, total_mismatches_in_contig
+                    "After adding contig, have total_count {total_count}, total_bases {total_bases}, \
+                        num_covered_bases {num_covered_bases}, mismatches {total_mismatches_in_contig}"
                 );
             }
             CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
@@ -436,7 +435,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let len1 = ups_and_downs.len();
                 match *contig_end_exclusion * 2 < len1 as u64 {
                     true => {
-                        debug!("Adding len1 {}", len1);
+                        debug!("Adding len1 {len1}");
                         *observed_contig_length += len1 as u64 - 2 * *contig_end_exclusion
                     }
                     false => {
@@ -448,12 +447,11 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 let mut cumulative_sum: i32 = 0;
                 let start_from = *contig_end_exclusion as usize;
                 let end_at = len1 - *contig_end_exclusion as usize - 1;
-                debug!("ups and downs {:?}", ups_and_downs);
+                debug!("ups and downs {ups_and_downs:?}");
                 for (i, current) in ups_and_downs.iter().enumerate() {
                     if *current != 0 {
                         debug!(
-                            "At i {}, cumulative sum {} and current {}",
-                            i, cumulative_sum, current
+                            "At i {i}, cumulative sum {cumulative_sum} and current {current}"
                         );
                     }
                     cumulative_sum += current;
@@ -549,15 +547,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         *contig_end_exclusion,
                     );
                 debug!(
-                    "Calculating coverage with unobserved {:?}, \
-                        total bases {}, num_covered_bases {}, total_count {}, \
-                        total_mismatches {}, final_total_bases {}",
-                    unobserved_contig_lengths,
-                    total_bases,
-                    num_covered_bases,
-                    total_count,
-                    total_mismatches,
-                    final_total_bases,
+                    "Calculating coverage with unobserved {unobserved_contig_lengths:?}, \
+                        total bases {total_bases}, num_covered_bases {num_covered_bases}, total_count {total_count}, \
+                        total_mismatches {total_mismatches}, final_total_bases {final_total_bases}",
                 );
                 if final_total_bases == 0
                     || (*num_covered_bases as f32 / final_total_bases as f32)
@@ -569,7 +561,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                         true => (*total_count - *total_mismatches) as f32,
                         false => *total_count as f32,
                     } / final_total_bases as f32;
-                    debug!("Found mean coverage {}", calculated_coverage);
+                    debug!("Found mean coverage {calculated_coverage}");
                     calculated_coverage
                 }
             }
@@ -588,8 +580,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     *contig_end_exclusion,
                 );
                 let total_bases = *observed_contig_length + unobserved_contig_length;
-                debug!("Calculating coverage with num_covered_bases {}, observed_length {}, unobserved_length {:?} and counts {:?}",
-                       num_covered_bases, observed_contig_length, unobserved_contig_lengths, counts);
+                debug!("Calculating coverage with num_covered_bases {num_covered_bases}, observed_length {observed_contig_length}, unobserved_length {unobserved_contig_lengths:?} and counts {counts:?}");
 
                 match total_bases {
                     0 => 0.0,
@@ -612,8 +603,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                             for (i, num_covered) in counts.iter().enumerate() {
                                 num_accounted_for += *num_covered as usize;
                                 debug!(
-                                    "start: i {}, num_accounted_for {}, total {}, min {}, max {}",
-                                    i, num_accounted_for, total, min_index, max_index
+                                    "start: i {i}, num_accounted_for {num_accounted_for}, total {total}, min {min_index}, max {max_index}"
                                 );
                                 if num_accounted_for >= min_index {
                                     debug!("inside");
@@ -629,7 +619,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                                                 true => max_index - num_excess + 1,
                                                 false => 0,
                                             };
-                                            debug!("num wanted1: {}", num_wanted);
+                                            debug!("num wanted1: {num_wanted}");
                                             total += num_wanted * i;
                                             break;
                                         } else {
@@ -643,14 +633,13 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                                         debug!("too few on first")
                                     } else {
                                         let num_wanted = num_accounted_for - min_index + 1;
-                                        debug!("num wanted2: {}", num_wanted);
+                                        debug!("num wanted2: {num_wanted}");
                                         total = num_wanted * i;
                                         started = true;
                                     }
                                 }
                                 debug!(
-                                    "end i {}, num_accounted_for {}, total {}",
-                                    i, num_accounted_for, total
+                                    "end i {i}, num_accounted_for {num_accounted_for}, total {total}"
                                 );
                             }
                             total as f32 / (max_index - min_index) as f32
@@ -739,7 +728,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 } else {
                     // Here we do not know the number of mapped reads total.
                     // Instead we divide by that later.
-                    debug!("RPKM: {} {}", num_mapped_reads, final_total_bases);
+                    debug!("RPKM: {num_mapped_reads} {final_total_bases}");
                     match final_total_bases == 0 {
                         true => 0.0,
                         false => {
@@ -764,7 +753,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 } else {
                     // Here we do not know the number of mapped reads total.
                     // Instead we divide by that later.
-                    debug!("TPM: {} {}", num_mapped_reads, final_total_bases);
+                    debug!("TPM: {num_mapped_reads} {final_total_bases}");
                     match final_total_bases == 0 {
                         true => 0.0,
                         false => {
@@ -787,7 +776,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     *contig_end_exclusion,
                 );
                 let total_bases = *observed_contig_length + unobserved_contig_length;
-                debug!("Calculating coverage with observed length {}, unobserved_length {:?} and counts {:?}", num_covered_bases, unobserved_contig_lengths, counts);
+                debug!("Calculating coverage with observed length {num_covered_bases}, unobserved_length {unobserved_contig_lengths:?} and counts {counts:?}");
                 match total_bases {
                     0 => 0.0,
                     _ => {
@@ -963,7 +952,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 coverage_taker.add_single_coverage(coverage);
             }
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { counts, .. } => {
-                debug!("{:?}", counts);
+                debug!("{counts:?}");
                 for (i, num_covered) in counts.iter().enumerate() {
                     let cov: u64 = match i {
                         0 => {

@@ -60,8 +60,7 @@ impl ReferenceSortedBamFilter {
             || ((!filtering_single || !flag_filters.include_improper_pairs)
                 && min_mapq_single != MAPQ_UNAVAILABLE);
         debug!(
-            "filtering_single: {}, filtering_pairs: {}",
-            filtering_single, filtering_pairs
+            "filtering_single: {filtering_single}, filtering_pairs: {filtering_pairs}"
         );
 
         ReferenceSortedBamFilter {
@@ -120,7 +119,7 @@ impl ReferenceSortedBamFilter {
         } else if self.known_next_read.is_none() {
             // else doing pairs, so do as before except maybe filter out single reads too
             while self.reader.read(record) == Some(Ok(())) {
-                debug!("record: {:?}", record);
+                debug!("record: {record:?}");
 
                 debug!(
                     "passed flags, {} {} {}",
@@ -170,7 +169,7 @@ impl ReferenceSortedBamFilter {
 
                 match self.first_set.remove(&qname) {
                     None => {
-                        debug!("Processing qname1 {}", qname);
+                        debug!("Processing qname1 {qname}");
                         if record.mtid() == self.current_reference {
                             // if tlen is +ve and < threshold
                             // add to first read set
@@ -182,12 +181,11 @@ impl ReferenceSortedBamFilter {
                         else {
                             warn!(
                                 "Found a mapping record marked as being a proper pair, \
-                                 but mtid != tid, indicating it was an improper pair. Record was {:?} with name {}",
-                                record, qname);
+                                 but mtid != tid, indicating it was an improper pair. Record was {record:?} with name {qname}");
                         }
                     }
                     Some(record1) => {
-                        debug!("Testing qname2 {}", qname);
+                        debug!("Testing qname2 {qname}");
                         // if filtering single and paired reads then
                         // both must pass QC, as well as the pair
                         // together.
@@ -369,7 +367,7 @@ mod tests {
         ];
         let mut record = bam::record::Record::new();
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -399,7 +397,7 @@ mod tests {
         let queries: Vec<&str> = vec![];
         let mut record = bam::record::Record::new();
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -428,7 +426,7 @@ mod tests {
         let queries = vec!["2", "2", "3", "3"];
         let mut record = bam::record::Record::new();
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -452,7 +450,7 @@ mod tests {
         ); // aligned length too high
         let queries = vec!["2", "2", "3", "3"];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -476,7 +474,7 @@ mod tests {
         ); // aligned percent too high
         let queries = vec!["2", "2", "3", "3"];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -500,7 +498,7 @@ mod tests {
         );
         let queries = vec!["1", "1", "2", "2"];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -528,7 +526,7 @@ mod tests {
         let queries = vec!["1", "1"];
         let mut record = bam::record::Record::new();
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -552,7 +550,7 @@ mod tests {
         ); // aligned length too high
         let queries = vec!["1", "1"];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -576,7 +574,7 @@ mod tests {
         ); // aligned percent too high
         let queries = vec!["1", "1"];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -600,7 +598,7 @@ mod tests {
         );
         let queries: Vec<&str> = vec![];
         for i in queries {
-            println!("query: {}", i);
+            println!("query: {i}");
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
         }
@@ -629,7 +627,7 @@ mod tests {
         assert!(!sorted.filter_pairs);
         let queries = vec!["2", "3", "4", "1"];
         let mut record = bam::record::Record::new();
-        println!("query: {:?}", queries);
+        println!("query: {queries:?}");
         for i in queries {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
@@ -659,7 +657,7 @@ mod tests {
         assert!(!sorted.filter_pairs);
         let queries = vec!["1"];
         let mut record = bam::record::Record::new();
-        println!("query: {:?}", queries);
+        println!("query: {queries:?}");
         for i in queries {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
@@ -689,7 +687,7 @@ mod tests {
         assert!(sorted.filter_pairs);
         let queries = vec!["2", "2", "3", "3", "4", "4"];
         let mut record = bam::record::Record::new();
-        println!("query: {:?}", queries);
+        println!("query: {queries:?}");
         for i in queries {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
@@ -719,7 +717,7 @@ mod tests {
         assert!(sorted.filter_pairs);
         let queries = vec!["1", "1"];
         let mut record = bam::record::Record::new();
-        println!("query: {:?}", queries);
+        println!("query: {queries:?}");
         for i in queries {
             sorted.read(&mut record).expect("").expect("");
             assert_eq!(i, str::from_utf8(record.qname()).unwrap());
