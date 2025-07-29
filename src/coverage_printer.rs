@@ -455,9 +455,7 @@ pub fn print_dense_cached_coverage_taker(
                 }
                 stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
             }
-            debug!(
-                "stoit_by_entry_by_coverage: {stoit_by_entry_by_coverage:?}"
-            );
+            debug!("stoit_by_entry_by_coverage: {stoit_by_entry_by_coverage:?}");
             debug!("Coverage multipliers: {coverage_multipliers:?}");
 
             // Print out coverages iterating over entry IDs.

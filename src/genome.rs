@@ -74,9 +74,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 num_refs_not_in_genomes
             );
         }
-        trace!(
-            "Reference number to genomes: {reference_number_to_genome_index:?}"
-        );
+        trace!("Reference number to genomes: {reference_number_to_genome_index:?}");
         if num_refs_in_genomes == 0 {
             error!("Error: There are no found reference sequences that are a part of a genome");
             process::exit(1);
@@ -742,9 +740,7 @@ pub fn mosdepth_genome_coverage<
                 last_genome = Some("genome1".as_bytes())
             }
 
-            debug!(
-                "Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}"
-            );
+            debug!("Found {num_mapped_reads_in_current_contig} reads mapped to tid {last_tid}");
             // Collect the length of refs from the end of the last genome that had no hits
             debug!(
                 "Filling unobserved from {} to end for {:?}",

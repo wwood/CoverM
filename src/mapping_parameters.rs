@@ -130,9 +130,7 @@ impl<'a> MappingParameters<'a> {
             }
             false => None,
         };
-        debug!(
-            "Setting mapper {mapping_program:?} options as '{mapping_options:?}'"
-        );
+        debug!("Setting mapper {mapping_program:?} options as '{mapping_options:?}'");
 
         MappingParameters {
             references: match reference_tempfile {

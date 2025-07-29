@@ -57,9 +57,7 @@ impl TemporaryIndexStruct {
                 .expect("Failed to glean file stem from reference DB. Strange."),
         );
 
-        info!(
-            "Generating {mapping_program:?} index for {reference_path} .."
-        );
+        info!("Generating {mapping_program:?} index for {reference_path} ..");
         let mut cmd = match mapping_program {
             MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
             MappingProgram::BWA_MEM2 => std::process::Command::new("bwa-mem2"),

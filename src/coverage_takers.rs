@@ -122,9 +122,7 @@ impl CoverageTaker for CoverageTakerType {
                 ref mut current_entry_index,
                 ..
             } => {
-                debug!(
-                    "Starting an entry with ID {entry_order_id} and name {entry_name}"
-                );
+                debug!("Starting an entry with ID {entry_order_id} and name {entry_name}");
                 // if the first time this entry has been seen, record its name.
                 if entry_order_id >= entry_names.len() {
                     debug!(

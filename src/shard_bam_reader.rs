@@ -258,9 +258,7 @@ where
                     process::exit(1);
                 }
             };
-            debug!(
-                "Choosing winning index {winning_index} from winner pool {winning_indices:?}"
-            );
+            debug!("Choosing winning index {winning_index} from winner pool {winning_indices:?}");
 
             // Set the next read to return
             self.winning_index = Some(winning_index);
@@ -680,9 +678,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     match bam::Reader::from_path(&fifo_path) {
         Ok(reader) => reader,
         Err(upstream_error) => {
-            error!(
-                "Failed to correctly find or parse BAM file at {fifo_path:?}: {upstream_error}"
-            );
+            error!("Failed to correctly find or parse BAM file at {fifo_path:?}: {upstream_error}");
             complete_processes(
                 processes,
                 command_strings,

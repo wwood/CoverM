@@ -96,9 +96,7 @@ pub fn read_genome_definition_file(definition_file_path: &str) -> GenomesAndCont
                 .expect("Failed to split contig name by whitespace in genome definition file");
             if contig_to_genome.contains_key(contig) {
                 if contig_to_genome[contig] != genome {
-                    error!(
-                        "The contig name '{contig}' was assigned to multiple genomes"
-                    );
+                    error!("The contig name '{contig}' was assigned to multiple genomes");
                     process::exit(1);
                 }
             } else {

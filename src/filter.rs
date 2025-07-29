@@ -59,9 +59,7 @@ impl ReferenceSortedBamFilter {
         let filtering_pairs = filtering_pairs_initial
             || ((!filtering_single || !flag_filters.include_improper_pairs)
                 && min_mapq_single != MAPQ_UNAVAILABLE);
-        debug!(
-            "filtering_single: {filtering_single}, filtering_pairs: {filtering_pairs}"
-        );
+        debug!("filtering_single: {filtering_single}, filtering_pairs: {filtering_pairs}");
 
         ReferenceSortedBamFilter {
             first_set: BTreeMap::new(),

@@ -747,12 +747,14 @@ fn main() {
 fn manually_check_args_at_runtime(m: &clap::ArgMatches) {
     // Check if the arguments are defined in this command before using contains_id
     if ((m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
-        || (m.try_get_one::<f32>("max-contamination").is_ok() && m.contains_id("max-contamination")))
+        || (m.try_get_one::<f32>("max-contamination").is_ok()
+            && m.contains_id("max-contamination")))
         && !m.contains_id("checkm-tab-table")
-            && !m.contains_id("checkm2-quality-report")
-            && !m.contains_id("genome-info") {
-            error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
-        }
+        && !m.contains_id("checkm2-quality-report")
+        && !m.contains_id("genome-info")
+    {
+        error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
+    }
 }
 
 fn setup_mapping_index(
@@ -1513,9 +1515,7 @@ fn setup_bam_cache_directory(cache_directory: &str) {
             );
             process::exit(1);
         } else {
-            info!(
-                "Writing BAM files to already existing directory {cache_directory}"
-            )
+            info!("Writing BAM files to already existing directory {cache_directory}")
         }
     } else {
         match path.parent() {

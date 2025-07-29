@@ -1560,18 +1560,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("checkm-tab-table"),
                 )
                 .arg(
-                    Arg::new("min-completeness")
-                        .long("min-completeness")
-                        // Ideally we would use
-                        // requires_any(["checkm2-quality-report",
-                        // "checkm-tab-table"]) or similar, but it is not
-                        // immediately obvious how to implement this, so instead
-                        // we manually check at runtime.
+                    Arg::new("min-completeness").long("min-completeness"), // Ideally we would use
+                                                                           // requires_any(["checkm2-quality-report",
+                                                                           // "checkm-tab-table"]) or similar, but it is not
+                                                                           // immediately obvious how to implement this, so instead
+                                                                           // we manually check at runtime.
                 )
-                .arg(
-                    Arg::new("max-contamination")
-                        .long("max-contamination")
-                ),
+                .arg(Arg::new("max-contamination").long("max-contamination")),
         )
         .subcommand(
             add_clap_verbosity_flags(Command::new("contig"))

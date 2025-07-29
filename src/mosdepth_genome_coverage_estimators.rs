@@ -450,9 +450,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                 debug!("ups and downs {ups_and_downs:?}");
                 for (i, current) in ups_and_downs.iter().enumerate() {
                     if *current != 0 {
-                        debug!(
-                            "At i {i}, cumulative sum {cumulative_sum} and current {current}"
-                        );
+                        debug!("At i {i}, cumulative sum {cumulative_sum} and current {current}");
                     }
                     cumulative_sum += current;
                     if i >= start_from && i <= end_at {
