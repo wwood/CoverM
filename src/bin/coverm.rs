@@ -57,6 +57,7 @@ fn main() {
             let m = matches.subcommand_matches("genome").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, genome_full_help());
             set_log_level(m, true);
+            manually_check_args_at_runtime(m);
             print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
             let genome_names_content: Vec<u8>;
@@ -436,6 +437,7 @@ fn main() {
             let m = matches.subcommand_matches("filter").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, filter_full_help());
             set_log_level(m, true);
+            manually_check_args_at_runtime(m);
 
             let bam_files: Vec<&str> = m
                 .get_many::<String>("bam-files")
@@ -500,6 +502,7 @@ fn main() {
             let m = matches.subcommand_matches("contig").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, contig_full_help());
             set_log_level(m, true);
+            manually_check_args_at_runtime(m);
             let print_zeros = !m.get_flag("no-zeros");
 
             // Add metabat filtering params since we are running contig
@@ -656,6 +659,7 @@ fn main() {
             let m = matches.subcommand_matches("make").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, make_full_help());
             set_log_level(m, true);
+            manually_check_args_at_runtime(m);
 
             let mapping_program = parse_mapping_program(m);
             external_command_checker::check_for_samtools();
@@ -715,6 +719,7 @@ fn main() {
         Some("shell-completion") => {
             let m = matches.subcommand_matches("shell-completion").unwrap();
             set_log_level(m, true);
+            manually_check_args_at_runtime(m);
             let mut file = std::fs::File::create(m.get_one::<String>("output-file").unwrap())
                 .expect("failed to open output file");
 
@@ -735,6 +740,20 @@ fn main() {
         _ => {
             app.print_help().unwrap();
             println!();
+        }
+    }
+}
+
+// Run by all subcommands, even if some checks aren't appropriate.
+fn manually_check_args_at_runtime(m: &clap::ArgMatches) {
+    // Check if the arguments are defined in this command before using contains_id
+    if (m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
+        || (m.try_get_one::<f32>("max-contamination").is_ok() && m.contains_id("max-contamination"))
+    {
+        if !m.contains_id("checkm-tab-table")
+            && !m.contains_id("checkm2-quality-report")
+            && !m.contains_id("genome-info") {
+            error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
         }
     }
 }

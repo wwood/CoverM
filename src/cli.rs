@@ -1562,12 +1562,15 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("min-completeness")
                         .long("min-completeness")
-                        .requires("checkm-tab-table"),
+                        // Ideally we would use
+                        // requires_any(["checkm2-quality-report",
+                        // "checkm-tab-table"]) or similar, but it is not
+                        // immediately obvious how to implement this, so instead
+                        // we manually check at runtime.
                 )
                 .arg(
                     Arg::new("max-contamination")
                         .long("max-contamination")
-                        .requires("checkm-tab-table"),
                 ),
         )
         .subcommand(
