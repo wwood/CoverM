@@ -605,6 +605,13 @@ pub fn contig_full_help() -> Manual {
                 [default: not used]",
                     ),
             )
+            .option(
+                Opt::new("FILE")
+                    .long("--bam-file-cache-names")
+                    .help(
+                        "Output BAM files generated during alignment to these files. The order of files should correspond to: single-ended reads (-s), -1/-2, --coupled, --interleaved. [default: not used]",
+                    ),
+            )
             .flag(
                 Flag::new()
                     .long("--discard-unmapped")
@@ -845,6 +852,13 @@ pub fn genome_full_help() -> Manual {
                 are excluded by alignment thresholding (e.g. --min-read-percent-identity) or \
                 genome-wise thresholding (e.g. --min-covered-fraction). \
                 [default: not used]",
+                    ),
+            )
+            .option(
+                Opt::new("FILE")
+                    .long("--bam-file-cache-names")
+                    .help(
+                        "Output BAM files generated during alignment to these files. The order of files should correspond to: single-ended reads (-s), -1/-2, --coupled, --interleaved. [default: not used]",
                     ),
             )
             .flag(
@@ -1163,7 +1177,20 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("bam-file-cache-directory")
                         .long("bam-file-cache-directory")
-                        .conflicts_with("bam-files"),
+                        .conflicts_with("bam-files")
+                        .conflicts_with("bam-file-cache-names"),
+                )
+                .arg(
+                    Arg::new("bam-file-cache-names")
+                        .long("bam-file-cache-names")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files")
+                        .conflicts_with("bam-file-cache-directory"),
+                )
+                .group(
+                    ArgGroup::new("bam-file-cache")
+                        .args(["bam-file-cache-directory", "bam-file-cache-names"]),
                 )
                 .arg(
                     Arg::new("threads")
@@ -1215,7 +1242,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
-                        .requires("bam-file-cache-directory")
+                        .requires("bam-file-cache")
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
@@ -1684,7 +1711,20 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("bam-file-cache-directory")
                         .long("bam-file-cache-directory")
-                        .conflicts_with("bam-files"),
+                        .conflicts_with("bam-files")
+                        .conflicts_with("bam-file-cache-names"),
+                )
+                .arg(
+                    Arg::new("bam-file-cache-names")
+                        .long("bam-file-cache-names")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files")
+                        .conflicts_with("bam-file-cache-directory"),
+                )
+                .group(
+                    ArgGroup::new("bam-file-cache")
+                        .args(["bam-file-cache-directory", "bam-file-cache-names"]),
                 )
                 .arg(
                     Arg::new("threads")
@@ -1735,7 +1775,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
-                        .requires("bam-file-cache-directory")
+                        .requires("bam-file-cache")
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(

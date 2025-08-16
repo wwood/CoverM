@@ -1354,24 +1354,7 @@ where
             Some(prev) => Some(format!("{prev}|{reference_name}")),
             None => Some(reference_name),
         };
-        let bam_file_cache = |naming_readset| -> Option<String> {
-            let bam_file_cache_path;
-            match m.contains_id("bam-file-cache-directory") {
-                false => None,
-                true => {
-                    bam_file_cache_path = generate_cached_bam_file_name(
-                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
-                        match reference_tempfile {
-                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
-                            None => reference,
-                        },
-                        naming_readset,
-                    );
-                    info!("Caching BAM file to {bam_file_cache_path}");
-                    Some(bam_file_cache_path)
-                }
-            }
-        };
+        let mut bam_file_cache = build_bam_file_cache_fn(m, reference_tempfile, reference);
 
         for p in reference_wise_params {
             bam_readers.push(
@@ -1382,7 +1365,9 @@ where
                     p.read2,
                     p.read_format.clone(),
                     p.threads,
-                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    bam_file_cache(p.read1, p.read2)
+                        .as_ref()
+                        .map(String::as_ref),
                     discard_unmapped,
                     p.mapping_options,
                 ),
@@ -1432,24 +1417,7 @@ fn get_streamed_bam_readers(
         let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
 
         let reference = reference_wise_params.reference;
-        let bam_file_cache = |naming_readset| -> Option<String> {
-            let bam_file_cache_path;
-            match m.contains_id("bam-file-cache-directory") {
-                false => None,
-                true => {
-                    bam_file_cache_path = generate_cached_bam_file_name(
-                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
-                        match reference_tempfile {
-                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
-                            None => reference,
-                        },
-                        naming_readset,
-                    );
-                    info!("Caching BAM file to {bam_file_cache_path}");
-                    Some(bam_file_cache_path)
-                }
-            }
-        };
+        let mut bam_file_cache = build_bam_file_cache_fn(m, reference_tempfile, reference);
 
         for p in reference_wise_params {
             bam_readers.push(
@@ -1460,7 +1428,9 @@ fn get_streamed_bam_readers(
                     p.read2,
                     p.read_format.clone(),
                     p.threads,
-                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    bam_file_cache(p.read1, p.read2)
+                        .as_ref()
+                        .map(String::as_ref),
                     discard_unmapped,
                     p.mapping_options,
                     reference_tempfile.is_none(),
@@ -1580,6 +1550,90 @@ fn setup_bam_cache_directory(cache_directory: &str) {
     }
 }
 
+fn build_cache_name_iter(m: &clap::ArgMatches) -> Option<std::vec::IntoIter<String>> {
+    if m.contains_id("bam-file-cache-names") {
+        let names: Vec<String> = m
+            .get_many::<String>("bam-file-cache-names")
+            .unwrap()
+            .map(|s| s.to_string())
+            .collect();
+
+        let single_count = m.get_many::<String>("single").map(|v| v.len()).unwrap_or(0);
+        let read1_count = m.get_many::<String>("read1").map(|v| v.len()).unwrap_or(0);
+        let coupled_count = m
+            .get_many::<String>("coupled")
+            .map(|v| v.len() / 2)
+            .unwrap_or(0);
+        let interleaved_count = m
+            .get_many::<String>("interleaved")
+            .map(|v| v.len())
+            .unwrap_or(0);
+        let expected = single_count + read1_count + coupled_count + interleaved_count;
+        if names.len() != expected {
+            error!(
+                "--bam-file-cache-names specified {names_len} names but {expected} read sets were provided",
+                names_len = names.len()
+            );
+            process::exit(1);
+        }
+
+        let mut idx = 0;
+        let single_names = names[idx..idx + single_count].to_vec();
+        idx += single_count;
+        let read1_names = names[idx..idx + read1_count].to_vec();
+        idx += read1_count;
+        let coupled_names = names[idx..idx + coupled_count].to_vec();
+        idx += coupled_count;
+        let interleaved_names = names[idx..idx + interleaved_count].to_vec();
+
+        let mut iter_order = Vec::new();
+        iter_order.extend(read1_names);
+        iter_order.extend(coupled_names);
+        iter_order.extend(interleaved_names);
+        iter_order.extend(single_names);
+        Some(iter_order.into_iter())
+    } else {
+        None
+    }
+}
+
+fn build_bam_file_cache_fn<'a>(
+    m: &'a clap::ArgMatches,
+    reference_tempfile: &'a Option<NamedTempFile>,
+    reference: &'a str,
+) -> impl FnMut(&str, Option<&str>) -> Option<String> + 'a {
+    let mut bam_cache_name_iter = build_cache_name_iter(m);
+    move |read1: &str, read2: Option<&str>| -> Option<String> {
+        if let Some(iter) = bam_cache_name_iter.as_mut() {
+            let name = iter.next().unwrap_or_else(|| {
+                error!("Not enough BAM file cache names specified");
+                process::exit(1);
+            });
+            match read2 {
+                Some(r2) => info!("Caching BAM file to {name} for readset {read1} {r2}"),
+                None => info!("Caching BAM file to {name} for readset {read1}"),
+            }
+            Some(name)
+        } else if m.contains_id("bam-file-cache-directory") {
+            let path = generate_cached_bam_file_name(
+                m.get_one::<String>("bam-file-cache-directory").unwrap(),
+                match reference_tempfile {
+                    Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
+                    None => reference,
+                },
+                read1,
+            );
+            match read2 {
+                Some(r2) => info!("Caching BAM file to {path} for readset {read1} {r2}"),
+                None => info!("Caching BAM file to {path} for readset {read1}"),
+            }
+            Some(path)
+        } else {
+            None
+        }
+    }
+}
+
 fn get_streamed_filtered_bam_readers(
     m: &clap::ArgMatches,
     mapping_program: MappingProgram,
@@ -1599,24 +1653,7 @@ fn get_streamed_filtered_bam_readers(
         let index = setup_mapping_index(&reference_wise_params, m, mapping_program);
 
         let reference = reference_wise_params.reference;
-        let bam_file_cache = |naming_readset| -> Option<String> {
-            let bam_file_cache_path;
-            match m.contains_id("bam-file-cache-directory") {
-                false => None,
-                true => {
-                    bam_file_cache_path = generate_cached_bam_file_name(
-                        m.get_one::<String>("bam-file-cache-directory").unwrap(),
-                        match reference_tempfile {
-                            Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
-                            None => reference,
-                        },
-                        naming_readset,
-                    );
-                    info!("Caching BAM file to {bam_file_cache_path}");
-                    Some(bam_file_cache_path)
-                }
-            }
-        };
+        let mut bam_file_cache = build_bam_file_cache_fn(m, reference_tempfile, reference);
 
         for p in reference_wise_params {
             bam_readers.push(
@@ -1627,7 +1664,9 @@ fn get_streamed_filtered_bam_readers(
                     p.read2,
                     p.read_format.clone(),
                     p.threads,
-                    bam_file_cache(p.read1).as_ref().map(String::as_ref),
+                    bam_file_cache(p.read1, p.read2)
+                        .as_ref()
+                        .map(String::as_ref),
                     filter_params.flag_filters.clone(),
                     filter_params.min_aligned_length_single,
                     filter_params.min_percent_identity_single,

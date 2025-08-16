@@ -428,6 +428,12 @@ mod tests {
 
     #[test]
     fn test_unwriteable_cache_bam_files() {
+        let td = tempfile::TempDir::new().unwrap();
+        let dir = td.path().to_path_buf();
+        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&dir, perms).unwrap();
+
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -437,10 +443,38 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--bam-file-cache-directory",
-                "/",
+                dir.to_str().unwrap(),
             ])
             .fails()
             .unwrap();
+
+        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        perms.set_readonly(false);
+        std::fs::set_permissions(&dir, perms).unwrap();
+    }
+
+    #[test]
+    fn test_cache_bam_files_names() {
+        let td = tempfile::TempDir::new().unwrap();
+        let name = td.path().join("cached.bam");
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--output-format",
+                "sparse",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+                "--bam-file-cache-names",
+                name.to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(name.is_file());
     }
 
     #[test]
