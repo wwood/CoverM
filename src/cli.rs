@@ -595,10 +595,10 @@ pub fn contig_full_help() -> Manual {
             ))
             .option(
                 Opt::new("DIRECTORY")
-                    .long("--bam-file-cache-directory")
+                    .long("--cache-unfiltered-bam-directory")
                     .help(
                         "Output BAM files generated during \
-                alignment to this directory. The directory may or may not exist. Note that \
+                alignment to this directory (--bam-file-cache-directory is an alias). The directory may or may not exist. Note that \
                 BAM files in this directory contain all mappings, including those that later \
                 are excluded by alignment thresholding (e.g. --min-read-percent-identity) or \
                 genome-wise thresholding (e.g. --min-covered-fraction). \
@@ -607,7 +607,7 @@ pub fn contig_full_help() -> Manual {
             )
             .option(
                 Opt::new("FILE")
-                    .long("--bam-file-cache-names")
+                    .long("--cache-unfiltered-bam-files")
                     .help(
                         "Output BAM files generated during alignment to these files. The order of files should correspond to: single-ended reads (-s), -1/-2, --coupled, --interleaved. [default: not used]",
                     ),
@@ -634,7 +634,7 @@ pub fn contig_full_help() -> Manual {
             )
             .command(
                 "coverm contig --method metabat --bam-files my.bam \
-                --bam-file-cache-directory saved_bam_files",
+                --cache-unfiltered-bam-directory saved_bam_files",
             ),
     );
 
@@ -844,10 +844,10 @@ pub fn genome_full_help() -> Manual {
             ))
             .option(
                 Opt::new("DIRECTORY")
-                    .long("--bam-file-cache-directory")
+                    .long("--cache-unfiltered-bam-directory")
                     .help(
                         "Output BAM files generated during \
-                alignment to this directory. The directory may or may not exist. Note that \
+                alignment to this directory (--bam-file-cache-directory is an alias). The directory may or may not exist. Note that \
                 BAM files in this directory contain all mappings, including those that later \
                 are excluded by alignment thresholding (e.g. --min-read-percent-identity) or \
                 genome-wise thresholding (e.g. --min-covered-fraction). \
@@ -856,7 +856,7 @@ pub fn genome_full_help() -> Manual {
             )
             .option(
                 Opt::new("FILE")
-                    .long("--bam-file-cache-names")
+                    .long("--cache-unfiltered-bam-files")
                     .help(
                         "Output BAM files generated during alignment to these files. The order of files should correspond to: single-ended reads (-s), -1/-2, --coupled, --interleaved. [default: not used]",
                     ),
@@ -925,7 +925,7 @@ pub fn build_cli() -> Command {
 {}
 
   coverm contig --method metabat --bam-files my.bam
-    --bam-file-cache-directory saved_bam_files
+    --cache-unfiltered-bam-directory saved_bam_files
 
 See coverm contig --full-help for further options and further detail.
 ",
@@ -1175,23 +1175,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::new("bam-file-cache-directory")
-                        .long("bam-file-cache-directory")
+                    Arg::new("cache-unfiltered-bam-directory")
+                        .long("cache-unfiltered-bam-directory")
+                        .visible_alias("bam-file-cache-directory")
                         .conflicts_with("bam-files")
-                        .conflicts_with("bam-file-cache-names"),
+                        .conflicts_with("cache-unfiltered-bam-files"),
                 )
                 .arg(
-                    Arg::new("bam-file-cache-names")
-                        .long("bam-file-cache-names")
+                    Arg::new("cache-unfiltered-bam-files")
+                        .long("cache-unfiltered-bam-files")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .conflicts_with("bam-files")
-                        .conflicts_with("bam-file-cache-directory"),
+                        .conflicts_with("cache-unfiltered-bam-directory"),
                 )
-                .group(
-                    ArgGroup::new("bam-file-cache")
-                        .args(["bam-file-cache-directory", "bam-file-cache-names"]),
-                )
+                .group(ArgGroup::new("cache-unfiltered-bam").args([
+                    "cache-unfiltered-bam-directory",
+                    "cache-unfiltered-bam-files",
+                ]))
                 .arg(
                     Arg::new("threads")
                         .short('t')
@@ -1242,7 +1243,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
-                        .requires("bam-file-cache")
+                        .requires("cache-unfiltered-bam")
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
@@ -1709,23 +1710,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .conflicts_with("bam-files"),
                 )
                 .arg(
-                    Arg::new("bam-file-cache-directory")
-                        .long("bam-file-cache-directory")
+                    Arg::new("cache-unfiltered-bam-directory")
+                        .long("cache-unfiltered-bam-directory")
+                        .visible_alias("bam-file-cache-directory")
                         .conflicts_with("bam-files")
-                        .conflicts_with("bam-file-cache-names"),
+                        .conflicts_with("cache-unfiltered-bam-files"),
                 )
                 .arg(
-                    Arg::new("bam-file-cache-names")
-                        .long("bam-file-cache-names")
+                    Arg::new("cache-unfiltered-bam-files")
+                        .long("cache-unfiltered-bam-files")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .conflicts_with("bam-files")
-                        .conflicts_with("bam-file-cache-directory"),
+                        .conflicts_with("cache-unfiltered-bam-directory"),
                 )
-                .group(
-                    ArgGroup::new("bam-file-cache")
-                        .args(["bam-file-cache-directory", "bam-file-cache-names"]),
-                )
+                .group(ArgGroup::new("cache-unfiltered-bam").args([
+                    "cache-unfiltered-bam-directory",
+                    "cache-unfiltered-bam-files",
+                ]))
                 .arg(
                     Arg::new("threads")
                         .short('t')
@@ -1775,7 +1777,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
-                        .requires("bam-file-cache")
+                        .requires("cache-unfiltered-bam")
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(

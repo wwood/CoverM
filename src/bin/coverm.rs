@@ -1330,8 +1330,11 @@ where
     T: GenomeExclusion,
 {
     // Check the output BAM directory actually exists and is writeable
-    if m.contains_id("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
+    if m.contains_id("cache-unfiltered-bam-directory") {
+        setup_bam_cache_directory(
+            m.get_one::<String>("cache-unfiltered-bam-directory")
+                .unwrap(),
+        );
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
     let sort_threads = *m.get_one::<u16>("threads").unwrap();
@@ -1405,8 +1408,11 @@ fn get_streamed_bam_readers(
     reference_tempfile: &Option<NamedTempFile>,
 ) -> Vec<BamGeneratorSet<StreamingNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
-    if m.contains_id("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
+    if m.contains_id("cache-unfiltered-bam-directory") {
+        setup_bam_cache_directory(
+            m.get_one::<String>("cache-unfiltered-bam-directory")
+                .unwrap(),
+        );
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
 
@@ -1454,7 +1460,7 @@ fn generate_cached_bam_file_name(directory: &str, reference: &str, read1_path: &
     );
     std::path::Path::new(directory)
         .to_str()
-        .expect("Unable to covert bam-file-cache-directory name into str")
+        .expect("Unable to convert cache-unfiltered-bam-directory name into str")
         .to_string()
         + "/"
         + std::path::Path::new(reference)
@@ -1551,9 +1557,9 @@ fn setup_bam_cache_directory(cache_directory: &str) {
 }
 
 fn build_cache_name_iter(m: &clap::ArgMatches) -> Option<std::vec::IntoIter<String>> {
-    if m.contains_id("bam-file-cache-names") {
+    if m.contains_id("cache-unfiltered-bam-files") {
         let names: Vec<String> = m
-            .get_many::<String>("bam-file-cache-names")
+            .get_many::<String>("cache-unfiltered-bam-files")
             .unwrap()
             .map(|s| s.to_string())
             .collect();
@@ -1571,7 +1577,7 @@ fn build_cache_name_iter(m: &clap::ArgMatches) -> Option<std::vec::IntoIter<Stri
         let expected = single_count + read1_count + coupled_count + interleaved_count;
         if names.len() != expected {
             error!(
-                "--bam-file-cache-names specified {names_len} names but {expected} read sets were provided",
+                "--cache-unfiltered-bam-files specified {names_len} names but {expected} read sets were provided",
                 names_len = names.len()
             );
             process::exit(1);
@@ -1614,9 +1620,10 @@ fn build_bam_file_cache_fn<'a>(
                 None => info!("Caching BAM file to {name} for readset {read1}"),
             }
             Some(name)
-        } else if m.contains_id("bam-file-cache-directory") {
+        } else if m.contains_id("cache-unfiltered-bam-directory") {
             let path = generate_cached_bam_file_name(
-                m.get_one::<String>("bam-file-cache-directory").unwrap(),
+                m.get_one::<String>("cache-unfiltered-bam-directory")
+                    .unwrap(),
                 match reference_tempfile {
                     Some(_) => CONCATENATED_REFERENCE_CACHE_STEM,
                     None => reference,
@@ -1641,8 +1648,11 @@ fn get_streamed_filtered_bam_readers(
     filter_params: &FilterParameters,
 ) -> Vec<BamGeneratorSet<StreamingFilteredNamedBamReaderGenerator>> {
     // Check the output BAM directory actually exists and is writeable
-    if m.contains_id("bam-file-cache-directory") {
-        setup_bam_cache_directory(m.get_one::<String>("bam-file-cache-directory").unwrap());
+    if m.contains_id("cache-unfiltered-bam-directory") {
+        setup_bam_cache_directory(
+            m.get_one::<String>("cache-unfiltered-bam-directory")
+                .unwrap(),
+        );
     }
     let discard_unmapped = m.get_flag("discard-unmapped");
 

@@ -419,7 +419,7 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "--bam-file-cache-directory",
+                "--cache-unfiltered-bam-directory",
                 "/no/no/no/165",
             ])
             .fails()
@@ -442,7 +442,7 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "--bam-file-cache-directory",
+                "--cache-unfiltered-bam-directory",
                 dir.to_str().unwrap(),
             ])
             .fails()
@@ -469,7 +469,7 @@ mod tests {
                 "tests/data/7seqs.fna",
                 "-p",
                 "minimap2-sr",
-                "--bam-file-cache-names",
+                "--cache-unfiltered-bam-files",
                 name.to_str().unwrap(),
             ])
             .succeeds()
@@ -1267,7 +1267,7 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 "tests/data/genomes_dir/",
                 "-p",
                 "minimap2-sr",
-                "--bam-file-cache-directory",
+                "--cache-unfiltered-bam-directory",
                 td.path().to_str().unwrap(),
             ])
             .succeeds()
