@@ -76,15 +76,16 @@ fn plot_spline(
 }
 
 /// Calculate GC bias adjusted coverage for each contig given a reference fasta
-/// and BAM files. Returns a vector of (contig_name, adjusted_coverage).
+/// and BAM files. Returns a vector of (contig_name, adjusted_coverage, original_coverage, gc_percent).
 /// Only contigs with mean coverage >= `min_contig_cov` are used to fit the spline.
+#[allow(clippy::type_complexity)]
 pub fn gc_bias_correct(
     reference: &str,
     bam_files: &[&str],
     window_size: usize,
     min_contig_cov: f64,
     plot_path: Option<&str>,
-) -> Result<Vec<(String, f64)>, Box<dyn Error>> {
+) -> Result<Vec<(String, f64, f64, f64)>, Box<dyn Error>> {
     // Read reference sequences
     let fasta_reader = fasta::Reader::from_file(reference)?;
     let mut sequences: Vec<(String, Vec<u8>)> = Vec::new();
@@ -132,6 +133,7 @@ pub fn gc_bias_correct(
         cov: Vec<f64>,
     }
     let mut contig_data: Vec<ContigData> = Vec::new();
+    let mut contig_stats: Vec<(f64, f64)> = Vec::new(); // (mean_cov, gc_frac)
     let mut fit_gc = Vec::new();
     let mut fit_rel_cov = Vec::new();
 
@@ -144,6 +146,16 @@ pub fn gc_bias_correct(
         } else {
             0.0
         };
+        let gc_total = seq
+            .iter()
+            .filter(|b| matches!(**b, b'G' | b'g' | b'C' | b'c'))
+            .count();
+        let contig_gc_frac = if len > 0 {
+            gc_total as f64 / len as f64
+        } else {
+            0.0
+        };
+        contig_stats.push((contig_mean, contig_gc_frac));
         let mut data = ContigData {
             gc: Vec::new(),
             cov: Vec::new(),
@@ -179,9 +191,13 @@ pub fn gc_bias_correct(
     }
 
     let mut results = Vec::new();
-    for ((name, _), data) in sequences.iter().zip(contig_data.iter()) {
+    for (((name, _), data), (orig_cov, gc_frac)) in sequences
+        .iter()
+        .zip(contig_data.iter())
+        .zip(contig_stats.iter())
+    {
         if data.gc.is_empty() {
-            results.push((name.clone(), 0.0));
+            results.push((name.clone(), 0.0, *orig_cov, gc_frac * 100.0));
             continue;
         }
         let mut sum_adj = 0.0;
@@ -199,7 +215,7 @@ pub fn gc_bias_correct(
         } else {
             0.0
         };
-        results.push((name.clone(), adj_mean));
+        results.push((name.clone(), adj_mean, *orig_cov, gc_frac * 100.0));
     }
     Ok(results)
 }

@@ -514,8 +514,8 @@ fn main() {
                 reference, &bam_files, window, min_cov, plot_path,
             ) {
                 Ok(res) => {
-                    for (name, cov) in res {
-                        println!("{name}\t{cov}");
+                    for (name, adj, orig, gc) in res {
+                        println!("{name}\t{adj}\t{orig}\t{gc}");
                     }
                 }
                 Err(e) => {
