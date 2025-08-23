@@ -1037,6 +1037,7 @@ Usage: coverm <subcommand> ...
 Main subcommands:
 \tcontig\tCalculate coverage of contigs
 \tgenome\tCalculate coverage of genomes
+\tgc-bias\tAdjust coverage for GC bias
 
 Less used utility subcommands:
 \tmake\tGenerate BAM files through alignment
@@ -2151,6 +2152,43 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
+                ),
+        )
+        .subcommand(
+            add_clap_verbosity_flags(Command::new("gc-bias"))
+                .about("Calculate GC bias adjusted coverage")
+                .arg(
+                    Arg::new("bam-files")
+                        .short('b')
+                        .long("bam-files")
+                        .required(true)
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
+                )
+                .arg(
+                    Arg::new("reference")
+                        .short('r')
+                        .long("reference")
+                        .required(true),
+                )
+                .arg(
+                    Arg::new("window-size")
+                        .short('w')
+                        .long("window-size")
+                        .value_parser(value_parser!(usize))
+                        .default_value("1000"),
+                )
+                .arg(
+                    Arg::new("min-contig-coverage")
+                        .long("min-contig-coverage")
+                        .value_parser(value_parser!(f64))
+                        .default_value("20"),
+                )
+                .arg(
+                    Arg::new("plot")
+                        .long("plot")
+                        .value_parser(value_parser!(String))
+                        .help("Output PNG plot of GC bias spline"),
                 ),
         )
         .subcommand(
