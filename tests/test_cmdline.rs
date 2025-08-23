@@ -1279,6 +1279,30 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
     }
 
     #[test]
+    fn test_caches_when_reference_not_specified_legacy_flag() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir/",
+                "-p",
+                "minimap2-sr",
+                "--bam-file-cache-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
+    #[test]
     fn test_sharding_no_exclusion_genome_separator() {
         Assert::main_binary()
             .with_args(&[
