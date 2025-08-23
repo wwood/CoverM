@@ -419,7 +419,7 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "--bam-file-cache-directory",
+                "--cache-unfiltered-bam-directory",
                 "/no/no/no/165",
             ])
             .fails()
@@ -428,6 +428,12 @@ mod tests {
 
     #[test]
     fn test_unwriteable_cache_bam_files() {
+        let td = tempfile::TempDir::new().unwrap();
+        let dir = td.path().to_path_buf();
+        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&dir, perms).unwrap();
+
         Assert::main_binary()
             .with_args(&[
                 "contig",
@@ -436,11 +442,39 @@ mod tests {
                 "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
                 "--reference",
                 "tests/data/7seqs.fna",
-                "--bam-file-cache-directory",
-                "/",
+                "--cache-unfiltered-bam-directory",
+                dir.to_str().unwrap(),
             ])
             .fails()
             .unwrap();
+
+        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        perms.set_readonly(false);
+        std::fs::set_permissions(&dir, perms).unwrap();
+    }
+
+    #[test]
+    fn test_cache_bam_files_names() {
+        let td = tempfile::TempDir::new().unwrap();
+        let name = td.path().join("cached.bam");
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--output-format",
+                "sparse",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+                "--cache-unfiltered-bam-files",
+                name.to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(name.is_file());
     }
 
     #[test]
@@ -1222,6 +1256,30 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
 
     #[test]
     fn test_caches_when_reference_not_specified() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir/",
+                "-p",
+                "minimap2-sr",
+                "--cache-unfiltered-bam-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("coverm-genome.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
+    #[test]
+    fn test_caches_when_reference_not_specified_legacy_flag() {
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
             .with_args(&[
