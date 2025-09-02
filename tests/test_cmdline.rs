@@ -1,4 +1,5 @@
 extern crate assert_cli;
+extern crate coverm;
 extern crate rust_htslib;
 extern crate tempfile;
 
@@ -12,7 +13,10 @@ mod tests {
     use std;
     use std::io::Read;
     use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
     use std::str;
+    use tempfile::tempdir;
 
     fn assert_equal_table(expected: &str, observed: &str) -> bool {
         // assert the first lines are the same
@@ -92,6 +96,19 @@ mod tests {
         }
 
         true
+    }
+
+    fn download_x_mapper(dest_dir: &Path) -> PathBuf {
+        let jar_path = dest_dir.join("x-mapper.jar");
+        let status = Command::new("curl")
+            .arg("-L")
+            .arg("https://github.com/mathjeff/Mapper/releases/download/1.2.0-beta10/x-mapper-1.2.0-beta10.jar")
+            .arg("-o")
+            .arg(&jar_path)
+            .status()
+            .expect("failed to execute curl");
+        assert!(status.success());
+        jar_path
     }
 
     #[test]
@@ -3756,6 +3773,175 @@ genome6~random_sequence_length_11003	0	0	0
             filtered_count += 1;
         }
         assert_eq!(filtered_count, 0);
+    }
+
+    #[test]
+    fn test_build_mapping_command_xmapper_single() {
+        use coverm::bam_generator::{build_mapping_command, MappingProgram};
+        use coverm::mapping_index_maintenance::MappingIndex;
+        use coverm::mapping_parameters::ReadFormat;
+
+        struct DummyIndex {
+            path: String,
+        }
+        impl MappingIndex for DummyIndex {
+            fn index_path(&self) -> &String {
+                &self.path
+            }
+        }
+
+        let index = DummyIndex {
+            path: "ref.fa".to_string(),
+        };
+        let cmd = build_mapping_command(
+            MappingProgram::X_MAPPER,
+            ReadFormat::Single,
+            4,
+            "reads.fq",
+            &index,
+            None,
+            None,
+        );
+        assert!(cmd.contains("java -jar x-mapper.jar"));
+        assert!(cmd.contains("--reference 'ref.fa'"));
+        assert!(cmd.contains("--queries 'reads.fq'"));
+        assert!(cmd.contains("--out-sam -"));
+    }
+
+    #[test]
+    fn test_build_mapping_command_xmapper_paired() {
+        use coverm::bam_generator::{build_mapping_command, MappingProgram};
+        use coverm::mapping_index_maintenance::MappingIndex;
+        use coverm::mapping_parameters::ReadFormat;
+
+        struct DummyIndex {
+            path: String,
+        }
+        impl MappingIndex for DummyIndex {
+            fn index_path(&self) -> &String {
+                &self.path
+            }
+        }
+
+        let index = DummyIndex {
+            path: "ref.fa".to_string(),
+        };
+        let cmd = build_mapping_command(
+            MappingProgram::X_MAPPER,
+            ReadFormat::Coupled,
+            8,
+            "r1.fq",
+            &index,
+            Some("r2.fq"),
+            None,
+        );
+        assert!(cmd.contains("--paired-queries 'r1.fq' 'r2.fq'"));
+    }
+
+    #[test]
+    #[ignore]
+    fn test_x_mapper_outputs_sam() {
+        let tmp = tempdir().unwrap();
+        let jar_path = download_x_mapper(tmp.path());
+
+        let sam_path = tmp.path().join("out.sam");
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let status = Command::new("java")
+            .arg("-jar")
+            .arg(&jar_path)
+            .arg("--reference")
+            .arg(&reference)
+            .arg("--paired-queries")
+            .arg(&r1)
+            .arg(&r2)
+            .arg("--out-sam")
+            .arg(&sam_path)
+            .status()
+            .expect("failed to run x-mapper");
+        assert!(status.success());
+
+        let output = Command::new("samtools")
+            .arg("view")
+            .arg("-c")
+            .arg(&sam_path)
+            .output()
+            .expect("samtools view failed");
+        assert!(output.status.success());
+        let count: u64 = std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert!(count > 0);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_coverm_make_x_mapper() {
+        let tmp = tempdir().unwrap();
+        let jar_path = download_x_mapper(tmp.path());
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir(&out_dir).unwrap();
+
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let status = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .current_dir(tmp.path())
+            .args([
+                "make",
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-o",
+                out_dir.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+            ])
+            .status()
+            .expect("failed to run coverm make");
+        assert!(status.success());
+
+        let bam_files: Vec<PathBuf> = std::fs::read_dir(&out_dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().map_or(false, |e| e == "bam"))
+            .collect();
+        assert_eq!(bam_files.len(), 1);
+
+        let output = Command::new("samtools")
+            .arg("view")
+            .arg("-c")
+            .arg(&bam_files[0])
+            .output()
+            .expect("samtools view failed");
+        assert!(output.status.success());
+        let count: u64 = std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert!(count > 0);
+        assert!(jar_path.exists());
     }
 }
 

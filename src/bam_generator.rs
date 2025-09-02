@@ -53,6 +53,7 @@ pub enum MappingProgram {
     MINIMAP2_HIFI,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    X_MAPPER,
 }
 
 pub struct BamFileNamedReader {
@@ -415,7 +416,10 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::STROBEALIGN => None,
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::X_MAPPER => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -864,6 +868,27 @@ pub fn build_mapping_command(
     read2_path: Option<&str>,
     mapping_options: Option<&str>,
 ) -> String {
+    if matches!(mapping_program, MappingProgram::X_MAPPER) {
+        let read_params = match read_format {
+            ReadFormat::Coupled => format!(
+                "--paired-queries '{}' '{}'",
+                read1_path,
+                read2_path.unwrap()
+            ),
+            ReadFormat::Single => format!("--queries '{}'", read1_path),
+            ReadFormat::Interleaved => {
+                panic!("Interleaved reads are not supported by X-Mapper")
+            }
+        };
+        return format!(
+            "java -jar x-mapper.jar {} --num-threads {} --reference '{}' {} --out-sam -",
+            mapping_options.unwrap_or(""),
+            threads,
+            reference.index_path(),
+            read_params
+        );
+    }
+
     let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
         MappingProgram::MINIMAP2_SR
@@ -879,6 +904,7 @@ pub fn build_mapping_command(
             ReadFormat::Interleaved => "--interleaved",
             ReadFormat::Coupled | ReadFormat::Single => "",
         },
+        MappingProgram::X_MAPPER => unreachable!(),
     };
 
     let read_params2 = match read_format {
@@ -893,6 +919,7 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             MappingProgram::STROBEALIGN => "strobealign".to_string(),
+            MappingProgram::X_MAPPER => unreachable!(),
             _ => {
                 let split_prefix = tempfile::Builder::new()
                     .prefix("coverm-minimap2-split-index")
@@ -912,7 +939,8 @@ pub fn build_mapping_command(
                     match mapping_program {
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
-                        | MappingProgram::STROBEALIGN => unreachable!(),
+                        | MappingProgram::STROBEALIGN
+                        | MappingProgram::X_MAPPER => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

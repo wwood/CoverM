@@ -20,6 +20,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-hifi",
     "minimap2-no-preset",
     "strobealign",
+    "x-mapper",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
@@ -86,11 +87,15 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &format!("minimap2 with '{}' option", &monospace_roff("-x map-hifi"))
                     ],
                     &[
-                        &monospace_roff("minimap2-no-preset"),
-                        &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
-                    ],
-                ])
-            )))
+                    &monospace_roff("minimap2-no-preset"),
+                    &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
+                ],
+                &[
+                    &monospace_roff("x-mapper"),
+                    "x-mapper using default parameters"
+                ],
+            ])
+        )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
                 "Extra parameters to provide to minimap2, \
         both indexing command (if used) and for \
@@ -111,6 +116,12 @@ fn add_mapping_options(manual: Manual) -> Manual {
             ))
             .option(Opt::new("PARAMS").long("--strobealign-params").help(
                 "Extra parameters to provide to strobealign. Note \
+        that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--x-mapper-params").help(
+                "Extra parameters to provide to x-mapper. Note \
         that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
@@ -1234,6 +1245,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("x-mapper-params")
+                        .long("x-mapper-params")
+                        .long("x-mapper-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
                         .requires("reference")
@@ -1769,6 +1787,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("x-mapper-params")
+                        .long("x-mapper-params")
+                        .long("x-mapper-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
                         .requires("reference")
@@ -2143,6 +2168,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
                         .long("strobealign-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("x-mapper-params")
+                        .long("x-mapper-params")
+                        .long("x-mapper-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )

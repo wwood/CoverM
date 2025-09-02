@@ -30,3 +30,8 @@ pub fn check_for_strobealign() {
     default_version_check("strobealign", "0.11.0", false, None)
         .expect("Failed to find sufficient version of strobealign");
 }
+
+pub fn check_for_x_mapper() {
+    check_for_external_command_presence_with_which("java")
+        .expect("Failed to find installed Java for x-mapper");
+}
