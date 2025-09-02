@@ -3839,53 +3839,7 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    #[ignore]
-    fn test_x_mapper_outputs_sam() {
-        let tmp = tempdir().unwrap();
-        let jar_path = download_x_mapper(tmp.path());
-
-        let sam_path = tmp.path().join("out.sam");
-        let reference = PathBuf::from("tests/data/7seqs.fna")
-            .canonicalize()
-            .unwrap();
-        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
-            .canonicalize()
-            .unwrap();
-        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
-            .canonicalize()
-            .unwrap();
-
-        let status = Command::new("java")
-            .arg("-jar")
-            .arg(&jar_path)
-            .arg("--reference")
-            .arg(&reference)
-            .arg("--paired-queries")
-            .arg(&r1)
-            .arg(&r2)
-            .arg("--out-sam")
-            .arg(&sam_path)
-            .status()
-            .expect("failed to run x-mapper");
-        assert!(status.success());
-
-        let output = Command::new("samtools")
-            .arg("view")
-            .arg("-c")
-            .arg(&sam_path)
-            .output()
-            .expect("samtools view failed");
-        assert!(output.status.success());
-        let count: u64 = std::str::from_utf8(&output.stdout)
-            .unwrap()
-            .trim()
-            .parse()
-            .unwrap();
-        assert!(count > 0);
-    }
-
-    #[test]
-    #[ignore]
+    #[cfg_attr(not(feature = "xmapper"), ignore)]
     fn test_coverm_make_x_mapper() {
         let tmp = tempdir().unwrap();
         let jar_path = download_x_mapper(tmp.path());
