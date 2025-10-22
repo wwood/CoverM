@@ -880,9 +880,13 @@ pub fn build_mapping_command(
                 panic!("Interleaved reads are not supported by X-Mapper")
             }
         };
+        let mapping_options = mapping_options
+            .filter(|opts| !opts.is_empty())
+            .map(|opts| format!(" {opts}"))
+            .unwrap_or_default();
         return format!(
-            "java -jar x-mapper.jar {} --num-threads {} --reference '{}' {} --out-sam -",
-            mapping_options.unwrap_or(""),
+            "x-mapper{} --num-threads {} --reference '{}' {} --out-sam -",
+            mapping_options,
             threads,
             reference.index_path(),
             read_params

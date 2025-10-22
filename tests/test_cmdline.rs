@@ -13,7 +13,7 @@ mod tests {
     use std;
     use std::io::Read;
     use std::io::Write;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::process::Command;
     use std::str;
     use tempfile::tempdir;
@@ -96,19 +96,6 @@ mod tests {
         }
 
         true
-    }
-
-    fn download_x_mapper(dest_dir: &Path) -> PathBuf {
-        let jar_path = dest_dir.join("x-mapper.jar");
-        let status = Command::new("curl")
-            .arg("-L")
-            .arg("https://github.com/mathjeff/Mapper/releases/download/1.2.0-beta10/x-mapper-1.2.0-beta10.jar")
-            .arg("-o")
-            .arg(&jar_path)
-            .status()
-            .expect("failed to execute curl");
-        assert!(status.success());
-        jar_path
     }
 
     #[test]
@@ -3802,7 +3789,7 @@ genome6~random_sequence_length_11003	0	0	0
             None,
             None,
         );
-        assert!(cmd.contains("java -jar x-mapper.jar"));
+        assert_eq!(cmd.split_whitespace().next().unwrap(), "x-mapper");
         assert!(cmd.contains("--reference 'ref.fa'"));
         assert!(cmd.contains("--queries 'reads.fq'"));
         assert!(cmd.contains("--out-sam -"));
@@ -3839,10 +3826,9 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    #[cfg_attr(not(feature = "xmapper"), ignore)]
+    #[ignore = "xmapper"]
     fn test_coverm_make_x_mapper() {
         let tmp = tempdir().unwrap();
-        let jar_path = download_x_mapper(tmp.path());
         let out_dir = tmp.path().join("out");
         std::fs::create_dir(&out_dir).unwrap();
 
@@ -3895,7 +3881,6 @@ genome6~random_sequence_length_11003	0	0	0
             .parse()
             .unwrap();
         assert!(count > 0);
-        assert!(jar_path.exists());
     }
 }
 

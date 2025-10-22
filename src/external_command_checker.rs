@@ -32,6 +32,6 @@ pub fn check_for_strobealign() {
 }
 
 pub fn check_for_x_mapper() {
-    check_for_external_command_presence_with_which("java")
-        .expect("Failed to find installed Java for x-mapper");
+    check_for_external_command_presence_with_which("x-mapper")
+        .expect("Failed to find installed x-mapper");
 }
