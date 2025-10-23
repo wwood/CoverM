@@ -3904,6 +3904,60 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_manual_coverm_contig_x_mapper_min_identity() {
+        // Without filtering for comparison
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                // "--min-read-percent-identity",
+                // "0.99", // There is 3 mismatches in 150bp
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/bad_read.1.fq",
+                "-p",
+                "x-mapper",
+                "-m",
+                "count",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Contig\t2seqs.fasta/bad_read.1.fq Read Count\n\
+                seq1\t5\n\
+                seq2\t5\n",
+            )
+            .unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--min-read-percent-identity",
+                "0.99", // There is 3 mismatches in 150bp
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/bad_read.1.fq",
+                "-p",
+                "x-mapper",
+                "-m",
+                "count",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Contig\t2seqs.fasta/bad_read.1.fq Read Count\n\
+                seq1\t4\n\
+                seq2\t5\n",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_coverm_genome_x_mapper() {
         let reference = PathBuf::from("tests/data/7seqs.fna")
             .canonicalize()
