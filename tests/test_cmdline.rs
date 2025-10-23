@@ -3826,7 +3826,83 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
-    #[ignore = "xmapper"]
+    fn test_coverm_contig_x_mapper() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "contig",
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+                "--output-format",
+                "dense",
+            ])
+            .output()
+            .expect("failed to run coverm contig with x-mapper");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Contig"));
+        assert!(stdout.contains("genome1~random_sequence_length_11000"));
+        assert!(stdout.contains("genome5~seq2"));
+    }
+
+    #[test]
+    fn test_coverm_genome_x_mapper() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+        let definition = PathBuf::from("tests/data/7seqs.definition")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "genome",
+                "--genome-definition",
+                definition.to_str().unwrap(),
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+            ])
+            .output()
+            .expect("failed to run coverm genome with x-mapper");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Genome"));
+        assert!(stdout.contains("genome2"));
+        assert!(stdout.contains("genome5"));
+    }
+
+    #[test]
     fn test_coverm_make_x_mapper() {
         let tmp = tempdir().unwrap();
         let out_dir = tmp.path().join("out");

@@ -885,11 +885,12 @@ pub fn build_mapping_command(
             .map(|opts| format!(" {opts}"))
             .unwrap_or_default();
         return format!(
-            "x-mapper{} --num-threads {} --reference '{}' {} --out-sam -",
+            "x-mapper{} --num-threads {} --reference '{}' {} --out-sam - | samtools calmd -S - '{}'",
             mapping_options,
             threads,
             reference.index_path(),
-            read_params
+            read_params,
+            reference.index_path()
         );
     }
 
