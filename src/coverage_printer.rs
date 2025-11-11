@@ -197,9 +197,8 @@ pub fn print_sparse_cached_coverage_taker(
                         }
                         coverage_totals[*i] = Some(total_coverage);
 
-                        if reads_mapped_per_sample.is_some() {
-                            let reads_mapped =
-                                &reads_mapped_per_sample.as_ref().unwrap()[current_stoit_index];
+                        if let Some(reads_mapped_per_sample) = reads_mapped_per_sample.as_ref() {
+                            let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
                             let fraction_mapped = reads_mapped.num_mapped_reads as f32
                                 / reads_mapped.num_reads as f32;
                             coverage_multipliers[*i] = Some(fraction_mapped);

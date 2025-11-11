@@ -892,27 +892,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
             m.get_one::<String>("mapper")
         ),
     };
-    match mapping_program {
-        MappingProgram::BWA_MEM => {
-            external_command_checker::check_for_bwa();
-        }
-        MappingProgram::BWA_MEM2 => {
-            external_command_checker::check_for_bwa_mem2();
-        }
-        MappingProgram::MINIMAP2_SR
-        | MappingProgram::MINIMAP2_ONT
-        | MappingProgram::MINIMAP2_HIFI
-        | MappingProgram::MINIMAP2_PB
-        | MappingProgram::MINIMAP2_NO_PRESET => {
-            external_command_checker::check_for_minimap2();
-        }
-        MappingProgram::STROBEALIGN => {
-            external_command_checker::check_for_strobealign();
-        }
-        MappingProgram::X_MAPPER => {
-            external_command_checker::check_for_x_mapper();
-        }
-    }
+    mapping_program.check_dependencies();
     mapping_program
 }
 

@@ -185,7 +185,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
     if num_existing == 0 {
         false
     } else if num_existing == num_extensions {
-        return true;
+        true
     } else {
         error!("BWA index appears to be incomplete, cannot continue.");
         process::exit(1);
