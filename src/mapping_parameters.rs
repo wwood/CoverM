@@ -248,27 +248,27 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
             self.iter_interleaved_index += 1;
-            return Some(OneSampleMappingParameters {
+            Some(OneSampleMappingParameters {
                 reference: self.reference,
                 read_format: ReadFormat::Interleaved,
                 read1: self.interleaved[i],
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            });
+            })
         } else if self.iter_unpaired_index < self.unpaired.len() {
             let i = self.iter_unpaired_index;
             self.iter_unpaired_index += 1;
-            return Some(OneSampleMappingParameters {
+            Some(OneSampleMappingParameters {
                 reference: self.reference,
                 read_format: ReadFormat::Single,
                 read1: self.unpaired[i],
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
 }
