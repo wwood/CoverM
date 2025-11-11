@@ -3,6 +3,8 @@ use std::io::Read;
 use std::process;
 use std::sync::atomic::{compiler_fence, Ordering};
 
+use crate::external_command_checker;
+
 use filter::*;
 use mapping_index_maintenance::MappingIndex;
 use mapping_parameters::ReadFormat;
@@ -54,6 +56,32 @@ pub enum MappingProgram {
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
     X_MAPPER,
+}
+
+impl MappingProgram {
+    pub fn check_dependencies(&self) {
+        match self {
+            MappingProgram::BWA_MEM => {
+                external_command_checker::check_for_bwa();
+            }
+            MappingProgram::BWA_MEM2 => {
+                external_command_checker::check_for_bwa_mem2();
+            }
+            MappingProgram::MINIMAP2_SR
+            | MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_HIFI
+            | MappingProgram::MINIMAP2_NO_PRESET => {
+                external_command_checker::check_for_minimap2();
+            }
+            MappingProgram::STROBEALIGN => {
+                external_command_checker::check_for_strobealign();
+            }
+            MappingProgram::X_MAPPER => {
+                external_command_checker::check_for_x_mapper();
+            }
+        }
+    }
 }
 
 pub struct BamFileNamedReader {

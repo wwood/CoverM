@@ -3789,7 +3789,7 @@ genome6~random_sequence_length_11003	0	0	0
             None,
             None,
         );
-        assert_eq!(cmd.split_whitespace().next().unwrap(), "x-mapper");
+        assert!(cmd.starts_with("bash -c \"x-mapper"));
         assert!(cmd.contains("--reference 'ref.fa'"));
         assert!(cmd.contains("--queries 'reads.fq'"));
         assert!(cmd.contains("--out-sam -"));
