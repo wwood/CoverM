@@ -884,8 +884,12 @@ pub fn build_mapping_command(
             .filter(|opts| !opts.is_empty())
             .map(|opts| format!(" {opts}"))
             .unwrap_or_default();
+        // We add bash -c to ensure that the full command is run in a shell,
+        // because the whole thing only has 1 log file, added outside this
+        // function. In future could refactor to have each part have its own log
+        // file.
         return format!(
-            "x-mapper{} --num-threads {} --reference '{}' {} --out-sam - | samtools calmd -S - '{}'",
+            "bash -c \"x-mapper{} --num-threads {} --reference '{}' {} --out-sam - | samtools calmd -S - '{}'\"",
             mapping_options,
             threads,
             reference.index_path(),
