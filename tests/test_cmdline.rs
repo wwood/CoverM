@@ -3998,6 +3998,41 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_coverm_genome_fasta_files_x_mapper() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "genome",
+                "--genome-fasta-files",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+            ])
+            .output()
+            .expect("failed to run coverm genome with genome-fasta-files and x-mapper");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Genome"));
+        assert!(stdout.contains("Relative Abundance"));
+        assert!(stdout.contains("7seqs"));
+    }
+
+    #[test]
     fn test_coverm_make_x_mapper() {
         let tmp = tempdir().unwrap();
         let out_dir = tmp.path().join("out");

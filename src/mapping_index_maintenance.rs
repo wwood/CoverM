@@ -258,6 +258,7 @@ pub fn generate_minimap2_index(
 pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> NamedTempFile {
     let tmpfile: NamedTempFile = Builder::new()
         .prefix("coverm-concatenated-fasta")
+        .suffix(".fasta")
         .tempfile()
         .unwrap();
     let mut something_written_at_all = false;
@@ -363,5 +364,40 @@ impl MappingIndex for PregeneratedStrobealignIndexStruct {
 
     fn command_prefix(&self) -> &str {
         "--use-index"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::Builder;
+
+    #[test]
+    fn concatenated_fasta_file_has_required_extension() {
+        let mut input_fasta = Builder::new()
+            .prefix("coverm-test-genome")
+            .suffix(".fasta")
+            .tempfile()
+            .unwrap();
+        write!(input_fasta, ">contig1\nACGT\n").unwrap();
+        input_fasta.flush().unwrap();
+
+        let input_path = input_fasta
+            .path()
+            .to_str()
+            .expect("temporary file should have valid UTF-8 path")
+            .to_string();
+
+        let concatenated = generate_concatenated_fasta_file(&vec![input_path]);
+        let concatenated_path = concatenated.path();
+
+        assert_eq!(
+            concatenated_path.extension().and_then(|ext| ext.to_str()),
+            Some("fasta")
+        );
+
+        let contents = std::fs::read_to_string(concatenated_path).unwrap();
+        assert!(contents.contains("ACGT"));
     }
 }
