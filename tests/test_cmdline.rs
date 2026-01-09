@@ -1876,6 +1876,57 @@ genome6	26.697144
     }
 
     #[test]
+    fn test_lr_hq_single_sample_two_zero_means() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean",
+                "-p",
+                "minimap2-lr-hq",
+                "--single",
+                "tests/data/2seqs.fasta",
+                "-r",
+                "tests/data/7seqs.fna",
+            ])
+            .succeeds()
+            .stdout()
+            .satisfies(
+                |observed| {
+                    let mut lines = observed.lines();
+                    let header = lines.next().unwrap_or("");
+                    assert!(
+                        header.starts_with("Contig\t"),
+                        "Unexpected header: {header}",
+                        header = header
+                    );
+
+                    let mut total = 0;
+                    let mut zero_means = 0;
+                    for line in lines {
+                        let fields: Vec<&str> = line.split('\t').collect();
+                        assert_eq!(
+                            fields.len(),
+                            2,
+                            "Expected contig and mean columns in '{line}'"
+                        );
+                        let mean: f64 = fields[1].parse().unwrap();
+                        if mean == 0.0 {
+                            zero_means += 1;
+                        }
+                        total += 1;
+                    }
+
+                    assert_eq!(total, 7, "Expected 7 contig rows");
+                    assert_eq!(zero_means, 2, "Expected 2 zero-mean contigs");
+                    true
+                },
+                "unexpected output",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_ont_two_samples() {
         // Also tests that -t is being set when minimap2 indexing
         Assert::main_binary()

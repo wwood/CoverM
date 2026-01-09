@@ -91,6 +91,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &format!("minimap2 with '{}' option", &monospace_roff("-x map-hifi"))
                     ],
                     &[
+                        &monospace_roff("minimap2-lr-hq"),
+                        &format!("minimap2 with '{}' option", &monospace_roff("-x lr:hq"))
+                    ],
+                    &[
                         &monospace_roff("minimap2-no-preset"),
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
