@@ -1,4 +1,5 @@
 extern crate assert_cli;
+extern crate coverm;
 extern crate rust_htslib;
 extern crate tempfile;
 
@@ -12,7 +13,10 @@ mod tests {
     use std;
     use std::io::Read;
     use std::io::Write;
+    use std::path::PathBuf;
+    use std::process::Command;
     use std::str;
+    use tempfile::tempdir;
 
     fn assert_equal_table(expected: &str, observed: &str) -> bool {
         // assert the first lines are the same
@@ -3756,6 +3760,244 @@ genome6~random_sequence_length_11003	0	0	0
             filtered_count += 1;
         }
         assert_eq!(filtered_count, 0);
+    }
+
+    #[test]
+    fn test_build_mapping_command_xmapper_single() {
+        use coverm::bam_generator::{build_mapping_command, MappingProgram};
+        use coverm::mapping_index_maintenance::MappingIndex;
+        use coverm::mapping_parameters::ReadFormat;
+
+        struct DummyIndex {
+            path: String,
+        }
+        impl MappingIndex for DummyIndex {
+            fn index_path(&self) -> &String {
+                &self.path
+            }
+        }
+
+        let index = DummyIndex {
+            path: "ref.fa".to_string(),
+        };
+        let cmd = build_mapping_command(
+            MappingProgram::X_MAPPER,
+            ReadFormat::Single,
+            4,
+            "reads.fq",
+            &index,
+            None,
+            None,
+        );
+        assert_eq!(cmd.split_whitespace().next().unwrap(), "x-mapper");
+        assert!(cmd.contains("--reference 'ref.fa'"));
+        assert!(cmd.contains("--queries 'reads.fq'"));
+        assert!(cmd.contains("--out-sam -"));
+    }
+
+    #[test]
+    fn test_build_mapping_command_xmapper_paired() {
+        use coverm::bam_generator::{build_mapping_command, MappingProgram};
+        use coverm::mapping_index_maintenance::MappingIndex;
+        use coverm::mapping_parameters::ReadFormat;
+
+        struct DummyIndex {
+            path: String,
+        }
+        impl MappingIndex for DummyIndex {
+            fn index_path(&self) -> &String {
+                &self.path
+            }
+        }
+
+        let index = DummyIndex {
+            path: "ref.fa".to_string(),
+        };
+        let cmd = build_mapping_command(
+            MappingProgram::X_MAPPER,
+            ReadFormat::Coupled,
+            8,
+            "r1.fq",
+            &index,
+            Some("r2.fq"),
+            None,
+        );
+        assert!(cmd.contains("--paired-queries 'r1.fq' 'r2.fq'"));
+    }
+
+    #[test]
+    fn test_coverm_contig_x_mapper() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "contig",
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+                "--output-format",
+                "dense",
+            ])
+            .output()
+            .expect("failed to run coverm contig with x-mapper");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Contig"));
+        assert!(stdout.contains("genome1~random_sequence_length_11000"));
+        assert!(stdout.contains("genome5~seq2"));
+    }
+
+    #[test]
+    fn test_coverm_contig_x_mapper_min_identity() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "contig",
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+                "--output-format",
+                "dense",
+                "--min-read-percent-identity",
+                "99",
+            ])
+            .output()
+            .expect("failed to run coverm contig with x-mapper min identity");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Contig"));
+        assert!(stdout.contains("genome1~random_sequence_length_11000"));
+        assert!(stdout.contains("genome5~seq2"));
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains("Using min-read-percent-identity 99%"));
+    }
+
+    #[test]
+    fn test_coverm_genome_x_mapper() {
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+        let definition = PathBuf::from("tests/data/7seqs.definition")
+            .canonicalize()
+            .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args([
+                "genome",
+                "--genome-definition",
+                definition.to_str().unwrap(),
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+                "--threads",
+                "1",
+            ])
+            .output()
+            .expect("failed to run coverm genome with x-mapper");
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.starts_with("Genome"));
+        assert!(stdout.contains("genome2"));
+        assert!(stdout.contains("genome5"));
+    }
+
+    #[test]
+    fn test_coverm_make_x_mapper() {
+        let tmp = tempdir().unwrap();
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir(&out_dir).unwrap();
+
+        let reference = PathBuf::from("tests/data/7seqs.fna")
+            .canonicalize()
+            .unwrap();
+        let r1 = PathBuf::from("tests/data/7seqs.reads_for_7.1.fq")
+            .canonicalize()
+            .unwrap();
+        let r2 = PathBuf::from("tests/data/7seqs.reads_for_7.2.fq")
+            .canonicalize()
+            .unwrap();
+
+        let status = Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .current_dir(tmp.path())
+            .args([
+                "make",
+                "-r",
+                reference.to_str().unwrap(),
+                "-1",
+                r1.to_str().unwrap(),
+                "-2",
+                r2.to_str().unwrap(),
+                "-o",
+                out_dir.to_str().unwrap(),
+                "-p",
+                "x-mapper",
+            ])
+            .status()
+            .expect("failed to run coverm make");
+        assert!(status.success());
+
+        let bam_files: Vec<PathBuf> = std::fs::read_dir(&out_dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().map_or(false, |e| e == "bam"))
+            .collect();
+        assert_eq!(bam_files.len(), 1);
+
+        let output = Command::new("samtools")
+            .arg("view")
+            .arg("-c")
+            .arg(&bam_files[0])
+            .output()
+            .expect("samtools view failed");
+        assert!(output.status.success());
+        let count: u64 = std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert!(count > 0);
     }
 }
 
