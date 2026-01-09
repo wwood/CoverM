@@ -18,6 +18,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-ont",
     "minimap2-pb",
     "minimap2-hifi",
+    "minimap2-lr-hq",
     "minimap2-no-preset",
     "strobealign",
 ];
@@ -72,6 +73,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     &[
                         &monospace_roff("minimap2-sr"),
                         &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-lr-hq"),
+                        &format!("minimap2 with '{}' option (recommended for Oxford Nanopore R10+ reads)", &monospace_roff("-x lr:hq"))
                     ],
                     &[
                         &monospace_roff("minimap2-ont"),

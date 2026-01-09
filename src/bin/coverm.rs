@@ -774,6 +774,7 @@ fn setup_mapping_index(
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => {
             if m.get_flag("minimap2-reference-is-index") || reference_wise_params.len() == 1 {
                 info!("Not pre-generating minimap2 index");
@@ -877,6 +878,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-ont") => MappingProgram::MINIMAP2_ONT,
         Some("minimap2-pb") => MappingProgram::MINIMAP2_PB,
         Some("minimap2-hifi") => MappingProgram::MINIMAP2_HIFI,
+        Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
@@ -896,6 +898,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => {
             external_command_checker::check_for_minimap2();
         }

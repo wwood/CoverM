@@ -51,6 +51,7 @@ pub enum MappingProgram {
     MINIMAP2_ONT,
     MINIMAP2_PB,
     MINIMAP2_HIFI,
+    MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
 }
@@ -421,6 +422,7 @@ pub fn generate_named_bam_readers_from_reads(
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_HIFI
+        | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => Some(0),
     };
 
@@ -870,6 +872,7 @@ pub fn build_mapping_command(
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => "",
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
@@ -917,6 +920,7 @@ pub fn build_mapping_command(
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",
                         MappingProgram::MINIMAP2_PB => "-x map-pb",
+                        MappingProgram::MINIMAP2_LR_HQ => "-x lr:hq",
                         MappingProgram::MINIMAP2_NO_PRESET => "",
                     }
                 )

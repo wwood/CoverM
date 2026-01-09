@@ -65,6 +65,7 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
             | MappingProgram::MINIMAP2_HIFI
+            | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
             MappingProgram::STROBEALIGN => std::process::Command::new("strobealign"),
         };
@@ -79,6 +80,7 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => {
                 match &mapping_program {
                     MappingProgram::MINIMAP2_SR => {
@@ -92,6 +94,9 @@ impl TemporaryIndexStruct {
                     }
                     MappingProgram::MINIMAP2_PB => {
                         cmd.arg("-x").arg("map-pb");
+                    }
+                    MappingProgram::MINIMAP2_LR_HQ => {
+                        cmd.arg("-x").arg("lr:hq");
                     }
                     MappingProgram::MINIMAP2_NO_PRESET
                     | MappingProgram::BWA_MEM
@@ -180,7 +185,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
     if num_existing == 0 {
         false
     } else if num_existing == num_extensions {
-        return true;
+        true
     } else {
         error!("BWA index appears to be incomplete, cannot continue.");
         process::exit(1);
@@ -200,6 +205,7 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET
         | MappingProgram::STROBEALIGN => {}
     };

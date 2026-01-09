@@ -99,11 +99,13 @@ impl<'a> MappingParameters<'a> {
         match mapping_program {
             MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_PB
-            | MappingProgram::MINIMAP2_HIFI => {
+            | MappingProgram::MINIMAP2_HIFI
+            | MappingProgram::MINIMAP2_LR_HQ => {
                 if !read1.is_empty() || !interleaved.is_empty() {
                     error!(
                         "Paired-end read input specified to be mapped \
-                        with minimap2-ont, minimap2-pb, or minimap2-hifi which is presumably \
+                        with minimap2-ont, minimap2-pb, minimap2-hifi, or minimap2-lr-hq \
+                        which is presumably \
                         incorrect. Mapping paired reads can be run via \
                         minimap2-no-params if -ont or -pb mapping \
                         is desired."
@@ -120,6 +122,7 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_ONT
             | MappingProgram::MINIMAP2_HIFI
             | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
             MappingProgram::STROBEALIGN => "strobealign-params",
         };
@@ -239,27 +242,27 @@ impl<'a> Iterator for SingleReferenceMappingParameters<'a> {
         } else if self.iter_interleaved_index < self.interleaved.len() {
             let i = self.iter_interleaved_index;
             self.iter_interleaved_index += 1;
-            return Some(OneSampleMappingParameters {
+            Some(OneSampleMappingParameters {
                 reference: self.reference,
                 read_format: ReadFormat::Interleaved,
                 read1: self.interleaved[i],
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            });
+            })
         } else if self.iter_unpaired_index < self.unpaired.len() {
             let i = self.iter_unpaired_index;
             self.iter_unpaired_index += 1;
-            return Some(OneSampleMappingParameters {
+            Some(OneSampleMappingParameters {
                 reference: self.reference,
                 read_format: ReadFormat::Single,
                 read1: self.unpaired[i],
                 read2: None,
                 threads: self.threads,
                 mapping_options: self.mapping_options,
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
 }
