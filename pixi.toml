@@ -11,6 +11,7 @@ platforms = [
     "osx-64",
     "osx-arm64",
 ]
+preview = ["pixi-build"]      # make sure this is present
 
 # Core dependencies that work across all platforms
 [dependencies]
@@ -27,3 +28,13 @@ extern = "*"
 bwa-mem2 = "*"
 dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
 strobealign = ">=0.14.0"  # tests use a pregenerated v3 database
+
+[package]
+name = "coverm"
+version = "0.1.0"  # keep this in sync with [workspace].version
+
+[package.build]
+backend = { name = "pixi-build-rattler-build", version = "0.3.*" }
+# optional, if you want to override channels for the backend; otherwise it’ll
+# reuse [workspace].channels, and pixi-build-rattler-build is on conda-forge anyway
+# channels = ["https://prefix.dev/conda-forge"]
