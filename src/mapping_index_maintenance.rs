@@ -68,6 +68,7 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
             MappingProgram::STROBEALIGN => std::process::Command::new("strobealign"),
+            MappingProgram::X_MAPPER => unreachable!(),
         };
         match &mapping_program {
             MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
@@ -101,7 +102,8 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_NO_PRESET
                     | MappingProgram::BWA_MEM
                     | MappingProgram::BWA_MEM2
-                    | MappingProgram::STROBEALIGN => {}
+                    | MappingProgram::STROBEALIGN
+                    | MappingProgram::X_MAPPER => {}
                 };
                 if let Some(t) = num_threads {
                     cmd.arg("-t").arg(format!("{t}"));
@@ -110,6 +112,9 @@ impl TemporaryIndexStruct {
             }
             MappingProgram::STROBEALIGN => {
                 warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
+            }
+            MappingProgram::X_MAPPER => {
+                warn!("X_MAPPER pre-indexing is not supported currently, so skipping index generation.");
             }
         };
         if let Some(params) = index_creation_options {
@@ -207,7 +212,8 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET
-        | MappingProgram::STROBEALIGN => {}
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::X_MAPPER => {}
     };
 
     if !ref_path.exists() {

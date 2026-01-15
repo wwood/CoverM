@@ -113,6 +113,14 @@ impl<'a> MappingParameters<'a> {
                     process::exit(1);
                 }
             }
+            MappingProgram::X_MAPPER => {
+                if !interleaved.is_empty() {
+                    error!(
+                        "Interleaved read input specified to be mapped with x-mapper which is not supported."
+                    );
+                    process::exit(1);
+                }
+            }
             _ => {}
         }
 
@@ -125,6 +133,7 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
             MappingProgram::STROBEALIGN => "strobealign-params",
+            MappingProgram::X_MAPPER => "x-mapper-params",
         };
         let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {
