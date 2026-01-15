@@ -498,6 +498,32 @@ fn main() {
                 }
             }
         }
+        Some("gc-bias") => {
+            let m = matches.subcommand_matches("gc-bias").unwrap();
+            set_log_level(m, true);
+            let reference = m.get_one::<String>("reference").unwrap();
+            let bam_files: Vec<&str> = m
+                .get_many::<String>("bam-files")
+                .unwrap()
+                .map(|x| &**x)
+                .collect();
+            let window = *m.get_one::<usize>("window-size").unwrap();
+            let min_cov = *m.get_one::<f64>("min-contig-coverage").unwrap();
+            let plot_path = m.get_one::<String>("plot").map(|s| s.as_str());
+            match coverm::gc_bias::gc_bias_correct(
+                reference, &bam_files, window, min_cov, plot_path,
+            ) {
+                Ok(res) => {
+                    for (name, cov) in res {
+                        println!("{name}\t{cov}");
+                    }
+                }
+                Err(e) => {
+                    error!("{}", e);
+                    process::exit(1);
+                }
+            }
+        }
         Some("contig") => {
             let m = matches.subcommand_matches("contig").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, contig_full_help());
