@@ -58,7 +58,7 @@ To run an unreleased version of CoverM, after installing
 git clone https://github.com/wwood/CoverM
 cd CoverM
 pixi install -a
-pixi run cargo run -- genome ...etc...
+pixi run cargo run --release -- genome ...etc...
 ```
 
 To run tests:
