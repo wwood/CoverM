@@ -5,7 +5,10 @@ use std;
 use std::process;
 use FlagFilter;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+use std::path::Path;
 use std::str;
 
 use bam_generator::*;
@@ -14,6 +17,150 @@ use genomes_and_contigs::GenomesAndContigs;
 use mosdepth_genome_coverage_estimators::*;
 use ReadsMapped;
 
+#[derive(Clone)]
+pub struct ConsensusGenomeOutputConfig {
+    pub folder: String,
+    pub min_coverage: u32,
+}
+
+#[derive(Clone, Copy, Default)]
+struct ConsensusBaseCounts {
+    a: u32,
+    c: u32,
+    g: u32,
+    t: u32,
+    skipped: u32,
+    coverage: u32,
+}
+
+impl ConsensusBaseCounts {
+    fn add_base(&mut self, base: u8) {
+        self.coverage += 1;
+        match base.to_ascii_uppercase() {
+            b'A' => self.a += 1,
+            b'C' => self.c += 1,
+            b'G' => self.g += 1,
+            b'T' => self.t += 1,
+            _ => {}
+        }
+    }
+
+    fn add_skipped(&mut self) {
+        self.coverage += 1;
+        self.skipped += 1;
+    }
+
+    fn consensus_base(&self, min_coverage: u32) -> u8 {
+        if self.coverage < min_coverage {
+            return b'N';
+        }
+        let mut best = self.a;
+        let mut best_base = b'A';
+        if self.c > best {
+            best = self.c;
+            best_base = b'C';
+        }
+        if self.g > best {
+            best = self.g;
+            best_base = b'G';
+        }
+        if self.t > best {
+            best = self.t;
+            best_base = b'T';
+        }
+        if self.skipped > best {
+            b'-'
+        } else {
+            best_base
+        }
+    }
+}
+
+fn write_wrapped_fasta_record(file: &mut File, name: &str, sequence: &[u8]) {
+    writeln!(file, ">{name}").expect("Unable to write FASTA header");
+    for chunk in sequence.chunks(80) {
+        writeln!(file, "{}", std::str::from_utf8(chunk).unwrap())
+            .expect("Unable to write FASTA sequence");
+    }
+}
+
+fn safe_genome_file_name(genome_name: &str) -> String {
+    genome_name
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect()
+}
+
+fn update_consensus_counts_for_record(
+    counts: &mut [ConsensusBaseCounts],
+    record: &bam::record::Record,
+) {
+    let seq = record.seq().as_bytes();
+    let mut read_cursor: usize = 0;
+    let mut ref_cursor: usize = record.pos() as usize;
+    for cig in record.cigar().iter() {
+        match cig {
+            Cigar::Match(l) | Cigar::Diff(l) | Cigar::Equal(l) => {
+                for _ in 0..*l as usize {
+                    if ref_cursor < counts.len() && read_cursor < seq.len() {
+                        counts[ref_cursor].add_base(seq[read_cursor]);
+                    }
+                    ref_cursor += 1;
+                    read_cursor += 1;
+                }
+            }
+            Cigar::Del(l) | Cigar::RefSkip(l) => {
+                for _ in 0..*l as usize {
+                    if ref_cursor < counts.len() {
+                        counts[ref_cursor].add_skipped();
+                    }
+                    ref_cursor += 1;
+                }
+            }
+            Cigar::Ins(l) | Cigar::SoftClip(l) => {
+                read_cursor += *l as usize;
+            }
+            Cigar::HardClip(_) | Cigar::Pad(_) => {}
+        }
+    }
+}
+
+fn write_consensus_genomes_from_counts(
+    stoit_name: &str,
+    output_config: &ConsensusGenomeOutputConfig,
+    genomes_to_write: &[usize],
+    genome_names: &[String],
+    genome_to_tids: &[Vec<u32>],
+    tid_to_counts: &HashMap<u32, Vec<ConsensusBaseCounts>>,
+) {
+    let sample_dir = Path::new(&output_config.folder).join(stoit_name);
+    create_dir_all(&sample_dir).expect("Unable to create consensus genome output directory");
+    for genome_index in genomes_to_write {
+        let genome_name = &genome_names[*genome_index];
+        let output_path = sample_dir.join(format!("{}.fna", safe_genome_file_name(genome_name)));
+        let mut output_file = File::create(&output_path).unwrap_or_else(|_| {
+            panic!(
+                "Unable to create consensus FASTA file for genome '{}' at {}",
+                genome_name,
+                output_path.display()
+            )
+        });
+        let mut consensus = Vec::new();
+        for tid in &genome_to_tids[*genome_index] {
+            if let Some(counts) = tid_to_counts.get(tid) {
+                for c in counts {
+                    consensus.push(c.consensus_base(output_config.min_coverage));
+                }
+            }
+        }
+        write_wrapped_fasta_record(&mut output_file, genome_name, &consensus);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn mosdepth_genome_coverage_with_contig_names<
     R: NamedBamReader,
     G: NamedBamReaderGenerator<R>,
@@ -26,6 +173,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
     flag_filters: &FlagFilter,
     coverage_estimators: &mut [CoverageEstimator],
     threads: u16,
+    consensus_output_config: Option<&ConsensusGenomeOutputConfig>,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
     let mut is_first_bam = true;
@@ -48,6 +196,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             vec![vec!(); contigs_and_genomes.genomes.len()];
         // Reads mapped are only counted when the genome has non-zero coverage.
         let mut reads_mapped_in_each_genome: Vec<u64> = vec![0; contigs_and_genomes.genomes.len()];
+        let mut tid_to_consensus_counts: HashMap<u32, Vec<ConsensusBaseCounts>> = HashMap::new();
         for (tid, name) in target_names.iter().enumerate() {
             let genome_index = contigs_and_genomes.genome_index_of_contig(&String::from(
                 std::str::from_utf8(name).expect("UTF8 encoding error in BAM header file"),
@@ -58,6 +207,15 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     reference_number_to_genome_index.push(Some(i));
                     num_refs_in_genomes += 1;
                     genome_index_to_references[i].push(tid as u32);
+                    if consensus_output_config.is_some() {
+                        tid_to_consensus_counts.insert(
+                            tid as u32,
+                            vec![
+                                ConsensusBaseCounts::default();
+                                header.target_len(tid as u32).unwrap() as usize
+                            ],
+                        );
+                    }
                 }
                 None => {
                     reference_number_to_genome_index.push(None);
@@ -125,6 +283,11 @@ pub fn mosdepth_genome_coverage_with_contig_names<
             if !record.is_unmapped() {
                 // if mapped
                 let tid = original_tid as u32;
+                if consensus_output_config.is_some() {
+                    if let Some(counts) = tid_to_consensus_counts.get_mut(&tid) {
+                        update_consensus_counts_for_record(counts, &record);
+                    }
+                }
                 if tid != last_tid || doing_first {
                     debug!("Came across a new tid {tid}");
                     if doing_first {
@@ -264,6 +427,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 }
             }
             // print the genomes out
+            let mut genomes_with_nonzero_coverage: Vec<usize> = vec![];
             for (i, genome) in contigs_and_genomes.genomes.iter().enumerate() {
                 // Determine if any coverages are non-zero.
                 let coverages: Vec<f32> = per_genome_coverage_estimators[i]
@@ -275,6 +439,7 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                 let any_nonzero_coverage = coverages.iter().any(|c| *c > 0.0);
                 if any_nonzero_coverage {
                     num_mapped_reads_total += reads_mapped_in_each_genome[i];
+                    genomes_with_nonzero_coverage.push(i);
                 }
                 if print_zero_coverage_genomes || any_nonzero_coverage {
                     coverage_taker.start_entry(i, genome);
@@ -300,8 +465,17 @@ pub fn mosdepth_genome_coverage_with_contig_names<
                     coverage_taker.finish_entry();
                 }
             }
+            if let Some(config) = consensus_output_config {
+                write_consensus_genomes_from_counts(
+                    stoit_name,
+                    config,
+                    &genomes_with_nonzero_coverage,
+                    &contigs_and_genomes.genomes,
+                    &genome_index_to_references,
+                    &tid_to_consensus_counts,
+                );
+            }
         }
-
         let reads_mapped = ReadsMapped {
             num_mapped_reads: num_mapped_reads_total,
             num_reads: bam_generated.num_detected_primary_alignments(),
@@ -429,6 +603,7 @@ pub fn mosdepth_genome_coverage<
     flag_filters: &FlagFilter,
     single_genome: bool,
     threads: u16,
+    consensus_output_config: Option<&ConsensusGenomeOutputConfig>,
 ) -> Vec<ReadsMapped> {
     let mut reads_mapped_vector = vec![];
     debug!(
@@ -444,6 +619,38 @@ pub fn mosdepth_genome_coverage<
         coverage_taker.start_stoit(stoit_name);
         let header = bam_generated.header().clone();
         let target_names = header.target_names();
+
+        let mut genome_names: Vec<String> = vec![];
+        let mut genome_name_to_index: HashMap<String, usize> = HashMap::new();
+        let mut genome_to_tids: Vec<Vec<u32>> = vec![];
+        let mut tid_to_consensus_counts: HashMap<u32, Vec<ConsensusBaseCounts>> = HashMap::new();
+        for tid in 0..header.target_count() {
+            let genome_name = if single_genome {
+                "genome1".to_string()
+            } else {
+                str::from_utf8(extract_genome(tid, &target_names, split_char))
+                    .unwrap()
+                    .to_string()
+            };
+            let genome_index = match genome_name_to_index.get(&genome_name) {
+                Some(i) => *i,
+                None => {
+                    let i = genome_names.len();
+                    genome_names.push(genome_name.clone());
+                    genome_name_to_index.insert(genome_name, i);
+                    genome_to_tids.push(vec![]);
+                    i
+                }
+            };
+            genome_to_tids[genome_index].push(tid);
+            if consensus_output_config.is_some() {
+                tid_to_consensus_counts.insert(
+                    tid,
+                    vec![ConsensusBaseCounts::default(); header.target_len(tid).unwrap() as usize],
+                );
+            }
+        }
+        let mut genomes_with_nonzero_coverage: Vec<usize> = vec![];
 
         let fill_genome_length_forwards = |current_tid, target_genome: Option<&[u8]>| -> Vec<u64> {
             // Iterating reads skips over contigs with no mapped reads, but the
@@ -532,6 +739,11 @@ pub fn mosdepth_genome_coverage<
             if !record.is_unmapped() {
                 // if reference has changed, finish a genome or not
                 let tid = original_tid as u32;
+                if consensus_output_config.is_some() {
+                    if let Some(counts) = tid_to_consensus_counts.get_mut(&tid) {
+                        update_consensus_counts_for_record(counts, &record);
+                    }
+                }
                 let current_genome: &[u8] = match single_genome {
                     true => "".as_bytes(),
                     false => extract_genome(tid, &target_names, split_char),
@@ -640,6 +852,12 @@ pub fn mosdepth_genome_coverage<
                         );
                         if positive_coverage {
                             num_mapped_reads_total += num_mapped_reads_in_current_genome;
+                            if let Some(genome) = last_genome {
+                                let gname = str::from_utf8(genome).unwrap();
+                                if let Some(i) = genome_name_to_index.get(gname) {
+                                    genomes_with_nonzero_coverage.push(*i);
+                                }
+                            }
                         }
                         num_mapped_reads_in_current_genome = 0;
                         last_genome = Some(current_genome);
@@ -774,7 +992,26 @@ pub fn mosdepth_genome_coverage<
             );
             if positive_coverage {
                 num_mapped_reads_total += num_mapped_reads_in_current_genome;
+                if let Some(genome) = last_genome {
+                    let gname = str::from_utf8(genome).unwrap();
+                    if let Some(i) = genome_name_to_index.get(gname) {
+                        genomes_with_nonzero_coverage.push(*i);
+                    }
+                }
             }
+        }
+
+        if let Some(config) = consensus_output_config {
+            genomes_with_nonzero_coverage.sort_unstable();
+            genomes_with_nonzero_coverage.dedup();
+            write_consensus_genomes_from_counts(
+                stoit_name,
+                config,
+                &genomes_with_nonzero_coverage,
+                &genome_names,
+                &genome_to_tids,
+                &tid_to_consensus_counts,
+            );
         }
 
         let reads_mapped = ReadsMapped {
@@ -968,6 +1205,7 @@ mod tests {
                 &flags,
                 single_genome,
                 1,
+                None,
             );
         }
         assert_eq!(expected, std::fs::read_to_string(tf.path()).unwrap());
@@ -1007,6 +1245,7 @@ mod tests {
                 &flags,
                 single_genome,
                 1,
+                None,
             );
         }
         assert_eq!(expected, std::fs::read_to_string(tf.path()).unwrap());
@@ -1042,6 +1281,7 @@ mod tests {
                 &flags,
                 coverage_estimators,
                 1,
+                None,
             );
         }
         assert_eq!(expected, std::fs::read_to_string(tf.path()).unwrap());
@@ -1079,6 +1319,7 @@ mod tests {
                 &flags,
                 coverage_estimators,
                 1,
+                None,
             );
         }
         assert_eq!(expected, std::fs::read_to_string(tf.path()).unwrap());
@@ -1983,5 +2224,22 @@ mod tests {
             }),
             reads_mapped
         );
+    }
+    #[test]
+    fn test_consensus_base_counts_threshold_and_skipped() {
+        let mut counts = ConsensusBaseCounts::default();
+        for _ in 0..4 {
+            counts.add_base(b'A');
+        }
+        assert_eq!(counts.consensus_base(5), b'N');
+        for _ in 0..5 {
+            counts.add_skipped();
+        }
+        assert_eq!(counts.consensus_base(5), b'-');
+    }
+
+    #[test]
+    fn test_safe_genome_file_name() {
+        assert_eq!(safe_genome_file_name("a/b:c*?\"<d>|"), "a_b_c____d__");
     }
 }

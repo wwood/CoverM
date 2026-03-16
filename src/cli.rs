@@ -847,6 +847,13 @@ pub fn genome_full_help() -> Manual {
                 "Omit printing of genomes that have zero \
             coverage. [default: not set]",
             ))
+            .option(Opt::new("DIRECTORY").long("--consensus-genomes-folder").help(
+                "Write consensus sequences for genomes with non-zero coverage into this directory, one FASTA per genome for each sample. Requires genomes to be supplied via --genome-fasta-files, --genome-fasta-directory, or --genome-fasta-list. [default: not used]",
+            ))
+            .option(Opt::new("INT").long("--min-consensus-coverage").help(&format!(
+                "Minimum per-base coverage required for consensus base calls in --consensus-genomes-folder output. Positions below this coverage are output as N; coverage from reads with deletions/skips across a base is counted. {}",
+                default_roff("5")
+            )))
             .option(
                 Opt::new("DIRECTORY")
                     .long("--cache-unfiltered-bam-directory")
@@ -1452,6 +1459,14 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("no-zeros")
                         .long("no-zeros")
                         .action(clap::ArgAction::SetTrue),
+                )
+                .arg(Arg::new("consensus-genomes-folder").long("consensus-genomes-folder"))
+                .arg(
+                    Arg::new("min-consensus-coverage")
+                        .long("min-consensus-coverage")
+                        .default_value("5")
+                        .value_parser(clap::value_parser!(u32))
+                        .requires("consensus-genomes-folder"),
                 )
                 .arg(
                     Arg::new("proper-pairs-only")

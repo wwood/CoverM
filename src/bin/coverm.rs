@@ -5,6 +5,7 @@ use coverm::coverage_printer::*;
 use coverm::coverage_takers::*;
 use coverm::external_command_checker;
 use coverm::filter;
+use coverm::genome::ConsensusGenomeOutputConfig;
 use coverm::genome_exclusion::*;
 use coverm::genomes_and_contigs::GenomesAndContigs;
 use coverm::mapping_index_maintenance::check_reference_existence;
@@ -58,6 +59,16 @@ fn main() {
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, genome_full_help());
             set_log_level(m, true);
             manually_check_args_at_runtime(m);
+            if m.contains_id("consensus-genomes-folder")
+                && !(m.contains_id("genome-fasta-files")
+                    || m.contains_id("genome-fasta-directory")
+                    || m.contains_id("genome-fasta-list"))
+            {
+                error!(
+                    "--consensus-genomes-folder requires genomes be supplied via --genome-fasta-files, --genome-fasta-directory, or --genome-fasta-list"
+                );
+                process::exit(1);
+            }
             print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
             let genome_names_content: Vec<u8>;
@@ -1210,6 +1221,12 @@ fn run_genome<
     let flag_filter = FilterParameters::generate_from_clap(m).flag_filters;
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
+    let consensus_output_config = m
+        .get_one::<String>("consensus-genomes-folder")
+        .map(|folder| ConsensusGenomeOutputConfig {
+            folder: folder.to_string(),
+            min_coverage: *m.get_one::<u32>("min-consensus-coverage").unwrap(),
+        });
     let reads_mapped = match separator.is_some() || single_genome {
         true => coverm::genome::mosdepth_genome_coverage(
             bam_generators,
@@ -1220,6 +1237,7 @@ fn run_genome<
             &flag_filter,
             single_genome,
             threads,
+            consensus_output_config.as_ref(),
         ),
 
         false => match genomes_and_contigs_option {
@@ -1231,6 +1249,7 @@ fn run_genome<
                 &flag_filter,
                 &mut estimators_and_taker.estimators,
                 threads,
+                consensus_output_config.as_ref(),
             ),
             None => unreachable!(),
         },
