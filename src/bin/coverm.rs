@@ -1,11 +1,11 @@
 extern crate coverm;
 use coverm::bam_generator::*;
 use coverm::cli::*;
+use coverm::consensus_genome::ConsensusGenomeOutputConfig;
 use coverm::coverage_printer::*;
 use coverm::coverage_takers::*;
 use coverm::external_command_checker;
 use coverm::filter;
-use coverm::genome::ConsensusGenomeOutputConfig;
 use coverm::genome_exclusion::*;
 use coverm::genomes_and_contigs::GenomesAndContigs;
 use coverm::mapping_index_maintenance::check_reference_existence;
