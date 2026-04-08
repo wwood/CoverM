@@ -30,7 +30,7 @@ either be BAM files sorted by reference, or raw reads and reference genomes in v
 
 ### Install through the bioconda package
 
-CoverM and its dependencies can be installed through the [bioconda](https://bioconda.github.io/user/install.html) conda channel. After initial setup of conda and the bioconda channel, it can be installed with
+CoverM and its dependencies can be installed through the [bioconda](https://bioconda.github.io/) conda channel. After initial setup of conda and the bioconda channel, it can be installed with
 
 ```
 conda install coverm
