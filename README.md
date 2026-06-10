@@ -128,7 +128,8 @@ The `makedb` mode pre-generates mapping indexes (databases) from reference
 genome or contig FASTA files, so that they can be reused across multiple
 `coverm contig`/`coverm genome` runs without re-indexing each time. The kind of
 database is selected with `--mapper`, and multiple `--mapper` values may be
-given to generate several databases at once:
+given to generate several databases at once. minimap2 (all presets),
+`bwa-mem`/`bwa-mem2` and `strobealign` are supported:
 
 ```bash
 # Generate a short-read minimap2 database
@@ -142,6 +143,23 @@ coverm contig \
 
 # Generate several databases at once, one per mapper
 coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir
+```
+
+strobealign indexes are read-length specific and require the reference FASTA at
+mapping time, so for `strobealign` the reference is copied into the output
+directory alongside the index. Set the read length with `--strobealign-params
+'-r <length>'`, or estimate it from an example read dataset by passing a reads
+file:
+
+```bash
+# Generate a strobealign database for 150bp reads
+coverm makedb -r combined_genomes.fna -p strobealign --strobealign-params '-r 150' -o db_dir
+
+# Use the generated strobealign database when calculating coverage
+coverm contig \
+  -r db_dir/combined_genomes.fna \
+  --strobealign-use-index \
+  -1 read1.fq -2 read2.fq
 ```
 
 ## Demo

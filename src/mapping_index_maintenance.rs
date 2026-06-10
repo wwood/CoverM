@@ -155,7 +155,7 @@ fn run_index_command(
     index_creation_options: Option<&str>,
 ) {
     info!("Generating {mapping_program:?} index for {reference_path} ..");
-    let mut cmd = match build_index_command(
+    let cmd = match build_index_command(
         mapping_program,
         reference_path,
         index_path,
@@ -165,7 +165,12 @@ fn run_index_command(
         Some(cmd) => cmd,
         None => return,
     };
+    execute_index_command(cmd, mapping_program);
+}
 
+/// Spawn and wait on a pre-built index-generation command, exiting the process
+/// on failure.
+fn execute_index_command(mut cmd: std::process::Command, mapping_program: MappingProgram) {
     // Some BWA versions output log info to stdout. Ignore this.
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
@@ -199,6 +204,63 @@ fn run_index_command(
     }
     info!("Finished generating {mapping_program:?} index.");
 }
+
+/// Generate a strobealign index for `reference_path` inside `output_directory`.
+///
+/// Unlike minimap2/BWA, `strobealign --create-index` writes its `.sti` index
+/// alongside the reference FASTA (and the FASTA is still required at mapping
+/// time, since strobealign reads the sequences from it). To keep the generated
+/// database self-contained within `output_directory`, the reference is first
+/// copied there and the index is created next to the copy. Returns the path to
+/// the copied reference, which is what should be passed to
+/// `--reference .. --strobealign-use-index`.
+///
+/// Strobealign indexes are read-length specific. The canonical read length can
+/// be set by passing `-r <length>` via `index_creation_options`, or estimated
+/// by passing a reads file there (e.g. `reads.fq`), matching the positional
+/// argument that `strobealign --create-index` accepts.
+fn generate_strobealign_persistent_index(
+    reference_path: &str,
+    output_directory: &str,
+    index_creation_options: Option<&str>,
+) -> String {
+    let reference_file_name = std::path::Path::new(reference_path)
+        .file_name()
+        .expect("Failed to glean file name from reference path");
+    let copied_reference = std::path::Path::new(output_directory).join(reference_file_name);
+
+    if copied_reference == std::path::Path::new(reference_path) {
+        error!(
+            "The strobealign database for {reference_path} would overwrite the reference \
+            itself. Please choose an output directory other than the reference's directory."
+        );
+        process::exit(1);
+    }
+
+    info!(
+        "Copying reference {} into {} so the strobealign database is self-contained ..",
+        reference_path, output_directory
+    );
+    std::fs::copy(reference_path, &copied_reference).unwrap_or_else(|e| {
+        panic!(
+            "Failed to copy reference {} into output directory: {}",
+            reference_path, e
+        )
+    });
+
+    info!("Generating STROBEALIGN index for {reference_path} ..");
+    let mut cmd = std::process::Command::new("strobealign");
+    cmd.arg("--create-index").arg(&copied_reference);
+    if let Some(params) = index_creation_options {
+        for s in params.split_whitespace() {
+            cmd.arg(s);
+        }
+    };
+    execute_index_command(cmd, MappingProgram::STROBEALIGN);
+
+    copied_reference.to_string_lossy().to_string()
+}
+
 impl MappingIndex for TemporaryIndexStruct {
     fn index_path(&self) -> &String {
         &self.index_path_internal
@@ -326,25 +388,15 @@ pub fn generate_persistent_index(
     num_threads: Option<u16>,
     index_creation_options: Option<&str>,
 ) -> String {
-    match mapping_program {
-        MappingProgram::STROBEALIGN => {
-            error!(
-                "Generating a standalone database with 'coverm makedb' is not supported for \
-                strobealign. Strobealign indexes are read-length specific and must reside \
-                alongside the reference FASTA; create one with 'strobealign --create-index' \
-                and use it via '--strobealign-use-index'."
-            );
-            process::exit(1);
-        }
-        MappingProgram::BWA_MEM
-        | MappingProgram::BWA_MEM2
-        | MappingProgram::MINIMAP2_SR
-        | MappingProgram::MINIMAP2_ONT
-        | MappingProgram::MINIMAP2_PB
-        | MappingProgram::MINIMAP2_HIFI
-        | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET => {}
-    };
+    // Strobealign writes its index next to the reference (and needs the
+    // reference at mapping time), so it is handled separately.
+    if let MappingProgram::STROBEALIGN = mapping_program {
+        return generate_strobealign_persistent_index(
+            reference_path,
+            output_directory,
+            index_creation_options,
+        );
+    }
 
     let reference_stem = std::path::Path::new(reference_path)
         .file_name()

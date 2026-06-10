@@ -589,6 +589,52 @@ mod tests {
     }
 
     #[test]
+    fn test_makedb_strobealign_then_use_as_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        // The test reads are ~100bp, so build the index for read length 100 to
+        // match the canonical read length strobealign estimates at mapping time.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "strobealign",
+                "--strobealign-params",
+                "-r 100",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        // The reference is copied into the output directory alongside the index.
+        let copied_reference = td.path().join("7seqs.fna");
+        assert!(copied_reference.is_file());
+        assert!(td.path().join("7seqs.fna.r100.sti").is_file());
+
+        // The generated database can be fed back into coverm contig as a
+        // pregenerated strobealign index.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                copied_reference.to_str().unwrap(),
+                "--strobealign-use-index",
+                "-p",
+                "strobealign",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    #[test]
     fn test_relative_abundance_all_mapped() {
         Assert::main_binary()
             .with_args(&[

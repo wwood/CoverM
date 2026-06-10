@@ -494,7 +494,10 @@ pub fn makedb_full_help() -> Manual {
         For minimap2 databases, pass the generated '.mmi' file as the reference \
         together with '--minimap2-reference-is-index'. For BWA databases, pass the \
         generated prefix as the reference together with the matching '-p bwa-mem' or \
-        '-p bwa-mem2'.\n\n\
+        '-p bwa-mem2'. For strobealign databases, the reference FASTA is copied into the \
+        output directory next to the index (strobealign reads the sequences from it at \
+        mapping time); pass that copied FASTA as the reference together with \
+        '--strobealign-use-index'.\n\n\
         Multiple '-p/--mapper' values may be specified to create several databases in \
         one invocation, one per mapper. Likewise, multiple references may be given, in \
         which case a database is created for each combination of reference and mapper.\n\n",
@@ -542,6 +545,15 @@ pub fn makedb_full_help() -> Manual {
                     ],
                     &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
                     &[&monospace_roff("bwa-mem2"), "BWA-MEM2 index (bwa-mem2 index)"],
+                    &[
+                        &monospace_roff("strobealign"),
+                        &format!(
+                            "strobealign index (strobealign --create-index). The reference \
+                            FASTA is copied into the output directory alongside the index, \
+                            since strobealign requires it at mapping time. Use it via '{}'",
+                            &monospace_roff("--strobealign-use-index")
+                        )
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(
@@ -553,6 +565,14 @@ pub fn makedb_full_help() -> Manual {
                 "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
                 command. Note that usage of this parameter has security \
                 implications if untrusted input is specified. [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--strobealign-params").help(
+                "Extra parameters to provide to the 'strobealign --create-index' \
+                command. Strobealign indexes are read-length specific: set the \
+                canonical read length with e.g. '-r 150', or estimate it from an \
+                example read dataset by passing a reads file (e.g. 'reads.fq'). \
+                Note that usage of this parameter has security implications if \
+                untrusted input is specified. [default: none]",
             )),
     );
 
@@ -587,6 +607,17 @@ pub fn makedb_full_help() -> Manual {
         Example::new()
             .text("Generate several databases at once, one per mapper")
             .command("coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir"),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Generate a strobealign database for 150bp reads (the reference FASTA is \
+                copied into db_dir alongside the index)",
+            )
+            .command(
+                "coverm makedb -r combined_genomes.fna -p strobealign \
+                --strobealign-params '-r 150' -o db_dir",
+            ),
     );
 
     let mut general_section = Section::new("General options").option(
@@ -2350,13 +2381,19 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("minimap2-params")
                         .long("minimap2-params")
-                        .long("minimap2-parameters")
+                        .alias("minimap2-parameters")
                         .allow_hyphen_values(true),
                 )
                 .arg(
                     Arg::new("bwa-params")
                         .long("bwa-params")
-                        .long("bwa-parameters")
+                        .alias("bwa-parameters")
+                        .allow_hyphen_values(true),
+                )
+                .arg(
+                    Arg::new("strobealign-params")
+                        .long("strobealign-params")
+                        .alias("strobealign-parameters")
                         .allow_hyphen_values(true),
                 ),
         )

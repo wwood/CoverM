@@ -764,15 +764,6 @@ fn main() {
                     continue;
                 }
                 let mapping_program = mapping_program_from_name(Some(mapper_name));
-                if let MappingProgram::STROBEALIGN = mapping_program {
-                    error!(
-                        "Generating a standalone database with 'coverm makedb' is not supported \
-                        for strobealign. Strobealign indexes are read-length specific and must \
-                        reside alongside the reference FASTA; create one with \
-                        'strobealign --create-index' and use it via '--strobealign-use-index'."
-                    );
-                    process::exit(1);
-                }
                 check_mapping_program_dependencies(mapping_program);
                 mapping_programs.push(mapping_program);
             }
@@ -791,7 +782,7 @@ fn main() {
                     | MappingProgram::MINIMAP2_HIFI
                     | MappingProgram::MINIMAP2_LR_HQ
                     | MappingProgram::MINIMAP2_NO_PRESET => m.get_one::<String>("minimap2-params"),
-                    MappingProgram::STROBEALIGN => None,
+                    MappingProgram::STROBEALIGN => m.get_one::<String>("strobealign-params"),
                 };
                 for reference in &references {
                     check_reference_existence(reference, &mapping_program);
@@ -833,7 +824,12 @@ fn main() {
                             --reference {db_path} -p bwa-mem2 -1 read1.fq -2 read2.fq"
                         );
                     }
-                    MappingProgram::STROBEALIGN => unreachable!(),
+                    MappingProgram::STROBEALIGN => {
+                        info!(
+                            "To use the strobealign database, run e.g.: coverm contig \
+                            --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
+                        );
+                    }
                 }
             }
         }
