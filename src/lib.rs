@@ -5,6 +5,7 @@ pub mod coverage_printer;
 pub mod coverage_takers;
 pub mod external_command_checker;
 pub mod filter;
+pub mod genes;
 pub mod genome;
 pub mod genome_exclusion;
 pub mod genome_parsing;

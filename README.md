@@ -162,6 +162,30 @@ coverm contig \
   -1 read1.fq -2 read2.fq
 ```
 
+### Per-gene coverage
+
+By supplying a GFF (or GTF) file to `coverm contig` via `--gff`, coverage is
+reported once per gene/feature, using the chosen `--methods`, rather than once
+per contig. Each non-comment line in the file is treated as a separate feature
+and the reported identifier is taken from the `ID`, `locus_tag`, `gene_id` or
+`Name` attribute. For read-count based methods (e.g. `count`, `rpkm`, `tpm`) a
+read is assigned to a feature when its leftmost mapped position falls within the
+feature's coordinates.
+
+```bash
+coverm contig \
+  -r assembly.fna \
+  -1 read1.fq -2 read2.fq \
+  --gff genes.gff \
+  --methods mean count \
+  --contig-end-exclusion 0
+```
+
+Note that `--contig-end-exclusion` is applied to the ends of each feature, so
+`--contig-end-exclusion 0` is often appropriate for short genes. Use
+`--gff-feature-type` to restrict reporting to features of a particular type
+(i.e. the third column of the GFF, such as `CDS`).
+
 ## Demo
 
 A common use case for CoverM is to calculate the coverage or relative abundance of a set of genomes in a metagenomic sample.

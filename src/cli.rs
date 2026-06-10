@@ -740,6 +740,39 @@ pub fn contig_full_help() -> Manual {
     );
 
     manual = manual.custom(
+        Section::new("Per-gene coverage")
+            .option(Opt::new("PATH").long("--gff").help(&format!(
+                "GFF (or GTF) file defining genes/features. When specified, \
+                coverage is reported once per feature (using the chosen \
+                {}) rather than once per contig. Each non-comment line is \
+                treated as a separate feature; the reported identifier is \
+                taken from the {}, {}, {} or {} attribute. Reads are assigned \
+                to a feature for read-count based methods (e.g. {}, {}, {}) \
+                when their leftmost mapped position falls within the \
+                feature's coordinates. Note that {} applies to the ends of \
+                each feature, so {} may be appropriate for short features. \
+                Cannot be used with the {} or {} methods. (--genes-file is an \
+                alias). [default: not used]",
+                monospace_roff("--methods"),
+                monospace_roff("ID"),
+                monospace_roff("locus_tag"),
+                monospace_roff("gene_id"),
+                monospace_roff("Name"),
+                monospace_roff("count"),
+                monospace_roff("rpkm"),
+                monospace_roff("tpm"),
+                monospace_roff("--contig-end-exclusion"),
+                monospace_roff("--contig-end-exclusion 0"),
+                monospace_roff("metabat"),
+                monospace_roff("strobealign-aemb"),
+            )))
+            .option(Opt::new("TYPE").long("--gff-feature-type").help(
+                "Only use features of this type (i.e. the third column of \
+                the GFF) when --gff is specified. [default: use all features]",
+            )),
+    );
+
+    manual = manual.custom(
         Section::new("Output")
             .option(Opt::new("FILE").short("-o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
@@ -2074,6 +2107,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("output-format")
                         .value_parser(["sparse", "dense"])
                         .default_value("dense"),
+                )
+                .arg(Arg::new("gff").long("gff").visible_alias("genes-file"))
+                .arg(
+                    Arg::new("gff-feature-type")
+                        .long("gff-feature-type")
+                        .requires("gff"),
                 ),
         )
         .subcommand(

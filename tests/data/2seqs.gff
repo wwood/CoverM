@@ -1,0 +1,5 @@
+##gff-version 3
+seq1	test	gene	1	1000	.	+	.	ID=gene1;Name=first_gene
+seq1	test	gene	100	200	.	-	.	ID=gene2
+# a comment line that should be ignored
+seq2	test	gene	1	1000	.	+	.	ID=gene3
