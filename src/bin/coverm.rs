@@ -729,6 +729,26 @@ fn main() {
                 .expect("No reference provided")
                 .collect();
 
+            // Validate that each reference is an existing FASTA file. We
+            // deliberately do not use check_reference_existence here: for BWA
+            // it inspects pre-existing index files beside the reference, which
+            // is inappropriate when makedb is *creating* a new index (and would
+            // spuriously fail when, say, a bwa-mem2 index already sits next to a
+            // FASTA from which a bwa-mem database is being built).
+            for reference in &references {
+                let ref_path = std::path::Path::new(reference.as_str());
+                if !ref_path.exists() {
+                    error!("The reference specified '{reference}' does not appear to exist");
+                    process::exit(1);
+                } else if !ref_path.is_file() {
+                    error!(
+                        "The reference specified '{reference}' should be a file, \
+                        not e.g. a directory"
+                    );
+                    process::exit(1);
+                }
+            }
+
             // Guard against multiple references that share a file name (e.g.
             // refs in different directories both named ref.fna), which would
             // otherwise generate databases with colliding output paths.
@@ -782,7 +802,6 @@ fn main() {
                     MappingProgram::STROBEALIGN => m.get_one::<String>("strobealign-params"),
                 };
                 for reference in &references {
-                    check_reference_existence(reference, &mapping_program);
                     let db_path = coverm::mapping_index_maintenance::generate_persistent_index(
                         mapping_program,
                         reference,

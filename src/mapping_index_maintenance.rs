@@ -222,6 +222,7 @@ fn execute_index_command(mut cmd: std::process::Command, mapping_program: Mappin
 fn generate_strobealign_persistent_index(
     reference_path: &str,
     output_directory: &str,
+    num_threads: Option<u16>,
     index_creation_options: Option<&str>,
 ) -> String {
     let reference_file_name = std::path::Path::new(reference_path)
@@ -250,6 +251,9 @@ fn generate_strobealign_persistent_index(
 
     info!("Generating STROBEALIGN index for {reference_path} ..");
     let mut cmd = std::process::Command::new("strobealign");
+    if let Some(t) = num_threads {
+        cmd.arg("-t").arg(format!("{t}"));
+    }
     cmd.arg("--create-index").arg(&copied_reference);
     if let Some(params) = index_creation_options {
         for s in params.split_whitespace() {
@@ -394,6 +398,7 @@ pub fn generate_persistent_index(
         return generate_strobealign_persistent_index(
             reference_path,
             output_directory,
+            num_threads,
             index_creation_options,
         );
     }
