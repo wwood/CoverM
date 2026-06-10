@@ -91,6 +91,7 @@ fn build_index_command(
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
+        MappingProgram::BOWTIE2 => std::process::Command::new("bowtie2-build"),
         MappingProgram::STROBEALIGN => {
             warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
             return None;
@@ -102,6 +103,14 @@ fn build_index_command(
                 .arg("-p")
                 .arg(index_path)
                 .arg(reference_path);
+        }
+        MappingProgram::BOWTIE2 => {
+            if let Some(t) = num_threads {
+                cmd.arg("--threads").arg(format!("{t}"));
+            }
+            // bowtie2-build takes the reference FASTA followed by the index
+            // prefix it should write the .bt2 files to.
+            cmd.arg(reference_path).arg(index_path);
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -128,7 +137,8 @@ fn build_index_command(
                 MappingProgram::MINIMAP2_NO_PRESET
                 | MappingProgram::BWA_MEM
                 | MappingProgram::BWA_MEM2
-                | MappingProgram::STROBEALIGN => {}
+                | MappingProgram::STROBEALIGN
+                | MappingProgram::BOWTIE2 => {}
             };
             if let Some(t) = num_threads {
                 cmd.arg("-t").arg(format!("{t}"));
@@ -311,6 +321,14 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
                 return;
             }
         }
+        MappingProgram::BOWTIE2 => {
+            // The reference may be given either as a FASTA file or as the prefix
+            // of a pre-generated bowtie2 index (in which case the prefix path
+            // itself is not a file), so accept either.
+            if check_for_bowtie2_index_existence(reference_path) {
+                return;
+            }
+        }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -351,6 +369,37 @@ pub fn generate_bwa_index(
     }
 }
 
+/// Return true if a complete set of bowtie2 index files (either the small
+/// `.bt2` or large `.bt2l` variants) already exists beside `reference_path`,
+/// treating `reference_path` as the bowtie2 index prefix.
+fn check_for_bowtie2_index_existence(reference_path: &str) -> bool {
+    let suffixes = ["1", "2", "3", "4", "rev.1", "rev.2"];
+    let all_present = |extension: &str| {
+        suffixes.iter().all(|suffix| {
+            std::path::Path::new(&format!("{reference_path}.{suffix}.{extension}")).exists()
+        })
+    };
+    all_present("bt2") || all_present("bt2l")
+}
+
+pub fn generate_bowtie2_index(
+    reference_path: &str,
+    num_threads: Option<u16>,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    if check_for_bowtie2_index_existence(reference_path) {
+        info!("bowtie2 index appears to be complete, so going ahead and using it.");
+        Box::new(VanillaIndexStruct::new(reference_path))
+    } else {
+        Box::new(TemporaryIndexStruct::new(
+            MappingProgram::BOWTIE2,
+            reference_path,
+            num_threads,
+            index_creation_parameters,
+        ))
+    }
+}
+
 pub fn generate_minimap2_index(
     reference_path: &str,
     num_threads: Option<u16>,
@@ -378,6 +427,7 @@ pub fn mapping_program_db_name(mapping_program: MappingProgram) -> &'static str 
         MappingProgram::MINIMAP2_LR_HQ => "minimap2-lr-hq",
         MappingProgram::MINIMAP2_NO_PRESET => "minimap2-no-preset",
         MappingProgram::STROBEALIGN => "strobealign",
+        MappingProgram::BOWTIE2 => "bowtie2",
     }
 }
 
@@ -419,7 +469,7 @@ pub fn generate_persistent_index(
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => std::path::Path::new(output_directory)
             .join(format!("{reference_stem}.{db_program_name}.mmi")),
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::BOWTIE2 => {
             std::path::Path::new(output_directory)
                 .join(format!("{reference_stem}.{db_program_name}"))
         }

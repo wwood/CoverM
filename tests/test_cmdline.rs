@@ -635,6 +635,86 @@ mod tests {
     }
 
     #[test]
+    fn test_bowtie2_mapping() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "bowtie2",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_makedb_bowtie2() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "bowtie2",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        // bowtie2-build writes its index files using the generated prefix.
+        assert!(td.path().join("7seqs.fna.bowtie2.1.bt2").is_file());
+        assert!(td.path().join("7seqs.fna.bowtie2.rev.2.bt2").is_file());
+    }
+
+    #[test]
+    fn test_makedb_then_use_as_bowtie2_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "bowtie2",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let db_prefix = td.path().join("7seqs.fna.bowtie2");
+        assert!(td.path().join("7seqs.fna.bowtie2.1.bt2").is_file());
+
+        // The generated database can be fed back into coverm contig as a
+        // pregenerated bowtie2 index by passing the prefix as the reference.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                db_prefix.to_str().unwrap(),
+                "-p",
+                "bowtie2",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    #[test]
     fn test_relative_abundance_all_mapped() {
         Assert::main_binary()
             .with_args(&[

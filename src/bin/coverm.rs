@@ -800,6 +800,7 @@ fn main() {
                     | MappingProgram::MINIMAP2_LR_HQ
                     | MappingProgram::MINIMAP2_NO_PRESET => m.get_one::<String>("minimap2-params"),
                     MappingProgram::STROBEALIGN => m.get_one::<String>("strobealign-params"),
+                    MappingProgram::BOWTIE2 => m.get_one::<String>("bowtie2-params"),
                 };
                 for reference in &references {
                     let db_path = coverm::mapping_index_maintenance::generate_persistent_index(
@@ -844,6 +845,12 @@ fn main() {
                         info!(
                             "To use the strobealign database, run e.g.: coverm contig \
                             --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::BOWTIE2 => {
+                        info!(
+                            "To use the bowtie2 database, run e.g.: coverm contig \
+                            --reference {db_path} -p bowtie2 -1 read1.fq -2 read2.fq"
                         );
                     }
                 }
@@ -934,6 +941,11 @@ fn setup_mapping_index(
                 )
             }
         }
+        MappingProgram::BOWTIE2 => coverm::mapping_index_maintenance::generate_bowtie2_index(
+            reference_wise_params.reference,
+            Some(*m.get_one::<u16>("threads").unwrap()),
+            m.get_one::<String>("bowtie2-params").map(|x| x.as_str()),
+        ),
         MappingProgram::STROBEALIGN => {
             // Indexing once for a batch of readsets is not yet supported for strobealign
             info!("Not pre-generating strobealign index");
@@ -1021,6 +1033,7 @@ fn mapping_program_from_name(name: Option<&str>) -> MappingProgram {
         Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
+        Some("bowtie2") => MappingProgram::BOWTIE2,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!("Unexpected definition for --mapper: {:?}", name),
     }
@@ -1044,6 +1057,9 @@ fn check_mapping_program_dependencies(mapping_program: MappingProgram) {
         }
         MappingProgram::STROBEALIGN => {
             external_command_checker::check_for_strobealign();
+        }
+        MappingProgram::BOWTIE2 => {
+            external_command_checker::check_for_bowtie2();
         }
     }
 }

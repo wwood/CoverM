@@ -54,6 +54,7 @@ pub enum MappingProgram {
     MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    BOWTIE2,
 }
 
 pub struct BamFileNamedReader {
@@ -416,7 +417,10 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::STROBEALIGN => None,
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::BOWTIE2 => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -857,6 +861,20 @@ impl NamedBamMaker {
     }
 }
 
+/// Peek at the first record of a reads file to determine whether it is FASTA
+/// (as opposed to FASTQ). Compression (gzip/bzip2/xz) is handled transparently
+/// by needletail. Defaults to false (treat as FASTQ) if the file cannot be
+/// parsed, leaving any resulting error to be reported by the mapper itself.
+fn reads_are_fasta(read_path: &str) -> bool {
+    match needletail::parse_fastx_file(read_path) {
+        Ok(mut reader) => match reader.next() {
+            Some(Ok(record)) => record.format() == needletail::parser::Format::Fasta,
+            _ => false,
+        },
+        Err(_) => false,
+    }
+}
+
 pub fn build_mapping_command(
     mapping_program: MappingProgram,
     read_format: ReadFormat,
@@ -866,6 +884,35 @@ pub fn build_mapping_command(
     read2_path: Option<&str>,
     mapping_options: Option<&str>,
 ) -> String {
+    // bowtie2 has a sufficiently different command-line structure (it takes the
+    // index via -x, the reads via -1/-2/-U/--interleaved, and threads via -p)
+    // that it is simplest to build its command separately.
+    if let MappingProgram::BOWTIE2 = mapping_program {
+        let read_args = match read_format {
+            ReadFormat::Interleaved => format!("--interleaved '{read1_path}'"),
+            ReadFormat::Coupled => {
+                format!("-1 '{}' -2 '{}'", read1_path, read2_path.unwrap())
+            }
+            ReadFormat::Single => format!("-U '{read1_path}'"),
+        };
+        // Unlike minimap2/bwa/strobealign, bowtie2 does not auto-detect whether
+        // the reads are FASTA or FASTQ (it defaults to FASTQ), so pass '-f' when
+        // the reads are FASTA.
+        let format_flag = if reads_are_fasta(read1_path) {
+            "-f "
+        } else {
+            ""
+        };
+        return format!(
+            "bowtie2 {}{} -p {} -x '{}' {}",
+            format_flag,
+            mapping_options.unwrap_or(""),
+            threads,
+            reference.index_path(),
+            read_args
+        );
+    }
+
     let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
         MappingProgram::MINIMAP2_SR
@@ -882,6 +929,7 @@ pub fn build_mapping_command(
             ReadFormat::Interleaved => "--interleaved",
             ReadFormat::Coupled | ReadFormat::Single => "",
         },
+        MappingProgram::BOWTIE2 => unreachable!(),
     };
 
     let read_params2 = match read_format {
@@ -915,7 +963,8 @@ pub fn build_mapping_command(
                     match mapping_program {
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
-                        | MappingProgram::STROBEALIGN => unreachable!(),
+                        | MappingProgram::STROBEALIGN
+                        | MappingProgram::BOWTIE2 => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

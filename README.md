@@ -89,6 +89,7 @@ and one of these for mapping:
 * [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0
 * [minimap2](https://github.com/lh3/minimap2) v2.21
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
+* [bowtie2](https://github.com/BenLangmead/bowtie2) v2.4.0
 
 and one of these for genome dereplication:
 * [skani](https://github.com/bluenote-1577/skani) v0.1.1
@@ -129,7 +130,7 @@ genome or contig FASTA files, so that they can be reused across multiple
 `coverm contig`/`coverm genome` runs without re-indexing each time. The kind of
 database is selected with `--mapper`, and multiple `--mapper` values may be
 given to generate several databases at once. minimap2 (all presets),
-`bwa-mem`/`bwa-mem2` and `strobealign` are supported:
+`bwa-mem`/`bwa-mem2`, `bowtie2` and `strobealign` are supported:
 
 ```bash
 # Generate a short-read minimap2 database
@@ -143,6 +144,15 @@ coverm contig \
 
 # Generate several databases at once, one per mapper
 coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir
+
+# Generate a bowtie2 database
+coverm makedb -r combined_genomes.fna -p bowtie2 -o db_dir
+
+# Use the generated bowtie2 database when calculating coverage (pass the prefix)
+coverm contig \
+  -r db_dir/combined_genomes.fna.bowtie2 \
+  -p bowtie2 \
+  -1 read1.fq -2 read2.fq
 ```
 
 strobealign indexes are read-length specific and require the reference FASTA at

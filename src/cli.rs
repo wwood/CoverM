@@ -21,6 +21,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-lr-hq",
     "minimap2-no-preset",
     "strobealign",
+    "bowtie2",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
@@ -94,6 +95,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("minimap2-no-preset"),
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
+                    &[
+                        &monospace_roff("bowtie2"),
+                        "bowtie2 using default parameters"
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
@@ -119,6 +124,13 @@ fn add_mapping_options(manual: Manual) -> Manual {
         that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--bowtie2-params").help(
+                "Extra parameters to provide to bowtie2, both the \
+        bowtie2-build indexing command (if used) and \
+        the mapping command. Note that usage of this \
+        parameter has security implications if untrusted \
+        input is specified. [default: none]",
             ))
             .flag(Flag::new().long("--strobealign-use-index").help(
                 "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
@@ -494,7 +506,8 @@ pub fn makedb_full_help() -> Manual {
         For minimap2 databases, pass the generated '.mmi' file as the reference \
         together with '--minimap2-reference-is-index'. For BWA databases, pass the \
         generated prefix as the reference together with the matching '-p bwa-mem' or \
-        '-p bwa-mem2'. For strobealign databases, the reference FASTA is copied into the \
+        '-p bwa-mem2'. For bowtie2 databases, pass the generated prefix as the reference \
+        together with '-p bowtie2'. For strobealign databases, the reference FASTA is copied into the \
         output directory next to the index (strobealign reads the sequences from it at \
         mapping time); pass that copied FASTA as the reference together with \
         '--strobealign-use-index'.\n\n\
@@ -551,6 +564,11 @@ pub fn makedb_full_help() -> Manual {
                     &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
                     &[&monospace_roff("bwa-mem2"), "BWA-MEM2 index (bwa-mem2 index)"],
                     &[
+                        &monospace_roff("bowtie2"),
+                        "bowtie2 index (bowtie2-build). The generated prefix is used \
+                        as the reference together with '-p bowtie2'"
+                    ],
+                    &[
                         &monospace_roff("strobealign"),
                         &format!(
                             "strobealign index (strobealign --create-index). The reference \
@@ -579,6 +597,11 @@ pub fn makedb_full_help() -> Manual {
                 example read dataset by passing a reads file (e.g. 'reads.fq'). \
                 Note that usage of this parameter has security implications if \
                 untrusted input is specified. [default: none]",
+                ))
+                .option(Opt::new("PARAMS").long("--bowtie2-params").help(
+                    "Extra parameters to provide to the 'bowtie2-build' indexing \
+                command. Note that usage of this parameter has security \
+                implications if untrusted input is specified. [default: none]",
                 )),
         );
 
@@ -1415,6 +1438,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("bowtie2-params")
+                        .long("bowtie2-params")
+                        .alias("bowtie2-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
                         .requires("reference")
@@ -1950,6 +1980,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("bowtie2-params")
+                        .long("bowtie2-params")
+                        .alias("bowtie2-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
                         .requires("reference")
@@ -2328,6 +2365,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("bowtie2-params")
+                        .long("bowtie2-params")
+                        .alias("bowtie2-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
                         .requires("reference")
@@ -2394,6 +2438,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
                         .alias("strobealign-parameters")
+                        .allow_hyphen_values(true),
+                )
+                .arg(
+                    Arg::new("bowtie2-params")
+                        .long("bowtie2-params")
+                        .alias("bowtie2-parameters")
                         .allow_hyphen_values(true),
                 ),
         )
