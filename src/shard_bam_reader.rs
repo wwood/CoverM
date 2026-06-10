@@ -236,13 +236,16 @@ where
                             if !second_read_alignments[i].is_unmapped() {
                                 score += aux_as(&second_read_alignments[i]);
                             }
-                            if max_score.is_none() || score > max_score.unwrap() {
-                                max_score = Some(score);
-                                winning_indices = vec![i]
-                            } else if score == max_score.unwrap() {
-                                winning_indices.push(i)
+                            match max_score {
+                                // A loser when there was a previous winner
+                                Some(ms) if score < ms => {}
+                                Some(ms) if score == ms => winning_indices.push(i),
+                                // No previous winner, or a new highest score
+                                _ => {
+                                    max_score = Some(score);
+                                    winning_indices = vec![i]
+                                }
                             }
-                            // Else a loser when there was a previous winner
                         }
                     }
                 }

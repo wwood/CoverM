@@ -755,10 +755,7 @@ fn main() {
             // that the underlying mapping software is installed.
             let mut mapping_programs = vec![];
             let mut seen_mappers = HashSet::new();
-            for mapper_name in m
-                .get_many::<String>("mapper")
-                .expect("No mapper provided")
-            {
+            for mapper_name in m.get_many::<String>("mapper").expect("No mapper provided") {
                 if !seen_mappers.insert(mapper_name.clone()) {
                     warn!("Ignoring duplicate --mapper value {mapper_name}");
                     continue;

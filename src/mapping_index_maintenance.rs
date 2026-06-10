@@ -412,9 +412,8 @@ pub fn generate_persistent_index(
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET => std::path::Path::new(output_directory).join(
-            format!("{reference_stem}.{db_program_name}.mmi"),
-        ),
+        | MappingProgram::MINIMAP2_NO_PRESET => std::path::Path::new(output_directory)
+            .join(format!("{reference_stem}.{db_program_name}.mmi")),
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
             std::path::Path::new(output_directory)
                 .join(format!("{reference_stem}.{db_program_name}"))

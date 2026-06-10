@@ -503,16 +503,21 @@ pub fn makedb_full_help() -> Manual {
         which case a database is created for each combination of reference and mapper.\n\n",
         );
 
-    manual = manual.custom(
-        Section::new("Input").option(Opt::new("PATH ..").short("-r").long("--reference").help(
+    manual = manual.custom(Section::new("Input").option(
+        Opt::new("PATH ..").short("-r").long("--reference").help(
             "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
             May be gzip-compressed. [required]",
-        )),
-    );
+        ),
+    ));
 
-    manual = manual.custom(
-        Section::new("Database type")
-            .option(Opt::new("NAME ..").short("-p").long("--mapper").help(&format!(
+    manual =
+        manual.custom(
+            Section::new("Database type")
+                .option(
+                    Opt::new("NAME ..")
+                        .short("-p")
+                        .long("--mapper")
+                        .help(&format!(
                 "Kind(s) of database to generate, one per mapping software. Specify more \
                 than once (or as a space-separated list) to generate several databases. \
                 {}. One of: {}",
@@ -555,38 +560,34 @@ pub fn makedb_full_help() -> Manual {
                         )
                     ],
                 ])
-            )))
-            .option(Opt::new("PARAMS").long("--minimap2-params").help(
-                "Extra parameters to provide to the minimap2 indexing command. \
+            )),
+                )
+                .option(Opt::new("PARAMS").long("--minimap2-params").help(
+                    "Extra parameters to provide to the minimap2 indexing command. \
                 Note that usage of this parameter has security implications if \
                 untrusted input is specified. [default: none]",
-            ))
-            .option(Opt::new("PARAMS").long("--bwa-params").help(
-                "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
+                ))
+                .option(Opt::new("PARAMS").long("--bwa-params").help(
+                    "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
                 command. Note that usage of this parameter has security \
                 implications if untrusted input is specified. [default: none]",
-            ))
-            .option(Opt::new("PARAMS").long("--strobealign-params").help(
-                "Extra parameters to provide to the 'strobealign --create-index' \
+                ))
+                .option(Opt::new("PARAMS").long("--strobealign-params").help(
+                    "Extra parameters to provide to the 'strobealign --create-index' \
                 command. Strobealign indexes are read-length specific: set the \
                 canonical read length with e.g. '-r 150', or estimate it from an \
                 example read dataset by passing a reads file (e.g. 'reads.fq'). \
                 Note that usage of this parameter has security implications if \
                 untrusted input is specified. [default: none]",
-            )),
-    );
+                )),
+        );
 
-    manual = manual.custom(
-        Section::new("Output").option(
-            Opt::new("DIR")
-                .short("-o")
-                .long("--output-directory")
-                .help(
-                    "Where the generated database(s) will be written. The directory will \
+    manual = manual.custom(Section::new("Output").option(
+        Opt::new("DIR").short("-o").long("--output-directory").help(
+            "Where the generated database(s) will be written. The directory will \
                     be created if it does not exist. [required]",
-                ),
         ),
-    );
+    ));
 
     manual = manual.example(
         Example::new()
@@ -595,9 +596,7 @@ pub fn makedb_full_help() -> Manual {
     );
     manual = manual.example(
         Example::new()
-            .text(
-                "Use the generated minimap2 database when calculating contig coverage",
-            )
+            .text("Use the generated minimap2 database when calculating contig coverage")
             .command(
                 "coverm contig -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
                 --minimap2-reference-is-index -1 read1.fq -2 read2.fq",
@@ -1192,7 +1191,8 @@ See coverm make --full-help for further options and further detail.
 See coverm makedb --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm makedb"),
-            ansi_term::Colour::Green.paint("Generate mapping database(s) from reference FASTA files"),
+            ansi_term::Colour::Green
+                .paint("Generate mapping database(s) from reference FASTA files"),
             ansi_term::Colour::Purple.paint(
                 "Example: Generate a short-read minimap2 database from a set of genomes,\n\
                 storing it in db_dir/"
