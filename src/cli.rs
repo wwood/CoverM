@@ -478,6 +478,132 @@ pub fn make_full_help() -> Manual {
     manual
 }
 
+pub fn makedb_full_help() -> Manual {
+    let mut manual = Manual::new("coverm makedb")
+        .about(format!(
+            "Generate mapping database(s) from reference FASTA files (version: {})",
+            crate_version!()
+        ))
+        .custom_synopsis_expansion("-r <REFERENCE> -p <MAPPER> .. -o <OUTPUT_DIRECTORY>")
+        .author(Author::new(crate::AUTHOR).email("benjwoodcroft near gmail.com"))
+        .description(
+            "coverm makedb pre-generates one or more mapping databases (indexes) from \
+        reference genome or contig FASTA files. The generated database can then be \
+        supplied to 'coverm contig' or 'coverm genome' (or 'coverm make') to avoid \
+        regenerating the index each time reads are mapped.\n\n\
+        For minimap2 databases, pass the generated '.mmi' file as the reference \
+        together with '--minimap2-reference-is-index'. For BWA databases, pass the \
+        generated prefix as the reference together with the matching '-p bwa-mem' or \
+        '-p bwa-mem2'.\n\n\
+        Multiple '-p/--mapper' values may be specified to create several databases in \
+        one invocation, one per mapper. Likewise, multiple references may be given, in \
+        which case a database is created for each combination of reference and mapper.\n\n",
+        );
+
+    manual = manual.custom(
+        Section::new("Input").option(Opt::new("PATH ..").short("-r").long("--reference").help(
+            "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
+            May be gzip-compressed. [required]",
+        )),
+    );
+
+    manual = manual.custom(
+        Section::new("Database type")
+            .option(Opt::new("NAME ..").short("-p").long("--mapper").help(&format!(
+                "Kind(s) of database to generate, one per mapping software. Specify more \
+                than once (or as a space-separated list) to generate several databases. \
+                {}. One of: {}",
+                default_roff("minimap2-sr"),
+                bird_tool_utils::clap_utils::table_roff(&[
+                    &["name", "description"],
+                    &[
+                        &monospace_roff("minimap2-sr"),
+                        &format!("minimap2 index built with '{}'", &monospace_roff("-x sr"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-lr-hq"),
+                        &format!("minimap2 index built with '{}'", &monospace_roff("-x lr:hq"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-ont"),
+                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-ont"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-pb"),
+                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-pb"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-hifi"),
+                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-hifi"))
+                    ],
+                    &[
+                        &monospace_roff("minimap2-no-preset"),
+                        &format!("minimap2 index built with no '{}' option", &monospace_roff("-x"))
+                    ],
+                    &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
+                    &[&monospace_roff("bwa-mem2"), "BWA-MEM2 index (bwa-mem2 index)"],
+                ])
+            )))
+            .option(Opt::new("PARAMS").long("--minimap2-params").help(
+                "Extra parameters to provide to the minimap2 indexing command. \
+                Note that usage of this parameter has security implications if \
+                untrusted input is specified. [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--bwa-params").help(
+                "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
+                command. Note that usage of this parameter has security \
+                implications if untrusted input is specified. [default: none]",
+            )),
+    );
+
+    manual = manual.custom(
+        Section::new("Output").option(
+            Opt::new("DIR")
+                .short("-o")
+                .long("--output-directory")
+                .help(
+                    "Where the generated database(s) will be written. The directory will \
+                    be created if it does not exist. [required]",
+                ),
+        ),
+    );
+
+    manual = manual.example(
+        Example::new()
+            .text("Generate a short-read minimap2 database from a set of genomes")
+            .command("coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir"),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Use the generated minimap2 database when calculating contig coverage",
+            )
+            .command(
+                "coverm contig -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
+                --minimap2-reference-is-index -1 read1.fq -2 read2.fq",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text("Generate several databases at once, one per mapper")
+            .command("coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir"),
+    );
+
+    let mut general_section = Section::new("General options").option(
+        Opt::new("INT").short("-t").long("--threads").help(&format!(
+            "Number of threads used to generate the database(s). {}",
+            default_roff("1")
+        )),
+    );
+    general_section = add_help_options_to_section(general_section);
+    general_section = add_verbosity_flags_to_section(general_section);
+    manual = manual.custom(general_section);
+
+    manual = manual.custom(faq_section());
+
+    manual
+}
+
 pub fn contig_full_help() -> Manual {
     let mut manual = Manual::new("coverm contig")
         .about(format!("Calculate read coverage per-contig (version {})",crate_version!()))
@@ -1023,6 +1149,24 @@ See coverm make --full-help for further options and further detail.
                 storing sorted BAM files in output_dir/"
             ),
         );
+        static ref MAKEDB_HELP: String = format!(
+            "
+                            {}
+                     {}
+
+{}
+
+  coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir
+
+See coverm makedb --full-help for further options and further detail.
+",
+            ansi_term::Colour::Green.paint("coverm makedb"),
+            ansi_term::Colour::Green.paint("Generate mapping database(s) from reference FASTA files"),
+            ansi_term::Colour::Purple.paint(
+                "Example: Generate a short-read minimap2 database from a set of genomes,\n\
+                storing it in db_dir/"
+            ),
+        );
     }
 
     let mut app = Command::new("coverm")
@@ -1045,6 +1189,7 @@ Main subcommands:
 
 Less used utility subcommands:
 \tmake\tGenerate BAM files through alignment
+\tmakedb\tGenerate mapping database(s) from reference FASTA files
 \tfilter\tRemove (or only keep) alignments with insufficient identity
 \tcluster\tDereplicate and cluster genomes
 \tshell-completion
@@ -2156,6 +2301,63 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
+                ),
+        )
+        .subcommand(
+            add_clap_verbosity_flags(Command::new("makedb"))
+                .about("Generate mapping database(s) from reference FASTA files")
+                .override_help(MAKEDB_HELP.as_str())
+                .arg(
+                    Arg::new("full-help")
+                        .long("full-help")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("full-help-roff")
+                        .long("full-help-roff")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("reference")
+                        .short('r')
+                        .long("reference")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
+                )
+                .arg(
+                    Arg::new("output-directory")
+                        .short('o')
+                        .long("output-directory")
+                        .required_unless_present_any(["full-help", "full-help-roff"]),
+                )
+                .arg(
+                    Arg::new("mapper")
+                        .short('p')
+                        .long("mapper")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .value_parser(MAPPING_SOFTWARE_LIST.iter().collect::<Vec<_>>())
+                        .default_value("minimap2-sr"),
+                )
+                .arg(
+                    Arg::new("threads")
+                        .short('t')
+                        .long("threads")
+                        .default_value("1")
+                        .value_parser(clap::value_parser!(u16)),
+                )
+                .arg(
+                    Arg::new("minimap2-params")
+                        .long("minimap2-params")
+                        .long("minimap2-parameters")
+                        .allow_hyphen_values(true),
+                )
+                .arg(
+                    Arg::new("bwa-params")
+                        .long("bwa-params")
+                        .long("bwa-parameters")
+                        .allow_hyphen_values(true),
                 ),
         )
         .subcommand(

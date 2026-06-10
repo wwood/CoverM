@@ -715,6 +715,128 @@ fn main() {
                 }
             }
         }
+        Some("makedb") => {
+            let m = matches.subcommand_matches("makedb").unwrap();
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, makedb_full_help());
+            set_log_level(m, true);
+            manually_check_args_at_runtime(m);
+
+            let output_directory = m.get_one::<String>("output-directory").unwrap();
+            setup_bam_cache_directory(output_directory);
+
+            let references: Vec<&String> = m
+                .get_many::<String>("reference")
+                .expect("No reference provided")
+                .collect();
+
+            // Guard against multiple references that share a file name (e.g.
+            // refs in different directories both named ref.fna), which would
+            // otherwise generate databases with colliding output paths.
+            if references.len() > 1 {
+                let mut seen_stems = HashSet::new();
+                for reference in &references {
+                    let stem = std::path::Path::new(reference.as_str())
+                        .file_name()
+                        .expect("Failed to glean file name from reference path")
+                        .to_string_lossy()
+                        .to_string();
+                    if !seen_stems.insert(stem.clone()) {
+                        error!(
+                            "Multiple references share the file name '{stem}', which would \
+                            generate databases with colliding output paths. Please rename or \
+                            generate them in separate output directories."
+                        );
+                        process::exit(1);
+                    }
+                }
+            }
+
+            // Parse mappers, de-duplicating while preserving order, and check
+            // that the underlying mapping software is installed.
+            let mut mapping_programs = vec![];
+            let mut seen_mappers = HashSet::new();
+            for mapper_name in m
+                .get_many::<String>("mapper")
+                .expect("No mapper provided")
+            {
+                if !seen_mappers.insert(mapper_name.clone()) {
+                    warn!("Ignoring duplicate --mapper value {mapper_name}");
+                    continue;
+                }
+                let mapping_program = mapping_program_from_name(Some(mapper_name));
+                if let MappingProgram::STROBEALIGN = mapping_program {
+                    error!(
+                        "Generating a standalone database with 'coverm makedb' is not supported \
+                        for strobealign. Strobealign indexes are read-length specific and must \
+                        reside alongside the reference FASTA; create one with \
+                        'strobealign --create-index' and use it via '--strobealign-use-index'."
+                    );
+                    process::exit(1);
+                }
+                check_mapping_program_dependencies(mapping_program);
+                mapping_programs.push(mapping_program);
+            }
+
+            let num_threads = *m.get_one::<u16>("threads").unwrap();
+
+            let mut generated_dbs = vec![];
+            for &mapping_program in &mapping_programs {
+                let index_creation_params = match mapping_program {
+                    MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+                        m.get_one::<String>("bwa-params")
+                    }
+                    MappingProgram::MINIMAP2_SR
+                    | MappingProgram::MINIMAP2_ONT
+                    | MappingProgram::MINIMAP2_PB
+                    | MappingProgram::MINIMAP2_HIFI
+                    | MappingProgram::MINIMAP2_LR_HQ
+                    | MappingProgram::MINIMAP2_NO_PRESET => m.get_one::<String>("minimap2-params"),
+                    MappingProgram::STROBEALIGN => None,
+                };
+                for reference in &references {
+                    check_reference_existence(reference, &mapping_program);
+                    let db_path = coverm::mapping_index_maintenance::generate_persistent_index(
+                        mapping_program,
+                        reference,
+                        output_directory,
+                        Some(num_threads),
+                        index_creation_params.map(|x| x.as_str()),
+                    );
+                    info!("Generated {mapping_program:?} database at {db_path}");
+                    generated_dbs.push((mapping_program, db_path));
+                }
+            }
+
+            info!("Finished generating {} database(s).", generated_dbs.len());
+            for (mapping_program, db_path) in &generated_dbs {
+                match mapping_program {
+                    MappingProgram::MINIMAP2_SR
+                    | MappingProgram::MINIMAP2_ONT
+                    | MappingProgram::MINIMAP2_PB
+                    | MappingProgram::MINIMAP2_HIFI
+                    | MappingProgram::MINIMAP2_LR_HQ
+                    | MappingProgram::MINIMAP2_NO_PRESET => {
+                        info!(
+                            "To use the minimap2 database, run e.g.: coverm contig \
+                            --reference {db_path} --minimap2-reference-is-index -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::BWA_MEM => {
+                        info!(
+                            "To use the BWA database, run e.g.: coverm contig \
+                            --reference {db_path} -p bwa-mem -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::BWA_MEM2 => {
+                        info!(
+                            "To use the BWA-MEM2 database, run e.g.: coverm contig \
+                            --reference {db_path} -p bwa-mem2 -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::STROBEALIGN => unreachable!(),
+                }
+            }
+        }
         Some("shell-completion") => {
             let m = matches.subcommand_matches("shell-completion").unwrap();
             set_log_level(m, true);
@@ -871,7 +993,13 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
 }
 
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
-    let mapping_program = match m.get_one::<String>("mapper").map(|x| &**x) {
+    let mapping_program = mapping_program_from_name(m.get_one::<String>("mapper").map(|x| &**x));
+    check_mapping_program_dependencies(mapping_program);
+    mapping_program
+}
+
+fn mapping_program_from_name(name: Option<&str>) -> MappingProgram {
+    match name {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
         Some("bwa-mem2") => MappingProgram::BWA_MEM2,
         Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
@@ -882,11 +1010,11 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
-        _ => panic!(
-            "Unexpected definition for --mapper: {:?}",
-            m.get_one::<String>("mapper")
-        ),
-    };
+        _ => panic!("Unexpected definition for --mapper: {:?}", name),
+    }
+}
+
+fn check_mapping_program_dependencies(mapping_program: MappingProgram) {
     match mapping_program {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
@@ -906,7 +1034,6 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
             external_command_checker::check_for_strobealign();
         }
     }
-    mapping_program
 }
 
 struct EstimatorsAndTaker {
@@ -1494,7 +1621,7 @@ fn setup_bam_cache_directory(cache_directory: &str) {
             );
             process::exit(1);
         } else {
-            info!("Writing BAM files to already existing directory {cache_directory}")
+            info!("Writing output files to already existing directory {cache_directory}")
         }
     } else {
         match path.parent() {

@@ -119,9 +119,30 @@ CoverM operates in several modes. Detailed usage information including examples 
 
 There are several utility modes as well:
 * [make](https://wwood.github.io/CoverM/coverm-make.html) - Generate BAM files through alignment
+* [makedb](https://wwood.github.io/CoverM/coverm-makedb.html) - Generate mapping database(s) from reference FASTA files
 * [filter](https://wwood.github.io/CoverM/coverm-filter.html) - Remove (or only keep) alignments with insufficient identity
 * [cluster](https://wwood.github.io/CoverM/coverm-cluster.html) - Dereplicate and cluster genomes
 * shell-completion - Generate shell completion scripts
+
+The `makedb` mode pre-generates mapping indexes (databases) from reference
+genome or contig FASTA files, so that they can be reused across multiple
+`coverm contig`/`coverm genome` runs without re-indexing each time. The kind of
+database is selected with `--mapper`, and multiple `--mapper` values may be
+given to generate several databases at once:
+
+```bash
+# Generate a short-read minimap2 database
+coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir
+
+# Use the generated minimap2 database when calculating coverage
+coverm contig \
+  -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
+  --minimap2-reference-is-index \
+  -1 read1.fq -2 read2.fq
+
+# Generate several databases at once, one per mapper
+coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir
+```
 
 ## Demo
 
