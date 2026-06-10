@@ -24,6 +24,14 @@ pub fn check_for_samtools() {
         .expect("Failed to find sufficient version of samtools");
 }
 
+pub fn check_for_bowtie2() {
+    check_for_external_command_presence_with_which("bowtie2")
+        .expect("Failed to find installed bowtie2");
+    // bowtie2-build is a separate executable used to generate the index.
+    check_for_external_command_presence_with_which("bowtie2-build")
+        .expect("Failed to find installed bowtie2-build");
+}
+
 pub fn check_for_strobealign() {
     check_for_external_command_presence_with_which("strobealign")
         .expect("Failed to find installed strobealign");

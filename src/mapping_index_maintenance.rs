@@ -57,104 +57,224 @@ impl TemporaryIndexStruct {
                 .expect("Failed to glean file stem from reference DB. Strange."),
         );
 
-        info!("Generating {mapping_program:?} index for {reference_path} ..");
-        let mut cmd = match mapping_program {
-            MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
-            MappingProgram::BWA_MEM2 => std::process::Command::new("bwa-mem2"),
-            MappingProgram::MINIMAP2_SR
-            | MappingProgram::MINIMAP2_ONT
-            | MappingProgram::MINIMAP2_PB
-            | MappingProgram::MINIMAP2_HIFI
-            | MappingProgram::MINIMAP2_LR_HQ
-            | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
-            MappingProgram::STROBEALIGN => std::process::Command::new("strobealign"),
-        };
-        match &mapping_program {
-            MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
-                cmd.arg("index")
-                    .arg("-p")
-                    .arg(&index_path)
-                    .arg(reference_path);
-            }
-            MappingProgram::MINIMAP2_SR
-            | MappingProgram::MINIMAP2_ONT
-            | MappingProgram::MINIMAP2_HIFI
-            | MappingProgram::MINIMAP2_PB
-            | MappingProgram::MINIMAP2_LR_HQ
-            | MappingProgram::MINIMAP2_NO_PRESET => {
-                match &mapping_program {
-                    MappingProgram::MINIMAP2_SR => {
-                        cmd.arg("-x").arg("sr");
-                    }
-                    MappingProgram::MINIMAP2_ONT => {
-                        cmd.arg("-x").arg("map-ont");
-                    }
-                    MappingProgram::MINIMAP2_HIFI => {
-                        cmd.arg("-x").arg("map-hifi");
-                    }
-                    MappingProgram::MINIMAP2_PB => {
-                        cmd.arg("-x").arg("map-pb");
-                    }
-                    MappingProgram::MINIMAP2_LR_HQ => {
-                        cmd.arg("-x").arg("lr:hq");
-                    }
-                    MappingProgram::MINIMAP2_NO_PRESET
-                    | MappingProgram::BWA_MEM
-                    | MappingProgram::BWA_MEM2
-                    | MappingProgram::STROBEALIGN => {}
-                };
-                if let Some(t) = num_threads {
-                    cmd.arg("-t").arg(format!("{t}"));
-                }
-                cmd.arg("-d").arg(&index_path).arg(reference_path);
-            }
-            MappingProgram::STROBEALIGN => {
-                warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
-            }
-        };
-        if let Some(params) = index_creation_options {
-            for s in params.split_whitespace() {
-                cmd.arg(s);
-            }
-        };
-        // Some BWA versions output log info to stdout. Ignore this.
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
-        debug!("Running DB indexing command: {cmd:?}");
+        run_index_command(
+            mapping_program,
+            reference_path,
+            &index_path,
+            num_threads,
+            index_creation_options,
+        );
 
-        let mut process = cmd
-            .spawn()
-            .unwrap_or_else(|_| panic!("Failed to start {:?} index process", mapping_program));
-        let es = process.wait().unwrap_or_else(|_| {
-            panic!(
-                "Failed to glean exitstatus from failing {:?} index process",
-                mapping_program
-            )
-        });
-        if !es.success() {
-            error!("Error when running {mapping_program:?} index process.");
-            let mut err = String::new();
-            process
-                .stderr
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Failed to grab stderr from failed {:?} index process",
-                        mapping_program
-                    )
-                })
-                .read_to_string(&mut err)
-                .expect("Failed to read stderr into string");
-            error!("The STDERR was: {err:?}");
-            error!("Cannot continue after {mapping_program:?} index failed.");
-            process::exit(1);
-        }
-        info!("Finished generating {mapping_program:?} index.");
         TemporaryIndexStruct {
             index_path_internal: index_path.to_string_lossy().to_string(),
             tempdir: td,
         }
     }
 }
+
+/// Build the index-generation command for the given mapping program, writing
+/// the resulting index to `index_path`. Returns None for STROBEALIGN, which
+/// does not support standalone pre-indexing in this manner.
+fn build_index_command(
+    mapping_program: MappingProgram,
+    reference_path: &str,
+    index_path: &Path,
+    num_threads: Option<u16>,
+    index_creation_options: Option<&str>,
+) -> Option<std::process::Command> {
+    let mut cmd = match mapping_program {
+        MappingProgram::BWA_MEM => std::process::Command::new("bwa"),
+        MappingProgram::BWA_MEM2 => std::process::Command::new("bwa-mem2"),
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_HIFI
+        | MappingProgram::MINIMAP2_LR_HQ
+        | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
+        MappingProgram::BOWTIE2 => std::process::Command::new("bowtie2-build"),
+        MappingProgram::STROBEALIGN => {
+            warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
+            return None;
+        }
+    };
+    match &mapping_program {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+            cmd.arg("index")
+                .arg("-p")
+                .arg(index_path)
+                .arg(reference_path);
+        }
+        MappingProgram::BOWTIE2 => {
+            if let Some(t) = num_threads {
+                cmd.arg("--threads").arg(format!("{t}"));
+            }
+            // bowtie2-build takes the reference FASTA followed by the index
+            // prefix it should write the .bt2 files to.
+            cmd.arg(reference_path).arg(index_path);
+        }
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_HIFI
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_LR_HQ
+        | MappingProgram::MINIMAP2_NO_PRESET => {
+            match &mapping_program {
+                MappingProgram::MINIMAP2_SR => {
+                    cmd.arg("-x").arg("sr");
+                }
+                MappingProgram::MINIMAP2_ONT => {
+                    cmd.arg("-x").arg("map-ont");
+                }
+                MappingProgram::MINIMAP2_HIFI => {
+                    cmd.arg("-x").arg("map-hifi");
+                }
+                MappingProgram::MINIMAP2_PB => {
+                    cmd.arg("-x").arg("map-pb");
+                }
+                MappingProgram::MINIMAP2_LR_HQ => {
+                    cmd.arg("-x").arg("lr:hq");
+                }
+                MappingProgram::MINIMAP2_NO_PRESET
+                | MappingProgram::BWA_MEM
+                | MappingProgram::BWA_MEM2
+                | MappingProgram::STROBEALIGN
+                | MappingProgram::BOWTIE2 => {}
+            };
+            if let Some(t) = num_threads {
+                cmd.arg("-t").arg(format!("{t}"));
+            }
+            cmd.arg("-d").arg(index_path).arg(reference_path);
+        }
+        MappingProgram::STROBEALIGN => unreachable!(),
+    };
+    if let Some(params) = index_creation_options {
+        for s in params.split_whitespace() {
+            cmd.arg(s);
+        }
+    };
+    Some(cmd)
+}
+
+/// Run the index-generation command for the given mapping program, writing the
+/// resulting index to `index_path`. Exits the process on failure.
+fn run_index_command(
+    mapping_program: MappingProgram,
+    reference_path: &str,
+    index_path: &Path,
+    num_threads: Option<u16>,
+    index_creation_options: Option<&str>,
+) {
+    info!("Generating {mapping_program:?} index for {reference_path} ..");
+    let cmd = match build_index_command(
+        mapping_program,
+        reference_path,
+        index_path,
+        num_threads,
+        index_creation_options,
+    ) {
+        Some(cmd) => cmd,
+        None => return,
+    };
+    execute_index_command(cmd, mapping_program);
+}
+
+/// Spawn and wait on a pre-built index-generation command, exiting the process
+/// on failure.
+fn execute_index_command(mut cmd: std::process::Command, mapping_program: MappingProgram) {
+    // Some BWA versions output log info to stdout. Ignore this.
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    debug!("Running DB indexing command: {cmd:?}");
+
+    let mut process = cmd
+        .spawn()
+        .unwrap_or_else(|_| panic!("Failed to start {:?} index process", mapping_program));
+    let es = process.wait().unwrap_or_else(|_| {
+        panic!(
+            "Failed to glean exitstatus from failing {:?} index process",
+            mapping_program
+        )
+    });
+    if !es.success() {
+        error!("Error when running {mapping_program:?} index process.");
+        let mut err = String::new();
+        process
+            .stderr
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed to grab stderr from failed {:?} index process",
+                    mapping_program
+                )
+            })
+            .read_to_string(&mut err)
+            .expect("Failed to read stderr into string");
+        error!("The STDERR was: {err:?}");
+        error!("Cannot continue after {mapping_program:?} index failed.");
+        process::exit(1);
+    }
+    info!("Finished generating {mapping_program:?} index.");
+}
+
+/// Generate a strobealign index for `reference_path` inside `output_directory`.
+///
+/// Unlike minimap2/BWA, `strobealign --create-index` writes its `.sti` index
+/// alongside the reference FASTA (and the FASTA is still required at mapping
+/// time, since strobealign reads the sequences from it). To keep the generated
+/// database self-contained within `output_directory`, the reference is first
+/// copied there and the index is created next to the copy. Returns the path to
+/// the copied reference, which is what should be passed to
+/// `--reference .. --strobealign-use-index`.
+///
+/// Strobealign indexes are read-length specific. The canonical read length can
+/// be set by passing `-r <length>` via `index_creation_options`, or estimated
+/// by passing a reads file there (e.g. `reads.fq`), matching the positional
+/// argument that `strobealign --create-index` accepts.
+fn generate_strobealign_persistent_index(
+    reference_path: &str,
+    output_directory: &str,
+    num_threads: Option<u16>,
+    index_creation_options: Option<&str>,
+) -> String {
+    let reference_file_name = std::path::Path::new(reference_path)
+        .file_name()
+        .expect("Failed to glean file name from reference path");
+    let copied_reference = std::path::Path::new(output_directory).join(reference_file_name);
+
+    if copied_reference == std::path::Path::new(reference_path) {
+        error!(
+            "The strobealign database for {reference_path} would overwrite the reference \
+            itself. Please choose an output directory other than the reference's directory."
+        );
+        process::exit(1);
+    }
+
+    info!(
+        "Copying reference {} into {} so the strobealign database is self-contained ..",
+        reference_path, output_directory
+    );
+    std::fs::copy(reference_path, &copied_reference).unwrap_or_else(|e| {
+        panic!(
+            "Failed to copy reference {} into output directory: {}",
+            reference_path, e
+        )
+    });
+
+    info!("Generating STROBEALIGN index for {reference_path} ..");
+    let mut cmd = std::process::Command::new("strobealign");
+    if let Some(t) = num_threads {
+        cmd.arg("-t").arg(format!("{t}"));
+    }
+    cmd.arg("--create-index").arg(&copied_reference);
+    if let Some(params) = index_creation_options {
+        for s in params.split_whitespace() {
+            cmd.arg(s);
+        }
+    };
+    execute_index_command(cmd, MappingProgram::STROBEALIGN);
+
+    copied_reference.to_string_lossy().to_string()
+}
+
 impl MappingIndex for TemporaryIndexStruct {
     fn index_path(&self) -> &String {
         &self.index_path_internal
@@ -201,6 +321,14 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
                 return;
             }
         }
+        MappingProgram::BOWTIE2 => {
+            // The reference may be given either as a FASTA file or as the prefix
+            // of a pre-generated bowtie2 index (in which case the prefix path
+            // itself is not a file), so accept either.
+            if check_for_bowtie2_index_existence(reference_path) {
+                return;
+            }
+        }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -241,6 +369,37 @@ pub fn generate_bwa_index(
     }
 }
 
+/// Return true if a complete set of bowtie2 index files (either the small
+/// `.bt2` or large `.bt2l` variants) already exists beside `reference_path`,
+/// treating `reference_path` as the bowtie2 index prefix.
+fn check_for_bowtie2_index_existence(reference_path: &str) -> bool {
+    let suffixes = ["1", "2", "3", "4", "rev.1", "rev.2"];
+    let all_present = |extension: &str| {
+        suffixes.iter().all(|suffix| {
+            std::path::Path::new(&format!("{reference_path}.{suffix}.{extension}")).exists()
+        })
+    };
+    all_present("bt2") || all_present("bt2l")
+}
+
+pub fn generate_bowtie2_index(
+    reference_path: &str,
+    num_threads: Option<u16>,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    if check_for_bowtie2_index_existence(reference_path) {
+        info!("bowtie2 index appears to be complete, so going ahead and using it.");
+        Box::new(VanillaIndexStruct::new(reference_path))
+    } else {
+        Box::new(TemporaryIndexStruct::new(
+            MappingProgram::BOWTIE2,
+            reference_path,
+            num_threads,
+            index_creation_parameters,
+        ))
+    }
+}
+
 pub fn generate_minimap2_index(
     reference_path: &str,
     num_threads: Option<u16>,
@@ -253,6 +412,79 @@ pub fn generate_minimap2_index(
         num_threads,
         index_creation_parameters,
     ))
+}
+
+/// Short name used to label the kind of database generated for a given mapping
+/// program, e.g. as a filename suffix in `coverm makedb`.
+pub fn mapping_program_db_name(mapping_program: MappingProgram) -> &'static str {
+    match mapping_program {
+        MappingProgram::BWA_MEM => "bwa-mem",
+        MappingProgram::BWA_MEM2 => "bwa-mem2",
+        MappingProgram::MINIMAP2_SR => "minimap2-sr",
+        MappingProgram::MINIMAP2_ONT => "minimap2-ont",
+        MappingProgram::MINIMAP2_PB => "minimap2-pb",
+        MappingProgram::MINIMAP2_HIFI => "minimap2-hifi",
+        MappingProgram::MINIMAP2_LR_HQ => "minimap2-lr-hq",
+        MappingProgram::MINIMAP2_NO_PRESET => "minimap2-no-preset",
+        MappingProgram::STROBEALIGN => "strobealign",
+        MappingProgram::BOWTIE2 => "bowtie2",
+    }
+}
+
+/// Generate a mapping index for `reference_path` in `output_directory` that is
+/// persisted on disk (unlike [`TemporaryIndexStruct`]), so it can later be fed
+/// back into `coverm contig`/`coverm genome`. Returns the path to the generated
+/// database. Used by `coverm makedb`.
+pub fn generate_persistent_index(
+    mapping_program: MappingProgram,
+    reference_path: &str,
+    output_directory: &str,
+    num_threads: Option<u16>,
+    index_creation_options: Option<&str>,
+) -> String {
+    // Strobealign writes its index next to the reference (and needs the
+    // reference at mapping time), so it is handled separately.
+    if let MappingProgram::STROBEALIGN = mapping_program {
+        return generate_strobealign_persistent_index(
+            reference_path,
+            output_directory,
+            num_threads,
+            index_creation_options,
+        );
+    }
+
+    let reference_stem = std::path::Path::new(reference_path)
+        .file_name()
+        .expect("Failed to glean file name from reference path")
+        .to_string_lossy();
+    let db_program_name = mapping_program_db_name(mapping_program);
+
+    // For minimap2 the index is a single .mmi file, while for BWA the supplied
+    // path is used as a prefix for the several files BWA generates.
+    let index_path = match mapping_program {
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_HIFI
+        | MappingProgram::MINIMAP2_LR_HQ
+        | MappingProgram::MINIMAP2_NO_PRESET => std::path::Path::new(output_directory)
+            .join(format!("{reference_stem}.{db_program_name}.mmi")),
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::BOWTIE2 => {
+            std::path::Path::new(output_directory)
+                .join(format!("{reference_stem}.{db_program_name}"))
+        }
+        MappingProgram::STROBEALIGN => unreachable!(),
+    };
+
+    run_index_command(
+        mapping_program,
+        reference_path,
+        &index_path,
+        num_threads,
+        index_creation_options,
+    );
+
+    index_path.to_string_lossy().to_string()
 }
 
 pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> NamedTempFile {
