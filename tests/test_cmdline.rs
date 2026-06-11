@@ -209,6 +209,44 @@ mod tests {
     }
 
     #[test]
+    fn test_genome_per_gene_coverage_generated_reference() {
+        // When mapping to --genome-fasta-files, CoverM concatenates the
+        // references and renames contigs to genome~contig. The GFF must use the
+        // generated names, and the genome must be derived from the separator
+        // rather than the original-contig GenomesAndContigs map.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-directory",
+                "tests/data/2seqs_split_genomes",
+                "-x",
+                "fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "-p",
+                "minimap2-sr",
+                "--gff",
+                "tests/data/2seqs_prefixed.gff",
+                "--methods",
+                "mean",
+                "--contig-end-exclusion",
+                "0",
+                "--min-covered-fraction",
+                "0",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("\tgeneA\tgenomeA~seq1\tgenomeA\t1.2")
+            .stdout()
+            .contains("\tgeneB\tgenomeB~seq2\tgenomeB\t1.2")
+            .unwrap();
+    }
+
+    #[test]
     fn test_contig_tempdir_index_creation() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t_full = tf.path().to_str().unwrap();

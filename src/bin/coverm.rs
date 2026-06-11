@@ -1397,25 +1397,25 @@ fn run_genome<
             gff_path,
             m.get_one::<String>("gff-feature-type").map(|x| x.as_str()),
         );
-        // Resolve the genome each contig belongs to, matching the genome
-        // definition supplied on the command line.
-        let genome_namer: Box<coverm::genes::GenomeNamer> = match genomes_and_contigs_option {
-            Some(gc) => {
-                Box::new(move |contig: &str| gc.genome_of_contig(&contig.to_string()).cloned())
-            }
-            None => {
-                if single_genome {
-                    Box::new(|_: &str| Some("genome1".to_string()))
-                } else if let Some(sep) = separator {
-                    Box::new(move |contig: &str| {
-                        contig
-                            .split_once(sep as char)
-                            .map(|(genome, _)| genome.to_string())
-                    })
-                } else {
-                    unreachable!("A genome definition is required when using --gff in genome mode")
-                }
-            }
+        // Resolve the genome each contig belongs to. This mirrors the
+        // precedence used for per-genome coverage (see below): the separator
+        // and single-genome modes take priority over a GenomesAndContigs map.
+        // This matters when CoverM generates a concatenated reference from
+        // --genome-fasta-files, where the BAM contigs are renamed to
+        // `genome<separator>contig` but the GenomesAndContigs map still holds
+        // the original (un-prefixed) contig IDs.
+        let genome_namer: Box<coverm::genes::GenomeNamer> = if single_genome {
+            Box::new(|_: &str| Some("genome1".to_string()))
+        } else if let Some(sep) = separator {
+            Box::new(move |contig: &str| {
+                contig
+                    .split_once(sep as char)
+                    .map(|(genome, _)| genome.to_string())
+            })
+        } else if let Some(gc) = genomes_and_contigs_option {
+            Box::new(move |contig: &str| gc.genome_of_contig(&contig.to_string()).cloned())
+        } else {
+            unreachable!("A genome definition is required when using --gff in genome mode")
         };
         coverm::genes::gene_coverage(
             bam_generators,
