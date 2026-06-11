@@ -1022,6 +1022,39 @@ pub fn genome_full_help() -> Manual {
     );
 
     manual = manual.custom(
+        Section::new("Per-gene coverage")
+            .option(Opt::new("PATH").long("--gff").help(&format!(
+                "GFF (or GTF) file defining genes/features. When specified, \
+                coverage is reported once per feature (using the chosen \
+                {}) rather than once per genome. The reported identifier is \
+                taken from the {}, {}, {} or {} attribute. The contig names in \
+                the GFF must match the reference sequence names in the \
+                BAM/reference; note that when mapping to multiple \
+                {} the contigs are renamed to {}, so the GFF should use \
+                matching names. Reads are assigned to a feature for \
+                read-count based methods when their leftmost mapped position \
+                falls within the feature's coordinates. Note that {} applies \
+                to the ends of each feature, so {} may be appropriate for \
+                short features. Cannot be used with {}. (--genes-file is an \
+                alias). [default: not used]",
+                monospace_roff("--methods"),
+                monospace_roff("ID"),
+                monospace_roff("locus_tag"),
+                monospace_roff("gene_id"),
+                monospace_roff("Name"),
+                monospace_roff("--genome-fasta-files"),
+                monospace_roff("genome~contig"),
+                monospace_roff("--contig-end-exclusion"),
+                monospace_roff("--contig-end-exclusion 0"),
+                monospace_roff("--dereplicate"),
+            )))
+            .option(Opt::new("TYPE").long("--gff-feature-type").help(
+                "Only use features of this type (i.e. the third column of \
+                the GFF) when --gff is specified. [default: use all features]",
+            )),
+    );
+
+    manual = manual.custom(
         Section::new("Output")
             .option(Opt::new("FILE").short("-o").long("--output-file").help(
                 "Output coverage values to this file, or '-' for STDOUT. \
@@ -1473,6 +1506,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
+                            "gff",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1493,6 +1527,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
+                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1510,6 +1545,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-definition",
+                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1527,6 +1563,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-definition",
+                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1553,6 +1590,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-fasta-directory",
+                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1683,6 +1721,17 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("output-format")
                         .value_parser(["sparse", "dense"])
                         .default_value("dense"),
+                )
+                .arg(
+                    Arg::new("gff")
+                        .long("gff")
+                        .visible_alias("genes-file")
+                        .conflicts_with("dereplicate"),
+                )
+                .arg(
+                    Arg::new("gff-feature-type")
+                        .long("gff-feature-type")
+                        .requires("gff"),
                 )
                 .arg(
                     Arg::new("dereplicate")

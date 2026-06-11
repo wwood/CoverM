@@ -64,8 +64,14 @@ fn main() {
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
-            estimators_and_taker =
-                estimators_and_taker.print_headers("Genome", print_stream.clone());
+            estimators_and_taker = estimators_and_taker.print_headers(
+                if m.contains_id("gff") {
+                    "Gene"
+                } else {
+                    "Genome"
+                },
+                print_stream.clone(),
+            );
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -156,8 +162,13 @@ fn main() {
                     .map(|s| &**s)
                     .collect();
 
-                // Associate genomes and contig names, if required
-                let genomes_and_contigs_option = parse_all_genome_definitions(m);
+                // Associate genomes and contig names, if required. Not needed
+                // when reporting per-gene coverage from a GFF file.
+                let genomes_and_contigs_option = if m.contains_id("gff") {
+                    None
+                } else {
+                    parse_all_genome_definitions(m)
+                };
 
                 if filter_params.doing_filtering() {
                     run_genome(
@@ -1384,30 +1395,47 @@ fn run_genome<
     let flag_filter = FilterParameters::generate_from_clap(m).flag_filters;
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
-    let reads_mapped = match separator.is_some() || single_genome {
-        true => coverm::genome::mosdepth_genome_coverage(
+    let reads_mapped = if let Some(gff_path) = m.get_one::<String>("gff") {
+        // Report coverage once per gene/feature rather than per genome.
+        let gene_definitions = coverm::genes::GeneDefinitions::read_gff(
+            gff_path,
+            m.get_one::<String>("gff-feature-type").map(|x| x.as_str()),
+        );
+        coverm::genes::gene_coverage(
             bam_generators,
-            separator.unwrap(),
             &mut estimators_and_taker.taker,
-            print_zeros,
             &mut estimators_and_taker.estimators,
+            &gene_definitions,
+            print_zeros,
             &flag_filter,
-            single_genome,
             threads,
-        ),
-
-        false => match genomes_and_contigs_option {
-            Some(gc) => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+        )
+    } else {
+        match separator.is_some() || single_genome {
+            true => coverm::genome::mosdepth_genome_coverage(
                 bam_generators,
-                gc,
+                separator.unwrap(),
                 &mut estimators_and_taker.taker,
                 print_zeros,
-                &flag_filter,
                 &mut estimators_and_taker.estimators,
+                &flag_filter,
+                single_genome,
                 threads,
             ),
-            None => unreachable!(),
-        },
+
+            false => match genomes_and_contigs_option {
+                Some(gc) => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                    bam_generators,
+                    gc,
+                    &mut estimators_and_taker.taker,
+                    print_zeros,
+                    &flag_filter,
+                    &mut estimators_and_taker.estimators,
+                    threads,
+                ),
+                None => unreachable!(),
+            },
+        }
     };
 
     debug!("Finalising printing ..");

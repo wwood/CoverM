@@ -164,13 +164,13 @@ coverm contig \
 
 ### Per-gene coverage
 
-By supplying a GFF (or GTF) file to `coverm contig` via `--gff`, coverage is
-reported once per gene/feature, using the chosen `--methods`, rather than once
-per contig. Each non-comment line in the file is treated as a separate feature
-and the reported identifier is taken from the `ID`, `locus_tag`, `gene_id` or
-`Name` attribute. For read-count based methods (e.g. `count`, `rpkm`, `tpm`) a
-read is assigned to a feature when its leftmost mapped position falls within the
-feature's coordinates.
+By supplying a GFF (or GTF) file via `--gff`, both `coverm contig` and `coverm
+genome` report coverage once per gene/feature, using the chosen `--methods`,
+rather than once per contig/genome. Each non-comment line in the file is treated
+as a separate feature and the reported identifier is taken from the `ID`,
+`locus_tag`, `gene_id` or `Name` attribute. For read-count based methods (e.g.
+`count`, `rpkm`, `tpm`) a read is assigned to a feature when its leftmost mapped
+position falls within the feature's coordinates.
 
 ```bash
 coverm contig \
@@ -180,6 +180,11 @@ coverm contig \
   --methods mean count \
   --contig-end-exclusion 0
 ```
+
+The contig names in the GFF must match the reference/BAM sequence names. Note
+that `coverm genome` renames contigs to `genome~contig` when mapping to multiple
+`--genome-fasta-files`, so when using `coverm genome --gff` the GFF should use
+matching names (or supply pre-made BAMs via `--bam-files`).
 
 Note that `--contig-end-exclusion` is applied to the ends of each feature, so
 `--contig-end-exclusion 0` is often appropriate for short genes. Use

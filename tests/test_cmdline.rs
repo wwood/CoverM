@@ -179,6 +179,34 @@ mod tests {
     }
 
     #[test]
+    fn test_genome_per_gene_coverage_from_gff() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--bam-files",
+                "tests/data/2seqs.reads_for_seq1.bam",
+                "--gff",
+                "tests/data/2seqs.gff",
+                "--methods",
+                "mean",
+                "--contig-end-exclusion",
+                "0",
+                "--min-covered-fraction",
+                "0",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("Sample\tGene\tMean")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene1\t1.2")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene3\t0")
+            .unwrap();
+    }
+
+    #[test]
     fn test_contig_tempdir_index_creation() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t_full = tf.path().to_str().unwrap();
