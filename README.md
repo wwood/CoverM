@@ -172,6 +172,9 @@ as a separate feature and the reported identifier is taken from the `ID`,
 `count`, `rpkm`, `tpm`) a read is assigned to a feature when its leftmost mapped
 position falls within the feature's coordinates.
 
+In `coverm contig`, the output gains a leading `Contig` column reporting the
+contig each feature lies on:
+
 ```bash
 coverm contig \
   -r assembly.fna \
@@ -179,6 +182,19 @@ coverm contig \
   --gff genes.gff \
   --methods mean count \
   --contig-end-exclusion 0
+```
+
+In `coverm genome`, the output additionally reports the `Genome` each feature
+belongs to. A genome definition (e.g. `--genome-fasta-files`,
+`--genome-definition` or `--separator`) is still required, and features on
+contigs not assigned to any genome are omitted:
+
+```bash
+coverm genome \
+  --bam-files sample.bam \
+  --genome-definition genome-definition.tsv \
+  --gff genes.gff \
+  --methods mean
 ```
 
 The contig names in the GFF must match the reference/BAM sequence names. Note

@@ -176,6 +176,15 @@ pub fn print_sparse_cached_coverage_taker(
                     entry_names {entry_names:?}\
                     num_coverages {num_coverages}"
             );
+            // Number of extra leading columns carried in each entry name beyond
+            // the first (e.g. contig/genome for per-gene output), so the
+            // synthesised 'unmapped' row can be padded to stay aligned.
+            let num_extra_entry_columns = entry_names
+                .iter()
+                .flatten()
+                .next()
+                .map(|name| name.matches('\t').count())
+                .unwrap_or(0);
             // Print the relative abundance of each genome, with an
             // 'unmapped' entry for reads that don't map.
             let mut current_stoit_coverages: Vec<Vec<f32>> = vec![];
@@ -221,6 +230,9 @@ pub fn print_sparse_cached_coverage_taker(
                     let stoit = &stoit_names[current_stoit_index];
                     if !columns_to_normalise.is_empty() {
                         write!(print_stream, "{stoit}\tunmapped").unwrap();
+                        for _ in 0..num_extra_entry_columns {
+                            write!(print_stream, "\t").unwrap();
+                        }
                         for (i, column) in columns_to_normalise.iter().enumerate() {
                             if i == 0 {
                                 for _ in 0..*column {
@@ -391,6 +403,11 @@ pub fn print_dense_cached_coverage_taker(
             let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec![];
             if !columns_to_normalise.is_empty() {
                 write!(print_stream, "unmapped").unwrap();
+                // When entries carry extra leading columns (e.g. contig/genome
+                // for per-gene output), pad the unmapped row to keep alignment.
+                for _ in 0..entry_type.matches('\t').count() {
+                    write!(print_stream, "\t").unwrap();
+                }
                 for (stoit_i, _) in stoit_names.iter().enumerate() {
                     for (i, column) in columns_to_normalise.iter().enumerate() {
                         if i == 0 {

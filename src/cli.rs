@@ -744,11 +744,12 @@ pub fn contig_full_help() -> Manual {
             .option(Opt::new("PATH").long("--gff").help(&format!(
                 "GFF (or GTF) file defining genes/features. When specified, \
                 coverage is reported once per feature (using the chosen \
-                {}) rather than once per contig. Each non-comment line is \
-                treated as a separate feature; the reported identifier is \
-                taken from the {}, {}, {} or {} attribute. Reads are assigned \
-                to a feature for read-count based methods (e.g. {}, {}, {}) \
-                when their leftmost mapped position falls within the \
+                {}) rather than once per contig, with the gene identifier and \
+                its contig in the first two output columns. Each non-comment \
+                line is treated as a separate feature; the reported identifier \
+                is taken from the {}, {}, {} or {} attribute. Reads are \
+                assigned to a feature for read-count based methods (e.g. {}, \
+                {}, {}) when their leftmost mapped position falls within the \
                 feature's coordinates. Note that {} applies to the ends of \
                 each feature, so {} may be appropriate for short features. \
                 Cannot be used with the {} or {} methods. (--genes-file is an \
@@ -1026,17 +1027,21 @@ pub fn genome_full_help() -> Manual {
             .option(Opt::new("PATH").long("--gff").help(&format!(
                 "GFF (or GTF) file defining genes/features. When specified, \
                 coverage is reported once per feature (using the chosen \
-                {}) rather than once per genome. The reported identifier is \
-                taken from the {}, {}, {} or {} attribute. The contig names in \
-                the GFF must match the reference sequence names in the \
-                BAM/reference; note that when mapping to multiple \
-                {} the contigs are renamed to {}, so the GFF should use \
-                matching names. Reads are assigned to a feature for \
-                read-count based methods when their leftmost mapped position \
-                falls within the feature's coordinates. Note that {} applies \
-                to the ends of each feature, so {} may be appropriate for \
-                short features. Cannot be used with {}. (--genes-file is an \
-                alias). [default: not used]",
+                {}) rather than once per genome, with the gene identifier, its \
+                contig and its genome in the first three output columns. The \
+                genome each feature belongs to is determined from the genome \
+                definition supplied on the command line (which is still \
+                required), and features whose contig is not assigned to a \
+                genome are omitted. The reported identifier is taken from the \
+                {}, {}, {} or {} attribute. The contig names in the GFF must \
+                match the reference sequence names in the BAM/reference; note \
+                that when mapping to multiple {} the contigs are renamed to \
+                {}, so the GFF should use matching names. Reads are assigned \
+                to a feature for read-count based methods when their leftmost \
+                mapped position falls within the feature's coordinates. Note \
+                that {} applies to the ends of each feature, so {} may be \
+                appropriate for short features. Cannot be used with {}. \
+                (--genes-file is an alias). [default: not used]",
                 monospace_roff("--methods"),
                 monospace_roff("ID"),
                 monospace_roff("locus_tag"),
@@ -1506,7 +1511,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
-                            "gff",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1527,7 +1531,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "genome-fasta-list",
                             "single-genome",
                             "genome-definition",
-                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1545,7 +1548,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-definition",
-                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1563,7 +1565,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-definition",
-                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -1590,7 +1591,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "separator",
                             "single-genome",
                             "genome-fasta-directory",
-                            "gff",
                             "full-help",
                             "full-help-roff",
                         ]),

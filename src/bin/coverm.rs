@@ -66,7 +66,7 @@ fn main() {
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker = estimators_and_taker.print_headers(
                 if m.contains_id("gff") {
-                    "Gene"
+                    "Gene\tContig\tGenome"
                 } else {
                     "Genome"
                 },
@@ -162,13 +162,8 @@ fn main() {
                     .map(|s| &**s)
                     .collect();
 
-                // Associate genomes and contig names, if required. Not needed
-                // when reporting per-gene coverage from a GFF file.
-                let genomes_and_contigs_option = if m.contains_id("gff") {
-                    None
-                } else {
-                    parse_all_genome_definitions(m)
-                };
+                // Associate genomes and contig names, if required
+                let genomes_and_contigs_option = parse_all_genome_definitions(m);
 
                 if filter_params.doing_filtering() {
                     run_genome(
@@ -551,7 +546,7 @@ fn main() {
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
             estimators_and_taker = estimators_and_taker.print_headers(
                 if gene_definitions.is_some() {
-                    "Gene"
+                    "Gene\tContig"
                 } else {
                     "Contig"
                 },
@@ -1396,16 +1391,38 @@ fn run_genome<
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
     let reads_mapped = if let Some(gff_path) = m.get_one::<String>("gff") {
-        // Report coverage once per gene/feature rather than per genome.
+        // Report coverage once per gene/feature rather than per genome, also
+        // reporting the contig and genome each feature lies on.
         let gene_definitions = coverm::genes::GeneDefinitions::read_gff(
             gff_path,
             m.get_one::<String>("gff-feature-type").map(|x| x.as_str()),
         );
+        // Resolve the genome each contig belongs to, matching the genome
+        // definition supplied on the command line.
+        let genome_namer: Box<coverm::genes::GenomeNamer> = match genomes_and_contigs_option {
+            Some(gc) => {
+                Box::new(move |contig: &str| gc.genome_of_contig(&contig.to_string()).cloned())
+            }
+            None => {
+                if single_genome {
+                    Box::new(|_: &str| Some("genome1".to_string()))
+                } else if let Some(sep) = separator {
+                    Box::new(move |contig: &str| {
+                        contig
+                            .split_once(sep as char)
+                            .map(|(genome, _)| genome.to_string())
+                    })
+                } else {
+                    unreachable!("A genome definition is required when using --gff in genome mode")
+                }
+            }
+        };
         coverm::genes::gene_coverage(
             bam_generators,
             &mut estimators_and_taker.taker,
             &mut estimators_and_taker.estimators,
             &gene_definitions,
+            Some(genome_namer.as_ref()),
             print_zeros,
             &flag_filter,
             threads,
@@ -1925,6 +1942,7 @@ fn run_contig<
             &mut estimators_and_taker.taker,
             &mut estimators_and_taker.estimators,
             gene_definitions,
+            None, // contig mode: report the contig but no genome column
             print_zeros,
             &flag_filters,
             threads,

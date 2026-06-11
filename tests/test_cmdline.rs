@@ -149,11 +149,11 @@ mod tests {
             ])
             .succeeds()
             .stdout()
-            .contains("Sample\tGene\tMean")
+            .contains("Sample\tGene\tContig\tMean")
             .stdout()
-            .contains("2seqs.reads_for_seq1\tgene1\t1.2")
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\t1.2")
             .stdout()
-            .contains("2seqs.reads_for_seq1\tgene3\t0")
+            .contains("2seqs.reads_for_seq1\tgene3\tseq2\t0")
             .unwrap();
     }
 
@@ -174,7 +174,7 @@ mod tests {
             ])
             .succeeds()
             .stdout()
-            .contains("2seqs.reads_for_seq1\tgene1\t12")
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\t12")
             .unwrap();
     }
 
@@ -187,6 +187,8 @@ mod tests {
                 "tests/data/2seqs.reads_for_seq1.bam",
                 "--gff",
                 "tests/data/2seqs.gff",
+                "--genome-definition",
+                "tests/data/2seqs.genome-definition",
                 "--methods",
                 "mean",
                 "--contig-end-exclusion",
@@ -198,11 +200,11 @@ mod tests {
             ])
             .succeeds()
             .stdout()
-            .contains("Sample\tGene\tMean")
+            .contains("Sample\tGene\tContig\tGenome\tMean")
             .stdout()
-            .contains("2seqs.reads_for_seq1\tgene1\t1.2")
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\tgenomeA\t1.2")
             .stdout()
-            .contains("2seqs.reads_for_seq1\tgene3\t0")
+            .contains("2seqs.reads_for_seq1\tgene3\tseq2\tgenomeB\t0")
             .unwrap();
     }
 

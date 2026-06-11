@@ -31,6 +31,10 @@ pub struct GeneDefinitions {
     pub genes: Vec<Gene>,
 }
 
+/// Resolves the genome a contig belongs to (used in genome mode), returning
+/// `None` when the contig is not assigned to any genome.
+pub type GenomeNamer<'a> = dyn Fn(&str) -> Option<String> + 'a;
+
 impl GeneDefinitions {
     /// Parse gene definitions from a GFF (or GTF) file. Each non-comment line is
     /// treated as a separate feature. When `feature_type` is `Some`, only lines
@@ -170,11 +174,17 @@ struct ResolvedGene {
 /// `gene_definitions`. Reads are assigned to a gene (for read-count based
 /// methods) when their leftmost mapped position falls within the gene's
 /// coordinates.
+///
+/// Each reported entry includes the gene identifier and the contig it lies on.
+/// When `genome_namer` is `Some`, a genome column is also reported (genome
+/// mode); genes whose contig the namer maps to `None` are not reported.
+#[allow(clippy::too_many_arguments)]
 pub fn gene_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: CoverageTaker>(
     bam_readers: Vec<G>,
     coverage_taker: &mut T,
     coverage_estimators: &mut [CoverageEstimator],
     gene_definitions: &GeneDefinitions,
+    genome_namer: Option<&GenomeNamer>,
     print_zero_coverage_genes: bool,
     flag_filters: &FlagFilter,
     threads: u16,
@@ -189,7 +199,7 @@ pub fn gene_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Covera
         coverage_taker.start_stoit(&stoit_name);
 
         let header = bam_generated.header().clone();
-        let genes_by_tid = resolve_genes_against_header(gene_definitions, &header);
+        let genes_by_tid = resolve_genes_against_header(gene_definitions, &header, genome_namer);
 
         let mut record: bam::record::Record = bam::record::Record::new();
         let mut last_tid: i32 = -2; // no such tid in a real BAM file
@@ -336,9 +346,13 @@ pub fn gene_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Covera
 /// Map each gene onto a tid in the BAM header, dropping genes whose contig is
 /// absent. Returns a per-tid list of genes, each sorted by start coordinate,
 /// with a globally-consistent entry id assigned in (tid, start) order.
+///
+/// The stored `name` is a tab-separated set of output columns: the gene
+/// identifier and its contig, plus its genome when `genome_namer` is `Some`.
 fn resolve_genes_against_header(
     gene_definitions: &GeneDefinitions,
     header: &bam::HeaderView,
+    genome_namer: Option<&GenomeNamer>,
 ) -> Vec<Vec<ResolvedGene>> {
     let target_names = header.target_names();
     let mut name_to_tid: HashMap<&[u8], usize> = HashMap::new();
@@ -349,6 +363,7 @@ fn resolve_genes_against_header(
     let mut genes_by_tid: Vec<Vec<ResolvedGene>> =
         (0..target_names.len()).map(|_| vec![]).collect();
     let mut num_skipped = 0;
+    let mut num_skipped_no_genome = 0;
     for gene in &gene_definitions.genes {
         match name_to_tid.get(gene.contig.as_bytes()) {
             Some(&tid) => {
@@ -359,9 +374,20 @@ fn resolve_genes_against_header(
                     num_skipped += 1;
                     continue;
                 }
+                // Build the tab-separated output columns for this gene.
+                let display_name = match genome_namer {
+                    Some(namer) => match namer(&gene.contig) {
+                        Some(genome) => format!("{}\t{}\t{}", gene.id, gene.contig, genome),
+                        None => {
+                            num_skipped_no_genome += 1;
+                            continue;
+                        }
+                    },
+                    None => format!("{}\t{}", gene.id, gene.contig),
+                };
                 genes_by_tid[tid].push(ResolvedGene {
                     entry_id: 0, // assigned below
-                    name: gene.id.clone(),
+                    name: display_name,
                     start: start as usize,
                     end: end as usize,
                 });
@@ -374,6 +400,12 @@ fn resolve_genes_against_header(
         warn!(
             "{num_skipped} gene(s) were ignored because their contig was not \
              present in the reference, or they had invalid coordinates"
+        );
+    }
+    if num_skipped_no_genome > 0 {
+        warn!(
+            "{num_skipped_no_genome} gene(s) were ignored because their contig \
+             was not assigned to any genome"
         );
     }
 
@@ -545,6 +577,22 @@ mod tests {
         coverage_estimators: &mut [CoverageEstimator],
         print_zeros: bool,
     ) -> String {
+        run_genes_with_namer(
+            gene_definitions,
+            bam_files,
+            coverage_estimators,
+            None,
+            print_zeros,
+        )
+    }
+
+    fn run_genes_with_namer(
+        gene_definitions: &GeneDefinitions,
+        bam_files: Vec<&str>,
+        coverage_estimators: &mut [CoverageEstimator],
+        genome_namer: Option<&GenomeNamer>,
+        print_zeros: bool,
+    ) -> String {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let flag_filters = FlagFilter {
             include_improper_pairs: true,
@@ -561,6 +609,7 @@ mod tests {
                 &mut coverage_taker,
                 coverage_estimators,
                 gene_definitions,
+                genome_namer,
                 print_zeros,
                 &flag_filters,
                 1,
@@ -624,8 +673,46 @@ mod tests {
             true,
         );
         assert_eq!(
-            "2seqs.reads_for_seq1\tgene_seq1\t1.2\n\
-             2seqs.reads_for_seq1\tgene_seq2\t0\n",
+            "2seqs.reads_for_seq1\tgene_seq1\tseq1\t1.2\n\
+             2seqs.reads_for_seq1\tgene_seq2\tseq2\t0\n",
+            observed
+        );
+    }
+
+    #[test]
+    fn test_genome_namer_reports_genome_column() {
+        // In genome mode each gene additionally reports the genome its contig
+        // belongs to, and genes on unassigned contigs are dropped.
+        let defs = GeneDefinitions {
+            genes: vec![
+                Gene {
+                    id: "gene_seq1".to_string(),
+                    contig: "seq1".to_string(),
+                    start: 0,
+                    end: 1000,
+                },
+                Gene {
+                    id: "gene_seq2".to_string(),
+                    contig: "seq2".to_string(),
+                    start: 0,
+                    end: 1000,
+                },
+            ],
+        };
+        let namer = |contig: &str| match contig {
+            "seq1" => Some("genomeA".to_string()),
+            _ => None,
+        };
+        let observed = run_genes_with_namer(
+            &defs,
+            vec!["tests/data/2seqs.reads_for_seq1.bam"],
+            &mut [CoverageEstimator::new_estimator_mean(0.0, 0, false)],
+            Some(&namer),
+            true,
+        );
+        // gene_seq2 is dropped because seq2 is not assigned to a genome.
+        assert_eq!(
+            "2seqs.reads_for_seq1\tgene_seq1\tseq1\tgenomeA\t1.2\n",
             observed
         );
     }
@@ -654,7 +741,7 @@ mod tests {
             &mut [CoverageEstimator::new_estimator_mean(0.0, 0, false)],
             false,
         );
-        assert_eq!("2seqs.reads_for_seq1\tgene_seq1\t1.2\n", observed);
+        assert_eq!("2seqs.reads_for_seq1\tgene_seq1\tseq1\t1.2\n", observed);
     }
 
     #[test]
@@ -674,6 +761,6 @@ mod tests {
             &mut [CoverageEstimator::new_estimator_read_count()],
             false,
         );
-        assert_eq!("2seqs.reads_for_seq1\tgene_seq1\t12\n", observed);
+        assert_eq!("2seqs.reads_for_seq1\tgene_seq1\tseq1\t12\n", observed);
     }
 }
