@@ -635,6 +635,60 @@ mod tests {
     }
 
     #[test]
+    fn test_makedb_from_genome_fasta_directory_then_use_as_genome_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        // Build a minimap2 database directly from a directory of genome FASTA
+        // files (rather than a single --reference FASTA). The genomes are
+        // concatenated into the output directory and the index built from that.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--genome-fasta-directory",
+                "tests/data/genomes_dir_7seqs/",
+                "--genome-fasta-extension",
+                "fasta",
+                "--mapper",
+                "minimap2-sr",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        // The concatenated reference and its minimap2 index are written to the
+        // output directory.
+        assert!(td.path().join("concatenated_genomes.fasta").is_file());
+        let db_path = td.path().join("concatenated_genomes.fasta.minimap2-sr.mmi");
+        assert!(db_path.is_file());
+
+        // The database can be fed straight back into coverm genome, using '~'
+        // as the genome/contig separator, to obtain per-genome coverage.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                db_path.to_str().unwrap(),
+                "--minimap2-reference-is-index",
+                "-s",
+                "~",
+                "-p",
+                "minimap2-sr",
+                "-m",
+                "mean",
+                "--min-covered-fraction",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2")
+            .stdout()
+            .contains("genome5")
+            .unwrap();
+    }
+
+    #[test]
     fn test_relative_abundance_all_mapped() {
         Assert::main_binary()
             .with_args(&[

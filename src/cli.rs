@@ -491,6 +491,14 @@ pub fn makedb_full_help() -> Manual {
         reference genome or contig FASTA files. The generated database can then be \
         supplied to 'coverm contig' or 'coverm genome' (or 'coverm make') to avoid \
         regenerating the index each time reads are mapped.\n\n\
+        Instead of a single '-r/--reference' FASTA file, genomes may be specified \
+        directly via '-f/--genome-fasta-files', '-d/--genome-fasta-directory' or \
+        '--genome-fasta-list'. In that case the genomes are concatenated into a \
+        single reference FASTA ('concatenated_genomes.fasta') written into the output \
+        directory, and the database is built from it. The resulting database can then \
+        be used as the reference for 'coverm genome' (passing \"-s '~'\" as the genome \
+        name / contig name separator), so the same set of genomes need not be \
+        concatenated and indexed again at coverage time.\n\n\
         For minimap2 databases, pass the generated '.mmi' file as the reference \
         together with '--minimap2-reference-is-index'. For BWA databases, pass the \
         generated prefix as the reference together with the matching '-p bwa-mem' or \
@@ -503,12 +511,14 @@ pub fn makedb_full_help() -> Manual {
         which case a database is created for each combination of reference and mapper.\n\n",
         );
 
-    manual = manual.custom(Section::new("Input").option(
-        Opt::new("PATH ..").short("-r").long("--reference").help(
-            "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
-            May be gzip-compressed. [required]",
-        ),
-    ));
+    manual = manual.custom(
+        bird_tool_utils::clap_utils::add_genome_specification_to_section(Section::new("Input"))
+            .option(Opt::new("PATH ..").short("-r").long("--reference").help(
+                "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
+                May be gzip-compressed. Either this or a genome definition \
+                (e.g. --genome-fasta-files) is required.",
+            )),
+    );
 
     manual =
         manual.custom(
@@ -616,6 +626,22 @@ pub fn makedb_full_help() -> Manual {
             .command(
                 "coverm makedb -r combined_genomes.fna -p strobealign \
                 --strobealign-params '-r 150' -o db_dir",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text("Generate a minimap2 database directly from a set of genome FASTA files")
+            .command("coverm makedb --genome-fasta-directory genomes/ -p minimap2-sr -o db_dir"),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Use that database as the reference for genome coverage (the '~' separator \
+                splits the genome name from the contig name in the concatenated reference)",
+            )
+            .command(
+                "coverm genome -r db_dir/concatenated_genomes.fasta.minimap2-sr.mmi \
+                --minimap2-reference-is-index -s '~' -1 read1.fq -2 read2.fq",
             ),
     );
 
@@ -1188,6 +1214,13 @@ See coverm make --full-help for further options and further detail.
 
   coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir
 
+{}
+
+  coverm makedb --genome-fasta-files genome1.fna genome2.fna -p minimap2-sr
+    -o db_dir
+  coverm genome -r db_dir/concatenated_genomes.fasta.minimap2-sr.mmi
+    --minimap2-reference-is-index -s '~' -1 read1.fq -2 read2.fq
+
 See coverm makedb --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm makedb"),
@@ -1196,6 +1229,10 @@ See coverm makedb --full-help for further options and further detail.
             ansi_term::Colour::Purple.paint(
                 "Example: Generate a short-read minimap2 database from a set of genomes,\n\
                 storing it in db_dir/"
+            ),
+            ansi_term::Colour::Purple.paint(
+                "Example: Generate a database directly from genome FASTA files, then use it\n\
+                as the reference for genome coverage (-s '~' splits genome from contig name):"
             ),
         );
     }
@@ -2354,7 +2391,49 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(["full-help", "full-help-roff"]),
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-list")
+                        .required_unless_present_any([
+                            "full-help",
+                            "full-help-roff",
+                            "genome-fasta-files",
+                            "genome-fasta-directory",
+                            "genome-fasta-list",
+                        ]),
+                )
+                // Genome definition arguments. When supplied (instead of
+                // --reference), the genomes are concatenated into a single
+                // reference FASTA from which the database(s) are built, so the
+                // resulting database can be fed straight back into
+                // `coverm genome`.
+                .arg(
+                    Arg::new("genome-fasta-files")
+                        .short('f')
+                        .long("genome-fasta-files")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-list"),
+                )
+                .arg(
+                    Arg::new("genome-fasta-directory")
+                        .short('d')
+                        .long("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-list"),
+                )
+                .arg(
+                    Arg::new("genome-fasta-list")
+                        .long("genome-fasta-list")
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-directory"),
+                )
+                .arg(
+                    Arg::new("genome-fasta-extension")
+                        .short('x')
+                        .long("genome-fasta-extension")
+                        .default_value("fna"),
                 )
                 .arg(
                     Arg::new("output-directory")

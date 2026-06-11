@@ -724,10 +724,41 @@ fn main() {
             let output_directory = m.get_one::<String>("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
 
-            let references: Vec<&String> = m
-                .get_many::<String>("reference")
-                .expect("No reference provided")
-                .collect();
+            // References are either explicit --reference FASTA file(s), or, when
+            // genomes are specified directly (e.g. --genome-fasta-files), a
+            // single concatenated FASTA generated from them and persisted in the
+            // output directory. Concatenating here (rather than at coverage
+            // time) means the resulting database can be fed straight back into
+            // `coverm genome` using '-s ~' as the genome/contig separator.
+            let concatenated_genomes_reference: Option<String> =
+                match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(m, false) {
+                    Ok(genome_fasta_files) if !genome_fasta_files.is_empty() => {
+                        info!(
+                            "Generating concatenated reference FASTA file of {} genomes ..",
+                            genome_fasta_files.len()
+                        );
+                        let concatenated_path = std::path::Path::new(output_directory)
+                            .join("concatenated_genomes.fasta");
+                        coverm::mapping_index_maintenance::write_concatenated_fasta_file(
+                            &genome_fasta_files,
+                            &concatenated_path,
+                        );
+                        info!(
+                            "Wrote concatenated reference FASTA file to {}",
+                            concatenated_path.to_string_lossy()
+                        );
+                        Some(concatenated_path.to_string_lossy().to_string())
+                    }
+                    _ => None,
+                };
+
+            let references: Vec<&String> = match &concatenated_genomes_reference {
+                Some(path) => vec![path],
+                None => m
+                    .get_many::<String>("reference")
+                    .expect("No reference provided")
+                    .collect(),
+            };
 
             // Validate that each reference is an existing FASTA file. We
             // deliberately do not use check_reference_existence here: for BWA
@@ -815,6 +846,16 @@ fn main() {
             }
 
             info!("Finished generating {} database(s).", generated_dbs.len());
+            // When the database was built from a genome definition, the
+            // concatenated reference carries the '~' genome/contig separator, so
+            // suggest 'coverm genome -s ~'. The '~' is single-quoted so the shell
+            // does not expand it as a home directory. Otherwise suggest
+            // 'coverm contig'.
+            let (coverage_subcommand, genome_separator_args) = match &concatenated_genomes_reference
+            {
+                Some(_) => ("genome", " -s '~'"),
+                None => ("contig", ""),
+            };
             for (mapping_program, db_path) in &generated_dbs {
                 match mapping_program {
                     MappingProgram::MINIMAP2_SR
@@ -824,26 +865,28 @@ fn main() {
                     | MappingProgram::MINIMAP2_LR_HQ
                     | MappingProgram::MINIMAP2_NO_PRESET => {
                         info!(
-                            "To use the minimap2 database, run e.g.: coverm contig \
-                            --reference {db_path} --minimap2-reference-is-index -1 read1.fq -2 read2.fq"
+                            "To use the minimap2 database, run e.g.: coverm {coverage_subcommand} \
+                            --reference {db_path} --minimap2-reference-is-index{genome_separator_args} \
+                            -1 read1.fq -2 read2.fq"
                         );
                     }
                     MappingProgram::BWA_MEM => {
                         info!(
-                            "To use the BWA database, run e.g.: coverm contig \
-                            --reference {db_path} -p bwa-mem -1 read1.fq -2 read2.fq"
+                            "To use the BWA database, run e.g.: coverm {coverage_subcommand} \
+                            --reference {db_path} -p bwa-mem{genome_separator_args} -1 read1.fq -2 read2.fq"
                         );
                     }
                     MappingProgram::BWA_MEM2 => {
                         info!(
-                            "To use the BWA-MEM2 database, run e.g.: coverm contig \
-                            --reference {db_path} -p bwa-mem2 -1 read1.fq -2 read2.fq"
+                            "To use the BWA-MEM2 database, run e.g.: coverm {coverage_subcommand} \
+                            --reference {db_path} -p bwa-mem2{genome_separator_args} -1 read1.fq -2 read2.fq"
                         );
                     }
                     MappingProgram::STROBEALIGN => {
                         info!(
-                            "To use the strobealign database, run e.g.: coverm contig \
-                            --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
+                            "To use the strobealign database, run e.g.: coverm {coverage_subcommand} \
+                            --reference {db_path} --strobealign-use-index{genome_separator_args} \
+                            -1 read1.fq -2 read2.fq"
                         );
                     }
                 }
