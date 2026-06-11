@@ -531,7 +531,7 @@ pub fn makedb_full_help() -> Manual {
                 "Kind(s) of database to generate, one per mapping software. Specify more \
                 than once (or as a space-separated list) to generate several databases. \
                 {}. One of: {}",
-                default_roff("minimap2-sr"),
+                default_roff(DEFAULT_MAPPING_SOFTWARE),
                 bird_tool_utils::clap_utils::table_roff(&[
                     &["name", "description"],
                     &[
@@ -2448,7 +2448,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .value_parser(MAPPING_SOFTWARE_LIST.iter().collect::<Vec<_>>())
-                        .default_value("minimap2-sr"),
+                        .default_value(DEFAULT_MAPPING_SOFTWARE),
                 )
                 .arg(
                     Arg::new("threads")
