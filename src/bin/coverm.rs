@@ -821,6 +821,22 @@ fn setup_mapping_index(
                 ))
             }
         }
+        MappingProgram::LEXICMAP => {
+            // If the reference is already a directory it is a pre-built LexicMap
+            // index; otherwise build one on-the-fly from the FASTA file.
+            if std::path::Path::new(reference_wise_params.reference).is_dir() {
+                Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                    reference_wise_params.reference,
+                ))
+            } else {
+                coverm::mapping_index_maintenance::generate_lexicmap_index(
+                    reference_wise_params.reference,
+                    Some(*m.get_one::<u16>("threads").unwrap()),
+                    m.get_one::<String>("lexicmap-indexing-params")
+                        .map(|s| s.as_str()),
+                )
+            }
+        }
     }
 }
 
@@ -881,6 +897,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
+        Some("lexicmap") => MappingProgram::LEXICMAP,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -904,6 +921,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         }
         MappingProgram::STROBEALIGN => {
             external_command_checker::check_for_strobealign();
+        }
+        MappingProgram::LEXICMAP => {
+            external_command_checker::check_for_lexicmap();
         }
     }
     mapping_program

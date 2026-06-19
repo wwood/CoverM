@@ -41,6 +41,13 @@ pub struct TemporaryIndexStruct {
 }
 
 impl TemporaryIndexStruct {
+    pub fn from_parts(tempdir: TempDir, index_path: String) -> TemporaryIndexStruct {
+        TemporaryIndexStruct {
+            tempdir,
+            index_path_internal: index_path,
+        }
+    }
+
     pub fn new(
         mapping_program: MappingProgram,
         reference_path: &str,
@@ -68,6 +75,9 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
             MappingProgram::STROBEALIGN => std::process::Command::new("strobealign"),
+            MappingProgram::LEXICMAP => {
+                panic!("LexicMap requires a pre-built index and does not support on-the-fly index generation");
+            }
         };
         match &mapping_program {
             MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
@@ -101,7 +111,8 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_NO_PRESET
                     | MappingProgram::BWA_MEM
                     | MappingProgram::BWA_MEM2
-                    | MappingProgram::STROBEALIGN => {}
+                    | MappingProgram::STROBEALIGN
+                    | MappingProgram::LEXICMAP => {}
                 };
                 if let Some(t) = num_threads {
                     cmd.arg("-t").arg(format!("{t}"));
@@ -111,6 +122,7 @@ impl TemporaryIndexStruct {
             MappingProgram::STROBEALIGN => {
                 warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
             }
+            MappingProgram::LEXICMAP => unreachable!(),
         };
         if let Some(params) = index_creation_options {
             for s in params.split_whitespace() {
@@ -201,6 +213,24 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
                 return;
             }
         }
+        MappingProgram::LEXICMAP => {
+            if !ref_path.exists() {
+                panic!(
+                    "The LexicMap reference/index '{}' does not appear to exist",
+                    &reference_path
+                );
+            }
+            // Accept either a pre-built index directory or a FASTA file (index
+            // will be generated on-the-fly).
+            if ref_path.is_dir() || ref_path.is_file() {
+                return;
+            }
+            panic!(
+                "The LexicMap reference '{}' should be either a FASTA file or a \
+                 directory created by 'lexicmap index'",
+                &reference_path
+            );
+        }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -252,6 +282,59 @@ pub fn generate_minimap2_index(
         reference_path,
         num_threads,
         index_creation_parameters,
+    ))
+}
+
+pub fn generate_lexicmap_index(
+    reference_path: &str,
+    num_threads: Option<u16>,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    let td = TempDir::new("coverm-lexicmap-index").expect("Unable to create temporary directory");
+    let index_path = td.path().join("index");
+
+    info!("Generating LexicMap index for {reference_path} ..");
+    let mut cmd = std::process::Command::new("lexicmap");
+    cmd.arg("index")
+        .arg("-S")
+        .arg(reference_path)
+        .arg("-O")
+        .arg(&index_path);
+
+    if let Some(t) = num_threads {
+        cmd.arg("-j").arg(format!("{t}"));
+    }
+    if let Some(params) = index_creation_parameters {
+        for s in params.split_whitespace() {
+            cmd.arg(s);
+        }
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    debug!("Running LexicMap index command: {cmd:?}");
+
+    let mut process = cmd.spawn().expect("Failed to start lexicmap index process");
+    let es = process
+        .wait()
+        .expect("Failed to wait on lexicmap index process");
+    if !es.success() {
+        error!("Error when running lexicmap index process.");
+        let mut err = String::new();
+        process
+            .stderr
+            .expect("Failed to grab stderr from failed lexicmap index process")
+            .read_to_string(&mut err)
+            .expect("Failed to read stderr into string");
+        error!("The STDERR was: {err:?}");
+        error!("Cannot continue after lexicmap index failed.");
+        process::exit(1);
+    }
+    info!("Finished generating LexicMap index.");
+
+    Box::new(TemporaryIndexStruct::from_parts(
+        td,
+        index_path.to_string_lossy().to_string(),
     ))
 }
 

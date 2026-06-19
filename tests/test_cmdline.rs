@@ -5,6 +5,7 @@ extern crate tempfile;
 #[cfg(test)]
 mod tests {
     use assert_cli::Assert;
+    use assert_cli::Environment;
     extern crate tempfile;
     use rust_htslib::bam::header::{Header, HeaderRecord};
     use rust_htslib::bam::Read as BamRead;
@@ -3135,6 +3136,257 @@ genome6~random_sequence_length_11003	0	0	0
             .stdout()
             .contains("genome")
             .unwrap()
+    }
+
+    fn build_lexicmap_index_for_7seqs() -> tempfile::TempDir {
+        // LexicMap index requires a directory of genome FASTA files
+        let genome_dir = tempfile::TempDir::new().unwrap();
+        std::fs::copy("tests/data/7seqs.fna", genome_dir.path().join("7seqs.fna")).unwrap();
+        let index_dir = tempfile::TempDir::new().unwrap();
+        let output = std::process::Command::new("lexicmap")
+            .args(&[
+                "index",
+                "-I",
+                genome_dir.path().to_str().unwrap(),
+                "-O",
+                index_dir.path().to_str().unwrap(),
+                "--quiet",
+            ])
+            .output()
+            .expect("Failed to run lexicmap index. Is lexicmap in PATH?");
+        assert!(
+            output.status.success(),
+            "lexicmap index failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        index_dir
+    }
+
+    #[test]
+    fn test_contig_lexicmap_mapq_filtering() {
+        // LexicMap assigns MAPQ=60 to uniquely-mapping reads; threshold 61 removes all.
+        let index = build_lexicmap_index_for_7seqs();
+        let index_path = index.path().to_str().unwrap();
+
+        // Without MAPQ filter: reads map and produce coverage
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                index_path,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs~genome2~seq1\t1.2")
+            .unwrap();
+
+        // With MAPQ filter above LexicMap's max (60): all reads removed
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "--min-mapq",
+                "61",
+                "-r",
+                index_path,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs~genome2~seq1\t0")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_lexicmap() {
+        let index = build_lexicmap_index_for_7seqs();
+        let index_path = index.path().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                index_path,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs~genome2~seq1\t1.2")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_lexicmap_single_reads() {
+        let index = build_lexicmap_index_for_7seqs();
+        let index_path = index.path().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                index_path,
+                "--single",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs~genome2~seq1\t0.6")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_lexicmap() {
+        let index = build_lexicmap_index_for_7seqs();
+        let index_path = index.path().to_str().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "lexicmap",
+                "-r",
+                index_path,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "-s",
+                "~",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs\t1.327")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_lexicmap_fly() {
+        // Pass a FASTA file directly; coverm builds a LexicMap index on-the-fly
+        // using `lexicmap index -S <fasta>`, which names the genome after the
+        // file stem ("7seqs"), producing the same contig names as the pre-built
+        // index tests.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs~genome2~seq1\t1.2")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_lexicmap_fly() {
+        // Pass a FASTA file directly; coverm builds a LexicMap index on-the-fly.
+        // The genome name is derived from the file stem ("7seqs"), so splitting
+        // on '~' recovers it correctly.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "lexicmap",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "-s",
+                "~",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs\t1.327")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_lexicmap_fly_indexing_params() {
+        // Verify that --lexicmap-indexing-params are forwarded to `lexicmap index`.
+        // Run with RUST_LOG=debug so the command is logged to stderr, then check
+        // that the default params appear in the debug output.
+        Assert::main_binary()
+            .with_env(Environment::inherit().insert("RUST_LOG", "debug"))
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stderr()
+            .contains("seed-max-desert")
+            .unwrap();
+
+        // Custom indexing params override the default.
+        Assert::main_binary()
+            .with_env(Environment::inherit().insert("RUST_LOG", "debug"))
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "lexicmap",
+                "--contig-end-exclusion",
+                "0",
+                "--lexicmap-indexing-params",
+                "--seed-max-desert 100 --seed-in-desert-dist 50",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+            ])
+            .succeeds()
+            .stderr()
+            .contains("seed-in-desert-dist\" \"50\"")
+            .unwrap();
     }
 
     #[test]

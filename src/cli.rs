@@ -21,6 +21,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-lr-hq",
     "minimap2-no-preset",
     "strobealign",
+    "lexicmap",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
@@ -94,6 +95,25 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("minimap2-no-preset"),
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
+                    &[
+                        &monospace_roff("lexicmap"),
+                        &format!(
+                            "LexicMap using a pre-built index directory. \
+                            The {} option must point to a directory created by {}. \
+                            Build an index from a directory of per-genome FASTA files with: \
+                            {}. \
+                            Contig names in the output take the form {}, \
+                            where the genome name is derived from the input FASTA filename (without extension). \
+                            In {} mode, use {} to split contig names into genome and contig. \
+                            Paired and single reads are supported; interleaved reads are not.",
+                            monospace_roff("--reference"),
+                            monospace_roff("lexicmap index -I genomes_dir/ -O my_index.lmi/"),
+                            monospace_roff("lexicmap index -I genomes_dir/ -O my_index.lmi/"),
+                            monospace_roff("genome_name~contig_name"),
+                            monospace_roff("genome"),
+                            monospace_roff("-s '~'"),
+                        )
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
@@ -122,6 +142,29 @@ fn add_mapping_options(manual: Manual) -> Manual {
             ))
             .flag(Flag::new().long("--strobealign-use-index").help(
                 "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
+            ))
+            .option(Opt::new("PARAMS").long("--lexicmap-params").help(
+                &format!(
+                    "Extra parameters to provide to {}, \
+                    e.g. to adjust sensitivity ({}) or filter by minimum query coverage ({}). \
+                    Note that usage of this parameter has security implications if \
+                    untrusted input is specified. \
+                    [default: none]",
+                    monospace_roff("lexicmap search"),
+                    monospace_roff("--align-min-match-len 30"),
+                    monospace_roff("-Q 50"),
+                )
+            ))
+            .option(Opt::new("PARAMS").long("--lexicmap-indexing-params").help(
+                &format!(
+                    "Extra parameters to provide to {} when building an on-the-fly index \
+                    from a FASTA file. \
+                    Note that usage of this parameter has security implications if \
+                    untrusted input is specified. \
+                    [default: {}]",
+                    monospace_roff("lexicmap index"),
+                    monospace_roff("--seed-max-desert 60 --seed-in-desert-dist 30"),
+                )
             )),
     )
 }
@@ -433,10 +476,13 @@ pub fn make_full_help() -> Manual {
                         index \
                         (with {}), \
                         strobealign index (with {}), \
-                        or BWA index stem (with {}). May be gzip-compressed. [required]",
+                        BWA index stem (with {}), \
+                        or LexicMap index directory (with {}). \
+                        May be gzip-compressed (FASTA only). [required]",
                 monospace_roff("--minimap2-reference-is-index"),
                 monospace_roff("--strobealign-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
+                monospace_roff("-p lexicmap"),
             ),
         )),
     );
@@ -515,7 +561,8 @@ pub fn contig_full_help() -> Manual {
                     index \
                     (with {}), \
                     strobealign index (with {}), \
-                    or BWA index stem (with {}). \
+                    BWA index stem (with {}), \
+                    or LexicMap index directory (with {}). \
                     If multiple references FASTA files are \
                     provided and {} is specified, \
                     then reads will be mapped to references \
@@ -523,6 +570,7 @@ pub fn contig_full_help() -> Manual {
                 monospace_roff("--minimap2-reference-is-index"),
                 monospace_roff("--strobealign-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
+                monospace_roff("-p lexicmap"),
                 monospace_roff("--sharded"),
                 monospace_roff("-b/--bam-files")
             ),
@@ -642,6 +690,18 @@ pub fn contig_full_help() -> Manual {
                 --cache-unfiltered-bam-directory saved_bam_files",
             ),
     );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Calculate coverage using LexicMap. First build an index from a \
+                directory of per-genome FASTA files (one genome per file), then map reads. \
+                Contig names in the output are of the form genome_name~contig_name.",
+            )
+            .command(
+                "lexicmap index -I genomes_dir/ -O my_index.lmi/ && \
+                coverm contig -p lexicmap -r my_index.lmi/ --coupled read1.fq read2.fq",
+            ),
+    );
 
     let mut general_section = Section::new("General options").option(
         Opt::new("INT")
@@ -699,17 +759,23 @@ pub fn genome_full_help() -> Manual {
                     index \
                     (with {}), \
                     strobealign index (with {}), \
-                    or BWA index stem (with {}). \
+                    BWA index stem (with {}), \
+                    or LexicMap index directory (with {}; see below). \
                     If multiple reference FASTA files are \
                     provided and {} is specified, \
                     then reads will be mapped to references \
                     separately as sharded BAMs. {}: If genomic FASTA files are \
                     specified elsewhere (e.g. with {} or {}), then {} is not needed as a reference FASTA file can be derived \
                     by concatenating input genomes. In these situations, {} can \
-                    be optionally specified if an alternate reference sequence set is desired.",
+                    be optionally specified if an alternate reference sequence set is desired. \
+                    {}: When using LexicMap, the index must be built from per-genome FASTA files \
+                    (one genome per file) using {} — each genome's name is derived from its \
+                    filename. Contig names in the output take the form {}, \
+                    so use {} to define genome boundaries.",
                     monospace_roff("--minimap2-reference-is-index"),
                     monospace_roff("--strobealign-use-index"),
                     monospace_roff("-p bwa-mem/bwa-mem2"),
+                    monospace_roff("-p lexicmap"),
                     monospace_roff("--sharded"),
                     bold("NOTE"),
                     monospace_roff("--genome-fasta-files"),
@@ -717,6 +783,10 @@ pub fn genome_full_help() -> Manual {
                     //monospace_roff("--bam-files"),
                     monospace_roff("--reference"),
                     monospace_roff("--reference"),
+                    bold("LexicMap NOTE"),
+                    monospace_roff("lexicmap index -I genomes_dir/ -O my_index.lmi/"),
+                    monospace_roff("genome_name~contig_name"),
+                    monospace_roff("-s '~'"),
                 )
             )
             )
@@ -897,6 +967,20 @@ pub fn genome_full_help() -> Manual {
             .command(
                 "coverm genome --genome-fasta-directory genomes/ --dereplicate \
                 --single single_reads.fq.gz",
+            ),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Calculate per-genome coverage using LexicMap. Build an index from \
+                a directory of per-genome FASTA files (one file per genome, filename \
+                becomes the genome name), then map reads. The '~' separator splits \
+                genome names from contig names in the LexicMap output.",
+            )
+            .command(
+                "lexicmap index -I genomes_dir/ -O my_index.lmi/ && \
+                coverm genome -p lexicmap -r my_index.lmi/ \
+                --coupled read1.fq read2.fq -s '~'",
             ),
     );
 
@@ -1243,6 +1327,19 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("lexicmap-params")
+                        .long("lexicmap-params")
+                        .long("lexicmap-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("lexicmap-indexing-params")
+                        .long("lexicmap-indexing-params")
+                        .allow_hyphen_values(true)
+                        .default_value("--seed-max-desert 60 --seed-in-desert-dist 30"),
                 )
                 // TODO: Relax this for autoconcatenation
                 .arg(
@@ -1778,6 +1875,19 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("lexicmap-params")
+                        .long("lexicmap-params")
+                        .long("lexicmap-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("lexicmap-indexing-params")
+                        .long("lexicmap-indexing-params")
+                        .allow_hyphen_values(true)
+                        .default_value("--seed-max-desert 60 --seed-in-desert-dist 30"),
                 )
                 .arg(
                     Arg::new("discard-unmapped")

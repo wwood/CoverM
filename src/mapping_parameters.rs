@@ -113,6 +113,15 @@ impl<'a> MappingParameters<'a> {
                     process::exit(1);
                 }
             }
+            MappingProgram::LEXICMAP => {
+                if !interleaved.is_empty() {
+                    error!(
+                        "Interleaved read input is not supported with lexicmap. \
+                        Please provide reads as single or paired files."
+                    );
+                    process::exit(1);
+                }
+            }
             _ => {}
         }
 
@@ -125,6 +134,7 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
             MappingProgram::STROBEALIGN => "strobealign-params",
+            MappingProgram::LEXICMAP => "lexicmap-params",
         };
         let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {
