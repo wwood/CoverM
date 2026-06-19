@@ -29,12 +29,20 @@ bwa-mem2 = "*"
 dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
 strobealign = ">=0.14.0"  # tests use a pregenerated v3 database
 
+# TODO: Remove this activation section and activate.sh when lexicmap is released
+# to bioconda (currently only v0.8.1 is available; we need v0.9.0+ for `lexicmap utils 2sam`).
+# Replace with: lexicmap = ">=0.9.0"  under [dependencies].
+[activation]
+scripts = ["activate.sh"]
+
 [package]
 name = "coverm"
 version = "0.1.0"  # keep this in sync with [workspace].version
+license = "GPL-3.0-or-later"
 
 [package.build]
-backend = { name = "pixi-build-rattler-build", version = "0.3.*" }
-# optional, if you want to override channels for the backend; otherwise it’ll
-# reuse [workspace].channels, and pixi-build-rattler-build is on conda-forge anyway
-# channels = ["https://prefix.dev/conda-forge"]
+backend = { name = "pixi-build-rust", version = "0.4.*" }
+
+# [package.build-dependencies]
+# rust = "*"
+# cargo = "*"

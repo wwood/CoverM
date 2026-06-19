@@ -54,6 +54,7 @@ pub enum MappingProgram {
     MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    LEXICMAP,
 }
 
 pub struct BamFileNamedReader {
@@ -371,6 +372,110 @@ pub fn generate_named_bam_readers_from_reads(
         None => format!("> {fifo_path:?}"),
     };
 
+    // LexicMap requires a two-phase approach: first run `lexicmap search`
+    // synchronously to a temp TSV, then stream `lexicmap utils 2sam | samtools
+    // sort` into the FIFO.  If we used the subshell approach inside
+    // build_mapping_command, bam::Reader::from_path would block indefinitely
+    // because nothing reaches the FIFO until the entire search is done.
+    if let MappingProgram::LEXICMAP = mapping_program {
+        let tsv_path = tmp_dir.path().join("lexicmap_search.tsv");
+        let reads = match read_format {
+            ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+            ReadFormat::Single | ReadFormat::Interleaved => format!("'{}'", read1_path),
+        };
+        let search_cmd_string = format!(
+            "lexicmap search -d '{}' -a -j {} {} {} -o '{}'",
+            index.index_path(),
+            threads,
+            mapping_options.unwrap_or(""),
+            reads,
+            tsv_path
+                .to_str()
+                .expect("Failed to convert tsv path to str"),
+        );
+        info!("Running lexicmap search (this may take a while) ..");
+        debug!("Running lexicmap search command: {search_cmd_string}");
+        let mut search_process = std::process::Command::new("bash")
+            .arg("-c")
+            .arg(&search_cmd_string)
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to start lexicmap search process");
+        let search_status = search_process
+            .wait()
+            .expect("Failed to wait on lexicmap search process");
+        if !search_status.success() || log_enabled!(log::Level::Debug) {
+            let mut err = String::new();
+            search_process
+                .stderr
+                .expect("Failed to grab lexicmap search stderr")
+                .read_to_string(&mut err)
+                .expect("Failed to read lexicmap search stderr");
+            if !search_status.success() {
+                error!("lexicmap search failed. STDERR: {err}");
+                process::exit(1);
+            } else {
+                debug!("lexicmap search STDERR: {err}");
+            }
+        }
+        info!("lexicmap search complete, converting to SAM ..");
+
+        let samtools2_log = tempfile::Builder::new()
+            .prefix("coverm-samtools2-log")
+            .tempfile()
+            .expect("Failed to create samtools sort log tempfile");
+        let bwa_sort_prefix = tempfile::Builder::new()
+            .prefix("coverm-lexicmap-samtools-sort")
+            .tempfile_in(tmp_dir.path())
+            .expect("Failed to create tempfile as samtools sort prefix");
+        let cmd_string = format!(
+            "set -e -o pipefail; \
+             lexicmap utils 2sam '{}' -c 2>/dev/null \
+             | samtools sort -T '{}' -l0 -@ {} 2>{} \
+             {}",
+            tsv_path
+                .to_str()
+                .expect("Failed to convert tsv path to str"),
+            bwa_sort_prefix
+                .path()
+                .to_str()
+                .expect("Failed to convert bwa_sort_prefix tempfile to str"),
+            threads - 1,
+            samtools2_log
+                .path()
+                .to_str()
+                .expect("Failed to convert tempfile path to str"),
+            cached_bam_file_args,
+        );
+        debug!("Queuing lexicmap 2sam cmd_string: {cmd_string}");
+        let mut cmd = std::process::Command::new("bash");
+        cmd.arg("-c")
+            .arg(&cmd_string)
+            .stderr(std::process::Stdio::piped());
+
+        let mut log_descriptions = vec!["samtools sort".to_string()];
+        let mut log_files = vec![samtools2_log];
+        if cached_bam_file.is_some() {
+            log_descriptions.push("samtools view for cache".to_string());
+            log_files.push(samtools_view_cache_log);
+        }
+        let stoit_name = name_stoit(
+            index.index_path(),
+            read1_path,
+            include_reference_in_stoit_name,
+        );
+        return StreamingNamedBamReaderGenerator {
+            stoit_name,
+            tempdir: tmp_dir,
+            fifo_path,
+            pre_processes: vec![cmd],
+            command_strings: vec![format!("bash -c \"{}\"", cmd_string)],
+            log_file_descriptions: log_descriptions,
+            log_files,
+            minimap2_log_file_index: None,
+        };
+    }
+
     let mapping_command = build_mapping_command(
         mapping_program,
         read_format,
@@ -416,7 +521,10 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::STROBEALIGN => None,
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::LEXICMAP => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -866,6 +974,24 @@ pub fn build_mapping_command(
     read2_path: Option<&str>,
     mapping_options: Option<&str>,
 ) -> String {
+    // LexicMap requires a two-step process: search to temp file, then convert to SAM
+    if let MappingProgram::LEXICMAP = mapping_program {
+        let reads = match read_format {
+            ReadFormat::Coupled => format!("'{}' '{}'", read1_path, read2_path.unwrap()),
+            ReadFormat::Single | ReadFormat::Interleaved => format!("'{}'", read1_path),
+        };
+        return format!(
+            "( _LEXICMAP_TMP=$(mktemp --suffix=.tsv); \
+             trap 'rm -f \"$_LEXICMAP_TMP\"' EXIT; \
+             lexicmap search -d '{}' -a -j {} {} {} -o \"$_LEXICMAP_TMP\" && \
+             lexicmap utils 2sam \"$_LEXICMAP_TMP\" -c )",
+            reference.index_path(),
+            threads,
+            mapping_options.unwrap_or(""),
+            reads,
+        );
+    }
+
     let read_params1 = match mapping_program {
         // minimap2 auto-detects interleaved based on read names
         MappingProgram::MINIMAP2_SR
@@ -882,6 +1008,7 @@ pub fn build_mapping_command(
             ReadFormat::Interleaved => "--interleaved",
             ReadFormat::Coupled | ReadFormat::Single => "",
         },
+        MappingProgram::LEXICMAP => unreachable!(),
     };
 
     let read_params2 = match read_format {
@@ -915,7 +1042,8 @@ pub fn build_mapping_command(
                     match mapping_program {
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
-                        | MappingProgram::STROBEALIGN => unreachable!(),
+                        | MappingProgram::STROBEALIGN
+                        | MappingProgram::LEXICMAP => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",
