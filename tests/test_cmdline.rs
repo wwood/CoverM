@@ -755,6 +755,61 @@ genome6	0",
     }
 
     #[test]
+    fn test_minibwa_coupled_reads_input() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-p",
+                "minibwa",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/7seqs.reads_for_7.1.fq",
+                "-2",
+                "tests/data/7seqs.reads_for_7.2.fq",
+                "-m",
+                "count",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Contig	Read Count
+7seqs.fna/7seqs.reads_for_7.1.fq	genome1~random_sequence_length_11000	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome1~random_sequence_length_11010	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome2~seq1	0
+7seqs.fna/7seqs.reads_for_7.1.fq	genome3~random_sequence_length_11001	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome4~random_sequence_length_11002	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome5~seq2	0
+7seqs.fna/7seqs.reads_for_7.1.fq	genome6~random_sequence_length_11003	8",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_minibwa_interleaved_input_rejected() {
+        // minibwa has no interleaved-pairing option, so interleaved input
+        // should be rejected rather than silently mapped as single-end.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-p",
+                "minibwa",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--interleaved",
+                "tests/data/bad_reads.interleaved.fq",
+            ])
+            .fails()
+            .stderr()
+            .contains("minibwa has no interleaved-pairing option")
+            .unwrap();
+    }
+
+    #[test]
     fn test_bwa_mem2_parameters() {
         Assert::main_binary()
             .with_args(&[

@@ -68,6 +68,7 @@ impl TemporaryIndexStruct {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
             MappingProgram::STROBEALIGN => std::process::Command::new("strobealign"),
+            MappingProgram::MINIBWA => std::process::Command::new("minibwa"),
         };
         match &mapping_program {
             MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
@@ -75,6 +76,15 @@ impl TemporaryIndexStruct {
                     .arg("-p")
                     .arg(&index_path)
                     .arg(reference_path);
+            }
+            MappingProgram::MINIBWA => {
+                // minibwa index takes the output prefix as a positional
+                // argument: `minibwa index [-t N] <in.fasta> [out.prefix]`
+                cmd.arg("index");
+                if let Some(t) = num_threads {
+                    cmd.arg("-t").arg(format!("{t}"));
+                }
+                cmd.arg(reference_path).arg(&index_path);
             }
             MappingProgram::MINIMAP2_SR
             | MappingProgram::MINIMAP2_ONT
@@ -101,7 +111,8 @@ impl TemporaryIndexStruct {
                     MappingProgram::MINIMAP2_NO_PRESET
                     | MappingProgram::BWA_MEM
                     | MappingProgram::BWA_MEM2
-                    | MappingProgram::STROBEALIGN => {}
+                    | MappingProgram::STROBEALIGN
+                    | MappingProgram::MINIBWA => {}
                 };
                 if let Some(t) = num_threads {
                     cmd.arg("-t").arg(format!("{t}"));
@@ -173,6 +184,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
     let bwa_extensions = match mapping_program {
         MappingProgram::BWA_MEM => vec!["amb", "ann", "bwt", "pac", "sa"],
         MappingProgram::BWA_MEM2 => vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"],
+        MappingProgram::MINIBWA => vec!["l2b", "mbw"],
         _ => unreachable!(),
     };
     let num_extensions = bwa_extensions.len();
@@ -196,7 +208,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
 pub fn check_reference_existence(reference_path: &str, mapping_program: &MappingProgram) {
     let ref_path = std::path::Path::new(reference_path);
     match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::MINIBWA => {
             if check_for_bwa_index_existence(reference_path, mapping_program) {
                 return;
             }
@@ -236,6 +248,24 @@ pub fn generate_bwa_index(
             mapping_program,
             reference_path,
             None,
+            index_creation_parameters,
+        ))
+    }
+}
+
+pub fn generate_minibwa_index(
+    reference_path: &str,
+    num_threads: Option<u16>,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    if check_for_bwa_index_existence(reference_path, &MappingProgram::MINIBWA) {
+        info!("minibwa index appears to be complete, so going ahead and using it.");
+        Box::new(VanillaIndexStruct::new(reference_path))
+    } else {
+        Box::new(TemporaryIndexStruct::new(
+            MappingProgram::MINIBWA,
+            reference_path,
+            num_threads,
             index_creation_parameters,
         ))
     }

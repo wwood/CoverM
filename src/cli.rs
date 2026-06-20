@@ -21,6 +21,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-lr-hq",
     "minimap2-no-preset",
     "strobealign",
+    "minibwa",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
@@ -94,6 +95,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("minimap2-no-preset"),
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
+                    &[
+                        &monospace_roff("minibwa"),
+                        "minibwa map using default parameters"
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
@@ -117,6 +122,12 @@ fn add_mapping_options(manual: Manual) -> Manual {
             .option(Opt::new("PARAMS").long("--strobealign-params").help(
                 "Extra parameters to provide to strobealign. Note \
         that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--minibwa-params").help(
+                "Extra parameters to provide to the 'minibwa map' \
+        command. Note that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
             ))
@@ -1232,6 +1243,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("minibwa-params")
+                        .long("minibwa-params")
+                        .long("minibwa-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
                         .long("strobealign-parameters")
@@ -1763,6 +1781,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                     Arg::new("bwa-params")
                         .long("bwa-params")
                         .long("bwa-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("minibwa-params")
+                        .long("minibwa-params")
+                        .long("minibwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )

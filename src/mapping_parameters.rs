@@ -113,6 +113,16 @@ impl<'a> MappingParameters<'a> {
                     process::exit(1);
                 }
             }
+            MappingProgram::MINIBWA => {
+                if !interleaved.is_empty() {
+                    error!(
+                        "Interleaved read input was specified to be mapped with minibwa, \
+                        but minibwa has no interleaved-pairing option. Supply the reads as \
+                        coupled pairs (with -1/-2 or --coupled) instead."
+                    );
+                    process::exit(1);
+                }
+            }
             _ => {}
         }
 
@@ -125,6 +135,7 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_LR_HQ
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
             MappingProgram::STROBEALIGN => "strobealign-params",
+            MappingProgram::MINIBWA => "minibwa-params",
         };
         let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {

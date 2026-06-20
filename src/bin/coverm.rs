@@ -770,6 +770,13 @@ fn setup_mapping_index(
                 mapping_program,
             )
         }
+        MappingProgram::MINIBWA => coverm::mapping_index_maintenance::generate_minibwa_index(
+            reference_wise_params.reference,
+            Some(*m.get_one::<u16>("threads").unwrap()),
+            // minibwa-params are mapping options, not index options, so they
+            // are not forwarded to the indexing command.
+            None,
+        ),
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -881,6 +888,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
+        Some("minibwa") => MappingProgram::MINIBWA,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -904,6 +912,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         }
         MappingProgram::STROBEALIGN => {
             external_command_checker::check_for_strobealign();
+        }
+        MappingProgram::MINIBWA => {
+            external_command_checker::check_for_minibwa();
         }
     }
     mapping_program
