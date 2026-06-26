@@ -27,7 +27,7 @@ extern = "*"
 [target.linux-64.dependencies]
 bwa-mem2 = "*"
 dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
-strobealign = ">=0.17.0"  # tests use a pregenerated v5 database
+strobealign = ">=0.14.0"  # tests generate the strobealign index at runtime
 
 [package]
 name = "coverm"
