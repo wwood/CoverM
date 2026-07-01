@@ -3241,11 +3241,16 @@ genome6~random_sequence_length_11003	0	0	0
 
     #[test]
     fn test_strobealign_pregenerated_index() {
-        // let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
-        // let t_full = tf.path().to_str().unwrap();
-        // std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
-        // bird_tool_utils::command::
-        // let t = ""; //tf.path().file_name().unwrap().to_str().unwrap();
+        // Generate the index at runtime so the format always matches the installed strobealign version
+        std::process::Command::new("strobealign")
+            .args([
+                "-i",
+                "tests/data/7seqs.fna",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+            ])
+            .status()
+            .expect("Failed to generate strobealign index");
+
         Assert::main_binary()
             .with_args(&[
                 "genome",
