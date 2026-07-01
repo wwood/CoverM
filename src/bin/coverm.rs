@@ -821,6 +821,12 @@ fn setup_mapping_index(
                 ))
             }
         }
+        MappingProgram::X_MAPPER => {
+            info!("Not pre-generating x-mapper index");
+            Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                reference_wise_params.reference,
+            ))
+        }
     }
 }
 
@@ -881,6 +887,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
+        Some("x-mapper") => MappingProgram::X_MAPPER,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -904,6 +911,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         }
         MappingProgram::STROBEALIGN => {
             external_command_checker::check_for_strobealign();
+        }
+        MappingProgram::X_MAPPER => {
+            external_command_checker::check_for_x_mapper();
         }
     }
     mapping_program
