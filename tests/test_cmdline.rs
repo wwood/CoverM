@@ -810,6 +810,43 @@ genome6	0",
     }
 
     #[test]
+    fn test_minibwa_pregenerated_index() {
+        // Generate the index at runtime so the format always matches the installed minibwa version
+        std::process::Command::new("minibwa")
+            .args(["index", "tests/data/7seqs.fna", "tests/data/7seqs.fna"])
+            .status()
+            .expect("Failed to generate minibwa index");
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "minibwa",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+                "covered_fraction",
+                "--minibwa-use-index",
+            ])
+            .succeeds()
+            .stdout()
+            .is(
+                "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n".to_string()
+                .as_str(),
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_bwa_mem2_parameters() {
         Assert::main_binary()
             .with_args(&[

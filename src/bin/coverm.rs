@@ -770,13 +770,27 @@ fn setup_mapping_index(
                 mapping_program,
             )
         }
-        MappingProgram::MINIBWA => coverm::mapping_index_maintenance::generate_minibwa_index(
-            reference_wise_params.reference,
-            Some(*m.get_one::<u16>("threads").unwrap()),
-            // minibwa-params are mapping options, not index options, so they
-            // are not forwarded to the indexing command.
-            None,
-        ),
+        MappingProgram::MINIBWA => {
+            if m.get_flag("minibwa-use-index") {
+                info!("Not pre-generating minibwa index");
+                warn!(
+                    "Minibwa uses mapping parameters defined when the index was created, \
+                not parameters defined when mapping. Proceeding on the assumption that you \
+                passed the correct parameters when creating the minibwa index."
+                );
+                Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                    reference_wise_params.reference,
+                ))
+            } else {
+                coverm::mapping_index_maintenance::generate_minibwa_index(
+                    reference_wise_params.reference,
+                    Some(*m.get_one::<u16>("threads").unwrap()),
+                    // minibwa-params are mapping options, not index options, so they
+                    // are not forwarded to the indexing command.
+                    None,
+                )
+            }
+        }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI

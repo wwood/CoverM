@@ -11,3 +11,5 @@ issue38
 issue60
 .pixi
 tests/data/*sti
+tests/data/*l2b
+tests/data/*mbw
