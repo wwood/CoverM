@@ -113,15 +113,13 @@ impl<'a> MappingParameters<'a> {
                     process::exit(1);
                 }
             }
-            MappingProgram::MINIBWA => {
-                if !interleaved.is_empty() {
-                    error!(
-                        "Interleaved read input was specified to be mapped with minibwa, \
-                        but minibwa has no interleaved-pairing option. Supply the reads as \
-                        coupled pairs (with -1/-2 or --coupled) instead."
-                    );
-                    process::exit(1);
-                }
+            MappingProgram::MINIBWA if !interleaved.is_empty() => {
+                error!(
+                    "Interleaved read input was specified to be mapped with minibwa, \
+                    but minibwa has no interleaved-pairing option. Supply the reads as \
+                    coupled pairs (with -1/-2 or --coupled) instead."
+                );
+                process::exit(1);
             }
             _ => {}
         }

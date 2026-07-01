@@ -10,3 +10,4 @@ vscode.*
 issue38
 issue60
 .pixi
+tests/data/*sti

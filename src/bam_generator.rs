@@ -216,7 +216,7 @@ pub fn complete_processes(
         }
     }
     if failed_any || log_enabled!(log::Level::Debug) {
-        for (description, tf) in log_file_descriptions.iter().zip(log_files.into_iter()) {
+        for (description, tf) in log_file_descriptions.iter().zip(log_files) {
             let mut contents = String::new();
             tf.into_file()
                 .read_to_string(&mut contents)
