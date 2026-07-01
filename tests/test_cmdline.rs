@@ -2363,6 +2363,78 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_consensus_genomes_folder_requires_genome_fasta_inputs() {
+        let out_dir = tempfile::tempdir().unwrap();
+        let out = out_dir.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-b",
+                "tests/data/2seqs.bad_read.1.bam",
+                "-s",
+                "~",
+                "--consensus-genomes-folder",
+                out,
+            ])
+            .fails()
+            .stderr()
+            .contains(
+                "--consensus-genomes-folder requires genomes be supplied via --genome-fasta-files, --genome-fasta-directory, or --genome-fasta-list",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_consensus_genomes_folder_outputs_filtered_genomes() {
+        let out_dir = tempfile::tempdir().unwrap();
+        let out = out_dir.path().to_str().unwrap();
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/500kb.fna",
+                "tests/data/set1/1mbp.fna",
+                "-t",
+                "5",
+                "--methods",
+                "covered_fraction",
+                "--min-covered-fraction",
+                "0",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
+                "-p",
+                "minimap2-sr",
+                "--consensus-genomes-folder",
+                out,
+            ])
+            .succeeds()
+            .unwrap();
+
+        let sample_dir = out_dir.path().join("1read.actually_fasta.fq");
+        assert!(sample_dir.exists());
+
+        let expected_present = sample_dir.join("1mbp.fna");
+        let expected_absent = sample_dir.join("500kb.fna");
+        assert!(expected_present.exists());
+        assert!(!expected_absent.exists());
+
+        let mut fasta = String::new();
+        std::fs::File::open(expected_present)
+            .unwrap()
+            .read_to_string(&mut fasta)
+            .unwrap();
+        assert!(fasta.starts_with(
+            ">1mbp
+"
+        ));
+        assert!(fasta.lines().skip(1).all(|l| l
+            .chars()
+            .all(|c| matches!(c, 'A' | 'C' | 'G' | 'T' | 'N' | '-'))));
+    }
+
+    #[test]
     fn test_contig_unsorted_bam_file() {
         Assert::main_binary()
             .with_args(&["contig", "-b", "tests/data/2seqs.bad_read.1.unsorted.bam"])

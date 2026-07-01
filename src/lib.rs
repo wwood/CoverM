@@ -1,5 +1,6 @@
 pub mod bam_generator;
 pub mod cli;
+pub mod consensus_genome;
 pub mod contig;
 pub mod coverage_printer;
 pub mod coverage_takers;
