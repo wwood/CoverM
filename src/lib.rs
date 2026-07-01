@@ -5,6 +5,7 @@ pub mod coverage_printer;
 pub mod coverage_takers;
 pub mod external_command_checker;
 pub mod filter;
+pub mod gc_bias;
 pub mod genome;
 pub mod genome_exclusion;
 pub mod genome_parsing;
@@ -39,7 +40,9 @@ extern crate bird_tool_utils_man;
 extern crate csv;
 extern crate galah;
 extern crate needletail;
+extern crate plotters;
 extern crate roff;
+extern crate splines;
 extern crate version_compare;
 
 pub const CONCATENATED_FASTA_FILE_SEPARATOR: &str = "~";

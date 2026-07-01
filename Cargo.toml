@@ -38,6 +38,8 @@ bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
 needletail = "0.5.*"
 csv = "1.*"
+splines = "5.0"
+plotters = "0.3"
 
 [dev-dependencies]
 assert_cli = "0.6.*"
