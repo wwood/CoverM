@@ -811,9 +811,16 @@ genome6	0",
 
     #[test]
     fn test_minibwa_pregenerated_index() {
+        // Copy the reference to a temp dir so the generated index files (.l2b,
+        // .mbw) don't race with other tests that also use tests/data/7seqs.fna.
+        let td = tempfile::TempDir::new().unwrap();
+        let ref_path = td.path().join("7seqs.fna");
+        std::fs::copy("tests/data/7seqs.fna", &ref_path).unwrap();
+        let ref_str = ref_path.to_str().unwrap();
+
         // Generate the index at runtime so the format always matches the installed minibwa version
         std::process::Command::new("minibwa")
-            .args(["index", "tests/data/7seqs.fna", "tests/data/7seqs.fna"])
+            .args(["index", ref_str, ref_str])
             .status()
             .expect("Failed to generate minibwa index");
 
@@ -823,7 +830,7 @@ genome6	0",
                 "--mapper",
                 "minibwa",
                 "-r",
-                "tests/data/7seqs.fna",
+                ref_str,
                 "-1",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
                 "-2",
@@ -834,9 +841,10 @@ genome6	0",
                 "-m",
                 "mean",
                 "covered_fraction",
-                "--minibwa-use-index",
             ])
             .succeeds()
+            .stderr()
+            .contains("minibwa index appears to be complete, so going ahead and using it.")
             .stdout()
             .is(
                 "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\

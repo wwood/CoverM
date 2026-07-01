@@ -133,9 +133,6 @@ fn add_mapping_options(manual: Manual) -> Manual {
             ))
             .flag(Flag::new().long("--strobealign-use-index").help(
                 "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
-            ))
-            .flag(Flag::new().long("--minibwa-use-index").help(
-                "Use a pregenerated minibwa index (one that has been created with 'minibwa index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.l2b' [default: not set]",
             )),
     )
 }
@@ -529,7 +526,6 @@ pub fn contig_full_help() -> Manual {
                     index \
                     (with {}), \
                     strobealign index (with {}), \
-                    minibwa index (with {}), \
                     or BWA index stem (with {}). \
                     If multiple references FASTA files are \
                     provided and {} is specified, \
@@ -537,7 +533,6 @@ pub fn contig_full_help() -> Manual {
                     separately as sharded BAMs. [required unless {} is specified]",
                 monospace_roff("--minimap2-reference-is-index"),
                 monospace_roff("--strobealign-use-index"),
-                monospace_roff("--minibwa-use-index"),
                 monospace_roff("-p bwa-mem/bwa-mem2"),
                 monospace_roff("--sharded"),
                 monospace_roff("-b/--bam-files")
@@ -715,7 +710,6 @@ pub fn genome_full_help() -> Manual {
                     index \
                     (with {}), \
                     strobealign index (with {}), \
-                    minibwa index (with {}), \
                     or BWA index stem (with {}). \
                     If multiple reference FASTA files are \
                     provided and {} is specified, \
@@ -726,7 +720,6 @@ pub fn genome_full_help() -> Manual {
                     be optionally specified if an alternate reference sequence set is desired.",
                     monospace_roff("--minimap2-reference-is-index"),
                     monospace_roff("--strobealign-use-index"),
-                    monospace_roff("--minibwa-use-index"),
                     monospace_roff("-p bwa-mem/bwa-mem2"),
                     monospace_roff("--sharded"),
                     bold("NOTE"),
@@ -1266,12 +1259,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
-                        .requires("reference")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("minibwa-use-index")
-                        .long("minibwa-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
                 )
@@ -1818,12 +1805,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
-                    Arg::new("minibwa-use-index")
-                        .long("minibwa-use-index")
-                        .requires("reference")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("cache-unfiltered-bam")
@@ -2198,12 +2179,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("strobealign-use-index")
                         .long("strobealign-use-index")
-                        .requires("reference")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("minibwa-use-index")
-                        .long("minibwa-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
                 ),
