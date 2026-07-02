@@ -54,6 +54,7 @@ pub enum MappingProgram {
     MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    RAMMAP,
 }
 
 pub struct BamFileNamedReader {
@@ -416,7 +417,10 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::STROBEALIGN => None,
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::RAMMAP => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -867,13 +871,15 @@ pub fn build_mapping_command(
     mapping_options: Option<&str>,
 ) -> String {
     let read_params1 = match mapping_program {
-        // minimap2 auto-detects interleaved based on read names
+        // minimap2 (and the minimap2-compatible rammap) auto-detect
+        // interleaved input based on read names
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET => "",
+        | MappingProgram::MINIMAP2_NO_PRESET
+        | MappingProgram::RAMMAP => "",
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => "",
@@ -896,6 +902,9 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             MappingProgram::STROBEALIGN => "strobealign".to_string(),
+            // rammap is a minimap2-compatible aligner; map short reads with
+            // the 'sr' preset and emit SAM with -a.
+            MappingProgram::RAMMAP => "rammap -x sr -a".to_string(),
             _ => {
                 let split_prefix = tempfile::Builder::new()
                     .prefix("coverm-minimap2-split-index")
@@ -915,7 +924,8 @@ pub fn build_mapping_command(
                     match mapping_program {
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
-                        | MappingProgram::STROBEALIGN => unreachable!(),
+                        | MappingProgram::STROBEALIGN
+                        | MappingProgram::RAMMAP => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

@@ -30,3 +30,10 @@ pub fn check_for_strobealign() {
     default_version_check("strobealign", "0.11.0", false, None)
         .expect("Failed to find sufficient version of strobealign");
 }
+
+pub fn check_for_rammap() {
+    check_for_external_command_presence_with_which("rammap")
+        .expect("Failed to find installed rammap");
+    default_version_check("rammap", "1.1.1", false, None)
+        .expect("Failed to find sufficient version of rammap");
+}

@@ -3240,6 +3240,30 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_make_rammap() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "rammap",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
+    #[test]
     fn test_strobealign_pregenerated_index() {
         // Generate the index at runtime so the format always matches the installed strobealign version
         std::process::Command::new("strobealign")
