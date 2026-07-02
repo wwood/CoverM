@@ -102,6 +102,34 @@ impl CoverageEstimator {
             CoverageEstimator::StrobealignAembEstimator { .. } => vec!["Strobealign aemb"],
         }
     }
+
+    /// Disable contig-end exclusion for this estimator by setting it to 0. Used
+    /// in gene (--gff) mode, where sub-regions of a contig are analysed and the
+    /// contig-end exclusion would otherwise incorrectly trim the ends of every
+    /// gene rather than just the ends of the contig.
+    pub fn disable_contig_end_exclusion(&mut self) {
+        match self {
+            CoverageEstimator::MeanGenomeCoverageEstimator {
+                contig_end_exclusion,
+                ..
+            }
+            | CoverageEstimator::TrimmedMeanGenomeCoverageEstimator {
+                contig_end_exclusion,
+                ..
+            }
+            | CoverageEstimator::PileupCountsGenomeCoverageEstimator {
+                contig_end_exclusion,
+                ..
+            }
+            | CoverageEstimator::VarianceGenomeCoverageEstimator {
+                contig_end_exclusion,
+                ..
+            } => {
+                *contig_end_exclusion = 0;
+            }
+            _ => {}
+        }
+    }
 }
 
 impl CoverageEstimator {

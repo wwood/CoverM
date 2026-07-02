@@ -134,6 +134,14 @@ pub fn gene_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Covera
     threads: u16,
     genes: &[Gene],
 ) -> Vec<ReadsMapped> {
+    // Contig-end exclusion is meant to avoid mapping artifacts at the ends of
+    // contigs. In gene mode each gene is a sub-region of a contig, so applying
+    // the exclusion to gene boundaries would incorrectly trim every gene (and
+    // zero out any gene shorter than twice the exclusion). Disable it here.
+    for estimator in coverage_estimators.iter_mut() {
+        estimator.disable_contig_end_exclusion();
+    }
+
     let mut reads_mapped_vector = vec![];
     for bam_generator in bam_readers {
         let mut bam_generated = bam_generator.start();
@@ -313,6 +321,11 @@ pub fn gene_coverage<R: NamedBamReader, G: NamedBamReaderGenerator<R>, T: Covera
                     break;
                 }
                 if gene.end > read_start {
+                    // The read overlaps this gene. Edit distance and identity are
+                    // derived from the whole-read NM tag (which cannot be split
+                    // positionally between genes), so a read that straddles a gene
+                    // boundary contributes its whole-read statistics to each gene
+                    // it overlaps.
                     gene.total_edit_distance += edit;
                     gene.total_indels += indels;
                     if is_primary {
@@ -557,6 +570,26 @@ mod tests {
                 },
             ],
             true,
+        );
+    }
+
+    #[test]
+    fn test_contig_end_exclusion_disabled_in_gene_mode() {
+        // Even with a non-zero contig-end-exclusion, gene mode does not trim the
+        // ends of the gene, so a gene spanning the whole of seq1 reports the same
+        // value (1.2) as it does with no exclusion. Without disabling exclusion,
+        // 75 bases would be trimmed from each end.
+        test_with_stream(
+            "2seqs.reads_for_seq1\tgene1\t1.2\n",
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.0, 75, false)],
+            &[Gene {
+                name: "gene1".to_string(),
+                contig: "seq1".to_string(),
+                start: 0,
+                end: 1000,
+            }],
+            false,
         );
     }
 
