@@ -871,15 +871,21 @@ pub fn build_mapping_command(
     mapping_options: Option<&str>,
 ) -> String {
     let read_params1 = match mapping_program {
-        // minimap2 (and the minimap2-compatible rammap) auto-detect
-        // interleaved input based on read names
+        // minimap2 auto-detects interleaved input based on read names
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET
-        | MappingProgram::RAMMAP => "",
+        | MappingProgram::MINIMAP2_NO_PRESET => "",
+        MappingProgram::RAMMAP => match read_format {
+            // rammap's `sr` preset turns on fragment mode, which pulls read
+            // pairs from a single input file (this is how it maps interleaved
+            // reads). For genuinely single-end reads that would incorrectly
+            // consume the file as interleaved pairs, so disable fragment mode.
+            ReadFormat::Single => "--frag no",
+            ReadFormat::Coupled | ReadFormat::Interleaved => "",
+        },
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => "",
