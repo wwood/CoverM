@@ -28,6 +28,7 @@ extern = "*"
 bwa-mem2 = "*"
 dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
 strobealign = ">=0.14.0"  # tests generate the strobealign index at runtime
+rammap = ">=1.1.1"
 
 [package]
 name = "coverm"
