@@ -117,6 +117,15 @@ CoverM operates in several modes. Detailed usage information including examples 
 * [genome](https://wwood.github.io/CoverM/coverm-genome.html) - Calculate coverage of genomes
 * [contig](https://wwood.github.io/CoverM/coverm-contig.html) - Calculate coverage of contigs
 
+Both `genome` and `contig` modes accept a `--gff` option. When one or more GFF3
+files are provided, CoverM reports coverage statistics for each feature (gene)
+defined in the GFF files rather than for each genome or contig. The seqid (first
+column) of each GFF feature must match a reference sequence name. For example:
+
+```bash
+coverm contig -b mapping.bam --gff annotation.gff > per_gene_coverage.tsv
+```
+
 There are several utility modes as well:
 * [make](https://wwood.github.io/CoverM/coverm-make.html) - Generate BAM files through alignment
 * [filter](https://wwood.github.io/CoverM/coverm-filter.html) - Remove (or only keep) alignments with insufficient identity

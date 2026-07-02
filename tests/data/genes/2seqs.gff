@@ -1,0 +1,4 @@
+##gff-version 3
+seq1	CoverM	gene	1	1000	.	+	.	ID=gene1;Name=whole_seq1
+seq1	CoverM	gene	200	400	.	+	.	ID=gene2;Name=partial_seq1
+seq2	CoverM	gene	1	500	.	-	.	ID=gene3;Name=partial_seq2

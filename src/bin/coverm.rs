@@ -64,8 +64,13 @@ fn main() {
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
+            let genome_entry_type = if m.contains_id("gff") {
+                "Gene"
+            } else {
+                "Genome"
+            };
             estimators_and_taker =
-                estimators_and_taker.print_headers("Genome", print_stream.clone());
+                estimators_and_taker.print_headers(genome_entry_type, print_stream.clone());
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -504,6 +509,7 @@ fn main() {
             set_log_level(m, true);
             manually_check_args_at_runtime(m);
             let print_zeros = !m.get_flag("no-zeros");
+            let gff_genes = parse_gff_genes(m);
 
             // Add metabat filtering params since we are running contig
             let mut filter_params1 = FilterParameters::generate_from_clap(m);
@@ -515,8 +521,13 @@ fn main() {
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
+            let contig_entry_type = if m.contains_id("gff") {
+                "Gene"
+            } else {
+                "Contig"
+            };
             estimators_and_taker =
-                estimators_and_taker.print_headers("Contig", print_stream.clone());
+                estimators_and_taker.print_headers(contig_entry_type, print_stream.clone());
 
             if let CoverageEstimator::StrobealignAembEstimator {} =
                 estimators_and_taker.estimators[0]
@@ -559,6 +570,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 } else if m.get_flag("sharded") {
                     external_command_checker::check_for_samtools();
@@ -575,6 +587,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 } else {
                     let bam_readers =
@@ -586,6 +599,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 }
             } else {
@@ -616,6 +630,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 } else if m.get_flag("sharded") {
                     let generator_sets = get_sharded_bam_readers(
@@ -631,6 +646,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 } else {
                     debug!("Not filtering..");
@@ -650,6 +666,7 @@ fn main() {
                         filter_params.flag_filters,
                         threads,
                         &mut print_stream,
+                        gff_genes.as_ref(),
                     );
                 }
             }
@@ -1178,6 +1195,25 @@ impl EstimatorsAndTaker {
     }
 }
 
+fn parse_gff_genes(m: &clap::ArgMatches) -> Option<Vec<coverm::gene::Gene>> {
+    if m.contains_id("gff") {
+        let gff_files: Vec<&str> = m.get_many::<String>("gff").unwrap().map(|s| &**s).collect();
+        let genes = coverm::gene::read_gff_files(&gff_files);
+        if genes.is_empty() {
+            error!("No features were read from the provided GFF file(s)");
+            process::exit(1);
+        }
+        info!(
+            "Read {} features in total from {} GFF file(s)",
+            genes.len(),
+            gff_files.len()
+        );
+        Some(genes)
+    } else {
+        None
+    }
+}
+
 fn parse_separator(m: &clap::ArgMatches) -> Option<u8> {
     let single_genome = m.get_flag("single-genome");
     if single_genome {
@@ -1210,6 +1246,31 @@ fn run_genome<
     let flag_filter = FilterParameters::generate_from_clap(m).flag_filters;
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
+
+    // When a GFF is provided, coverage is reported per-gene rather than
+    // per-genome, so bypass the genome grouping entirely.
+    if let Some(genes) = parse_gff_genes(m) {
+        let reads_mapped = coverm::gene::gene_coverage(
+            bam_generators,
+            &mut estimators_and_taker.taker,
+            &mut estimators_and_taker.estimators,
+            print_zeros,
+            &flag_filter,
+            threads,
+            &genes,
+        );
+        debug!("Finalising printing ..");
+        estimators_and_taker.printer.finalise_printing(
+            &estimators_and_taker.taker,
+            print_stream,
+            Some(&reads_mapped),
+            &estimators_and_taker.columns_to_normalise,
+            estimators_and_taker.rpkm_column,
+            estimators_and_taker.tpm_column,
+        );
+        return;
+    }
+
     let reads_mapped = match separator.is_some() || single_genome {
         true => coverm::genome::mosdepth_genome_coverage(
             bam_generators,
@@ -1715,15 +1776,27 @@ fn run_contig<
     flag_filters: FlagFilter,
     threads: u16,
     print_stream: &mut OutputWriter,
+    gff_genes: Option<&Vec<coverm::gene::Gene>>,
 ) {
-    let reads_mapped = coverm::contig::contig_coverage(
-        bam_readers,
-        &mut estimators_and_taker.taker,
-        &mut estimators_and_taker.estimators,
-        print_zeros,
-        &flag_filters,
-        threads,
-    );
+    let reads_mapped = match gff_genes {
+        Some(genes) => coverm::gene::gene_coverage(
+            bam_readers,
+            &mut estimators_and_taker.taker,
+            &mut estimators_and_taker.estimators,
+            print_zeros,
+            &flag_filters,
+            threads,
+            genes,
+        ),
+        None => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut estimators_and_taker.taker,
+            &mut estimators_and_taker.estimators,
+            print_zeros,
+            &flag_filters,
+            threads,
+        ),
+    };
 
     debug!("Finalising printing ..");
 

@@ -567,6 +567,12 @@ pub fn contig_full_help() -> Manual {
                 reported as having zero coverage. \
                 {}", default_roff("0"))
             ))
+            .option(Opt::new("PATH ..").long("--gff").help(
+                "Report coverage statistics for each feature (gene) in these \
+                GFF3 file(s) rather than for each contig. The seqid (first \
+                column) of each feature must match a reference sequence name. \
+                [default: not used]",
+            ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
                 &format!("Exclude bases at the ends of reference \
                 sequences from calculation {}",
@@ -815,6 +821,12 @@ pub fn genome_full_help() -> Manual {
                 &format!("Genomes with less covered bases than this are \
                 reported as having zero coverage. \
                 {}", default_roff("10"))
+            ))
+            .option(Opt::new("PATH ..").long("--gff").help(
+                "Report coverage statistics for each feature (gene) in these \
+                GFF3 file(s) rather than for each genome. The seqid (first \
+                column) of each feature must match a reference sequence name. \
+                [default: not used]",
             ))
             .option(Opt::new("INT").long("--contig-end-exclusion").help(
                 &format!("Exclude bases at the ends of reference \
@@ -1449,6 +1461,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .value_parser(clap::value_parser!(u64)),
                 )
                 .arg(
+                    Arg::new("gff")
+                        .long("gff")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
+                )
+                .arg(
                     Arg::new("no-zeros")
                         .long("no-zeros")
                         .action(clap::ArgAction::SetTrue),
@@ -1871,6 +1889,12 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("trim-max")
                         .default_value("95")
                         .value_parser(clap::value_parser!(f32)),
+                )
+                .arg(
+                    Arg::new("gff")
+                        .long("gff")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
                 )
                 .arg(
                     Arg::new("no-zeros")

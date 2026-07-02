@@ -1,0 +1,6 @@
+##gff-version 3
+genome2~seq1	CoverM	gene	1	1000	.	+	.	ID=geneA;Name=whole_seq1
+genome5~seq2	CoverM	gene	1	1000	.	-	.	ID=geneB;Name=whole_seq2
+##FASTA
+>should_be_ignored
+ACGT
