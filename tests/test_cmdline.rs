@@ -590,6 +590,86 @@ genome6~random_sequence_length_11003	0",
     }
 
     #[test]
+    fn test_contig_gff_per_gene_output() {
+        // With --gff, `contig` reports per-gene coverage. Each gene here spans
+        // a whole contig, so the mean coverage matches the whole-contig value.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "--gff",
+                "tests/data/genes/7seqs.gff",
+                "--contig-end-exclusion",
+                "0",
+                "--output-format",
+                "dense",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Gene	7seqs.reads_for_seq1_and_seq2 Mean
+geneA	1.2
+geneB	1.2",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_gff_sparse_length_and_count() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "--gff",
+                "tests/data/genes/7seqs.gff",
+                "-m",
+                "length",
+                "count",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Gene	Length	Read Count
+7seqs.reads_for_seq1_and_seq2	geneA	1000	12
+7seqs.reads_for_seq1_and_seq2	geneB	1000	12",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_gff_per_gene_output() {
+        // In `genome` mode, --gff also switches output to per-gene.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "-m",
+                "mean",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                "-s",
+                "~",
+                "--gff",
+                "tests/data/genes/7seqs.gff",
+                "--contig-end-exclusion",
+                "0",
+                "--output-format",
+                "dense",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Gene	7seqs.reads_for_seq1_and_seq2 Mean
+geneA	1.2
+geneB	1.2",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_genome_dense_output_simple() {
         Assert::main_binary()
             .with_args(&[
