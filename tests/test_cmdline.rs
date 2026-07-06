@@ -3366,7 +3366,9 @@ genome6~random_sequence_length_11003	0	0	0
     #[test]
     fn test_make_rammap_single() {
         // Single-end reads must not be consumed as interleaved pairs by
-        // rammap's fragment mode; exercise the single-end path end to end.
+        // rammap's fragment mode, or adjacent reads would be incorrectly
+        // paired and mapped as pseudo-fragments. Exercise the single-end path
+        // end to end.
         let td = tempfile::TempDir::new().unwrap();
         Assert::main_binary()
             .with_args(&[
