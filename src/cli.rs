@@ -1277,7 +1277,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -1826,7 +1826,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -2211,7 +2211,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 ),
