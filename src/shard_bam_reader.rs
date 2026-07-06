@@ -237,20 +237,15 @@ where
                                 score += aux_as(&second_read_alignments[i]);
                             }
                             match max_score {
-                                None => {
+                                // A loser when there was a previous winner
+                                Some(ms) if score < ms => {}
+                                Some(ms) if score == ms => winning_indices.push(i),
+                                // No previous winner, or a new highest score
+                                _ => {
                                     max_score = Some(score);
-                                    winning_indices = vec![i];
+                                    winning_indices = vec![i]
                                 }
-                                Some(ms) if score > ms => {
-                                    max_score = Some(score);
-                                    winning_indices = vec![i];
-                                }
-                                Some(ms) if score == ms => {
-                                    winning_indices.push(i);
-                                }
-                                _ => {}
                             }
-                            // Else a loser when there was a previous winner
                         }
                     }
                 }

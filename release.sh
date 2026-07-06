@@ -32,7 +32,7 @@ tar czf coverm-x86_64-unknown-linux-musl-$VERSION.tar.gz coverm-x86_64-unknown-l
 cd ..
 
 echo "Building HTML versions of man pages .."
-for SUBCOMMAND in genome cluster contig filter make
+for SUBCOMMAND in genome cluster contig filter make makedb
 do
     echo "Documenting $SUBCOMMAND .."
     cargo run -- $SUBCOMMAND --full-help-roff |pandoc - -t markdown -f man |sed 's/\\\[/[/g; s/\\\]/]/g' |cat <(sed s/SUBCOMMAND/$SUBCOMMAND/ prelude) - >docs/coverm-$SUBCOMMAND.Rmd

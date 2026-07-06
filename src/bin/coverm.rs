@@ -64,8 +64,14 @@ fn main() {
 
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
-            estimators_and_taker =
-                estimators_and_taker.print_headers("Genome", print_stream.clone());
+            estimators_and_taker = estimators_and_taker.print_headers(
+                if m.contains_id("gff") {
+                    "Gene\tContig\tGenome"
+                } else {
+                    "Genome"
+                },
+                print_stream.clone(),
+            );
             let filter_params = FilterParameters::generate_from_clap(m);
             let separator = parse_separator(m);
 
@@ -513,10 +519,39 @@ fn main() {
             let threads = *m.get_one::<u16>("threads").unwrap();
             print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
+            // Optionally report coverage per-gene rather than per-contig, using
+            // a user-supplied GFF file.
+            let gene_definitions: Option<coverm::genes::GeneDefinitions> =
+                m.get_one::<String>("gff").map(|gff_path| {
+                    if doing_metabat(m) {
+                        error!("The metabat method cannot be used with --gff");
+                        process::exit(1);
+                    }
+                    let methods: Vec<&str> = m
+                        .get_many::<String>("methods")
+                        .unwrap()
+                        .map(|x| x.as_str())
+                        .collect();
+                    if methods.contains(&"strobealign-aemb") {
+                        error!("The strobealign-aemb method cannot be used with --gff");
+                        process::exit(1);
+                    }
+                    coverm::genes::GeneDefinitions::read_gff(
+                        gff_path,
+                        m.get_one::<String>("gff-feature-type").map(|x| x.as_str()),
+                    )
+                });
+
             let mut estimators_and_taker =
                 EstimatorsAndTaker::generate_from_clap(m, print_stream.clone());
-            estimators_and_taker =
-                estimators_and_taker.print_headers("Contig", print_stream.clone());
+            estimators_and_taker = estimators_and_taker.print_headers(
+                if gene_definitions.is_some() {
+                    "Gene\tContig"
+                } else {
+                    "Contig"
+                },
+                print_stream.clone(),
+            );
 
             if let CoverageEstimator::StrobealignAembEstimator {} =
                 estimators_and_taker.estimators[0]
@@ -558,6 +593,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 } else if m.get_flag("sharded") {
@@ -574,6 +610,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 } else {
@@ -585,6 +622,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 }
@@ -615,6 +653,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 } else if m.get_flag("sharded") {
@@ -630,6 +669,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 } else {
@@ -649,6 +689,7 @@ fn main() {
                         print_zeros,
                         filter_params.flag_filters,
                         threads,
+                        &gene_definitions,
                         &mut print_stream,
                     );
                 }
@@ -712,6 +753,148 @@ fn main() {
                     info!("Running mapping number {i} ..");
                     generator.start().finish();
                     i += 1;
+                }
+            }
+        }
+        Some("makedb") => {
+            let m = matches.subcommand_matches("makedb").unwrap();
+            bird_tool_utils::clap_utils::print_full_help_if_needed(m, makedb_full_help());
+            set_log_level(m, true);
+            manually_check_args_at_runtime(m);
+
+            let output_directory = m.get_one::<String>("output-directory").unwrap();
+            setup_bam_cache_directory(output_directory);
+
+            let references: Vec<&String> = m
+                .get_many::<String>("reference")
+                .expect("No reference provided")
+                .collect();
+
+            // Validate that each reference is an existing FASTA file. We
+            // deliberately do not use check_reference_existence here: for BWA
+            // it inspects pre-existing index files beside the reference, which
+            // is inappropriate when makedb is *creating* a new index (and would
+            // spuriously fail when, say, a bwa-mem2 index already sits next to a
+            // FASTA from which a bwa-mem database is being built).
+            for reference in &references {
+                let ref_path = std::path::Path::new(reference.as_str());
+                if !ref_path.exists() {
+                    error!("The reference specified '{reference}' does not appear to exist");
+                    process::exit(1);
+                } else if !ref_path.is_file() {
+                    error!(
+                        "The reference specified '{reference}' should be a file, \
+                        not e.g. a directory"
+                    );
+                    process::exit(1);
+                }
+            }
+
+            // Guard against multiple references that share a file name (e.g.
+            // refs in different directories both named ref.fna), which would
+            // otherwise generate databases with colliding output paths.
+            if references.len() > 1 {
+                let mut seen_stems = HashSet::new();
+                for reference in &references {
+                    let stem = std::path::Path::new(reference.as_str())
+                        .file_name()
+                        .expect("Failed to glean file name from reference path")
+                        .to_string_lossy()
+                        .to_string();
+                    if !seen_stems.insert(stem.clone()) {
+                        error!(
+                            "Multiple references share the file name '{stem}', which would \
+                            generate databases with colliding output paths. Please rename or \
+                            generate them in separate output directories."
+                        );
+                        process::exit(1);
+                    }
+                }
+            }
+
+            // Parse mappers, de-duplicating while preserving order, and check
+            // that the underlying mapping software is installed.
+            let mut mapping_programs = vec![];
+            let mut seen_mappers = HashSet::new();
+            for mapper_name in m.get_many::<String>("mapper").expect("No mapper provided") {
+                if !seen_mappers.insert(mapper_name.clone()) {
+                    warn!("Ignoring duplicate --mapper value {mapper_name}");
+                    continue;
+                }
+                let mapping_program = mapping_program_from_name(Some(mapper_name));
+                check_mapping_program_dependencies(mapping_program);
+                mapping_programs.push(mapping_program);
+            }
+
+            let num_threads = *m.get_one::<u16>("threads").unwrap();
+
+            let mut generated_dbs = vec![];
+            for &mapping_program in &mapping_programs {
+                let index_creation_params = match mapping_program {
+                    MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+                        m.get_one::<String>("bwa-params")
+                    }
+                    MappingProgram::MINIBWA | MappingProgram::RAMMAP => None,
+                    MappingProgram::MINIMAP2_SR
+                    | MappingProgram::MINIMAP2_ONT
+                    | MappingProgram::MINIMAP2_PB
+                    | MappingProgram::MINIMAP2_HIFI
+                    | MappingProgram::MINIMAP2_LR_HQ
+                    | MappingProgram::MINIMAP2_NO_PRESET => m.get_one::<String>("minimap2-params"),
+                    MappingProgram::STROBEALIGN => m.get_one::<String>("strobealign-params"),
+                };
+                for reference in &references {
+                    let db_path = coverm::mapping_index_maintenance::generate_persistent_index(
+                        mapping_program,
+                        reference,
+                        output_directory,
+                        Some(num_threads),
+                        index_creation_params.map(|x| x.as_str()),
+                    );
+                    info!("Generated {mapping_program:?} database at {db_path}");
+                    generated_dbs.push((mapping_program, db_path));
+                }
+            }
+
+            info!("Finished generating {} database(s).", generated_dbs.len());
+            for (mapping_program, db_path) in &generated_dbs {
+                match mapping_program {
+                    MappingProgram::MINIMAP2_SR
+                    | MappingProgram::MINIMAP2_ONT
+                    | MappingProgram::MINIMAP2_PB
+                    | MappingProgram::MINIMAP2_HIFI
+                    | MappingProgram::MINIMAP2_LR_HQ
+                    | MappingProgram::MINIMAP2_NO_PRESET => {
+                        info!(
+                            "To use the minimap2 database, run e.g.: coverm contig \
+                            --reference {db_path} --minimap2-reference-is-index -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::BWA_MEM => {
+                        info!(
+                            "To use the BWA database, run e.g.: coverm contig \
+                            --reference {db_path} -p bwa-mem -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::BWA_MEM2 => {
+                        info!(
+                            "To use the BWA-MEM2 database, run e.g.: coverm contig \
+                            --reference {db_path} -p bwa-mem2 -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::STROBEALIGN => {
+                        info!(
+                            "To use the strobealign database, run e.g.: coverm contig \
+                            --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::MINIBWA => {
+                        info!(
+                            "To use the minibwa database, run e.g.: coverm contig \
+                            --reference {db_path} -p minibwa -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::RAMMAP => unreachable!(),
                 }
             }
         }
@@ -885,7 +1068,13 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
 }
 
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
-    let mapping_program = match m.get_one::<String>("mapper").map(|x| &**x) {
+    let mapping_program = mapping_program_from_name(m.get_one::<String>("mapper").map(|x| &**x));
+    check_mapping_program_dependencies(mapping_program);
+    mapping_program
+}
+
+fn mapping_program_from_name(name: Option<&str>) -> MappingProgram {
+    match name {
         Some("bwa-mem") => MappingProgram::BWA_MEM,
         Some("bwa-mem2") => MappingProgram::BWA_MEM2,
         Some("minimap2-sr") => MappingProgram::MINIMAP2_SR,
@@ -898,11 +1087,11 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minibwa") => MappingProgram::MINIBWA,
         Some("rammap") => MappingProgram::RAMMAP,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
-        _ => panic!(
-            "Unexpected definition for --mapper: {:?}",
-            m.get_one::<String>("mapper")
-        ),
-    };
+        _ => panic!("Unexpected definition for --mapper: {:?}", name),
+    }
+}
+
+fn check_mapping_program_dependencies(mapping_program: MappingProgram) {
     match mapping_program {
         MappingProgram::BWA_MEM => {
             external_command_checker::check_for_bwa();
@@ -928,7 +1117,6 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
             external_command_checker::check_for_rammap();
         }
     }
-    mapping_program
 }
 
 struct EstimatorsAndTaker {
@@ -1232,30 +1420,69 @@ fn run_genome<
     let flag_filter = FilterParameters::generate_from_clap(m).flag_filters;
     let single_genome = m.get_flag("single-genome");
     let threads = *m.get_one::<u16>("threads").unwrap();
-    let reads_mapped = match separator.is_some() || single_genome {
-        true => coverm::genome::mosdepth_genome_coverage(
+    let reads_mapped = if let Some(gff_path) = m.get_one::<String>("gff") {
+        // Report coverage once per gene/feature rather than per genome, also
+        // reporting the contig and genome each feature lies on.
+        let gene_definitions = coverm::genes::GeneDefinitions::read_gff(
+            gff_path,
+            m.get_one::<String>("gff-feature-type").map(|x| x.as_str()),
+        );
+        // Resolve the genome each contig belongs to. This mirrors the
+        // precedence used for per-genome coverage (see below): the separator
+        // and single-genome modes take priority over a GenomesAndContigs map.
+        // This matters when CoverM generates a concatenated reference from
+        // --genome-fasta-files, where the BAM contigs are renamed to
+        // `genome<separator>contig` but the GenomesAndContigs map still holds
+        // the original (un-prefixed) contig IDs.
+        let genome_namer: Box<coverm::genes::GenomeNamer> = if single_genome {
+            Box::new(|_: &str| Some("genome1".to_string()))
+        } else if let Some(sep) = separator {
+            Box::new(move |contig: &str| {
+                contig
+                    .split_once(sep as char)
+                    .map(|(genome, _)| genome.to_string())
+            })
+        } else if let Some(gc) = genomes_and_contigs_option {
+            Box::new(move |contig: &str| gc.genome_of_contig(&contig.to_string()).cloned())
+        } else {
+            unreachable!("A genome definition is required when using --gff in genome mode")
+        };
+        coverm::genes::gene_coverage(
             bam_generators,
-            separator.unwrap(),
             &mut estimators_and_taker.taker,
-            print_zeros,
             &mut estimators_and_taker.estimators,
+            &gene_definitions,
+            Some(genome_namer.as_ref()),
+            print_zeros,
             &flag_filter,
-            single_genome,
             threads,
-        ),
-
-        false => match genomes_and_contigs_option {
-            Some(gc) => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+        )
+    } else {
+        match separator.is_some() || single_genome {
+            true => coverm::genome::mosdepth_genome_coverage(
                 bam_generators,
-                gc,
+                separator.unwrap(),
                 &mut estimators_and_taker.taker,
                 print_zeros,
-                &flag_filter,
                 &mut estimators_and_taker.estimators,
+                &flag_filter,
+                single_genome,
                 threads,
             ),
-            None => unreachable!(),
-        },
+
+            false => match genomes_and_contigs_option {
+                Some(gc) => coverm::genome::mosdepth_genome_coverage_with_contig_names(
+                    bam_generators,
+                    gc,
+                    &mut estimators_and_taker.taker,
+                    print_zeros,
+                    &flag_filter,
+                    &mut estimators_and_taker.estimators,
+                    threads,
+                ),
+                None => unreachable!(),
+            },
+        }
     };
 
     debug!("Finalising printing ..");
@@ -1516,7 +1743,7 @@ fn setup_bam_cache_directory(cache_directory: &str) {
             );
             process::exit(1);
         } else {
-            info!("Writing BAM files to already existing directory {cache_directory}")
+            info!("Writing output files to already existing directory {cache_directory}")
         }
     } else {
         match path.parent() {
@@ -1736,16 +1963,29 @@ fn run_contig<
     print_zeros: bool,
     flag_filters: FlagFilter,
     threads: u16,
+    gene_definitions: &Option<coverm::genes::GeneDefinitions>,
     print_stream: &mut OutputWriter,
 ) {
-    let reads_mapped = coverm::contig::contig_coverage(
-        bam_readers,
-        &mut estimators_and_taker.taker,
-        &mut estimators_and_taker.estimators,
-        print_zeros,
-        &flag_filters,
-        threads,
-    );
+    let reads_mapped = match gene_definitions {
+        Some(gene_definitions) => coverm::genes::gene_coverage(
+            bam_readers,
+            &mut estimators_and_taker.taker,
+            &mut estimators_and_taker.estimators,
+            gene_definitions,
+            None, // contig mode: report the contig but no genome column
+            print_zeros,
+            &flag_filters,
+            threads,
+        ),
+        None => coverm::contig::contig_coverage(
+            bam_readers,
+            &mut estimators_and_taker.taker,
+            &mut estimators_and_taker.estimators,
+            print_zeros,
+            &flag_filters,
+            threads,
+        ),
+    };
 
     debug!("Finalising printing ..");
 

@@ -132,6 +132,121 @@ mod tests {
     }
 
     #[test]
+    fn test_contig_per_gene_coverage_from_gff() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--bam-files",
+                "tests/data/2seqs.reads_for_seq1.bam",
+                "--gff",
+                "tests/data/2seqs.gff",
+                "--methods",
+                "mean",
+                "--contig-end-exclusion",
+                "0",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("Sample\tGene\tContig\tMean")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\t1.2")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene3\tseq2\t0")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_contig_per_gene_count_from_gff() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--bam-files",
+                "tests/data/2seqs.reads_for_seq1.bam",
+                "--gff",
+                "tests/data/2seqs.gff",
+                "--methods",
+                "count",
+                "--output-format",
+                "sparse",
+                "--no-zeros",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\t12")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_per_gene_coverage_from_gff() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--bam-files",
+                "tests/data/2seqs.reads_for_seq1.bam",
+                "--gff",
+                "tests/data/2seqs.gff",
+                "--genome-definition",
+                "tests/data/2seqs.genome-definition",
+                "--methods",
+                "mean",
+                "--contig-end-exclusion",
+                "0",
+                "--min-covered-fraction",
+                "0",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("Sample\tGene\tContig\tGenome\tMean")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene1\tseq1\tgenomeA\t1.2")
+            .stdout()
+            .contains("2seqs.reads_for_seq1\tgene3\tseq2\tgenomeB\t0")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_per_gene_coverage_generated_reference() {
+        // When mapping to --genome-fasta-files, CoverM concatenates the
+        // references and renames contigs to genome~contig. The GFF must use the
+        // generated names, and the genome must be derived from the separator
+        // rather than the original-contig GenomesAndContigs map.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-directory",
+                "tests/data/2seqs_split_genomes",
+                "-x",
+                "fna",
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "-p",
+                "minimap2-sr",
+                "--gff",
+                "tests/data/2seqs_prefixed.gff",
+                "--methods",
+                "mean",
+                "--contig-end-exclusion",
+                "0",
+                "--min-covered-fraction",
+                "0",
+                "--output-format",
+                "sparse",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("\tgeneA\tgenomeA~seq1\tgenomeA\t1.2")
+            .stdout()
+            .contains("\tgeneB\tgenomeB~seq2\tgenomeB\t1.2")
+            .unwrap();
+    }
+
+    #[test]
     fn test_contig_tempdir_index_creation() {
         let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t_full = tf.path().to_str().unwrap();
@@ -500,6 +615,138 @@ mod tests {
             .join("unmade_directory")
             .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
             .is_file());
+    }
+
+    #[test]
+    fn test_makedb_minimap2() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "minimap2-sr",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td.path().join("7seqs.fna.minimap2-sr.mmi").is_file());
+    }
+
+    #[test]
+    fn test_makedb_multiple_mappers() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "minimap2-sr",
+                "minimap2-ont",
+                "--output-directory",
+                format!("{}/db_dir", td.path().to_str().unwrap()).as_str(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("db_dir")
+            .join("7seqs.fna.minimap2-sr.mmi")
+            .is_file());
+        assert!(td
+            .path()
+            .join("db_dir")
+            .join("7seqs.fna.minimap2-ont.mmi")
+            .is_file());
+    }
+
+    #[test]
+    fn test_makedb_then_use_as_minimap2_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "minimap2-sr",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let db_path = td.path().join("7seqs.fna.minimap2-sr.mmi");
+        assert!(db_path.is_file());
+
+        // The generated database can be fed back into coverm contig as a
+        // minimap2 index.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                db_path.to_str().unwrap(),
+                "--minimap2-reference-is-index",
+                "-p",
+                "minimap2-sr",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_makedb_strobealign_then_use_as_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        // The test reads are ~100bp, so build the index for read length 100 to
+        // match the canonical read length strobealign estimates at mapping time.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "strobealign",
+                "--strobealign-params",
+                "-r 100",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        // The reference is copied into the output directory alongside the index.
+        let copied_reference = td.path().join("7seqs.fna");
+        assert!(copied_reference.is_file());
+        assert!(td.path().join("7seqs.fna.r100.sti").is_file());
+
+        // The generated database can be fed back into coverm contig as a
+        // pregenerated strobealign index.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                copied_reference.to_str().unwrap(),
+                "--strobealign-use-index",
+                "-p",
+                "strobealign",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
     }
 
     #[test]

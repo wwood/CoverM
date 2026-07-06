@@ -120,9 +120,93 @@ CoverM operates in several modes. Detailed usage information including examples 
 
 There are several utility modes as well:
 * [make](https://wwood.github.io/CoverM/coverm-make.html) - Generate BAM files through alignment
+* [makedb](https://wwood.github.io/CoverM/coverm-makedb.html) - Generate mapping database(s) from reference FASTA files
 * [filter](https://wwood.github.io/CoverM/coverm-filter.html) - Remove (or only keep) alignments with insufficient identity
 * [cluster](https://wwood.github.io/CoverM/coverm-cluster.html) - Dereplicate and cluster genomes
 * shell-completion - Generate shell completion scripts
+
+The `makedb` mode pre-generates mapping indexes (databases) from reference
+genome or contig FASTA files, so that they can be reused across multiple
+`coverm contig`/`coverm genome` runs without re-indexing each time. The kind of
+database is selected with `--mapper`, and multiple `--mapper` values may be
+given to generate several databases at once. minimap2 (all presets),
+`bwa-mem`/`bwa-mem2` and `strobealign` are supported:
+
+```bash
+# Generate a short-read minimap2 database
+coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir
+
+# Use the generated minimap2 database when calculating coverage
+coverm contig \
+  -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
+  --minimap2-reference-is-index \
+  -1 read1.fq -2 read2.fq
+
+# Generate several databases at once, one per mapper
+coverm makedb -r combined_genomes.fna -p minimap2-sr minimap2-ont bwa-mem -o db_dir
+```
+
+strobealign indexes are read-length specific and require the reference FASTA at
+mapping time, so for `strobealign` the reference is copied into the output
+directory alongside the index. Set the read length with `--strobealign-params
+'-r <length>'`, or estimate it from an example read dataset by passing a reads
+file:
+
+```bash
+# Generate a strobealign database for 150bp reads
+coverm makedb -r combined_genomes.fna -p strobealign --strobealign-params '-r 150' -o db_dir
+
+# Use the generated strobealign database when calculating coverage
+coverm contig \
+  -r db_dir/combined_genomes.fna \
+  --strobealign-use-index \
+  -1 read1.fq -2 read2.fq
+```
+
+### Per-gene coverage
+
+By supplying a GFF (or GTF) file via `--gff`, both `coverm contig` and `coverm
+genome` report coverage once per gene/feature, using the chosen `--methods`,
+rather than once per contig/genome. Each non-comment line in the file is treated
+as a separate feature and the reported identifier is taken from the `ID`,
+`locus_tag`, `gene_id` or `Name` attribute. For read-count based methods (e.g.
+`count`, `rpkm`, `tpm`) a read is assigned to a feature when its leftmost mapped
+position falls within the feature's coordinates.
+
+In `coverm contig`, the output gains a leading `Contig` column reporting the
+contig each feature lies on:
+
+```bash
+coverm contig \
+  -r assembly.fna \
+  -1 read1.fq -2 read2.fq \
+  --gff genes.gff \
+  --methods mean count \
+  --contig-end-exclusion 0
+```
+
+In `coverm genome`, the output additionally reports the `Genome` each feature
+belongs to. A genome definition (e.g. `--genome-fasta-files`,
+`--genome-definition` or `--separator`) is still required, and features on
+contigs not assigned to any genome are omitted:
+
+```bash
+coverm genome \
+  --bam-files sample.bam \
+  --genome-definition genome-definition.tsv \
+  --gff genes.gff \
+  --methods mean
+```
+
+The contig names in the GFF must match the reference/BAM sequence names. Note
+that `coverm genome` renames contigs to `genome~contig` when mapping to multiple
+`--genome-fasta-files`, so when using `coverm genome --gff` the GFF should use
+matching names (or supply pre-made BAMs via `--bam-files`).
+
+Note that `--contig-end-exclusion` is applied to the ends of each feature, so
+`--contig-end-exclusion 0` is often appropriate for short genes. Use
+`--gff-feature-type` to restrict reporting to features of a particular type
+(i.e. the third column of the GFF, such as `CDS`).
 
 ## Demo
 
