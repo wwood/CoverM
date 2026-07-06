@@ -1002,6 +1002,106 @@ genome6	0",
     }
 
     #[test]
+    fn test_minibwa_coupled_reads_input() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--output-format",
+                "sparse",
+                "-p",
+                "minibwa",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/7seqs.fna",
+                "-1",
+                "tests/data/7seqs.reads_for_7.1.fq",
+                "-2",
+                "tests/data/7seqs.reads_for_7.2.fq",
+                "-m",
+                "count",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Sample	Contig	Read Count
+7seqs.fna/7seqs.reads_for_7.1.fq	genome1~random_sequence_length_11000	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome1~random_sequence_length_11010	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome2~seq1	0
+7seqs.fna/7seqs.reads_for_7.1.fq	genome3~random_sequence_length_11001	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome4~random_sequence_length_11002	8
+7seqs.fna/7seqs.reads_for_7.1.fq	genome5~seq2	0
+7seqs.fna/7seqs.reads_for_7.1.fq	genome6~random_sequence_length_11003	8",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_minibwa_interleaved_input_rejected() {
+        // minibwa has no interleaved-pairing option, so interleaved input
+        // should be rejected rather than silently mapped as single-end.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-p",
+                "minibwa",
+                "-r",
+                "tests/data/7seqs.fna",
+                "--interleaved",
+                "tests/data/bad_reads.interleaved.fq",
+            ])
+            .fails()
+            .stderr()
+            .contains("minibwa has no interleaved-pairing option")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_minibwa_pregenerated_index() {
+        // Copy the reference to a temp dir so the generated index files (.l2b,
+        // .mbw) don't race with other tests that also use tests/data/7seqs.fna.
+        let td = tempfile::TempDir::new().unwrap();
+        let ref_path = td.path().join("7seqs.fna");
+        std::fs::copy("tests/data/7seqs.fna", &ref_path).unwrap();
+        let ref_str = ref_path.to_str().unwrap();
+
+        // Generate the index at runtime so the format always matches the installed minibwa version
+        std::process::Command::new("minibwa")
+            .args(["index", ref_str, ref_str])
+            .status()
+            .expect("Failed to generate minibwa index");
+
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--mapper",
+                "minibwa",
+                "-r",
+                ref_str,
+                "-1",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "-2",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--single-genome",
+                "--min-covered-fraction",
+                "0",
+                "-m",
+                "mean",
+                "covered_fraction",
+            ])
+            .succeeds()
+            .stderr()
+            .contains("minibwa index appears to be complete, so going ahead and using it.")
+            .stdout()
+            .is(
+                "Genome\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Mean\t7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz Covered Fraction\n\
+                    genome1\t0.040328056\t0.026624106\n".to_string()
+                .as_str(),
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_bwa_mem2_parameters() {
         Assert::main_binary()
             .with_args(&[
@@ -3487,12 +3587,68 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_make_rammap() {
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "rammap",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
+    #[test]
+    fn test_make_rammap_single() {
+        // Single-end reads must not be consumed as interleaved pairs by
+        // rammap's fragment mode, or adjacent reads would be incorrectly
+        // paired and mapped as pseudo-fragments. Exercise the single-end path
+        // end to end.
+        let td = tempfile::TempDir::new().unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--single",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "rammap",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
+    #[test]
     fn test_strobealign_pregenerated_index() {
-        // let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
-        // let t_full = tf.path().to_str().unwrap();
-        // std::fs::copy("tests/data/7seqs.fna", t_full).unwrap();
-        // bird_tool_utils::command::
-        // let t = ""; //tf.path().file_name().unwrap().to_str().unwrap();
+        // Generate the index at runtime so the format always matches the installed strobealign version
+        std::process::Command::new("strobealign")
+            .args([
+                "-i",
+                "tests/data/7seqs.fna",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+            ])
+            .status()
+            .expect("Failed to generate strobealign index");
+
         Assert::main_binary()
             .with_args(&[
                 "genome",

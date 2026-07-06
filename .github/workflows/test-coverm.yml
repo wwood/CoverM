@@ -84,7 +84,7 @@ jobs:
 
       - name: Run tests with Pixi
         run: |
-          pixi run --frozen cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run --frozen cargo test -- --skip bwa_mem2 --skip strobealign --skip minibwa --skip rammap
 
   # Run after removing lock file so dependences are unlocked
   pixi_test_dependencies_optimistic_osx:
@@ -117,4 +117,4 @@ jobs:
 
       - name: Run tests with Pixi
         run: |
-          pixi run cargo test -- --skip bwa_mem2 --skip strobealign
+          pixi run cargo test -- --skip bwa_mem2 --skip strobealign --skip minibwa --skip rammap

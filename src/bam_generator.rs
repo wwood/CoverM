@@ -54,6 +54,8 @@ pub enum MappingProgram {
     MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    MINIBWA,
+    RAMMAP,
 }
 
 pub struct BamFileNamedReader {
@@ -215,7 +217,7 @@ pub fn complete_processes(
         }
     }
     if failed_any || log_enabled!(log::Level::Debug) {
-        for (description, tf) in log_file_descriptions.iter().zip(log_files.into_iter()) {
+        for (description, tf) in log_file_descriptions.iter().zip(log_files) {
             let mut contents = String::new();
             tf.into_file()
                 .read_to_string(&mut contents)
@@ -416,7 +418,11 @@ pub fn generate_named_bam_readers_from_reads(
 
     // Required because of https://github.com/wwood/CoverM/issues/58
     let minimap2_log_file_index = match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::STROBEALIGN => None,
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::MINIBWA => None,
+        MappingProgram::RAMMAP => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -867,13 +873,25 @@ pub fn build_mapping_command(
     mapping_options: Option<&str>,
 ) -> String {
     let read_params1 = match mapping_program {
-        // minimap2 auto-detects interleaved based on read names
+        // minimap2 auto-detects interleaved input based on read names
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET => "",
+        | MappingProgram::MINIMAP2_NO_PRESET
+        // minibwa pairs reads from two input files (coupled) or maps a single
+        // file; it has no interleaved-pairing flag, and interleaved input is
+        // rejected earlier in mapping_parameters.rs.
+        | MappingProgram::MINIBWA => "",
+        MappingProgram::RAMMAP => match read_format {
+            // rammap's `sr` preset turns on fragment mode, which pulls read
+            // pairs from a single input file (this is how it maps interleaved
+            // reads). For genuinely single-end reads that would incorrectly
+            // consume the file as interleaved pairs, so disable fragment mode.
+            ReadFormat::Single => "--frag no",
+            ReadFormat::Coupled | ReadFormat::Interleaved => "",
+        },
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => "",
@@ -896,6 +914,10 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             MappingProgram::STROBEALIGN => "strobealign".to_string(),
+            MappingProgram::MINIBWA => "minibwa map".to_string(),
+            // rammap is a minimap2-compatible aligner; map short reads with
+            // the 'sr' preset and emit SAM with -a.
+            MappingProgram::RAMMAP => "rammap -x sr -a".to_string(),
             _ => {
                 let split_prefix = tempfile::Builder::new()
                     .prefix("coverm-minimap2-split-index")
@@ -915,7 +937,9 @@ pub fn build_mapping_command(
                     match mapping_program {
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
-                        | MappingProgram::STROBEALIGN => unreachable!(),
+                        | MappingProgram::STROBEALIGN
+                        | MappingProgram::MINIBWA => unreachable!(),
+                        MappingProgram::RAMMAP => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

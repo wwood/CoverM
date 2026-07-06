@@ -24,19 +24,16 @@ impl<'a> GenomeExclusion for GenomesAndContigsExclusionFilter<'a> {
     fn is_excluded(&self, contig_name: &[u8]) -> bool {
         let contig_str = str::from_utf8(contig_name).unwrap().to_string();
         match self.genomes_and_contigs.genome_of_contig(&contig_str) {
-            Some(g) => {
-                if self.excluded_genomes.contains(&g.as_bytes()) {
-                    debug!(
-                        "Excluding contig '{}' as it is part of excluded genome '{}'",
-                        str::from_utf8(contig_name).unwrap(),
-                        g
-                    );
-                    true
-                } else {
-                    false
-                }
+            Some(g) if self.excluded_genomes.contains(&g.as_bytes()) => {
+                debug!(
+                    "Excluding contig '{}' as it is part of excluded genome '{}'",
+                    str::from_utf8(contig_name).unwrap(),
+                    g
+                );
+                true
             }
             None => false,
+            _ => false,
         }
     }
 }

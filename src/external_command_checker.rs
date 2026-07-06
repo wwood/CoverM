@@ -10,6 +10,15 @@ pub fn check_for_bwa_mem2() {
         .expect("Failed to find sufficient version of bwa-mem2");
 }
 
+pub fn check_for_minibwa() {
+    check_for_external_command_presence_with_which("minibwa")
+        .expect("Failed to find installed minibwa");
+    // minibwa prints its version (e.g. "0.2-r370") via the 'version'
+    // subcommand; 'minibwa --version' is not recognised.
+    default_version_check("minibwa", "0.2-r370", false, Some("minibwa version"))
+        .expect("Failed to find sufficient version of minibwa");
+}
+
 pub fn check_for_minimap2() {
     check_for_external_command_presence_with_which("minimap2")
         .expect("Failed to find installed minimap2");
@@ -29,4 +38,11 @@ pub fn check_for_strobealign() {
         .expect("Failed to find installed strobealign");
     default_version_check("strobealign", "0.11.0", false, None)
         .expect("Failed to find sufficient version of strobealign");
+}
+
+pub fn check_for_rammap() {
+    check_for_external_command_presence_with_which("rammap")
+        .expect("Failed to find installed rammap");
+    default_version_check("rammap", "1.1.1", false, None)
+        .expect("Failed to find sufficient version of rammap");
 }

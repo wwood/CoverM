@@ -73,8 +73,8 @@ impl TemporaryIndexStruct {
 }
 
 /// Build the index-generation command for the given mapping program, writing
-/// the resulting index to `index_path`. Returns None for STROBEALIGN, which
-/// does not support standalone pre-indexing in this manner.
+/// the resulting index to `index_path`. Returns None for STROBEALIGN and
+/// RAMMAP, which do not support standalone pre-indexing in this manner.
 fn build_index_command(
     mapping_program: MappingProgram,
     reference_path: &str,
@@ -91,8 +91,13 @@ fn build_index_command(
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
+        MappingProgram::MINIBWA => std::process::Command::new("minibwa"),
         MappingProgram::STROBEALIGN => {
             warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
+            return None;
+        }
+        MappingProgram::RAMMAP => {
+            warn!("RAMMAP pre-indexing is not supported currently, so skipping index generation.");
             return None;
         }
     };
@@ -102,6 +107,15 @@ fn build_index_command(
                 .arg("-p")
                 .arg(index_path)
                 .arg(reference_path);
+        }
+        MappingProgram::MINIBWA => {
+            // minibwa index takes the output prefix as a positional
+            // argument: `minibwa index [-t N] <in.fasta> [out.prefix]`
+            cmd.arg("index");
+            if let Some(t) = num_threads {
+                cmd.arg("-t").arg(format!("{t}"));
+            }
+            cmd.arg(reference_path).arg(index_path);
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -128,14 +142,16 @@ fn build_index_command(
                 MappingProgram::MINIMAP2_NO_PRESET
                 | MappingProgram::BWA_MEM
                 | MappingProgram::BWA_MEM2
-                | MappingProgram::STROBEALIGN => {}
+                | MappingProgram::STROBEALIGN
+                | MappingProgram::MINIBWA
+                | MappingProgram::RAMMAP => {}
             };
             if let Some(t) = num_threads {
                 cmd.arg("-t").arg(format!("{t}"));
             }
             cmd.arg("-d").arg(index_path).arg(reference_path);
         }
-        MappingProgram::STROBEALIGN => unreachable!(),
+        MappingProgram::STROBEALIGN | MappingProgram::RAMMAP => unreachable!(),
     };
     if let Some(params) = index_creation_options {
         for s in params.split_whitespace() {
@@ -283,6 +299,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
     let bwa_extensions = match mapping_program {
         MappingProgram::BWA_MEM => vec!["amb", "ann", "bwt", "pac", "sa"],
         MappingProgram::BWA_MEM2 => vec!["0123", "amb", "ann", "bwt.2bit.64", "pac"],
+        MappingProgram::MINIBWA => vec!["l2b", "mbw"],
         _ => unreachable!(),
     };
     let num_extensions = bwa_extensions.len();
@@ -306,7 +323,7 @@ fn check_for_bwa_index_existence(reference_path: &str, mapping_program: &Mapping
 pub fn check_reference_existence(reference_path: &str, mapping_program: &MappingProgram) {
     let ref_path = std::path::Path::new(reference_path);
     match mapping_program {
-        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
+        MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 | MappingProgram::MINIBWA => {
             if check_for_bwa_index_existence(reference_path, mapping_program) {
                 return;
             }
@@ -317,7 +334,8 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET
-        | MappingProgram::STROBEALIGN => {}
+        | MappingProgram::STROBEALIGN
+        | MappingProgram::RAMMAP => {}
     };
 
     if !ref_path.exists() {
@@ -351,6 +369,24 @@ pub fn generate_bwa_index(
     }
 }
 
+pub fn generate_minibwa_index(
+    reference_path: &str,
+    num_threads: Option<u16>,
+    index_creation_parameters: Option<&str>,
+) -> Box<dyn MappingIndex> {
+    if check_for_bwa_index_existence(reference_path, &MappingProgram::MINIBWA) {
+        info!("minibwa index appears to be complete, so going ahead and using it.");
+        Box::new(VanillaIndexStruct::new(reference_path))
+    } else {
+        Box::new(TemporaryIndexStruct::new(
+            MappingProgram::MINIBWA,
+            reference_path,
+            num_threads,
+            index_creation_parameters,
+        ))
+    }
+}
+
 pub fn generate_minimap2_index(
     reference_path: &str,
     num_threads: Option<u16>,
@@ -378,6 +414,8 @@ pub fn mapping_program_db_name(mapping_program: MappingProgram) -> &'static str 
         MappingProgram::MINIMAP2_LR_HQ => "minimap2-lr-hq",
         MappingProgram::MINIMAP2_NO_PRESET => "minimap2-no-preset",
         MappingProgram::STROBEALIGN => "strobealign",
+        MappingProgram::MINIBWA => "minibwa",
+        MappingProgram::RAMMAP => "rammap",
     }
 }
 
@@ -402,6 +440,10 @@ pub fn generate_persistent_index(
             index_creation_options,
         );
     }
+    if let MappingProgram::RAMMAP = mapping_program {
+        error!("RAMMAP databases cannot be pre-generated with coverm makedb.");
+        process::exit(1);
+    }
 
     let reference_stem = std::path::Path::new(reference_path)
         .file_name()
@@ -423,7 +465,9 @@ pub fn generate_persistent_index(
             std::path::Path::new(output_directory)
                 .join(format!("{reference_stem}.{db_program_name}"))
         }
-        MappingProgram::STROBEALIGN => unreachable!(),
+        MappingProgram::MINIBWA => std::path::Path::new(output_directory)
+            .join(format!("{reference_stem}.{db_program_name}")),
+        MappingProgram::STROBEALIGN | MappingProgram::RAMMAP => unreachable!(),
     };
 
     run_index_command(

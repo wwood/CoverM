@@ -834,6 +834,7 @@ fn main() {
                     MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
                         m.get_one::<String>("bwa-params")
                     }
+                    MappingProgram::MINIBWA | MappingProgram::RAMMAP => None,
                     MappingProgram::MINIMAP2_SR
                     | MappingProgram::MINIMAP2_ONT
                     | MappingProgram::MINIMAP2_PB
@@ -887,6 +888,13 @@ fn main() {
                             --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
                         );
                     }
+                    MappingProgram::MINIBWA => {
+                        info!(
+                            "To use the minibwa database, run e.g.: coverm contig \
+                            --reference {db_path} -p minibwa -1 read1.fq -2 read2.fq"
+                        );
+                    }
+                    MappingProgram::RAMMAP => unreachable!(),
                 }
             }
         }
@@ -945,6 +953,13 @@ fn setup_mapping_index(
                 mapping_program,
             )
         }
+        MappingProgram::MINIBWA => coverm::mapping_index_maintenance::generate_minibwa_index(
+            reference_wise_params.reference,
+            Some(*m.get_one::<u16>("threads").unwrap()),
+            // minibwa-params are mapping options, not index options, so they
+            // are not forwarded to the indexing command.
+            None,
+        ),
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
         | MappingProgram::MINIMAP2_HIFI
@@ -974,6 +989,13 @@ fn setup_mapping_index(
                     mapping_program,
                 )
             }
+        }
+        MappingProgram::RAMMAP => {
+            // Pre-generating an index for a batch of readsets is not supported for rammap
+            info!("Not pre-generating rammap index");
+            Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                reference_wise_params.reference,
+            ))
         }
         MappingProgram::STROBEALIGN => {
             // Indexing once for a batch of readsets is not yet supported for strobealign
@@ -1062,6 +1084,8 @@ fn mapping_program_from_name(name: Option<&str>) -> MappingProgram {
         Some("minimap2-lr-hq") => MappingProgram::MINIMAP2_LR_HQ,
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
+        Some("minibwa") => MappingProgram::MINIBWA,
+        Some("rammap") => MappingProgram::RAMMAP,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!("Unexpected definition for --mapper: {:?}", name),
     }
@@ -1085,6 +1109,12 @@ fn check_mapping_program_dependencies(mapping_program: MappingProgram) {
         }
         MappingProgram::STROBEALIGN => {
             external_command_checker::check_for_strobealign();
+        }
+        MappingProgram::MINIBWA => {
+            external_command_checker::check_for_minibwa();
+        }
+        MappingProgram::RAMMAP => {
+            external_command_checker::check_for_rammap();
         }
     }
 }
