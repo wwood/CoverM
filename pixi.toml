@@ -31,6 +31,7 @@ bwa-mem2 = "*"
 # is the default), so dereplication is unaffected.
 strobealign = ">=0.14.0"  # tests generate the strobealign index at runtime
 minibwa = ">=0.2"  # not available on osx-arm64
+rammap = ">=1.1.1"
 
 [target.osx-64.dependencies]
 minibwa = ">=0.2"  # not available on osx-arm64

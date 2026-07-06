@@ -89,6 +89,7 @@ and one of these for mapping:
 * [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0
 * [minimap2](https://github.com/lh3/minimap2) v2.21
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
+* [rammap](https://github.com/jwanglab/rammap) v1.1.1
 
 and one of these for genome dereplication:
 * [skani](https://github.com/bluenote-1577/skani) v0.1.1

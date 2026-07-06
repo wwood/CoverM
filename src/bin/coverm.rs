@@ -807,6 +807,13 @@ fn setup_mapping_index(
                 )
             }
         }
+        MappingProgram::RAMMAP => {
+            // Pre-generating an index for a batch of readsets is not supported for rammap
+            info!("Not pre-generating rammap index");
+            Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
+                reference_wise_params.reference,
+            ))
+        }
         MappingProgram::STROBEALIGN => {
             // Indexing once for a batch of readsets is not yet supported for strobealign
             info!("Not pre-generating strobealign index");
@@ -889,6 +896,7 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
         Some("minibwa") => MappingProgram::MINIBWA,
+        Some("rammap") => MappingProgram::RAMMAP,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!(
             "Unexpected definition for --mapper: {:?}",
@@ -915,6 +923,9 @@ fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
         }
         MappingProgram::MINIBWA => {
             external_command_checker::check_for_minibwa();
+        }
+        MappingProgram::RAMMAP => {
+            external_command_checker::check_for_rammap();
         }
     }
     mapping_program

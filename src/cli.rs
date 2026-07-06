@@ -22,6 +22,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-no-preset",
     "strobealign",
     "minibwa",
+    "rammap",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 
@@ -99,6 +100,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("minibwa"),
                         "minibwa map using default parameters"
                     ],
+                    &[
+                        &monospace_roff("rammap"),
+                        &format!("rammap (a minimap2-compatible aligner) with '{}' option", &monospace_roff("-x sr"))
+                    ],
                 ])
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
@@ -131,6 +136,13 @@ fn add_mapping_options(manual: Manual) -> Manual {
         implications if untrusted input is specified. \
         [default: none]",
             ))
+            .option(Opt::new("PARAMS").long("--rammap-params").help(&format!(
+                "Extra parameters to provide to rammap. Note \
+        that usage of this parameter has security \
+        implications if untrusted input is specified. '{}' \
+        is always specified to rammap. [default: none]",
+                &monospace_roff("-x sr -a")
+            )))
             .flag(Flag::new().long("--strobealign-use-index").help(
                 "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
             )),
@@ -1262,6 +1274,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
                 )
+                .arg(
+                    Arg::new("rammap-params")
+                        .long("rammap-params")
+                        .long("rammap-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
                 // TODO: Relax this for autoconcatenation
                 .arg(
                     Arg::new("discard-unmapped")
@@ -1805,6 +1824,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
+                    Arg::new("rammap-params")
+                        .long("rammap-params")
+                        .long("rammap-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("discard-unmapped")
                         .long("discard-unmapped")
                         .requires("cache-unfiltered-bam")
@@ -2181,6 +2207,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("strobealign-use-index")
                         .requires("reference")
                         .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("rammap-params")
+                        .long("rammap-params")
+                        .long("rammap-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
                 ),
         )
         .subcommand(
