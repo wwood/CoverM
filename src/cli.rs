@@ -21,6 +21,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-lr-hq",
     "minimap2-no-preset",
     "strobealign",
+    "minibwa",
     "rammap",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
@@ -96,6 +97,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
                     ],
                     &[
+                        &monospace_roff("minibwa"),
+                        "minibwa map using default parameters"
+                    ],
+                    &[
                         &monospace_roff("rammap"),
                         &format!("rammap (a minimap2-compatible aligner) with '{}' option", &monospace_roff("-x sr"))
                     ],
@@ -122,6 +127,12 @@ fn add_mapping_options(manual: Manual) -> Manual {
             .option(Opt::new("PARAMS").long("--strobealign-params").help(
                 "Extra parameters to provide to strobealign. Note \
         that usage of this parameter has security \
+        implications if untrusted input is specified. \
+        [default: none]",
+            ))
+            .option(Opt::new("PARAMS").long("--minibwa-params").help(
+                "Extra parameters to provide to the 'minibwa map' \
+        command. Note that usage of this parameter has security \
         implications if untrusted input is specified. \
         [default: none]",
             ))
@@ -1244,6 +1255,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("minibwa-params")
+                        .long("minibwa-params")
+                        .long("minibwa-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
                         .long("strobealign-parameters")
@@ -1259,7 +1277,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -1786,6 +1804,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 )
                 .arg(
+                    Arg::new("minibwa-params")
+                        .long("minibwa-params")
+                        .long("minibwa-parameters")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
                         .long("strobealign-parameters")
@@ -1801,7 +1826,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -2186,7 +2211,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("rammap-params")
                         .long("rammap-params")
-                        .long("rammap-parameters")
+                        .visible_alias("rammap-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 ),

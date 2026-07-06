@@ -54,6 +54,7 @@ pub enum MappingProgram {
     MINIMAP2_LR_HQ,
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
+    MINIBWA,
     RAMMAP,
 }
 
@@ -216,7 +217,7 @@ pub fn complete_processes(
         }
     }
     if failed_any || log_enabled!(log::Level::Debug) {
-        for (description, tf) in log_file_descriptions.iter().zip(log_files.into_iter()) {
+        for (description, tf) in log_file_descriptions.iter().zip(log_files) {
             let mut contents = String::new();
             tf.into_file()
                 .read_to_string(&mut contents)
@@ -420,7 +421,8 @@ pub fn generate_named_bam_readers_from_reads(
         MappingProgram::BWA_MEM
         | MappingProgram::BWA_MEM2
         | MappingProgram::STROBEALIGN
-        | MappingProgram::RAMMAP => None,
+        | MappingProgram::MINIBWA => None,
+        MappingProgram::RAMMAP => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -877,7 +879,11 @@ pub fn build_mapping_command(
         | MappingProgram::MINIMAP2_HIFI
         | MappingProgram::MINIMAP2_PB
         | MappingProgram::MINIMAP2_LR_HQ
-        | MappingProgram::MINIMAP2_NO_PRESET => "",
+        | MappingProgram::MINIMAP2_NO_PRESET
+        // minibwa pairs reads from two input files (coupled) or maps a single
+        // file; it has no interleaved-pairing flag, and interleaved input is
+        // rejected earlier in mapping_parameters.rs.
+        | MappingProgram::MINIBWA => "",
         MappingProgram::RAMMAP => match read_format {
             // rammap's `sr` preset turns on fragment mode, which pulls read
             // pairs from a single input file (this is how it maps interleaved
@@ -908,6 +914,7 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM => "bwa mem".to_string(),
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             MappingProgram::STROBEALIGN => "strobealign".to_string(),
+            MappingProgram::MINIBWA => "minibwa map".to_string(),
             // rammap is a minimap2-compatible aligner; map short reads with
             // the 'sr' preset and emit SAM with -a.
             MappingProgram::RAMMAP => "rammap -x sr -a".to_string(),
@@ -931,7 +938,8 @@ pub fn build_mapping_command(
                         MappingProgram::BWA_MEM
                         | MappingProgram::BWA_MEM2
                         | MappingProgram::STROBEALIGN
-                        | MappingProgram::RAMMAP => unreachable!(),
+                        | MappingProgram::MINIBWA => unreachable!(),
+                        MappingProgram::RAMMAP => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

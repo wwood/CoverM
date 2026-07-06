@@ -26,9 +26,15 @@ extern = "*"
 # x86_64-specific dependencies
 [target.linux-64.dependencies]
 bwa-mem2 = "*"
-dashing = ">=0.4.0,<1.0"  # dashing 1.0 build gives illegal instruction errors
+# dashing removed: it hard-pins zlib<1.3 which conflicts with minibwa's
+# libzlib>=1.3.2. dashing was only an optional galah precluster method (skani
+# is the default), so dereplication is unaffected.
 strobealign = ">=0.14.0"  # tests generate the strobealign index at runtime
+minibwa = ">=0.2"  # not available on osx-arm64
 rammap = ">=1.1.1"
+
+[target.osx-64.dependencies]
+minibwa = ">=0.2"  # not available on osx-arm64
 
 [package]
 name = "coverm"

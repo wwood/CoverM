@@ -10,6 +10,15 @@ pub fn check_for_bwa_mem2() {
         .expect("Failed to find sufficient version of bwa-mem2");
 }
 
+pub fn check_for_minibwa() {
+    check_for_external_command_presence_with_which("minibwa")
+        .expect("Failed to find installed minibwa");
+    // minibwa prints its version (e.g. "0.2-r370") via the 'version'
+    // subcommand; 'minibwa --version' is not recognised.
+    default_version_check("minibwa", "0.2-r370", false, Some("minibwa version"))
+        .expect("Failed to find sufficient version of minibwa");
+}
+
 pub fn check_for_minimap2() {
     check_for_external_command_presence_with_which("minimap2")
         .expect("Failed to find installed minimap2");
