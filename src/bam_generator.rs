@@ -422,7 +422,7 @@ pub fn generate_named_bam_readers_from_reads(
         | MappingProgram::BWA_MEM2
         | MappingProgram::STROBEALIGN
         | MappingProgram::MINIBWA => None,
-        | MappingProgram::RAMMAP => None,
+        MappingProgram::RAMMAP => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -939,7 +939,7 @@ pub fn build_mapping_command(
                         | MappingProgram::BWA_MEM2
                         | MappingProgram::STROBEALIGN
                         | MappingProgram::MINIBWA => unreachable!(),
-                        | MappingProgram::RAMMAP => unreachable!(),
+                        MappingProgram::RAMMAP => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

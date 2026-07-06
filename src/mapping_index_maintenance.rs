@@ -114,7 +114,7 @@ impl TemporaryIndexStruct {
                     | MappingProgram::BWA_MEM2
                     | MappingProgram::STROBEALIGN
                     | MappingProgram::MINIBWA => {}
-                    | MappingProgram::RAMMAP => {}
+                    MappingProgram::RAMMAP => {}
                 };
                 if let Some(t) = num_threads {
                     cmd.arg("-t").arg(format!("{t}"));
@@ -125,7 +125,9 @@ impl TemporaryIndexStruct {
                 warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
             }
             MappingProgram::RAMMAP => {
-                warn!("RAMMAP pre-indexing is not supported currently, so skipping index generation.");
+                warn!(
+                    "RAMMAP pre-indexing is not supported currently, so skipping index generation."
+                );
             }
         };
         if let Some(params) = index_creation_options {
