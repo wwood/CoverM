@@ -951,15 +951,24 @@ fn main() {
 
 // Run by all subcommands, even if some checks aren't appropriate.
 fn manually_check_args_at_runtime(m: &clap::ArgMatches) {
-    // Check if the arguments are defined in this command before using contains_id
+    // Check if the arguments are defined in this command before using contains_id.
+    // Use try_get_one for bool flags so that subcommands that don't define the arg
+    // are handled gracefully (returns Err → unwrap_or(false)).
+    let run_checkm2 = m
+        .try_get_one::<bool>("run-checkm2")
+        .ok()
+        .flatten()
+        .copied()
+        .unwrap_or(false);
     if ((m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
         || (m.try_get_one::<f32>("max-contamination").is_ok()
             && m.contains_id("max-contamination")))
         && !m.contains_id("checkm-tab-table")
         && !m.contains_id("checkm2-quality-report")
         && !m.contains_id("genome-info")
+        && !run_checkm2
     {
-        error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
+        error!("You must provide a CheckM tab table, CheckM2 quality report, genome info file, or use --run-checkm2 to use --min-completeness or --max-contamination");
     }
 }
 
@@ -1044,18 +1053,63 @@ fn setup_mapping_index(
     }
 }
 
-fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<String> {
+fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &[String]) -> Vec<String> {
     info!(
         "Found {} genomes specified before dereplication",
         genome_fasta_files.len()
     );
+
+    // Reference genomes are genomes that are already pre-clustered representatives;
+    // galah clusters the input genomes against them without picking new representatives
+    // from within the reference set itself.
+    let reference_genomes_owned: Option<Vec<String>> = if let Some(refs) = m.get_many::<String>(
+        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION.dereplication_reference_genomes_argument,
+    ) {
+        Some(refs.cloned().collect())
+    } else if let Some(ref_file) = m.get_one::<String>(
+        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION
+            .dereplication_reference_genomes_list_argument,
+    ) {
+        let content = std::fs::read_to_string(ref_file)
+            .unwrap_or_else(|_| panic!("Failed to read reference genomes list file: {}", ref_file));
+        Some(
+            content
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .map(|s| s.split('\t').next().unwrap_or("").to_string())
+                .collect(),
+        )
+    } else {
+        None
+    };
+    let reference_genomes: Option<Vec<&str>> = reference_genomes_owned
+        .as_ref()
+        .map(|refs| refs.iter().map(String::as_str).collect());
+
+    // Reference genomes must be included in the set passed to galah for quality
+    // filtering/clustering, but kept identifiable so galah doesn't pick new
+    // representatives from within them.
+    let (combined_genomes, ref_genomes_for_clusterer): (Vec<String>, Option<Vec<&str>>) =
+        if let Some(ref_genomes) = &reference_genomes {
+            let mut combined = ref_genomes
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+            combined.extend(genome_fasta_files.iter().cloned());
+            (combined, Some(ref_genomes.clone()))
+        } else {
+            (genome_fasta_files.to_vec(), None)
+        };
+
     // Generate clusterer and check for dependencies
     let clusterer = galah::cluster_argument_parsing::generate_galah_clusterer(
-        genome_fasta_files,
+        &combined_genomes,
         &None, // No additional genome files
         false, // Not using a different mode
         m,
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+        ref_genomes_for_clusterer.as_deref(),
+        None, // No injected quality report
     )
     .expect("Failed to parse galah clustering arguments correctly");
 
@@ -1076,7 +1130,7 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     debug!("Found cluster indices: {cluster_indices:?}");
     let reps = cluster_indices
         .iter()
-        .map(|cluster| genome_fasta_files[cluster[0]].clone())
+        .map(|cluster| combined_genomes[cluster[0]].clone())
         .collect::<Vec<_>>();
     debug!("Found cluster representatives: {reps:?}");
 
@@ -1111,12 +1165,17 @@ fn resolve_and_checkm_filter_genomes(
             if m.contains_id("checkm-tab-table")
                 || m.contains_id("checkm2-quality-report")
                 || m.contains_id("genome-info")
+                || m.get_flag(
+                    &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION
+                        .dereplication_run_checkm2_argument,
+                )
             {
                 let genomes_after_filtering =
                     galah::cluster_argument_parsing::filter_genomes_through_checkm(
                         &paths,
                         m,
                         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+                        None, // No injected quality report
                     )
                     .expect("Error parsing CheckM-related options");
                 info!(
