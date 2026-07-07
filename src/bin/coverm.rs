@@ -771,6 +771,11 @@ fn main() {
                 None => None,
             };
 
+            // Whether the database was built from genome FASTA inputs (which are
+            // concatenated with the '~' separator), so we can additionally show a
+            // `coverm genome` usage example recovering per-genome coverage.
+            let built_from_genomes = concatenated_reference.is_some();
+
             let references: Vec<String> = match concatenated_reference {
                 Some(path) => vec![path],
                 None => {
@@ -849,7 +854,13 @@ fn main() {
                     MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => {
                         m.get_one::<String>("bwa-params")
                     }
-                    MappingProgram::MINIBWA | MappingProgram::RAMMAP => None,
+                    MappingProgram::MINIBWA
+                    | MappingProgram::RAMMAP_SR
+                    | MappingProgram::RAMMAP_ONT
+                    | MappingProgram::RAMMAP_PB
+                    | MappingProgram::RAMMAP_HIFI
+                    | MappingProgram::RAMMAP_LR_HQ
+                    | MappingProgram::RAMMAP_NO_PRESET => None,
                     MappingProgram::MINIMAP2_SR
                     | MappingProgram::MINIMAP2_ONT
                     | MappingProgram::MINIMAP2_PB
@@ -873,51 +884,23 @@ fn main() {
 
             info!("Finished generating {} database(s).", generated_dbs.len());
             for (mapping_program, db_path) in &generated_dbs {
-                match mapping_program {
-                    MappingProgram::MINIMAP2_SR
-                    | MappingProgram::MINIMAP2_ONT
-                    | MappingProgram::MINIMAP2_PB
-                    | MappingProgram::MINIMAP2_HIFI
-                    | MappingProgram::MINIMAP2_LR_HQ
-                    | MappingProgram::MINIMAP2_NO_PRESET => {
-                        info!(
-                            "To use the minimap2 database, run e.g.: coverm contig \
-                            --reference {db_path} --minimap2-reference-is-index -1 read1.fq -2 read2.fq"
-                        );
-                    }
-                    MappingProgram::BWA_MEM => {
-                        info!(
-                            "To use the BWA database, run e.g.: coverm contig \
-                            --reference {db_path} -p bwa-mem -1 read1.fq -2 read2.fq"
-                        );
-                    }
-                    MappingProgram::BWA_MEM2 => {
-                        info!(
-                            "To use the BWA-MEM2 database, run e.g.: coverm contig \
-                            --reference {db_path} -p bwa-mem2 -1 read1.fq -2 read2.fq"
-                        );
-                    }
-                    MappingProgram::STROBEALIGN => {
-                        info!(
-                            "To use the strobealign database, run e.g.: coverm contig \
-                            --reference {db_path} --strobealign-use-index -1 read1.fq -2 read2.fq"
-                        );
-                    }
-                    MappingProgram::MINIBWA => {
-                        info!(
-                            "To use the minibwa database, run e.g.: coverm contig \
-                            --reference {db_path} -p minibwa -1 read1.fq -2 read2.fq"
-                        );
-                    }
-                    MappingProgram::RAMMAP => {
-                        // rammap auto-detects the .idx index passed as the
-                        // mapping target, so no special "reference-is-index"
-                        // flag is required.
-                        info!(
-                            "To use the rammap database, run e.g.: coverm contig \
-                            --reference {db_path} -p rammap -1 read1.fq -2 read2.fq"
-                        );
-                    }
+                use coverm::mapping_index_maintenance::{makedb_usage_command, MakedbUsageMode};
+                let db_name =
+                    coverm::mapping_index_maintenance::mapping_program_db_name(*mapping_program);
+                // Always show a `coverm contig` example. Note the example passes
+                // the generated database *file* (db_path), not the -o output
+                // directory, and always includes -p so the right mapper is used.
+                info!(
+                    "To use the {db_name} database, run e.g.:\n    {}",
+                    makedb_usage_command(*mapping_program, db_path, MakedbUsageMode::Contig)
+                );
+                // When the database was built from genomes, also show how to
+                // recover per-genome coverage with `coverm genome`.
+                if built_from_genomes {
+                    info!(
+                        "To recover per-genome coverage from the {db_name} database, run e.g.:\n    {}",
+                        makedb_usage_command(*mapping_program, db_path, MakedbUsageMode::Genome)
+                    );
                 }
             }
         }
@@ -1022,7 +1005,12 @@ fn setup_mapping_index(
                 )
             }
         }
-        MappingProgram::RAMMAP => {
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => {
             // Pre-generating an index for a batch of readsets is not supported for rammap
             info!("Not pre-generating rammap index");
             Box::new(coverm::mapping_index_maintenance::VanillaIndexStruct::new(
@@ -1218,7 +1206,12 @@ fn mapping_program_from_name(name: Option<&str>) -> MappingProgram {
         Some("minimap2-no-preset") => MappingProgram::MINIMAP2_NO_PRESET,
         Some("strobealign") => MappingProgram::STROBEALIGN,
         Some("minibwa") => MappingProgram::MINIBWA,
-        Some("rammap") => MappingProgram::RAMMAP,
+        Some("rammap-sr") => MappingProgram::RAMMAP_SR,
+        Some("rammap-ont") => MappingProgram::RAMMAP_ONT,
+        Some("rammap-pb") => MappingProgram::RAMMAP_PB,
+        Some("rammap-hifi") => MappingProgram::RAMMAP_HIFI,
+        Some("rammap-lr-hq") => MappingProgram::RAMMAP_LR_HQ,
+        Some("rammap-no-preset") => MappingProgram::RAMMAP_NO_PRESET,
         None => DEFAULT_MAPPING_SOFTWARE_ENUM,
         _ => panic!("Unexpected definition for --mapper: {:?}", name),
     }
@@ -1246,7 +1239,12 @@ fn check_mapping_program_dependencies(mapping_program: MappingProgram) {
         MappingProgram::MINIBWA => {
             external_command_checker::check_for_minibwa();
         }
-        MappingProgram::RAMMAP => {
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => {
             external_command_checker::check_for_rammap();
         }
     }

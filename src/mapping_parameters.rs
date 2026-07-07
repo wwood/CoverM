@@ -2,6 +2,7 @@ use std::process;
 
 use tempfile::NamedTempFile;
 
+use bam_generator::is_long_read_only_preset;
 use bam_generator::MappingProgram;
 use mapping_index_maintenance::check_reference_existence;
 
@@ -96,32 +97,25 @@ impl<'a> MappingParameters<'a> {
                 .collect();
         }
 
-        match mapping_program {
-            MappingProgram::MINIMAP2_ONT
-            | MappingProgram::MINIMAP2_PB
-            | MappingProgram::MINIMAP2_HIFI
-            | MappingProgram::MINIMAP2_LR_HQ => {
-                if !read1.is_empty() || !interleaved.is_empty() {
-                    error!(
-                        "Paired-end read input specified to be mapped \
-                        with minimap2-ont, minimap2-pb, minimap2-hifi, or minimap2-lr-hq \
-                        which is presumably \
-                        incorrect. Mapping paired reads can be run via \
-                        minimap2-no-params if -ont or -pb mapping \
-                        is desired."
-                    );
-                    process::exit(1);
-                }
-            }
-            MappingProgram::MINIBWA if !interleaved.is_empty() => {
+        if is_long_read_only_preset(mapping_program) {
+            if !read1.is_empty() || !interleaved.is_empty() {
                 error!(
-                    "Interleaved read input was specified to be mapped with minibwa, \
-                    but minibwa has no interleaved-pairing option. Supply the reads as \
-                    coupled pairs (with -1/-2 or --coupled) instead."
+                    "Paired-end read input specified to be mapped \
+                    with a long-read preset (e.g. minimap2-ont, minimap2-lr-hq, \
+                    rammap-ont, rammap-lr-hq) which is presumably \
+                    incorrect. Mapping paired reads can be run via \
+                    minimap2-no-preset if -ont or -pb mapping \
+                    is desired."
                 );
                 process::exit(1);
             }
-            _ => {}
+        } else if matches!(mapping_program, MappingProgram::MINIBWA) && !interleaved.is_empty() {
+            error!(
+                "Interleaved read input was specified to be mapped with minibwa, \
+                but minibwa has no interleaved-pairing option. Supply the reads as \
+                coupled pairs (with -1/-2 or --coupled) instead."
+            );
+            process::exit(1);
         }
 
         let mapping_parameters_arg = match mapping_program {
@@ -134,7 +128,12 @@ impl<'a> MappingParameters<'a> {
             | MappingProgram::MINIMAP2_NO_PRESET => "minimap2-params",
             MappingProgram::STROBEALIGN => "strobealign-params",
             MappingProgram::MINIBWA => "minibwa-params",
-            MappingProgram::RAMMAP => "rammap-params",
+            MappingProgram::RAMMAP_SR
+            | MappingProgram::RAMMAP_ONT
+            | MappingProgram::RAMMAP_PB
+            | MappingProgram::RAMMAP_HIFI
+            | MappingProgram::RAMMAP_LR_HQ
+            | MappingProgram::RAMMAP_NO_PRESET => "rammap-params",
         };
         let mapping_options = match m.contains_id(mapping_parameters_arg) {
             true => {

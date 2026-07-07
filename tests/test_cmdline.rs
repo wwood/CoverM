@@ -814,13 +814,13 @@ mod tests {
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--mapper",
-                "rammap",
+                "rammap-sr",
                 "--output-directory",
                 td.path().to_str().unwrap(),
             ])
             .succeeds()
             .unwrap();
-        let db_path = td.path().join("7seqs.fna.rammap.idx");
+        let db_path = td.path().join("7seqs.fna.rammap-sr.idx");
         assert!(db_path.is_file());
 
         // The generated .idx can be fed straight back into coverm contig as the
@@ -834,13 +834,240 @@ mod tests {
                 "--reference",
                 db_path.to_str().unwrap(),
                 "-p",
-                "rammap",
+                "rammap-sr",
                 "-m",
                 "mean",
             ])
             .succeeds()
             .stdout()
             .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    // Run the built coverm binary directly (rather than via assert_cli) so the
+    // printed stderr can be inspected. Returns (success, stdout, stderr).
+    fn run_coverm(args: &[&str]) -> (bool, String, String) {
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args(args)
+            .output()
+            .expect("Failed to run coverm binary");
+        (
+            output.status.success(),
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        )
+    }
+
+    // Extract the example command that `coverm makedb` prints for the given
+    // subcommand ("contig" or "genome"), returning its arguments with the leading
+    // "coverm" removed, read-input placeholders substituted for real test files,
+    // and surrounding single quotes stripped (e.g. '~' -> ~). This lets a test
+    // run the *exact* command the tool advises the user to run.
+    fn extract_makedb_example(stderr: &str, subcommand: &str) -> Vec<String> {
+        let needle = format!("coverm {} ", subcommand);
+        let line = stderr
+            .lines()
+            .map(|l| l.trim())
+            .find(|l| l.starts_with(&needle))
+            .unwrap_or_else(|| {
+                panic!(
+                    "No 'coverm {}' example found in makedb output:\n{}",
+                    subcommand, stderr
+                )
+            });
+        line.split_whitespace()
+            .skip(1) // drop the leading "coverm"
+            .map(|tok| {
+                let tok = tok.trim_matches('\'');
+                match tok {
+                    "read1.fq" => "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                    "read2.fq" => "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                    "reads.fq" => "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                    other => other,
+                }
+                .to_string()
+            })
+            .collect()
+    }
+
+    // The `coverm contig` command printed by makedb must be runnable verbatim:
+    // in particular it must include `-p <mapper>` (the default mapper is
+    // strobealign, so omitting it silently mismaps the index) and must point at
+    // the generated database file, not the -o output directory.
+    #[test]
+    fn test_makedb_minimap2_printed_instructions_are_correct() {
+        let td = tempfile::TempDir::new().unwrap();
+        let (ok, _out, err) = run_coverm(&[
+            "makedb",
+            "--reference",
+            "tests/data/7seqs.fna",
+            "--mapper",
+            "minimap2-sr",
+            "--output-directory",
+            td.path().to_str().unwrap(),
+        ]);
+        assert!(ok, "makedb failed:\n{}", err);
+
+        let mut args = extract_makedb_example(&err, "contig");
+        // Guard against a regression to the buggy advice that omitted -p.
+        assert!(
+            args.iter().any(|a| a == "-p") && args.iter().any(|a| a == "minimap2-sr"),
+            "printed contig instruction is missing '-p minimap2-sr': {:?}",
+            args
+        );
+        args.push("-m".to_string());
+        args.push("mean".to_string());
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let (ok2, out2, err2) = run_coverm(&arg_refs);
+        assert!(
+            ok2,
+            "advised contig command failed.\nargs: {:?}\nstderr:\n{}",
+            arg_refs, err2
+        );
+        assert!(
+            out2.contains("genome2~seq1"),
+            "unexpected contig output:\n{}",
+            out2
+        );
+    }
+
+    // When the database is built from genomes, makedb additionally prints a
+    // `coverm genome` example (using the '~' concatenation separator). That
+    // command must also be runnable verbatim.
+    #[test]
+    fn test_makedb_genome_printed_instructions_are_correct() {
+        let td = tempfile::TempDir::new().unwrap();
+        let (ok, _out, err) = run_coverm(&[
+            "makedb",
+            "--genome-fasta-directory",
+            "tests/data/2seqs_split_genomes",
+            "-x",
+            "fna",
+            "--mapper",
+            "minimap2-sr",
+            "--output-directory",
+            td.path().to_str().unwrap(),
+        ]);
+        assert!(ok, "makedb failed:\n{}", err);
+
+        let mut args = extract_makedb_example(&err, "genome");
+        assert!(
+            args.iter().any(|a| a == "-s") && args.iter().any(|a| a == "~"),
+            "printed genome instruction is missing the '-s ~' separator: {:?}",
+            args
+        );
+        args.push("-m".to_string());
+        args.push("mean".to_string());
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let (ok2, out2, err2) = run_coverm(&arg_refs);
+        assert!(
+            ok2,
+            "advised genome command failed.\nargs: {:?}\nstderr:\n{}",
+            arg_refs, err2
+        );
+        assert!(
+            out2.contains("genomeA") && out2.contains("genomeB"),
+            "unexpected genome output:\n{}",
+            out2
+        );
+    }
+
+    // The rammap contig instruction printed by makedb must likewise be runnable
+    // verbatim, including its `-p rammap-sr` flag.
+    #[test]
+    fn test_makedb_rammap_printed_instructions_are_correct() {
+        let td = tempfile::TempDir::new().unwrap();
+        let (ok, _out, err) = run_coverm(&[
+            "makedb",
+            "--reference",
+            "tests/data/7seqs.fna",
+            "--mapper",
+            "rammap-sr",
+            "--output-directory",
+            td.path().to_str().unwrap(),
+        ]);
+        assert!(ok, "makedb failed:\n{}", err);
+
+        let mut args = extract_makedb_example(&err, "contig");
+        assert!(
+            args.iter().any(|a| a == "-p") && args.iter().any(|a| a == "rammap-sr"),
+            "printed rammap instruction is missing '-p rammap-sr': {:?}",
+            args
+        );
+        args.push("-m".to_string());
+        args.push("mean".to_string());
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let (ok2, out2, err2) = run_coverm(&arg_refs);
+        assert!(
+            ok2,
+            "advised rammap contig command failed.\nargs: {:?}\nstderr:\n{}",
+            arg_refs, err2
+        );
+        assert!(
+            out2.contains("genome2~seq1"),
+            "unexpected rammap contig output:\n{}",
+            out2
+        );
+    }
+
+    // rammap is offered with the same presets as minimap2. Build a long-read
+    // (lr-hq) rammap index and map single-end reads through it, mirroring the
+    // (single-read) instruction makedb prints for long-read presets.
+    #[test]
+    fn test_makedb_rammap_lr_hq_then_use_as_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        let (ok, _out, err) = run_coverm(&[
+            "makedb",
+            "--reference",
+            "tests/data/7seqs.fna",
+            "--mapper",
+            "rammap-lr-hq",
+            "--output-directory",
+            td.path().to_str().unwrap(),
+        ]);
+        assert!(ok, "makedb failed:\n{}", err);
+        let db_path = td.path().join("7seqs.fna.rammap-lr-hq.idx");
+        assert!(db_path.is_file());
+
+        // The printed instruction for a long-read preset uses --single (paired
+        // input is rejected). rammap auto-detects the .idx, so no index flag.
+        let (ok2, out2, err2) = run_coverm(&[
+            "contig",
+            "-p",
+            "rammap-lr-hq",
+            "--reference",
+            db_path.to_str().unwrap(),
+            "--single",
+            "tests/data/reads_for_seq1.fna",
+            "-m",
+            "mean",
+        ]);
+        assert!(ok2, "rammap-lr-hq mapping failed:\n{}", err2);
+        assert!(
+            out2.contains("genome2~seq1"),
+            "unexpected rammap-lr-hq output:\n{}",
+            out2
+        );
+    }
+
+    // A long-read preset must reject paired-end input (as advertised in the
+    // instruction, which uses --single for such presets).
+    #[test]
+    fn test_rammap_long_read_preset_rejects_paired_input() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-p",
+                "rammap-ont",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "-m",
+                "mean",
+            ])
+            .fails()
             .unwrap();
     }
 
@@ -3731,7 +3958,7 @@ genome6~random_sequence_length_11003	0	0	0
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--mapper",
-                "rammap",
+                "rammap-sr",
                 "--output-directory",
                 td.path().to_str().unwrap(),
             ])
@@ -3758,7 +3985,7 @@ genome6~random_sequence_length_11003	0	0	0
                 "--reference",
                 "tests/data/7seqs.fna",
                 "--mapper",
-                "rammap",
+                "rammap-sr",
                 "--output-directory",
                 td.path().to_str().unwrap(),
             ])

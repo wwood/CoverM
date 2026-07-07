@@ -5,6 +5,8 @@ use std::io::Read;
 use std::path::Path;
 use std::process;
 
+use bam_generator::is_long_read_only_preset;
+use bam_generator::rammap_preset_name;
 use bam_generator::MappingProgram;
 use CONCATENATED_FASTA_FILE_SEPARATOR;
 
@@ -92,7 +94,12 @@ fn build_index_command(
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
         MappingProgram::MINIBWA => std::process::Command::new("minibwa"),
-        MappingProgram::RAMMAP => std::process::Command::new("rammap"),
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => std::process::Command::new("rammap"),
         MappingProgram::STROBEALIGN => {
             warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
             return None;
@@ -114,18 +121,22 @@ fn build_index_command(
             }
             cmd.arg(reference_path).arg(index_path);
         }
-        MappingProgram::RAMMAP => {
-            // rammap dumps an index with `rammap -x sr --dump-index <out> <ref>`.
-            // The 'sr' preset must match the one used at mapping time (see
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => {
+            // rammap dumps an index with `rammap -x <preset> --dump-index <out> <ref>`.
+            // The preset must match the one used at mapping time (see
             // bam_generator.rs), and rammap only recognises a prebuilt index by
             // its .idx/.mmi extension, so index_path is created with a .idx
             // suffix in generate_persistent_index. Indexing is single-threaded,
             // so num_threads (rammap's --align-threads) is not forwarded here.
-            cmd.arg("-x")
-                .arg("sr")
-                .arg("--dump-index")
-                .arg(index_path)
-                .arg(reference_path);
+            if let Some(preset) = rammap_preset_name(mapping_program) {
+                cmd.arg("-x").arg(preset);
+            }
+            cmd.arg("--dump-index").arg(index_path).arg(reference_path);
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -154,7 +165,12 @@ fn build_index_command(
                 | MappingProgram::BWA_MEM2
                 | MappingProgram::STROBEALIGN
                 | MappingProgram::MINIBWA
-                | MappingProgram::RAMMAP => {}
+                | MappingProgram::RAMMAP_SR
+                | MappingProgram::RAMMAP_ONT
+                | MappingProgram::RAMMAP_PB
+                | MappingProgram::RAMMAP_HIFI
+                | MappingProgram::RAMMAP_LR_HQ
+                | MappingProgram::RAMMAP_NO_PRESET => {}
             };
             if let Some(t) = num_threads {
                 cmd.arg("-t").arg(format!("{t}"));
@@ -345,7 +361,12 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET
         | MappingProgram::STROBEALIGN
-        | MappingProgram::RAMMAP => {}
+        | MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => {}
     };
 
     if !ref_path.exists() {
@@ -411,6 +432,72 @@ pub fn generate_minimap2_index(
     ))
 }
 
+/// Which `coverm` sub-analysis a `makedb` usage example demonstrates.
+#[derive(Clone, Copy, Debug)]
+pub enum MakedbUsageMode {
+    /// `coverm contig` — per-contig coverage.
+    Contig,
+    /// `coverm genome` — per-genome coverage, recovered via the `~`
+    /// concatenation separator that `makedb` uses when building from genomes.
+    Genome,
+}
+
+/// Build a concrete example command showing how to feed the database written by
+/// `coverm makedb` back into `coverm contig`/`coverm genome`.
+///
+/// `db_path` is the path returned by [`generate_persistent_index`], which is
+/// always the generated database *file* (e.g. `db_dir/ref.fna.minimap2-sr.mmi`),
+/// never the `-o` output directory. The `-p <mapper>` flag is always included:
+/// the default mapper is strobealign, so omitting it silently feeds the index to
+/// the wrong mapper (which then fails trying to read the index as a FASTA).
+pub fn makedb_usage_command(
+    mapping_program: MappingProgram,
+    db_path: &str,
+    mode: MakedbUsageMode,
+) -> String {
+    // The `-p` value is exactly the mapper's canonical CLI name.
+    let mapper = mapping_program_db_name(mapping_program);
+
+    // The flag (if any) telling coverm to treat --reference as a prebuilt index
+    // rather than a FASTA. BWA/minibwa/rammap auto-detect their index from the
+    // reference path, so they need no such flag.
+    let index_flag = match mapping_program {
+        MappingProgram::MINIMAP2_SR
+        | MappingProgram::MINIMAP2_ONT
+        | MappingProgram::MINIMAP2_PB
+        | MappingProgram::MINIMAP2_HIFI
+        | MappingProgram::MINIMAP2_LR_HQ
+        | MappingProgram::MINIMAP2_NO_PRESET => " --minimap2-reference-is-index",
+        MappingProgram::STROBEALIGN => " --strobealign-use-index",
+        MappingProgram::BWA_MEM
+        | MappingProgram::BWA_MEM2
+        | MappingProgram::MINIBWA
+        | MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => "",
+    };
+
+    // Genome mode needs the concatenation separator ('~') that makedb uses when
+    // concatenating genomes. Quote it so the shell does not tilde-expand it.
+    let (subcommand, extra) = match mode {
+        MakedbUsageMode::Contig => ("contig", ""),
+        MakedbUsageMode::Genome => ("genome", " -s '~'"),
+    };
+
+    // Long-read presets only accept single/unpaired reads (coverm rejects paired
+    // -1/-2 input for them), so show the appropriate read input for each.
+    let reads = if is_long_read_only_preset(mapping_program) {
+        "--single reads.fq"
+    } else {
+        "-1 read1.fq -2 read2.fq"
+    };
+
+    format!("coverm {subcommand} -p {mapper} --reference {db_path}{index_flag}{extra} {reads}")
+}
+
 /// Short name used to label the kind of database generated for a given mapping
 /// program, e.g. as a filename suffix in `coverm makedb`.
 pub fn mapping_program_db_name(mapping_program: MappingProgram) -> &'static str {
@@ -425,7 +512,12 @@ pub fn mapping_program_db_name(mapping_program: MappingProgram) -> &'static str 
         MappingProgram::MINIMAP2_NO_PRESET => "minimap2-no-preset",
         MappingProgram::STROBEALIGN => "strobealign",
         MappingProgram::MINIBWA => "minibwa",
-        MappingProgram::RAMMAP => "rammap",
+        MappingProgram::RAMMAP_SR => "rammap-sr",
+        MappingProgram::RAMMAP_ONT => "rammap-ont",
+        MappingProgram::RAMMAP_PB => "rammap-pb",
+        MappingProgram::RAMMAP_HIFI => "rammap-hifi",
+        MappingProgram::RAMMAP_LR_HQ => "rammap-lr-hq",
+        MappingProgram::RAMMAP_NO_PRESET => "rammap-no-preset",
     }
 }
 
@@ -475,7 +567,12 @@ pub fn generate_persistent_index(
         // rammap only recognises a prebuilt index by its .idx/.mmi extension, so
         // the file must end in .idx to be auto-detected when passed as the
         // mapping target (rammap -x sr -a <index.idx> ..).
-        MappingProgram::RAMMAP => std::path::Path::new(output_directory)
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => std::path::Path::new(output_directory)
             .join(format!("{reference_stem}.{db_program_name}.idx")),
         MappingProgram::STROBEALIGN => unreachable!(),
     };

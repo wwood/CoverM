@@ -55,7 +55,49 @@ pub enum MappingProgram {
     MINIMAP2_NO_PRESET,
     STROBEALIGN,
     MINIBWA,
-    RAMMAP,
+    // rammap is a minimap2-compatible aligner and is offered with the same set
+    // of presets as minimap2 (rammap-sr, rammap-ont, ..).
+    RAMMAP_SR,
+    RAMMAP_ONT,
+    RAMMAP_PB,
+    RAMMAP_HIFI,
+    RAMMAP_LR_HQ,
+    RAMMAP_NO_PRESET,
+}
+
+/// Whether a mapping program uses a long-read preset for which coverm only
+/// accepts single/unpaired reads (paired -1/-2 or interleaved input is
+/// rejected). Covers both the minimap2 and rammap long-read presets.
+pub fn is_long_read_only_preset(mapping_program: MappingProgram) -> bool {
+    matches!(
+        mapping_program,
+        MappingProgram::MINIMAP2_ONT
+            | MappingProgram::MINIMAP2_PB
+            | MappingProgram::MINIMAP2_HIFI
+            | MappingProgram::MINIMAP2_LR_HQ
+            | MappingProgram::RAMMAP_ONT
+            | MappingProgram::RAMMAP_PB
+            | MappingProgram::RAMMAP_HIFI
+            | MappingProgram::RAMMAP_LR_HQ
+    )
+}
+
+/// The minimap2/rammap `-x` preset name for a rammap mapping program (e.g.
+/// "sr", "map-ont", "lr:hq"), or None for RAMMAP_NO_PRESET. Panics if called on
+/// a non-rammap program.
+pub fn rammap_preset_name(mapping_program: MappingProgram) -> Option<&'static str> {
+    match mapping_program {
+        MappingProgram::RAMMAP_SR => Some("sr"),
+        MappingProgram::RAMMAP_ONT => Some("map-ont"),
+        MappingProgram::RAMMAP_PB => Some("map-pb"),
+        MappingProgram::RAMMAP_HIFI => Some("map-hifi"),
+        MappingProgram::RAMMAP_LR_HQ => Some("lr:hq"),
+        MappingProgram::RAMMAP_NO_PRESET => None,
+        _ => panic!(
+            "rammap_preset_name called on non-rammap program {:?}",
+            mapping_program
+        ),
+    }
 }
 
 pub struct BamFileNamedReader {
@@ -422,7 +464,12 @@ pub fn generate_named_bam_readers_from_reads(
         | MappingProgram::BWA_MEM2
         | MappingProgram::STROBEALIGN
         | MappingProgram::MINIBWA => None,
-        MappingProgram::RAMMAP => None,
+        MappingProgram::RAMMAP_SR
+        | MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => None,
         // Required because of https://github.com/lh3/minimap2/issues/527
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -884,14 +931,20 @@ pub fn build_mapping_command(
         // file; it has no interleaved-pairing flag, and interleaved input is
         // rejected earlier in mapping_parameters.rs.
         | MappingProgram::MINIBWA => "",
-        MappingProgram::RAMMAP => match read_format {
-            // rammap's `sr` preset turns on fragment mode, which pulls read
-            // pairs from a single input file (this is how it maps interleaved
-            // reads). For genuinely single-end reads that would incorrectly
-            // consume the file as interleaved pairs, so disable fragment mode.
+        // rammap's `sr` preset turns on fragment mode, which pulls read pairs
+        // from a single input file (this is how it maps interleaved reads). For
+        // genuinely single-end reads that would incorrectly consume the file as
+        // interleaved pairs, so disable fragment mode. The long-read presets do
+        // not use fragment mode, and paired input is rejected earlier.
+        MappingProgram::RAMMAP_SR => match read_format {
             ReadFormat::Single => "--frag no",
             ReadFormat::Coupled | ReadFormat::Interleaved => "",
         },
+        MappingProgram::RAMMAP_ONT
+        | MappingProgram::RAMMAP_PB
+        | MappingProgram::RAMMAP_HIFI
+        | MappingProgram::RAMMAP_LR_HQ
+        | MappingProgram::RAMMAP_NO_PRESET => "",
         MappingProgram::BWA_MEM | MappingProgram::BWA_MEM2 => match read_format {
             ReadFormat::Interleaved => "-p",
             ReadFormat::Coupled | ReadFormat::Single => "",
@@ -915,9 +968,17 @@ pub fn build_mapping_command(
             MappingProgram::BWA_MEM2 => "bwa-mem2 mem".to_string(),
             MappingProgram::STROBEALIGN => "strobealign".to_string(),
             MappingProgram::MINIBWA => "minibwa map".to_string(),
-            // rammap is a minimap2-compatible aligner; map short reads with
-            // the 'sr' preset and emit SAM with -a.
-            MappingProgram::RAMMAP => "rammap -x sr -a".to_string(),
+            // rammap is a minimap2-compatible aligner; emit SAM with -a and
+            // select the preset matching the requested read type.
+            MappingProgram::RAMMAP_SR
+            | MappingProgram::RAMMAP_ONT
+            | MappingProgram::RAMMAP_PB
+            | MappingProgram::RAMMAP_HIFI
+            | MappingProgram::RAMMAP_LR_HQ
+            | MappingProgram::RAMMAP_NO_PRESET => match rammap_preset_name(mapping_program) {
+                Some(preset) => format!("rammap -x {preset} -a"),
+                None => "rammap -a".to_string(),
+            },
             _ => {
                 let split_prefix = tempfile::Builder::new()
                     .prefix("coverm-minimap2-split-index")
@@ -939,7 +1000,12 @@ pub fn build_mapping_command(
                         | MappingProgram::BWA_MEM2
                         | MappingProgram::STROBEALIGN
                         | MappingProgram::MINIBWA => unreachable!(),
-                        MappingProgram::RAMMAP => unreachable!(),
+                        MappingProgram::RAMMAP_SR
+                        | MappingProgram::RAMMAP_ONT
+                        | MappingProgram::RAMMAP_PB
+                        | MappingProgram::RAMMAP_HIFI
+                        | MappingProgram::RAMMAP_LR_HQ
+                        | MappingProgram::RAMMAP_NO_PRESET => unreachable!(),
                         MappingProgram::MINIMAP2_SR => "-x sr",
                         MappingProgram::MINIMAP2_ONT => "-x map-ont",
                         MappingProgram::MINIMAP2_HIFI => "-x map-hifi",

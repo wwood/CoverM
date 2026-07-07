@@ -22,7 +22,12 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "minimap2-no-preset",
     "strobealign",
     "minibwa",
-    "rammap",
+    "rammap-sr",
+    "rammap-ont",
+    "rammap-pb",
+    "rammap-hifi",
+    "rammap-lr-hq",
+    "rammap-no-preset",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
 const DEFAULT_MAKEDB_MAPPING_SOFTWARE: &str = "minimap2-sr";
@@ -108,8 +113,28 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         "minibwa map using default parameters"
                     ],
                     &[
-                        &monospace_roff("rammap"),
+                        &monospace_roff("rammap-sr"),
                         &format!("rammap (a minimap2-compatible aligner) with '{}' option", &monospace_roff("-x sr"))
+                    ],
+                    &[
+                        &monospace_roff("rammap-lr-hq"),
+                        &format!("rammap with '{}' option", &monospace_roff("-x lr:hq"))
+                    ],
+                    &[
+                        &monospace_roff("rammap-ont"),
+                        &format!("rammap with '{}' option", &monospace_roff("-x map-ont"))
+                    ],
+                    &[
+                        &monospace_roff("rammap-pb"),
+                        &format!("rammap with '{}' option", &monospace_roff("-x map-pb"))
+                    ],
+                    &[
+                        &monospace_roff("rammap-hifi"),
+                        &format!("rammap with '{}' option", &monospace_roff("-x map-hifi"))
+                    ],
+                    &[
+                        &monospace_roff("rammap-no-preset"),
+                        &format!("rammap with no '{}' option", &monospace_roff("-x"))
                     ],
                 ])
             )))
@@ -532,12 +557,19 @@ pub fn makedb_full_help() -> Manual {
         When genomes are given, they may optionally be dereplicated (--dereplicate) \
         and/or quality-filtered by CheckM before concatenation, exactly as in \
         'coverm genome'.\n\n\
-        For minimap2 databases, pass the generated '.mmi' file as the reference \
-        together with '--minimap2-reference-is-index'. For BWA databases, pass the \
-        generated prefix as the reference together with the matching '-p bwa-mem' or \
-        '-p bwa-mem2'. For strobealign databases, the reference FASTA is copied into the \
-        output directory next to the index (strobealign reads the sequences from it at \
-        mapping time); pass that copied FASTA as the reference together with \
+        In all cases the reference passed back to 'coverm contig'/'coverm genome' is the \
+        generated database *file* (as reported by makedb, e.g. \
+        'db_dir/ref.fna.minimap2-sr.mmi'), not the -o output directory, and the matching \
+        '-p/--mapper' must be given (the default mapper is strobealign, so omitting it \
+        feeds the index to the wrong mapper). For minimap2 databases, pass the generated \
+        '.mmi' file as the reference together with '-p minimap2-sr' (or the preset used) \
+        and '--minimap2-reference-is-index'. For BWA databases, pass the generated prefix \
+        as the reference together with the matching '-p bwa-mem' or '-p bwa-mem2'. For \
+        rammap databases, pass the generated '.idx' file as the reference together with \
+        '-p rammap-sr' (or the preset used); rammap auto-detects the index. For \
+        strobealign databases, the reference FASTA is copied into the output directory \
+        next to the index (strobealign reads the sequences from it at mapping time); pass \
+        that copied FASTA as the reference together with '-p strobealign' and \
         '--strobealign-use-index'.\n\n\
         Multiple '-p/--mapper' values may be specified to create several databases in \
         one invocation, one per mapper. Likewise, multiple references may be given, in \
@@ -584,89 +616,141 @@ pub fn makedb_full_help() -> Manual {
             ),
     );
 
-    manual =
-        manual.custom(
-            Section::new("Database type")
-                .option(
-                    Opt::new("NAME ..")
-                        .short("-p")
-                        .long("--mapper")
-                        .help(&format!(
-                "Kind(s) of database to generate, one per mapping software. Specify more \
+    manual = manual.custom(
+        Section::new("Database type")
+            .option(
+                Opt::new("NAME ..")
+                    .short("-p")
+                    .long("--mapper")
+                    .help(&format!(
+                        "Kind(s) of database to generate, one per mapping software. Specify more \
                 than once (or as a space-separated list) to generate several databases. \
                 {}. One of: {}",
-                default_roff("minimap2-sr"),
-                bird_tool_utils::clap_utils::table_roff(&[
-                    &["name", "description"],
-                    &[
-                        &monospace_roff("minimap2-sr"),
-                        &format!("minimap2 index built with '{}'", &monospace_roff("-x sr"))
-                    ],
-                    &[
-                        &monospace_roff("minimap2-lr-hq"),
-                        &format!("minimap2 index built with '{}'", &monospace_roff("-x lr:hq"))
-                    ],
-                    &[
-                        &monospace_roff("minimap2-ont"),
-                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-ont"))
-                    ],
-                    &[
-                        &monospace_roff("minimap2-pb"),
-                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-pb"))
-                    ],
-                    &[
-                        &monospace_roff("minimap2-hifi"),
-                        &format!("minimap2 index built with '{}'", &monospace_roff("-x map-hifi"))
-                    ],
-                    &[
-                        &monospace_roff("minimap2-no-preset"),
-                        &format!("minimap2 index built with no '{}' option", &monospace_roff("-x"))
-                    ],
-                    &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
-                    &[&monospace_roff("bwa-mem2"), "BWA-MEM2 index (bwa-mem2 index)"],
-                    &[
-                        &monospace_roff("minibwa"),
-                        "minibwa index (minibwa index)",
-                    ],
-                    &[
-                        &monospace_roff("rammap"),
-                        &format!(
-                            "rammap index ('{}'), built with the '{}' preset",
-                            &monospace_roff("rammap --dump-index"),
-                            &monospace_roff("-x sr")
-                        ),
-                    ],
-                    &[
-                        &monospace_roff("strobealign"),
-                        &format!(
+                        default_roff("minimap2-sr"),
+                        bird_tool_utils::clap_utils::table_roff(&[
+                            &["name", "description"],
+                            &[
+                                &monospace_roff("minimap2-sr"),
+                                &format!(
+                                    "minimap2 index built with '{}'",
+                                    &monospace_roff("-x sr")
+                                )
+                            ],
+                            &[
+                                &monospace_roff("minimap2-lr-hq"),
+                                &format!(
+                                    "minimap2 index built with '{}'",
+                                    &monospace_roff("-x lr:hq")
+                                )
+                            ],
+                            &[
+                                &monospace_roff("minimap2-ont"),
+                                &format!(
+                                    "minimap2 index built with '{}'",
+                                    &monospace_roff("-x map-ont")
+                                )
+                            ],
+                            &[
+                                &monospace_roff("minimap2-pb"),
+                                &format!(
+                                    "minimap2 index built with '{}'",
+                                    &monospace_roff("-x map-pb")
+                                )
+                            ],
+                            &[
+                                &monospace_roff("minimap2-hifi"),
+                                &format!(
+                                    "minimap2 index built with '{}'",
+                                    &monospace_roff("-x map-hifi")
+                                )
+                            ],
+                            &[
+                                &monospace_roff("minimap2-no-preset"),
+                                &format!(
+                                    "minimap2 index built with no '{}' option",
+                                    &monospace_roff("-x")
+                                )
+                            ],
+                            &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
+                            &[
+                                &monospace_roff("bwa-mem2"),
+                                "BWA-MEM2 index (bwa-mem2 index)"
+                            ],
+                            &[&monospace_roff("minibwa"), "minibwa index (minibwa index)",],
+                            &[
+                                &monospace_roff("rammap-sr"),
+                                &format!(
+                                    "rammap index ('{}'), built with the '{}' preset",
+                                    &monospace_roff("rammap --dump-index"),
+                                    &monospace_roff("-x sr")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("rammap-lr-hq"),
+                                &format!(
+                                    "rammap index built with the '{}' preset",
+                                    &monospace_roff("-x lr:hq")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("rammap-ont"),
+                                &format!(
+                                    "rammap index built with the '{}' preset",
+                                    &monospace_roff("-x map-ont")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("rammap-pb"),
+                                &format!(
+                                    "rammap index built with the '{}' preset",
+                                    &monospace_roff("-x map-pb")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("rammap-hifi"),
+                                &format!(
+                                    "rammap index built with the '{}' preset",
+                                    &monospace_roff("-x map-hifi")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("rammap-no-preset"),
+                                &format!(
+                                    "rammap index built with no '{}' option",
+                                    &monospace_roff("-x")
+                                ),
+                            ],
+                            &[
+                                &monospace_roff("strobealign"),
+                                &format!(
                             "strobealign index (strobealign --create-index). The reference \
                             FASTA is copied into the output directory alongside the index, \
                             since strobealign requires it at mapping time. Use it via '{}'",
                             &monospace_roff("--strobealign-use-index")
                         )
-                    ],
-                ])
-            )),
-                )
-                .option(Opt::new("PARAMS").long("--minimap2-params").help(
-                    "Extra parameters to provide to the minimap2 indexing command. \
+                            ],
+                        ])
+                    )),
+            )
+            .option(Opt::new("PARAMS").long("--minimap2-params").help(
+                "Extra parameters to provide to the minimap2 indexing command. \
                 Note that usage of this parameter has security implications if \
                 untrusted input is specified. [default: none]",
-                ))
-                .option(Opt::new("PARAMS").long("--bwa-params").help(
-                    "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
+            ))
+            .option(Opt::new("PARAMS").long("--bwa-params").help(
+                "Extra parameters to provide to the BWA or BWA-MEM2 indexing \
                 command. Note that usage of this parameter has security \
                 implications if untrusted input is specified. [default: none]",
-                ))
-                .option(Opt::new("PARAMS").long("--strobealign-params").help(
-                    "Extra parameters to provide to the 'strobealign --create-index' \
+            ))
+            .option(Opt::new("PARAMS").long("--strobealign-params").help(
+                "Extra parameters to provide to the 'strobealign --create-index' \
                 command. Strobealign indexes are read-length specific: set the \
                 canonical read length with e.g. '-r 150', or estimate it from an \
                 example read dataset by passing a reads file (e.g. 'reads.fq'). \
                 Note that usage of this parameter has security implications if \
                 untrusted input is specified. [default: none]",
-                )),
-        );
+            )),
+    );
 
     manual = manual.custom(Section::new("Output").option(
         Opt::new("DIR").short("-o").long("--output-directory").help(
@@ -695,15 +779,15 @@ pub fn makedb_full_help() -> Manual {
                 (the concatenation separator is '~')",
             )
             .command(
-                "coverm genome -r db_dir/coverm_concatenated_genomes.fna.minimap2-sr.mmi \
-                --minimap2-reference-is-index -s ~ -1 read1.fq -2 read2.fq",
+                "coverm genome -p minimap2-sr -r db_dir/coverm_concatenated_genomes.fna.minimap2-sr.mmi \
+                --minimap2-reference-is-index -s '~' -1 read1.fq -2 read2.fq",
             ),
     );
     manual = manual.example(
         Example::new()
             .text("Use the generated minimap2 database when calculating contig coverage")
             .command(
-                "coverm contig -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
+                "coverm contig -p minimap2-sr -r db_dir/combined_genomes.fna.minimap2-sr.mmi \
                 --minimap2-reference-is-index -1 read1.fq -2 read2.fq",
             ),
     );
