@@ -1368,7 +1368,6 @@ fn add_dereplication_arguments(command: Command) -> Command {
         .arg(
             Arg::new("dereplication-reference-genomes")
                 .long("dereplication-reference-genomes")
-                .value_delimiter(' ')
                 .num_args(1..)
                 .conflicts_with("dereplication-low-memory")
                 .conflicts_with("dereplication-reference-genomes-list"),
@@ -2112,7 +2111,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("dereplication-reference-genomes")
                         .long("dereplication-reference-genomes")
-                        .value_delimiter(' ')
                         .num_args(1..)
                         .conflicts_with("dereplication-low-memory")
                         .conflicts_with("dereplication-reference-genomes-list"),
