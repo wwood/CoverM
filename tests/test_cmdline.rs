@@ -750,6 +750,139 @@ mod tests {
     }
 
     #[test]
+    fn test_makedb_from_genome_fasta_directory() {
+        let td = tempfile::TempDir::new().unwrap();
+        // makedb accepts the same genome inputs as `coverm genome`, concatenating
+        // the genomes on the fly into a single reference before building the index.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--genome-fasta-directory",
+                "tests/data/2seqs_split_genomes",
+                "-x",
+                "fna",
+                "--mapper",
+                "minimap2-sr",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        // The concatenated reference and its minimap2 index are persisted.
+        let concatenated = td.path().join("coverm_concatenated_genomes.fna");
+        assert!(concatenated.is_file());
+        let db_path = td
+            .path()
+            .join("coverm_concatenated_genomes.fna.minimap2-sr.mmi");
+        assert!(db_path.is_file());
+
+        // The generated database can be fed back into coverm genome using the
+        // concatenation separator '~' to recover per-genome coverage.
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                db_path.to_str().unwrap(),
+                "--minimap2-reference-is-index",
+                "-s",
+                "~",
+                "-p",
+                "minimap2-sr",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genomeA")
+            .stdout()
+            .contains("genomeB")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_makedb_rammap_then_use_as_index() {
+        let td = tempfile::TempDir::new().unwrap();
+        // rammap can pre-generate an index via `rammap --dump-index`; makedb
+        // writes it with a .idx extension so rammap auto-detects it as an index
+        // when passed as the mapping target.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--mapper",
+                "rammap",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let db_path = td.path().join("7seqs.fna.rammap.idx");
+        assert!(db_path.is_file());
+
+        // The generated .idx can be fed straight back into coverm contig as the
+        // reference; rammap auto-detects the index, so no special flag is needed.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                db_path.to_str().unwrap(),
+                "-p",
+                "rammap",
+                "-m",
+                "mean",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("genome2~seq1")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_makedb_dereplicate() {
+        let td = tempfile::TempDir::new().unwrap();
+        // 500kb dereplicates into 1mbp, so only 1mbp should survive into the
+        // concatenated reference used to build the database.
+        Assert::main_binary()
+            .with_args(&[
+                "makedb",
+                "--genome-fasta-files",
+                "tests/data/set1/1mbp.fna",
+                "tests/data/set1/500kb.fna",
+                "--dereplicate",
+                "-t",
+                "5",
+                "--mapper",
+                "minimap2-sr",
+                "--output-directory",
+                td.path().to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        let concatenated = td.path().join("coverm_concatenated_genomes.fna");
+        assert!(concatenated.is_file());
+        assert!(td
+            .path()
+            .join("coverm_concatenated_genomes.fna.minimap2-sr.mmi")
+            .is_file());
+
+        // Only the representative genome's contigs (renamed 1mbp~..) are present.
+        let mut contents = String::new();
+        std::fs::File::open(&concatenated)
+            .unwrap()
+            .read_to_string(&mut contents)
+            .unwrap();
+        assert!(contents.contains(">1mbp~"));
+        assert!(!contents.contains(">500kb~"));
+    }
+
+    #[test]
     fn test_relative_abundance_all_mapped() {
         Assert::main_binary()
             .with_args(&[

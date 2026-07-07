@@ -73,8 +73,8 @@ impl TemporaryIndexStruct {
 }
 
 /// Build the index-generation command for the given mapping program, writing
-/// the resulting index to `index_path`. Returns None for STROBEALIGN and
-/// RAMMAP, which do not support standalone pre-indexing in this manner.
+/// the resulting index to `index_path`. Returns None for STROBEALIGN, which is
+/// pre-indexed separately (its index is written next to the reference).
 fn build_index_command(
     mapping_program: MappingProgram,
     reference_path: &str,
@@ -92,12 +92,9 @@ fn build_index_command(
         | MappingProgram::MINIMAP2_LR_HQ
         | MappingProgram::MINIMAP2_NO_PRESET => std::process::Command::new("minimap2"),
         MappingProgram::MINIBWA => std::process::Command::new("minibwa"),
+        MappingProgram::RAMMAP => std::process::Command::new("rammap"),
         MappingProgram::STROBEALIGN => {
             warn!("STROBEALIGN pre-indexing is not supported currently, so skipping index generation.");
-            return None;
-        }
-        MappingProgram::RAMMAP => {
-            warn!("RAMMAP pre-indexing is not supported currently, so skipping index generation.");
             return None;
         }
     };
@@ -116,6 +113,19 @@ fn build_index_command(
                 cmd.arg("-t").arg(format!("{t}"));
             }
             cmd.arg(reference_path).arg(index_path);
+        }
+        MappingProgram::RAMMAP => {
+            // rammap dumps an index with `rammap -x sr --dump-index <out> <ref>`.
+            // The 'sr' preset must match the one used at mapping time (see
+            // bam_generator.rs), and rammap only recognises a prebuilt index by
+            // its .idx/.mmi extension, so index_path is created with a .idx
+            // suffix in generate_persistent_index. Indexing is single-threaded,
+            // so num_threads (rammap's --align-threads) is not forwarded here.
+            cmd.arg("-x")
+                .arg("sr")
+                .arg("--dump-index")
+                .arg(index_path)
+                .arg(reference_path);
         }
         MappingProgram::MINIMAP2_SR
         | MappingProgram::MINIMAP2_ONT
@@ -151,7 +161,7 @@ fn build_index_command(
             }
             cmd.arg("-d").arg(index_path).arg(reference_path);
         }
-        MappingProgram::STROBEALIGN | MappingProgram::RAMMAP => unreachable!(),
+        MappingProgram::STROBEALIGN => unreachable!(),
     };
     if let Some(params) = index_creation_options {
         for s in params.split_whitespace() {
@@ -440,11 +450,6 @@ pub fn generate_persistent_index(
             index_creation_options,
         );
     }
-    if let MappingProgram::RAMMAP = mapping_program {
-        error!("RAMMAP databases cannot be pre-generated with coverm makedb.");
-        process::exit(1);
-    }
-
     let reference_stem = std::path::Path::new(reference_path)
         .file_name()
         .expect("Failed to glean file name from reference path")
@@ -467,7 +472,12 @@ pub fn generate_persistent_index(
         }
         MappingProgram::MINIBWA => std::path::Path::new(output_directory)
             .join(format!("{reference_stem}.{db_program_name}")),
-        MappingProgram::STROBEALIGN | MappingProgram::RAMMAP => unreachable!(),
+        // rammap only recognises a prebuilt index by its .idx/.mmi extension, so
+        // the file must end in .idx to be auto-detected when passed as the
+        // mapping target (rammap -x sr -a <index.idx> ..).
+        MappingProgram::RAMMAP => std::path::Path::new(output_directory)
+            .join(format!("{reference_stem}.{db_program_name}.idx")),
+        MappingProgram::STROBEALIGN => unreachable!(),
     };
 
     run_index_command(
@@ -486,10 +496,33 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         .prefix("coverm-concatenated-fasta")
         .tempfile()
         .unwrap();
+    write_concatenated_fasta(&tmpfile, fasta_file_paths);
+    tmpfile
+}
+
+/// Write a concatenated FASTA of `fasta_file_paths` to `output_path`, renaming
+/// each contig to `<genome_name><separator><contig>` exactly as
+/// [`generate_concatenated_fasta_file`] does, but persisted at a caller-chosen
+/// path rather than in a temporary file that is deleted when it goes out of
+/// scope. Used by `coverm makedb` to build a database directly from a set of
+/// genome FASTA files.
+pub fn generate_concatenated_fasta_file_at(fasta_file_paths: &Vec<String>, output_path: &Path) {
+    let file = std::fs::File::create(output_path).unwrap_or_else(|e| {
+        error!(
+            "Failed to create concatenated FASTA file at {}: {}",
+            output_path.display(),
+            e
+        );
+        process::exit(1);
+    });
+    write_concatenated_fasta(std::io::BufWriter::new(file), fasta_file_paths);
+}
+
+fn write_concatenated_fasta<W: std::io::Write>(out: W, fasta_file_paths: &Vec<String>) {
     let mut something_written_at_all = false;
     {
-        // scope so writer, which borrows tmpfile, goes out of scope.
-        let mut writer = bio::io::fasta::Writer::new(&tmpfile);
+        // scope so writer, which owns `out`, is dropped (and flushed) here.
+        let mut writer = bio::io::fasta::Writer::new(out);
         let mut genome_names: HashSet<String> = HashSet::new();
 
         // NOTE: A lot of this code is shared with genome_parsing#read_genome_fasta_files
@@ -569,7 +602,6 @@ pub fn generate_concatenated_fasta_file(fasta_file_paths: &Vec<String>) -> Named
         error!("Concatenated FASTA file to use as a reference is empty");
         process::exit(1);
     }
-    tmpfile
 }
 
 pub struct PregeneratedStrobealignIndexStruct {

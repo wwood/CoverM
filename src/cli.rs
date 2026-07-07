@@ -25,6 +25,7 @@ const MAPPING_SOFTWARE_LIST: &[&str] = &[
     "rammap",
 ];
 const DEFAULT_MAPPING_SOFTWARE: &str = "strobealign";
+const DEFAULT_MAKEDB_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
 lazy_static! {
     pub static ref COVERM_CLUSTER_COMMAND_DEFINITION: GalahClustererCommandDefinition = {
@@ -360,7 +361,7 @@ fn add_verbosity_flags_to_section(section: Section) -> Section {
                 .long("--verbose")
                 .help("Print extra debugging information. [default: not set]"),
         )
-        .flag(Flag::new().short("-q").long("--quiet").help(
+        .flag(Flag::new().long("--quiet").help(
             "Unless there is an error, do not print \
     log messages. [default: not set]",
         ))
@@ -399,7 +400,7 @@ pub fn filter_full_help() -> Manual {
                 align below thresholds. Note that output \
                 records may still be marked as mapped \
                 if they do not meet the thresholds. When used with \
-                --proper-pairs, only proper pairs which fail alignment \
+                --proper-pairs-only, only proper pairs which fail alignment \
                 thresholds are output i.e. it does not \"invert\" the \
                 proper pairs flag. [default: not set]",
     ));
@@ -410,7 +411,7 @@ pub fn filter_full_help() -> Manual {
         Example::new()
             .text("Filter a BAM file by removing alignments shorter than 50bp")
             .command(
-                "coverm filter --bam-files input.bam --output-bam filtered.bam \
+                "coverm filter --bam-files input.bam --output-bam-files filtered.bam \
                 --min-read-aligned-length 50",
             ),
     );
@@ -514,6 +515,17 @@ pub fn makedb_full_help() -> Manual {
         reference genome or contig FASTA files. The generated database can then be \
         supplied to 'coverm contig' or 'coverm genome' (or 'coverm make') to avoid \
         regenerating the index each time reads are mapped.\n\n\
+        The reference can be specified directly as one or more pre-concatenated FASTA \
+        files (--reference), or as a set of genome FASTA files (--genome-fasta-files, \
+        --genome-fasta-directory or --genome-fasta-list), exactly as in 'coverm genome'. \
+        When genomes are given, they are concatenated on the fly into a single reference \
+        FASTA (contigs are renamed to 'genome<separator>contig') that is written to the \
+        output directory as 'coverm_concatenated_genomes.fna' and used to build the \
+        database(s). The resulting database can then be used with 'coverm genome -s ~' \
+        (the concatenation separator) to recover per-genome coverage.\n\n\
+        When genomes are given, they may optionally be dereplicated (--dereplicate) \
+        and/or quality-filtered by CheckM before concatenation, exactly as in \
+        'coverm genome'.\n\n\
         For minimap2 databases, pass the generated '.mmi' file as the reference \
         together with '--minimap2-reference-is-index'. For BWA databases, pass the \
         generated prefix as the reference together with the matching '-p bwa-mem' or \
@@ -526,12 +538,45 @@ pub fn makedb_full_help() -> Manual {
         which case a database is created for each combination of reference and mapper.\n\n",
         );
 
-    manual = manual.custom(Section::new("Input").option(
-        Opt::new("PATH ..").short("-r").long("--reference").help(
-            "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
-            May be gzip-compressed. [required]",
-        ),
-    ));
+    manual = manual.custom(
+        Section::new("Input")
+            .option(Opt::new("PATH ..").short("-r").long("--reference").help(
+                "FASTA file(s) of contigs e.g. concatenated genomes or metagenome assembly. \
+                May be gzip-compressed. [required unless a genome input below is specified]",
+            ))
+            .option(
+                Opt::new("PATH ..")
+                    .short("-f")
+                    .long("--genome-fasta-files")
+                    .help(
+                        "Path(s) to FASTA files of each genome e.g. 'pathA/genome1.fna \
+                        pathB/genome2.fa'. These are concatenated into a single reference \
+                        before the database is built.",
+                    ),
+            )
+            .option(
+                Opt::new("PATH")
+                    .short("-d")
+                    .long("--genome-fasta-directory")
+                    .help(
+                        "Directory containing FASTA files of each genome, which are \
+                        concatenated into a single reference before the database is built.",
+                    ),
+            )
+            .option(Opt::new("PATH").long("--genome-fasta-list").help(
+                "File containing FASTA file paths, one per line, of each genome to \
+                concatenate into a single reference before the database is built.",
+            ))
+            .option(
+                Opt::new("EXT")
+                    .short("-x")
+                    .long("--genome-fasta-extension")
+                    .help(
+                        "File extension of genomes in the directory specified with \
+                        -d/--genome-fasta-directory. [default: fna]",
+                    ),
+            ),
+    );
 
     manual =
         manual.custom(
@@ -574,6 +619,18 @@ pub fn makedb_full_help() -> Manual {
                     &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
                     &[&monospace_roff("bwa-mem2"), "BWA-MEM2 index (bwa-mem2 index)"],
                     &[
+                        &monospace_roff("minibwa"),
+                        "minibwa index (minibwa index)",
+                    ],
+                    &[
+                        &monospace_roff("rammap"),
+                        &format!(
+                            "rammap index ('{}'), built with the '{}' preset",
+                            &monospace_roff("rammap --dump-index"),
+                            &monospace_roff("-x sr")
+                        ),
+                    ],
+                    &[
                         &monospace_roff("strobealign"),
                         &format!(
                             "strobealign index (strobealign --create-index). The reference \
@@ -614,8 +671,27 @@ pub fn makedb_full_help() -> Manual {
 
     manual = manual.example(
         Example::new()
-            .text("Generate a short-read minimap2 database from a set of genomes")
+            .text("Generate a short-read minimap2 database from a pre-concatenated FASTA")
             .command("coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir"),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Generate a short-read minimap2 database from a directory of genomes \
+                (concatenated on the fly)",
+            )
+            .command("coverm makedb -d genomes_directory/ -x fna -p minimap2-sr -o db_dir"),
+    );
+    manual = manual.example(
+        Example::new()
+            .text(
+                "Use the database built from genomes to calculate per-genome coverage \
+                (the concatenation separator is '~')",
+            )
+            .command(
+                "coverm genome -r db_dir/coverm_concatenated_genomes.fna.minimap2-sr.mmi \
+                --minimap2-reference-is-index -s ~ -1 read1.fq -2 read2.fq",
+            ),
     );
     manual = manual.example(
         Example::new()
@@ -641,6 +717,38 @@ pub fn makedb_full_help() -> Manual {
                 --strobealign-params '-r 150' -o db_dir",
             ),
     );
+    manual = manual.example(
+        Example::new()
+            .text("Dereplicate a directory of genomes before building the database")
+            .command(
+                "coverm makedb -d genomes_directory/ -x fna --dereplicate \
+                -p minimap2-sr -o db_dir",
+            ),
+    );
+
+    let mut derep_section = Section::new("DEREPLICATION / GENOME CLUSTERING").flag(
+        Flag::new().long("--dereplicate").help(
+            "Dereplicate the input genomes via average nucleotide identity (ANI) before \
+            concatenating them into the reference - choose a genome to represent all \
+            within a small distance, using skani for clustering by default. \
+            Dereplication occurs transparently through the Galah method \
+            (https://github.com/wwood/galah) [default: not set]",
+        ),
+    );
+    derep_section =
+        galah::cluster_argument_parsing::add_dereplication_filtering_parameters_to_section(
+            derep_section,
+        );
+    derep_section =
+        galah::cluster_argument_parsing::add_dereplication_clustering_parameters_to_section(
+            derep_section,
+            &COVERM_CLUSTER_COMMAND_DEFINITION,
+        );
+    derep_section = galah::cluster_argument_parsing::add_dereplication_output_parameters_to_section(
+        derep_section,
+        &COVERM_CLUSTER_COMMAND_DEFINITION,
+    );
+    manual = manual.custom(derep_section);
 
     let mut general_section = Section::new("General options").option(
         Opt::new("INT").short("-t").long("--threads").help(&format!(
@@ -851,7 +959,7 @@ pub fn contig_full_help() -> Manual {
                 the unfiltered BAM files in the saved_bam_files folder",
             )
             .command(
-                "coverm contig --method metabat --bam-files my.bam \
+                "coverm contig --methods metabat --bam-files my.bam \
                 --cache-unfiltered-bam-directory saved_bam_files",
             ),
     );
@@ -1165,6 +1273,121 @@ pub fn genome_full_help() -> Manual {
     manual
 }
 
+/// Add the `--dereplicate` flag plus the Galah dereplication tuning arguments and
+/// CheckM-based genome quality filtering arguments to a subcommand, mirroring the
+/// options offered by `coverm genome`. These operate on the set of genomes given
+/// via `--genome-fasta-*`, so they conflict with a pre-built `--reference`.
+fn add_dereplication_arguments(command: Command) -> Command {
+    command
+        .arg(
+            Arg::new("dereplicate")
+                .long("dereplicate")
+                .conflicts_with("reference")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-ani")
+                .long("dereplication-ani")
+                .value_parser(clap::value_parser!(f32))
+                .default_value(galah::DEFAULT_ANI),
+        )
+        .arg(
+            Arg::new("dereplication-prethreshold-ani")
+                .long("dereplication-prethreshold-ani")
+                .value_parser(clap::value_parser!(f32))
+                .default_value(galah::DEFAULT_PRETHRESHOLD_ANI),
+        )
+        .arg(
+            Arg::new("dereplication-quality-formula")
+                .long("dereplication-quality-formula")
+                .value_parser([
+                    "completeness-4contamination",
+                    "completeness-5contamination",
+                    "Parks2020_reduced",
+                    "dRep",
+                ])
+                .default_value(galah::DEFAULT_QUALITY_FORMULA),
+        )
+        .arg(
+            Arg::new("dereplication-precluster-method")
+                .long("dereplication-precluster-method")
+                .value_parser(galah::PRECLUSTER_METHODS)
+                .default_value(galah::DEFAULT_PRECLUSTER_METHOD),
+        )
+        .arg(
+            Arg::new("dereplication-cluster-method")
+                .long("dereplication-cluster-method")
+                .value_parser(galah::CLUSTER_METHODS)
+                .default_value(galah::DEFAULT_CLUSTER_METHOD),
+        )
+        .arg(
+            Arg::new("dereplication-aligned-fraction")
+                .long("dereplication-aligned-fraction")
+                .default_value(galah::DEFAULT_ALIGNED_FRACTION)
+                .value_parser(clap::value_parser!(f32)),
+        )
+        .arg(
+            Arg::new("dereplication-small-genomes")
+                .long("dereplication-small-genomes")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-cluster-contigs")
+                .long("dereplication-cluster-contigs")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-small-contigs")
+                .long("dereplication-small-contigs")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-large-contigs")
+                .long("dereplication-large-contigs")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-fragment-length")
+                .long("dereplication-fragment-length")
+                .default_value(galah::DEFAULT_FRAGMENT_LENGTH)
+                .value_parser(clap::value_parser!(u32)),
+        )
+        .arg(
+            Arg::new("dereplication-output-cluster-definition")
+                .long("dereplication-output-cluster-definition"),
+        )
+        .arg(
+            Arg::new("dereplication-output-representative-fasta-directory")
+                .long("dereplication-output-representative-fasta-directory"),
+        )
+        .arg(
+            Arg::new("dereplication-output-representative-fasta-directory-copy")
+                .long("dereplication-output-representative-fasta-directory-copy"),
+        )
+        .arg(
+            Arg::new("dereplication-output-representative-list")
+                .long("dereplication-output-representative-list"),
+        )
+        .arg(
+            Arg::new("checkm-tab-table")
+                .long("checkm-tab-table")
+                .conflicts_with("reference"),
+        )
+        .arg(
+            Arg::new("checkm2-quality-report")
+                .long("checkm2-quality-report")
+                .conflicts_with("reference"),
+        )
+        .arg(
+            Arg::new("genome-info")
+                .long("genome-info")
+                .conflicts_with("reference")
+                .conflicts_with("checkm-tab-table"),
+        )
+        .arg(Arg::new("min-completeness").long("min-completeness"))
+        .arg(Arg::new("max-contamination").long("max-contamination"))
+}
+
 pub fn build_cli() -> Command {
     // specify static lazily because need to define it at runtime.
     lazy_static! {
@@ -1179,7 +1402,7 @@ pub fn build_cli() -> Command {
 
 {}
 
-  coverm contig --method metabat --bam-files my.bam
+  coverm contig --methods metabat --bam-files my.bam
     --cache-unfiltered-bam-directory saved_bam_files
 
 See coverm contig --full-help for further options and further detail.
@@ -1234,7 +1457,7 @@ See coverm genome --full-help for further options and further detail.
 
 {}
 
-  coverm filter --bam-files input.bam --output-bam filtered.bam
+  coverm filter --bam-files input.bam --output-bam-files filtered.bam
     --min-read-aligned-length 50
 
 {}
@@ -1280,16 +1503,16 @@ See coverm make --full-help for further options and further detail.
 
 {}
 
-  coverm makedb -r combined_genomes.fna -p minimap2-sr -o db_dir
+  coverm makedb -d genomes_directory/ -x fna -p minimap2-sr -o db_dir
 
 See coverm makedb --full-help for further options and further detail.
 ",
             ansi_term::Colour::Green.paint("coverm makedb"),
             ansi_term::Colour::Green
-                .paint("Generate mapping database(s) from reference FASTA files"),
+                .paint("Generate mapping database(s) from reference or genome FASTA files"),
             ansi_term::Colour::Purple.paint(
-                "Example: Generate a short-read minimap2 database from a set of genomes,\n\
-                storing it in db_dir/"
+                "Example: Generate a short-read minimap2 database from a directory of\n\
+                genomes, storing it in db_dir/"
             ),
         );
     }
@@ -1485,7 +1708,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("minimap2-params")
                         .long("minimap2-params")
-                        .long("minimap2-parameters")
+                        .alias("minimap2-parameters")
                         .allow_hyphen_values(true),
                 )
                 .arg(
@@ -1497,21 +1720,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("bwa-params")
                         .long("bwa-params")
-                        .long("bwa-parameters")
+                        .alias("bwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
                 .arg(
                     Arg::new("minibwa-params")
                         .long("minibwa-params")
-                        .long("minibwa-parameters")
+                        .alias("minibwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
                 .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
-                        .long("strobealign-parameters")
+                        .alias("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -2045,7 +2268,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("minimap2-params")
                         .long("minimap2-params")
-                        .long("minimap2-parameters")
+                        .alias("minimap2-parameters")
                         .allow_hyphen_values(true),
                 )
                 .arg(
@@ -2057,21 +2280,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("bwa-params")
                         .long("bwa-params")
-                        .long("bwa-parameters")
+                        .alias("bwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
                 .arg(
                     Arg::new("minibwa-params")
                         .long("minibwa-params")
-                        .long("minibwa-parameters")
+                        .alias("minibwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
                 .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
-                        .long("strobealign-parameters")
+                        .alias("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -2442,7 +2665,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("minimap2-params")
                         .long("minimap2-params")
-                        .long("minimap2-parameters")
+                        .alias("minimap2-parameters")
                         .allow_hyphen_values(true),
                 )
                 .arg(
@@ -2454,15 +2677,22 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                 .arg(
                     Arg::new("bwa-params")
                         .long("bwa-params")
-                        .long("bwa-parameters")
+                        .alias("bwa-parameters")
                         .conflicts_with("minimap2-params")
+                        .allow_hyphen_values(true)
+                        .requires("reference"),
+                )
+                .arg(
+                    Arg::new("minibwa-params")
+                        .long("minibwa-params")
+                        .alias("minibwa-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
                 .arg(
                     Arg::new("strobealign-params")
                         .long("strobealign-params")
-                        .long("strobealign-parameters")
+                        .alias("strobealign-parameters")
                         .allow_hyphen_values(true)
                         .requires("reference"),
                 )
@@ -2480,7 +2710,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .requires("reference"),
                 ),
         )
-        .subcommand(
+        .subcommand(add_dereplication_arguments(
             add_clap_verbosity_flags(Command::new("makedb"))
                 .about("Generate mapping database(s) from reference FASTA files")
                 .override_help(MAKEDB_HELP.as_str())
@@ -2500,7 +2730,65 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("reference")
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
-                        .required_unless_present_any(["full-help", "full-help-roff"]),
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-list")
+                        .required_unless_present_any([
+                            "genome-fasta-files",
+                            "genome-fasta-directory",
+                            "genome-fasta-list",
+                            "full-help",
+                            "full-help-roff",
+                        ]),
+                )
+                .arg(
+                    Arg::new("genome-fasta-files")
+                        .short('f')
+                        .long("genome-fasta-files")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-list")
+                        .required_unless_present_any([
+                            "reference",
+                            "genome-fasta-directory",
+                            "genome-fasta-list",
+                            "full-help",
+                            "full-help-roff",
+                        ]),
+                )
+                .arg(
+                    Arg::new("genome-fasta-directory")
+                        .short('d')
+                        .long("genome-fasta-directory")
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-list")
+                        .required_unless_present_any([
+                            "reference",
+                            "genome-fasta-files",
+                            "genome-fasta-list",
+                            "full-help",
+                            "full-help-roff",
+                        ]),
+                )
+                .arg(
+                    Arg::new("genome-fasta-list")
+                        .long("genome-fasta-list")
+                        .conflicts_with("genome-fasta-files")
+                        .conflicts_with("genome-fasta-directory")
+                        .required_unless_present_any([
+                            "reference",
+                            "genome-fasta-files",
+                            "genome-fasta-directory",
+                            "full-help",
+                            "full-help-roff",
+                        ]),
+                )
+                .arg(
+                    Arg::new("genome-fasta-extension")
+                        .short('x')
+                        .long("genome-fasta-extension")
+                        .default_value("fna"),
                 )
                 .arg(
                     Arg::new("output-directory")
@@ -2515,7 +2803,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::Append)
                         .num_args(1..)
                         .value_parser(MAPPING_SOFTWARE_LIST.iter().collect::<Vec<_>>())
-                        .default_value("minimap2-sr"),
+                        .default_value(DEFAULT_MAKEDB_MAPPING_SOFTWARE),
                 )
                 .arg(
                     Arg::new("threads")
@@ -2542,7 +2830,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .alias("strobealign-parameters")
                         .allow_hyphen_values(true),
                 ),
-        )
+        ))
         .subcommand(
             add_clap_verbosity_flags(Command::new("shell-completion"))
                 .about("Generate a shell completion script for coverm")

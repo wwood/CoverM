@@ -247,44 +247,10 @@ fn main() {
                 // Get the GenomesAndContigs from the dereplicated genomes or
                 // list of genome fasta files.
 
-                let genome_fasta_files_opt = {
-                    match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(m, false) {
-                        Ok(paths) => {
-                            if paths.is_empty() {
-                                error!(
-                                    "Genome paths were described, but ultimately none were found"
-                                );
-                                process::exit(1);
-                            }
-                            if m.contains_id("checkm-tab-table") || m.contains_id("genome-info") {
-                                let genomes_after_filtering =
-                                    galah::cluster_argument_parsing::filter_genomes_through_checkm(
-                                        &paths,
-                                        m,
-                                        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
-                                    )
-                                    .expect("Error parsing CheckM-related options");
-                                info!(
-                                    "After filtering by CheckM, {} genomes remained",
-                                    genomes_after_filtering.len()
-                                );
-                                if genomes_after_filtering.is_empty() {
-                                    error!("All genomes were filtered out, so none remain to be mapped to");
-                                    process::exit(1);
-                                }
-                                Some(
-                                    genomes_after_filtering
-                                        .iter()
-                                        .map(|s| s.to_string())
-                                        .collect(),
-                                )
-                            } else {
-                                Some(paths)
-                            }
-                        }
-                        Err(_) => None,
-                    }
-                };
+                let genome_fasta_files_opt = resolve_and_checkm_filter_genomes(
+                    m,
+                    "All genomes were filtered out, so none remain to be mapped to",
+                );
 
                 let (concatenated_genomes, genomes_and_contigs_option) =
                     match m.contains_id("reference") {
@@ -765,52 +731,101 @@ fn main() {
             let output_directory = m.get_one::<String>("output-directory").unwrap();
             setup_bam_cache_directory(output_directory);
 
-            let references: Vec<&String> = m
-                .get_many::<String>("reference")
-                .expect("No reference provided")
-                .collect();
+            // makedb accepts either pre-concatenated reference FASTA file(s) via
+            // --reference, or a set of genome FASTA files (as in `coverm genome`,
+            // via --genome-fasta-files / --genome-fasta-directory /
+            // --genome-fasta-list). In the latter case the genomes are
+            // concatenated on the fly into a single reference FASTA (with contigs
+            // renamed to `genome<separator>contig`), which is persisted in the
+            // output directory and used to build the database(s).
+            let concatenated_reference: Option<String> = match resolve_and_checkm_filter_genomes(
+                m,
+                "All genomes were filtered out, so none remain to make a database from",
+            ) {
+                Some(genome_fasta_files) => {
+                    // Optionally dereplicate the genomes (as in `coverm genome`)
+                    // before concatenating the survivors into the reference.
+                    let genome_fasta_files = if m.get_flag("dereplicate") {
+                        dereplicate(m, &genome_fasta_files)
+                    } else {
+                        genome_fasta_files
+                    };
 
-            // Validate that each reference is an existing FASTA file. We
-            // deliberately do not use check_reference_existence here: for BWA
-            // it inspects pre-existing index files beside the reference, which
-            // is inappropriate when makedb is *creating* a new index (and would
-            // spuriously fail when, say, a bwa-mem2 index already sits next to a
-            // FASTA from which a bwa-mem database is being built).
-            for reference in &references {
-                let ref_path = std::path::Path::new(reference.as_str());
-                if !ref_path.exists() {
-                    error!("The reference specified '{reference}' does not appear to exist");
-                    process::exit(1);
-                } else if !ref_path.is_file() {
-                    error!(
-                        "The reference specified '{reference}' should be a file, \
-                        not e.g. a directory"
+                    info!(
+                        "Generating concatenated reference FASTA file of {} genomes ..",
+                        genome_fasta_files.len()
                     );
-                    process::exit(1);
+                    let concatenated_path = std::path::Path::new(output_directory)
+                        .join("coverm_concatenated_genomes.fna");
+                    coverm::mapping_index_maintenance::generate_concatenated_fasta_file_at(
+                        &genome_fasta_files,
+                        &concatenated_path,
+                    );
+                    info!(
+                        "Wrote concatenated reference to {}",
+                        concatenated_path.display()
+                    );
+                    Some(concatenated_path.to_string_lossy().to_string())
                 }
-            }
+                // No genome FASTA inputs were given, so fall back to --reference.
+                None => None,
+            };
 
-            // Guard against multiple references that share a file name (e.g.
-            // refs in different directories both named ref.fna), which would
-            // otherwise generate databases with colliding output paths.
-            if references.len() > 1 {
-                let mut seen_stems = HashSet::new();
-                for reference in &references {
-                    let stem = std::path::Path::new(reference.as_str())
-                        .file_name()
-                        .expect("Failed to glean file name from reference path")
-                        .to_string_lossy()
-                        .to_string();
-                    if !seen_stems.insert(stem.clone()) {
-                        error!(
-                            "Multiple references share the file name '{stem}', which would \
-                            generate databases with colliding output paths. Please rename or \
-                            generate them in separate output directories."
-                        );
-                        process::exit(1);
+            let references: Vec<String> = match concatenated_reference {
+                Some(path) => vec![path],
+                None => {
+                    let references: Vec<String> = m
+                        .get_many::<String>("reference")
+                        .expect("No reference provided")
+                        .map(|s| s.to_string())
+                        .collect();
+
+                    // Validate that each reference is an existing FASTA file. We
+                    // deliberately do not use check_reference_existence here: for BWA
+                    // it inspects pre-existing index files beside the reference, which
+                    // is inappropriate when makedb is *creating* a new index (and would
+                    // spuriously fail when, say, a bwa-mem2 index already sits next to a
+                    // FASTA from which a bwa-mem database is being built).
+                    for reference in &references {
+                        let ref_path = std::path::Path::new(reference.as_str());
+                        if !ref_path.exists() {
+                            error!(
+                                "The reference specified '{reference}' does not appear to exist"
+                            );
+                            process::exit(1);
+                        } else if !ref_path.is_file() {
+                            error!(
+                                "The reference specified '{reference}' should be a file, \
+                                not e.g. a directory"
+                            );
+                            process::exit(1);
+                        }
                     }
+
+                    // Guard against multiple references that share a file name (e.g.
+                    // refs in different directories both named ref.fna), which would
+                    // otherwise generate databases with colliding output paths.
+                    if references.len() > 1 {
+                        let mut seen_stems = HashSet::new();
+                        for reference in &references {
+                            let stem = std::path::Path::new(reference.as_str())
+                                .file_name()
+                                .expect("Failed to glean file name from reference path")
+                                .to_string_lossy()
+                                .to_string();
+                            if !seen_stems.insert(stem.clone()) {
+                                error!(
+                                    "Multiple references share the file name '{stem}', which would \
+                                    generate databases with colliding output paths. Please rename or \
+                                    generate them in separate output directories."
+                                );
+                                process::exit(1);
+                            }
+                        }
+                    }
+                    references
                 }
-            }
+            };
 
             // Parse mappers, de-duplicating while preserving order, and check
             // that the underlying mapping software is installed.
@@ -894,7 +909,15 @@ fn main() {
                             --reference {db_path} -p minibwa -1 read1.fq -2 read2.fq"
                         );
                     }
-                    MappingProgram::RAMMAP => unreachable!(),
+                    MappingProgram::RAMMAP => {
+                        // rammap auto-detects the .idx index passed as the
+                        // mapping target, so no special "reference-is-index"
+                        // flag is required.
+                        info!(
+                            "To use the rammap database, run e.g.: coverm contig \
+                            --reference {db_path} -p rammap -1 read1.fq -2 read2.fq"
+                        );
+                    }
                 }
             }
         }
@@ -1065,6 +1088,57 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
     );
 
     reps
+}
+
+/// Resolve genome FASTA inputs (--genome-fasta-files / --genome-fasta-directory
+/// / --genome-fasta-list) and apply CheckM quality filtering if any CheckM /
+/// genome-info options were supplied. Returns None when no genome FASTA inputs
+/// were given (callers then fall back to --reference / --genome-definition).
+///
+/// `no_survivors_error` customises the message shown when CheckM filtering
+/// removes every genome (e.g. the mode-specific "so none remain to be mapped
+/// to" vs "so none remain to make a database from").
+fn resolve_and_checkm_filter_genomes(
+    m: &clap::ArgMatches,
+    no_survivors_error: &str,
+) -> Option<Vec<String>> {
+    match bird_tool_utils::clap_utils::parse_list_of_genome_fasta_files(m, false) {
+        Ok(paths) => {
+            if paths.is_empty() {
+                error!("Genome paths were described, but ultimately none were found");
+                process::exit(1);
+            }
+            if m.contains_id("checkm-tab-table")
+                || m.contains_id("checkm2-quality-report")
+                || m.contains_id("genome-info")
+            {
+                let genomes_after_filtering =
+                    galah::cluster_argument_parsing::filter_genomes_through_checkm(
+                        &paths,
+                        m,
+                        &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+                    )
+                    .expect("Error parsing CheckM-related options");
+                info!(
+                    "After filtering by CheckM, {} genomes remained",
+                    genomes_after_filtering.len()
+                );
+                if genomes_after_filtering.is_empty() {
+                    error!("{no_survivors_error}");
+                    process::exit(1);
+                }
+                Some(
+                    genomes_after_filtering
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                )
+            } else {
+                Some(paths)
+            }
+        }
+        Err(_) => None,
+    }
 }
 
 fn parse_mapping_program(m: &clap::ArgMatches) -> MappingProgram {
