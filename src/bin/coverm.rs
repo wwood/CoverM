@@ -951,15 +951,24 @@ fn main() {
 
 // Run by all subcommands, even if some checks aren't appropriate.
 fn manually_check_args_at_runtime(m: &clap::ArgMatches) {
-    // Check if the arguments are defined in this command before using contains_id
+    // Check if the arguments are defined in this command before using contains_id.
+    // Use try_get_one for bool flags so that subcommands that don't define the arg
+    // are handled gracefully (returns Err → unwrap_or(false)).
+    let run_checkm2 = m
+        .try_get_one::<bool>("run-checkm2")
+        .ok()
+        .flatten()
+        .copied()
+        .unwrap_or(false);
     if ((m.try_get_one::<f32>("min-completeness").is_ok() && m.contains_id("min-completeness"))
         || (m.try_get_one::<f32>("max-contamination").is_ok()
             && m.contains_id("max-contamination")))
         && !m.contains_id("checkm-tab-table")
         && !m.contains_id("checkm2-quality-report")
         && !m.contains_id("genome-info")
+        && !run_checkm2
     {
-        error!("You must provide a CheckM tab table, CheckM2 quality report or genome info file to use --min-completeness or --max-contamination");
+        error!("You must provide a CheckM tab table, CheckM2 quality report, genome info file, or use --run-checkm2 to use --min-completeness or --max-contamination");
     }
 }
 
