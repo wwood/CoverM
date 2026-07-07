@@ -33,6 +33,8 @@ lazy_static! {
             dereplication_ani_argument: "dereplication-ani".to_string(),
             dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
             dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
+            dereplication_run_checkm2_argument: "run-checkm2".to_string(),
+            dereplication_checkm2_db_path_argument: "checkm2-db-path".to_string(),
             dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
             dereplication_cluster_method_argument: "dereplication-cluster-method".to_string(),
             dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
@@ -41,6 +43,10 @@ lazy_static! {
             dereplication_small_contigs_argument: "dereplication-small-contigs".to_string(),
             dereplication_large_contigs_argument: "dereplication-large-contigs".to_string(),
             dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
+            dereplication_low_memory_argument: "dereplication-low-memory".to_string(),
+            dereplication_reference_genomes_argument: "dereplication-reference-genomes".to_string(),
+            dereplication_reference_genomes_list_argument: "dereplication-reference-genomes-list"
+                .to_string(),
             dereplication_output_cluster_definition_file: "dereplication-output-cluster-definition"
                 .to_string(),
             dereplication_output_representative_fasta_directory:
@@ -1353,6 +1359,27 @@ fn add_dereplication_arguments(command: Command) -> Command {
                 .value_parser(clap::value_parser!(u32)),
         )
         .arg(
+            Arg::new("dereplication-low-memory")
+                .long("dereplication-low-memory")
+                .action(clap::ArgAction::SetTrue)
+                .conflicts_with("dereplication-reference-genomes")
+                .conflicts_with("dereplication-reference-genomes-list"),
+        )
+        .arg(
+            Arg::new("dereplication-reference-genomes")
+                .long("dereplication-reference-genomes")
+                .value_delimiter(' ')
+                .num_args(1..)
+                .conflicts_with("dereplication-low-memory")
+                .conflicts_with("dereplication-reference-genomes-list"),
+        )
+        .arg(
+            Arg::new("dereplication-reference-genomes-list")
+                .long("dereplication-reference-genomes-list")
+                .conflicts_with("dereplication-low-memory")
+                .conflicts_with("dereplication-reference-genomes"),
+        )
+        .arg(
             Arg::new("dereplication-output-cluster-definition")
                 .long("dereplication-output-cluster-definition"),
         )
@@ -1386,6 +1413,12 @@ fn add_dereplication_arguments(command: Command) -> Command {
         )
         .arg(Arg::new("min-completeness").long("min-completeness"))
         .arg(Arg::new("max-contamination").long("max-contamination"))
+        .arg(
+            Arg::new("run-checkm2")
+                .long("run-checkm2")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(Arg::new("checkm2-db-path").long("checkm2-db-path"))
 }
 
 pub fn build_cli() -> Command {
@@ -2070,6 +2103,27 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .value_parser(clap::value_parser!(u32)),
                 )
                 .arg(
+                    Arg::new("dereplication-low-memory")
+                        .long("dereplication-low-memory")
+                        .action(clap::ArgAction::SetTrue)
+                        .conflicts_with("dereplication-reference-genomes")
+                        .conflicts_with("dereplication-reference-genomes-list"),
+                )
+                .arg(
+                    Arg::new("dereplication-reference-genomes")
+                        .long("dereplication-reference-genomes")
+                        .value_delimiter(' ')
+                        .num_args(1..)
+                        .conflicts_with("dereplication-low-memory")
+                        .conflicts_with("dereplication-reference-genomes-list"),
+                )
+                .arg(
+                    Arg::new("dereplication-reference-genomes-list")
+                        .long("dereplication-reference-genomes-list")
+                        .conflicts_with("dereplication-low-memory")
+                        .conflicts_with("dereplication-reference-genomes"),
+                )
+                .arg(
                     Arg::new("dereplication-output-cluster-definition")
                         .long("dereplication-output-cluster-definition"),
                 )
@@ -2117,7 +2171,13 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                                                                            // immediately obvious how to implement this, so instead
                                                                            // we manually check at runtime.
                 )
-                .arg(Arg::new("max-contamination").long("max-contamination")),
+                .arg(Arg::new("max-contamination").long("max-contamination"))
+                .arg(
+                    Arg::new("run-checkm2")
+                        .long("run-checkm2")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(Arg::new("checkm2-db-path").long("checkm2-db-path")),
         )
         .subcommand(
             add_clap_verbosity_flags(Command::new("contig"))

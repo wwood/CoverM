@@ -1056,6 +1056,8 @@ fn dereplicate(m: &clap::ArgMatches, genome_fasta_files: &Vec<String>) -> Vec<St
         false, // Not using a different mode
         m,
         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+        None, // No reference genomes
+        None, // No injected quality report
     )
     .expect("Failed to parse galah clustering arguments correctly");
 
@@ -1117,6 +1119,7 @@ fn resolve_and_checkm_filter_genomes(
                         &paths,
                         m,
                         &coverm::cli::COVERM_CLUSTER_COMMAND_DEFINITION,
+                        None, // No injected quality report
                     )
                     .expect("Error parsing CheckM-related options");
                 info!(
