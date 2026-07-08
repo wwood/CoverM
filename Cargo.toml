@@ -10,6 +10,7 @@ documentation = "https://github.com/wwood/CoverM"
 readme = "README.md"
 exclude = [ # Max upload is 10MB, as of writing test data was 15MB
   "tests/*",
+  "demo/*",
 ]
 default-run = "coverm"
 edition = "2015"
