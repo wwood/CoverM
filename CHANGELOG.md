@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## Version 0.8.0
+
 - Add strobealign-aemb, rammap and minibwa as mappers
 - Add ANIr coverage method
 - Add mapq-based filtering through `--min-mapq`
