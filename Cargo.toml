@@ -47,3 +47,8 @@ cargo-husky = { version="1", default-features = false, features=["precommit-hook
 [profile.release]
 strip = true
 lto = true
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
