@@ -4,12 +4,17 @@
 
 ## Version 0.8.0
 
-- Add strobealign-aemb, rammap and minibwa as mappers
-- Add ANIr coverage method
-- Add mapq-based filtering through `--min-mapq`
+- Add strobealign-aemb, rammap and minibwa as mappers. Thanks @PoisonAlien for your suggestion
+- Add ANIr coverage method. Thanks @bglindner for the suggestion
+- Add mapq-based filtering through `--min-mapq`. Thanks @SDmetagenomics for the suggestion
 - Add makedb mode to build persistent mapping indexes (databases) from reference genome or contig FASTA files.
 - Add `--bam-file-cache-names` argument for explicit BAM cache filenames
 - Various optimisations. Thanks @lavafroth
+- Fixed bioconda link. Thanks @ThisIsNotANamepng
+- Add demo. Thanks @R-Nurdiansyah for testing it out
+- Add fasta.gz support for inputs. Thanks @luispedro, @jianshu93 for the suggestion
+- Switch to crates version of which. Thanks @nickp60 for the suggestion
+- Block usage of skani with ANI <85% ANI. Thanks @jianshu93 for the suggestion.
 
 ## Version 0.7.0
 
