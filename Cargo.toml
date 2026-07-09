@@ -34,10 +34,11 @@ bird_tool_utils = ">=0.5.2, <0.6.0"
 # bird_tool_utils = { git = "https://github.com/wwood/bird_tool_utils" }
 # bird_tool_utils = { path = "../bird_tool_utils" }
 # galah = "0.4.0"
-galah = ">=0.5.1, <0.6.0"
+# galah = ">=0.5.1, <0.6.0" # published 0.5.2 pins needletail 0.5; use git until a release with needletail 0.7 is published
+galah = { git = "https://github.com/wwood/galah" }
 bird_tool_utils-man = "0.4.0"
 roff = "0.2.*"
-needletail = "0.5.*"
+needletail = "0.7.*"
 csv = "1.*"
 
 [dev-dependencies]
