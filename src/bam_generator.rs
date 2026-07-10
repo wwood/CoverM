@@ -259,17 +259,7 @@ pub fn complete_processes(
         }
     }
     if failed_any || log_enabled!(log::Level::Debug) {
-        for (description, tf) in log_file_descriptions.iter().zip(log_files) {
-            let mut contents = String::new();
-            tf.into_file()
-                .read_to_string(&mut contents)
-                .unwrap_or_else(|_| panic!("Failed to read log file for {}", description));
-            if failed_any {
-                error!("The STDERR for the {description:} part was: {contents}");
-            } else {
-                debug!("The STDERR for the {description:} part was: {contents}");
-            }
-        }
+        report_log_contents(&log_file_descriptions, log_files, failed_any);
     }
     if failed_any {
         error!("Cannot continue since mapping failed.");
@@ -281,6 +271,30 @@ pub fn complete_processes(
     // compiler fence here stops this.
     compiler_fence(Ordering::SeqCst);
     debug!("After fence, for tempdir {tempdir:?}");
+}
+
+// Reads bytes rather than a UTF-8 string since mapper stderr can contain non-UTF-8 output (e.g. progress characters).
+fn report_log_contents(
+    log_file_descriptions: &[String],
+    log_files: Vec<tempfile::NamedTempFile>,
+    failed_any: bool,
+) {
+    for (description, tf) in log_file_descriptions.iter().zip(log_files) {
+        let mut bytes = vec![];
+        match tf.into_file().read_to_end(&mut bytes) {
+            Ok(_) => {
+                let contents = String::from_utf8_lossy(&bytes);
+                if failed_any {
+                    error!("The STDERR for the {description:} part was: {contents}");
+                } else {
+                    debug!("The STDERR for the {description:} part was: {contents}");
+                }
+            }
+            Err(e) => {
+                warn!("Failed to read log file for {}: {}", description, e);
+            }
+        }
+    }
 }
 
 impl NamedBamReader for StreamingNamedBamReader {
@@ -1023,4 +1037,47 @@ pub fn build_mapping_command(
         reference.index_path(),
         read_params2
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    // Non-UTF-8 stderr bytes made read_to_string() error, which used to panic and hide the real mapping error.
+    #[test]
+    fn test_report_log_contents_does_not_panic_on_invalid_utf8() {
+        let tf = tempfile::NamedTempFile::new().unwrap();
+        // Write via the path (like the subprocess's `2>path` redirect) so tf's own handle stays at offset 0.
+        std::fs::write(
+            tf.path(),
+            [0x53, 0x54, 0x44, 0x45, 0x52, 0x52, 0xff, 0xfe, 0x0a],
+        )
+        .unwrap();
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            report_log_contents(&["STROBEALIGN".to_string()], vec![tf], true);
+        }));
+
+        assert!(
+            result.is_ok(),
+            "reading a log file containing invalid UTF-8 must not panic"
+        );
+    }
+
+    #[test]
+    fn test_report_log_contents_does_not_panic_on_valid_utf8() {
+        let tf = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(
+            tf.path(),
+            b"strobealign: mmap failed to open file: reads.fastq.gz: Invalid argument\n",
+        )
+        .unwrap();
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            report_log_contents(&["STROBEALIGN".to_string()], vec![tf], true);
+        }));
+
+        assert!(result.is_ok());
+    }
 }
