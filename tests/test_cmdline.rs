@@ -1559,6 +1559,29 @@ genome6	0",
     }
 
     #[test]
+    fn test_mean_zero_coverage_length_contig() {
+        // seq1 has reads mapped (so its internal zero-coverage gaps are
+        // measured), while seq2 has no reads mapped at all and so is reported as
+        // a single zero-coverage region spanning its whole 1000bp length.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "mean_zero_coverage_length",
+                "-b",
+                "tests/data/2seqs.reads_for_seq1.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "Contig\t2seqs.reads_for_seq1 Mean Zero Coverage Length\n\
+                 seq1\t68.25\n\
+                 seq2\t1000\n",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_metabat_include_supplementary() {
         Assert::main_binary()
             .with_args(&[

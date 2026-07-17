@@ -577,6 +577,21 @@ mod tests {
     }
 
     #[test]
+    fn test_mean_zero_coverage_length_estimator() {
+        // seq1 has reads mapped and so has its zero-coverage regions measured,
+        // while seq2 has no reads mapped at all and so is a single
+        // zero-coverage region spanning its whole length (1000bp).
+        test_with_stream(
+            &("2seqs.reads_for_seq1\tseq1\t68.25\n".to_owned()
+                + "2seqs.reads_for_seq1\tseq2\t1000\n"),
+            generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1.bam"]),
+            &mut vec![CoverageEstimator::new_estimator_mean_zero_coverage_length()],
+            true,
+            false,
+        );
+    }
+
+    #[test]
     fn test_reads_per_base_estimator() {
         test_with_stream(
             "7seqs.fna.bwa1/reads_for_seq1_and_seq2.1.fq.gz\tgenome1~random_sequence_length_11000\t0\n\

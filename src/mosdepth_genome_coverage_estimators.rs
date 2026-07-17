@@ -77,6 +77,11 @@ pub enum CoverageEstimator {
         sum_identity: f64,
         num_reads: u64,
     },
+    MeanZeroCoverageLengthEstimator {
+        total_zero_coverage_bases: u64,
+        num_zero_coverage_regions: u64,
+        num_mapped_reads: u64,
+    },
     StrobealignAembEstimator {},
 }
 
@@ -99,6 +104,9 @@ impl CoverageEstimator {
             CoverageEstimator::ReadCountCalculator { .. } => vec!["Read Count"],
             CoverageEstimator::ReadsPerBaseCalculator { .. } => vec!["Reads per base"],
             CoverageEstimator::AverageIdentityEstimator { .. } => vec!["ANIr"],
+            CoverageEstimator::MeanZeroCoverageLengthEstimator { .. } => {
+                vec!["Mean Zero Coverage Length"]
+            }
             CoverageEstimator::StrobealignAembEstimator { .. } => vec!["Strobealign aemb"],
         }
     }
@@ -217,6 +225,13 @@ impl CoverageEstimator {
         CoverageEstimator::AverageIdentityEstimator {
             sum_identity: 0.0,
             num_reads: 0,
+        }
+    }
+    pub fn new_estimator_mean_zero_coverage_length() -> CoverageEstimator {
+        CoverageEstimator::MeanZeroCoverageLengthEstimator {
+            total_zero_coverage_bases: 0,
+            num_zero_coverage_regions: 0,
+            num_mapped_reads: 0,
         }
     }
     pub fn new_estimator_strobealign_aemb() -> CoverageEstimator {
@@ -358,6 +373,15 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *sum_identity = 0.0;
                 *num_reads = 0;
+            }
+            CoverageEstimator::MeanZeroCoverageLengthEstimator {
+                ref mut total_zero_coverage_bases,
+                ref mut num_zero_coverage_regions,
+                ref mut num_mapped_reads,
+            } => {
+                *total_zero_coverage_bases = 0;
+                *num_zero_coverage_regions = 0;
+                *num_mapped_reads = 0;
             }
             CoverageEstimator::StrobealignAembEstimator { .. } => panic!("Programming error"),
         }
@@ -522,6 +546,31 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             } => {
                 *num_reads += num_mapped_reads_in_contig;
                 *sum_identity += sum_identity_in_contig;
+            }
+            CoverageEstimator::MeanZeroCoverageLengthEstimator {
+                ref mut total_zero_coverage_bases,
+                ref mut num_zero_coverage_regions,
+                ref mut num_mapped_reads,
+            } => {
+                *num_mapped_reads += num_mapped_reads_in_contig;
+                // Scan along the contig counting maximal runs of consecutive
+                // bases with zero coverage. Each run is a single zero-coverage
+                // region; the average region length is computed later in
+                // calculate_coverage. Contig ends are not excluded, matching the
+                // covered_fraction estimator.
+                let mut cumulative_sum: i32 = 0;
+                let mut previous_base_was_zero = false;
+                for current in ups_and_downs.iter() {
+                    cumulative_sum += current;
+                    let base_is_zero = cumulative_sum == 0;
+                    if base_is_zero {
+                        *total_zero_coverage_bases += 1;
+                        if !previous_base_was_zero {
+                            *num_zero_coverage_regions += 1;
+                        }
+                    }
+                    previous_base_was_zero = base_is_zero;
+                }
             }
             CoverageEstimator::StrobealignAembEstimator { .. } => unreachable!(),
         }
@@ -834,6 +883,33 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
                     (*sum_identity / *num_reads as f64) as f32
                 }
             }
+            CoverageEstimator::MeanZeroCoverageLengthEstimator {
+                total_zero_coverage_bases,
+                num_zero_coverage_regions,
+                num_mapped_reads,
+            } => {
+                let unobserved_bases: u64 = unobserved_contig_lengths.iter().sum();
+                if *num_mapped_reads == 0 {
+                    // No reads mapped to this entry at all, so the whole entry is
+                    // a single zero-coverage region spanning its full length.
+                    // Reporting the total length here (rather than the per-contig
+                    // average) keeps results identical to the print_zero_coverage
+                    // path, which only knows the entry's total length.
+                    return unobserved_bases as f32;
+                }
+                // Otherwise, average the zero-coverage regions found within the
+                // covered contigs together with each entirely-unobserved contig,
+                // which is itself a single region spanning its whole length.
+                let unobserved_regions =
+                    unobserved_contig_lengths.iter().filter(|&&l| l > 0).count() as u64;
+                let total_regions = *num_zero_coverage_regions + unobserved_regions;
+                let total_zero_bases = *total_zero_coverage_bases + unobserved_bases;
+                if total_regions == 0 {
+                    0.0
+                } else {
+                    total_zero_bases as f32 / total_regions as f32
+                }
+            }
             CoverageEstimator::StrobealignAembEstimator {} => unreachable!(),
         }
     }
@@ -927,6 +1003,9 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::AverageIdentityEstimator { .. } => {
                 CoverageEstimator::new_estimator_anir()
             }
+            CoverageEstimator::MeanZeroCoverageLengthEstimator { .. } => {
+                CoverageEstimator::new_estimator_mean_zero_coverage_length()
+            }
             CoverageEstimator::StrobealignAembEstimator { .. } => {
                 CoverageEstimator::new_estimator_strobealign_aemb()
             }
@@ -946,6 +1025,7 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             | CoverageEstimator::ReadCountCalculator { .. }
             | CoverageEstimator::ReadsPerBaseCalculator { .. }
             | CoverageEstimator::AverageIdentityEstimator { .. }
+            | CoverageEstimator::MeanZeroCoverageLengthEstimator { .. }
             | CoverageEstimator::StrobealignAembEstimator { .. } => {
                 coverage_taker.add_single_coverage(coverage);
             }
@@ -986,6 +1066,22 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             CoverageEstimator::PileupCountsGenomeCoverageEstimator { .. } => {}
             CoverageEstimator::ReferenceLengthCalculator { .. } => {
                 coverage_taker.add_single_coverage(entry_length as f32);
+            }
+            CoverageEstimator::MeanZeroCoverageLengthEstimator {
+                num_mapped_reads, ..
+            } => {
+                // This path is reached either because no reads mapped to the
+                // entry at all (so the whole entry is a single zero-coverage
+                // region spanning its full length), or because the entry was
+                // fully covered (so there are no zero-coverage regions and the
+                // average length is 0). The number of mapped reads distinguishes
+                // the two cases, keeping this consistent with calculate_coverage.
+                let coverage = if *num_mapped_reads == 0 {
+                    entry_length as f32
+                } else {
+                    0.0
+                };
+                coverage_taker.add_single_coverage(coverage);
             }
         }
     }
@@ -1052,11 +1148,75 @@ impl MosdepthGenomeCoverageEstimator for CoverageEstimator {
             | CoverageEstimator::ReadsPerBaseCalculator {
                 observed_contig_length: _,
                 num_mapped_reads,
+            }
+            | CoverageEstimator::MeanZeroCoverageLengthEstimator {
+                num_mapped_reads, ..
             } => *num_mapped_reads,
             CoverageEstimator::AverageIdentityEstimator { num_reads, .. } => *num_reads,
             CoverageEstimator::StrobealignAembEstimator { .. } => {
                 panic!("Strobealign AEMB does not calculate number of mapped reads")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Build the per-base delta ("ups and downs") array that yields the given
+    // per-base coverage profile, so tests can describe coverage directly.
+    fn ups_and_downs_from_coverage(coverage: &[i32]) -> Vec<i32> {
+        let mut ups_and_downs = Vec::with_capacity(coverage.len());
+        let mut previous = 0;
+        for c in coverage {
+            ups_and_downs.push(c - previous);
+            previous = *c;
+        }
+        ups_and_downs
+    }
+
+    #[test]
+    fn test_mean_zero_coverage_length_single_contig() {
+        let mut e = CoverageEstimator::new_estimator_mean_zero_coverage_length();
+        e.setup();
+        // Coverage profile with three zero-coverage regions of lengths 2, 1 and
+        // 3, so the average region length is (2 + 1 + 3) / 3 = 2.0.
+        let coverage = [0, 0, 1, 1, 0, 1, 0, 0, 0];
+        e.add_contig(&ups_and_downs_from_coverage(&coverage), 5, 0, 0.0);
+        assert_eq!(2.0, e.calculate_coverage(&[0]));
+    }
+
+    #[test]
+    fn test_mean_zero_coverage_length_fully_covered() {
+        let mut e = CoverageEstimator::new_estimator_mean_zero_coverage_length();
+        e.setup();
+        // Every base is covered, so there are no zero-coverage regions.
+        let coverage = [1, 2, 3, 2, 1];
+        e.add_contig(&ups_and_downs_from_coverage(&coverage), 3, 0, 0.0);
+        assert_eq!(0.0, e.calculate_coverage(&[0]));
+    }
+
+    #[test]
+    fn test_mean_zero_coverage_length_with_unobserved_contigs() {
+        let mut e = CoverageEstimator::new_estimator_mean_zero_coverage_length();
+        e.setup();
+        // One observed contig contributing three regions (2 + 1 + 3 = 6 bases),
+        // plus two entirely unobserved contigs of length 10 and 20, each a
+        // single zero-coverage region. So (6 + 10 + 20) / (3 + 2) = 7.2.
+        let coverage = [0, 0, 1, 1, 0, 1, 0, 0, 0];
+        e.add_contig(&ups_and_downs_from_coverage(&coverage), 5, 0, 0.0);
+        assert_eq!(7.2, e.calculate_coverage(&[10, 20]));
+    }
+
+    #[test]
+    fn test_mean_zero_coverage_length_only_unobserved() {
+        let mut e = CoverageEstimator::new_estimator_mean_zero_coverage_length();
+        e.setup();
+        // No reads mapped to this entry at all, so the whole entry is treated as
+        // a single zero-coverage region spanning its full length: 30 + 50 = 80.
+        // (This keeps results consistent with the print_zero_coverage path,
+        // which only knows the entry's total length.)
+        assert_eq!(80.0, e.calculate_coverage(&[30, 50]));
     }
 }
