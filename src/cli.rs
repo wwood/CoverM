@@ -68,7 +68,10 @@ fn add_mapping_options(manual: Manual) -> Manual {
     manual.custom(
         Section::new("Mapping algorithm options")
             .option(Opt::new("NAME").short("-p").long("--mapper").help(&format!(
-                "Underlying mapping software used {}. One of: {}",
+                "Underlying mapping software used {}. One of: {}\n\n\
+                Note that the bioconda package of CoverM only installs the default mappers \
+                (strobealign, minimap2 and bwa). Other mappers, such as bwa-mem2, minibwa and \
+                rammap, must be installed separately, e.g. '{}'.",
                 default_roff("strobealign"),
                 bird_tool_utils::clap_utils::table_roff(&[
                     &["name", "description"],
@@ -136,7 +139,8 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("rammap-no-preset"),
                         &format!("rammap with no '{}' option", &monospace_roff("-x"))
                     ],
-                ])
+                ]),
+                &monospace_roff("conda install -c bioconda minibwa")
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
                 "Extra parameters to provide to minimap2, \

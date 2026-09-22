@@ -36,6 +36,16 @@ CoverM and its dependencies can be installed through the [bioconda](https://bioc
 conda install coverm
 ```
 
+The bioconda package includes the default mapping programs (strobealign,
+minimap2 and bwa), samtools, and the dereplication tools skani and FastANI.
+Other optional mappers are not installed, to keep the number of dependencies
+manageable. To use `-p bwa-mem2`, `-p minibwa` or any of the `-p rammap-*`
+options, install the corresponding program separately, e.g.
+
+```
+conda install -c bioconda bwa-mem2 minibwa rammap
+```
+
 ### Pre-compiled binary
 
 Statically compiled CoverM binaries available on the [releases page](https://github.com/wwood/CoverM/releases).
@@ -86,10 +96,15 @@ Or, these can be installed manually:
   operating systems.
 
 and one of these for mapping:
-* [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0
+* [strobealign](https://github.com/ksahlin/StrobeAlign) v0.14.0 (the default mapper)
 * [minimap2](https://github.com/lh3/minimap2) v2.21
+* [bwa](https://github.com/lh3/bwa) v0.7.17
 * [bwa-mem2](https://github.com/bwa-mem2/bwa-mem2) v2.0
+* [minibwa](https://github.com/lh3/minibwa) v0.2
 * [rammap](https://github.com/jwanglab/rammap) v1.1.1
+
+Of these, only strobealign, minimap2 and bwa are installed by the bioconda
+package; the others must be installed separately if required.
 
 and one of these for genome dereplication:
 * [skani](https://github.com/bluenote-1577/skani) v0.1.1
