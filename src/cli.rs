@@ -64,11 +64,20 @@ lazy_static! {
     };
 }
 
+fn bioconda_mappers_note() -> String {
+    format!(
+        "Note that the bioconda package of CoverM only installs the default mappers \
+        (strobealign, minimap2 and bwa). Other mappers, such as bwa-mem2, minibwa and \
+        rammap, must be installed separately, e.g. '{}'.",
+        &monospace_roff("conda install -c bioconda minibwa")
+    )
+}
+
 fn add_mapping_options(manual: Manual) -> Manual {
     manual.custom(
         Section::new("Mapping algorithm options")
             .option(Opt::new("NAME").short("-p").long("--mapper").help(&format!(
-                "Underlying mapping software used {}. One of: {}",
+                "Underlying mapping software used {}. One of: {}\n\n{}",
                 default_roff("strobealign"),
                 bird_tool_utils::clap_utils::table_roff(&[
                     &["name", "description"],
@@ -136,7 +145,8 @@ fn add_mapping_options(manual: Manual) -> Manual {
                         &monospace_roff("rammap-no-preset"),
                         &format!("rammap with no '{}' option", &monospace_roff("-x"))
                     ],
-                ])
+                ]),
+                bioconda_mappers_note()
             )))
             .option(Opt::new("PARAMS").long("--minimap2-params").help(&format!(
                 "Extra parameters to provide to minimap2, \
@@ -625,7 +635,7 @@ pub fn makedb_full_help() -> Manual {
                     .help(&format!(
                         "Kind(s) of database to generate, one per mapping software. Specify more \
                 than once (or as a space-separated list) to generate several databases. \
-                {}. One of: {}",
+                {}. One of: {}\n\n{}",
                         default_roff("minimap2-sr"),
                         bird_tool_utils::clap_utils::table_roff(&[
                             &["name", "description"],
@@ -729,7 +739,8 @@ pub fn makedb_full_help() -> Manual {
                             &monospace_roff("--strobealign-use-index")
                         )
                             ],
-                        ])
+                        ]),
+                        bioconda_mappers_note()
                     )),
             )
             .option(Opt::new("PARAMS").long("--minimap2-params").help(

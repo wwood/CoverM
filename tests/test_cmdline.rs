@@ -2215,15 +2215,31 @@ genome6	26.697144
                 "--sharded",
             ])
             .stdout()
-            .is(
-                "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
-                 genome3~random_sequence_length_11001	0.11057869\n\
-                 genome4~random_sequence_length_11002	0.11056851\n\
-                 genome5~seq2	0\n\
-                 genome6~random_sequence_length_11003	0.110558316\n\
-                 genome1~random_sequence_length_11000	0.109943785\n\
-                 genome1~random_sequence_length_11010	0.110487066\n\
-                 genome2~seq1	0\n",
+            .satisfies(
+                |observed| {
+                    // strobealign >=0.18 gives slightly different results to
+                    // earlier versions, so accept either.
+                    let expected_before_0_18 =
+                        "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
+                         genome3~random_sequence_length_11001	0.11057869\n\
+                         genome4~random_sequence_length_11002	0.11056851\n\
+                         genome5~seq2	0\n\
+                         genome6~random_sequence_length_11003	0.110558316\n\
+                         genome1~random_sequence_length_11000	0.109943785\n\
+                         genome1~random_sequence_length_11010	0.110487066\n\
+                         genome2~seq1	0\n";
+                    let expected_0_18 =
+                        "Contig	shard1.fna|shard2.fna/7seqs.reads_for_7.1.fq|7seqs.reads_for_7.1.fq Mean\n\
+                         genome3~random_sequence_length_11001	0.110588886\n\
+                         genome4~random_sequence_length_11002	0.11057869\n\
+                         genome5~seq2	0\n\
+                         genome6~random_sequence_length_11003	0.11056851\n\
+                         genome1~random_sequence_length_11000	0.109861754\n\
+                         genome1~random_sequence_length_11010	0.110497236\n\
+                         genome2~seq1	0\n";
+                    observed == expected_before_0_18 || observed == expected_0_18
+                },
+                "output matched neither the strobealign <0.18 nor >=0.18 expected output",
             )
             .succeeds()
             .unwrap()
