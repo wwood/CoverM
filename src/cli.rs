@@ -358,6 +358,29 @@ fn add_help_options(manual: Manual) -> Manual {
         conversion to other formats. [default: not set]",
         ))
 }
+fn sort_memory_help() -> String {
+    format!(
+        "Memory per thread for samtools sort when mapping reads, passed to {}. \
+        Lower values reduce peak memory, at the cost of writing more \
+        temporary files to TMPDIR. Total sort memory is roughly this value \
+        multiplied by the number of threads. [default: samtools default, 768M]",
+        monospace_roff("samtools sort -m")
+    )
+}
+
+/// Validate a samtools sort -m memory size, e.g. 500M or 2G.
+fn parse_sort_memory(value: &str) -> Result<String, String> {
+    let digits = value.trim_end_matches(['K', 'k', 'M', 'm', 'G', 'g']);
+    let suffix_len = value.len() - digits.len();
+    if !digits.is_empty() && suffix_len <= 1 && digits.chars().all(|c| c.is_ascii_digit()) {
+        Ok(value.to_string())
+    } else {
+        Err(format!(
+            "'{value}' is not a valid memory size, expected e.g. 500M or 2G"
+        ))
+    }
+}
+
 fn add_help_options_to_section(section: Section) -> Section {
     section
         .flag(
@@ -557,12 +580,16 @@ pub fn make_full_help() -> Manual {
             .command("coverm make -r combined_genomes.fna -1 read1.fq -2 read2.fq -o output_dir"),
     );
 
-    let mut general_section = Section::new("General options").option(
-        Opt::new("INT").short("-t").long("--threads").help(&format!(
+    let mut general_section = Section::new("General options")
+        .option(Opt::new("INT").short("-t").long("--threads").help(&format!(
             "Number of threads for mapping and sorting. {}",
             default_roff("1")
-        )),
-    );
+        )))
+        .option(
+            Opt::new("SIZE")
+                .long("--sort-memory")
+                .help(&sort_memory_help()),
+        );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
@@ -1100,12 +1127,18 @@ pub fn contig_full_help() -> Manual {
             ),
     );
 
-    let mut general_section = Section::new("General options").option(
-        Opt::new("INT")
-            .short("-t")
-            .long("--threads")
-            .help("Number of threads for mapping, sorting and reading. [default: 1]"),
-    );
+    let mut general_section = Section::new("General options")
+        .option(
+            Opt::new("INT")
+                .short("-t")
+                .long("--threads")
+                .help("Number of threads for mapping, sorting and reading. [default: 1]"),
+        )
+        .option(
+            Opt::new("SIZE")
+                .long("--sort-memory")
+                .help(&sort_memory_help()),
+        );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
@@ -1394,12 +1427,16 @@ pub fn genome_full_help() -> Manual {
             ),
     );
 
-    let mut general_section = Section::new("General options").option(
-        Opt::new("INT").short("-t").long("--threads").help(&format!(
+    let mut general_section = Section::new("General options")
+        .option(Opt::new("INT").short("-t").long("--threads").help(&format!(
             "Number of threads for mapping, sorting and reading. {}",
             default_roff("1")
-        )),
-    );
+        )))
+        .option(
+            Opt::new("SIZE")
+                .long("--sort-memory")
+                .help(&sort_memory_help()),
+        );
     general_section = add_help_options_to_section(general_section);
     general_section = add_verbosity_flags_to_section(general_section);
     manual = manual.custom(general_section);
@@ -1916,6 +1953,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("threads")
                         .value_parser(clap::value_parser!(u16))
                         .default_value("1"),
+                )
+                .arg(
+                    Arg::new("sort-memory")
+                        .long("sort-memory")
+                        .value_parser(parse_sort_memory),
                 )
                 .arg(
                     Arg::new("mapper")
@@ -2561,6 +2603,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .value_parser(clap::value_parser!(u16)),
                 )
                 .arg(
+                    Arg::new("sort-memory")
+                        .long("sort-memory")
+                        .value_parser(parse_sort_memory),
+                )
+                .arg(
                     Arg::new("mapper")
                         .short('p')
                         .long("mapper")
@@ -3003,6 +3050,11 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("threads")
                         .default_value("1")
                         .value_parser(clap::value_parser!(u16)),
+                )
+                .arg(
+                    Arg::new("sort-memory")
+                        .long("sort-memory")
+                        .value_parser(parse_sort_memory),
                 )
                 .arg(
                     Arg::new("discard-unmapped")
