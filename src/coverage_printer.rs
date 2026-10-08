@@ -63,6 +63,7 @@ impl CoveragePrinter {
                         stoit_names,
                         ref entry_names,
                         ref coverages,
+                        num_coverages,
                         ..
                     } => {
                         for stoit in stoit_names.iter() {
@@ -70,39 +71,39 @@ impl CoveragePrinter {
                         }
                         writeln!(print_stream).unwrap();
 
-                        // Collect data into an easier to index shape
-                        let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec![];
-                        let iterator = cached_coverage_taker.generate_iterator();
-                        for ecs in iterator {
-                            // If first entry in stoit, make room
-                            if stoit_by_entry_by_coverage.len() <= ecs.stoit_index {
-                                stoit_by_entry_by_coverage.push(vec![]);
-                            }
-                            stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
-                        }
-
                         // Assumes that all entries are given some coverage.
                         // Assumes length, mean, variance have been calculated
                         // in that order, and no other modes have been
                         // calculated.
-                        for (entry_i, _) in stoit_by_entry_by_coverage[0].iter().enumerate() {
+                        let zeros = vec![0.0; *num_coverages];
+                        let mut cursors: Vec<StoitCoverageCursor> = coverages
+                            .iter()
+                            .map(|stoit| StoitCoverageCursor::new(stoit, *num_coverages))
+                            .collect();
+                        let mut entry_coverages: Vec<&[f32]> = Vec::with_capacity(cursors.len());
+                        for entry_i in observed_entry_indices(entry_names) {
+                            entry_coverages.clear();
+                            entry_coverages.extend(
+                                cursors
+                                    .iter_mut()
+                                    .map(|cursor| cursor.coverages_for(entry_i).unwrap_or(&zeros)),
+                            );
                             // Calculate the total average across each sample.
                             let mut total_depth = 0.0;
-                            for stoit in stoit_by_entry_by_coverage.iter() {
-                                total_depth += stoit[entry_i].coverages[1];
+                            for c in entry_coverages.iter() {
+                                total_depth += c[1];
                             }
                             write!(
                                 print_stream,
                                 "{}\t{}\t{}",
                                 entry_names[entry_i].as_ref().unwrap(),
-                                stoit_by_entry_by_coverage[0][entry_i].coverages[0],
+                                entry_coverages[0][0],
                                 // Not sure how to not have trailing zeroes with the formating specification
                                 (total_depth as f64 * 10000.0 / coverages.len() as f64).round()
                                     / 10000.0
                             )
                             .unwrap();
-                            for stoit in stoit_by_entry_by_coverage.iter() {
-                                let c = &stoit[entry_i].coverages;
+                            for c in entry_coverages.iter() {
                                 write!(
                                     print_stream,
                                     "\t{}\t{}",
@@ -167,19 +168,17 @@ pub fn print_sparse_cached_coverage_taker(
     rpkm_column: Option<usize>,
     tpm_column: Option<usize>,
 ) {
-    let iterator = cached_coverage_taker.generate_iterator();
-
     match &cached_coverage_taker {
         CoverageTakerType::CachedSingleFloatCoverageTaker {
             stoit_names,
             ref entry_names,
-            coverages: _,
+            ref coverages,
             current_stoit_index: _,
             current_entry_index: _,
             num_coverages,
         } => {
             debug!(
-                "Generating iterator for cached coverage taker with stoit names {stoit_names:?},\
+                "Printing cached coverage taker with stoit names {stoit_names:?},\
                     entry_names {entry_names:?}\
                     num_coverages {num_coverages}"
             );
@@ -192,171 +191,151 @@ pub fn print_sparse_cached_coverage_taker(
                 .next()
                 .map(|name| name.matches('\t').count())
                 .unwrap_or(0);
+            let zeros = vec![0.0; *num_coverages];
+
             // Print the relative abundance of each genome, with an
-            // 'unmapped' entry for reads that don't map.
-            let mut current_stoit_coverages: Vec<Vec<f32>> = vec![];
-            let mut current_stoit_entry_indices: Vec<usize> = vec![];
-            let mut current_stoit_index = 0;
+            // 'unmapped' entry for reads that don't map. Every entry observed
+            // in any stoit is printed for each stoit, with zeros where the
+            // stoit has no record of it.
+            for (current_stoit_index, stoit_coverages) in coverages.iter().enumerate() {
+                let mut coverage_multipliers: Vec<Option<f32>> = vec![None; *num_coverages];
+                let mut coverage_totals: Vec<Option<f32>> = vec![None; *num_coverages];
 
-            let mut print_previous_stoit =
-                |current_stoit_coverages: &Vec<Vec<f32>>,
-                 current_stoit_entry_indices: &Vec<usize>,
-                 current_stoit_index: usize| {
-                    let mut coverage_multipliers: Vec<Option<f32>> = vec![None; *num_coverages];
-                    let mut coverage_totals: Vec<Option<f32>> = vec![None; *num_coverages];
+                // Calculate totals and multipliers for each normalised sample.
+                for i in columns_to_normalise {
+                    let mut total_coverage = 0.0;
+                    let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
+                    for entry_i in observed_entry_indices(entry_names) {
+                        total_coverage += cursor.coverages_for(entry_i).unwrap_or(&zeros)[*i]
+                    }
+                    coverage_totals[*i] = Some(total_coverage);
 
-                    // Calculate totals and multipliers for each normalised sample.
-                    for i in columns_to_normalise {
+                    if let Some(reads_mapped_per_sample) = reads_mapped_per_sample.as_ref() {
+                        let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
+                        let fraction_mapped =
+                            reads_mapped.num_mapped_reads as f32 / reads_mapped.num_reads as f32;
+                        coverage_multipliers[*i] = Some(fraction_mapped);
+                    }
+                }
+                // Calculate RPKM total for TPM calculation
+                match tpm_column {
+                    None => {}
+                    Some(i) => {
                         let mut total_coverage = 0.0;
-                        for coverage_set in current_stoit_coverages {
-                            total_coverage += coverage_set[*i]
+                        let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
+                        for entry_i in observed_entry_indices(entry_names) {
+                            total_coverage += cursor.coverages_for(entry_i).unwrap_or(&zeros)[i]
                         }
-                        coverage_totals[*i] = Some(total_coverage);
-
-                        if let Some(reads_mapped_per_sample) = reads_mapped_per_sample.as_ref() {
-                            let reads_mapped = &reads_mapped_per_sample[current_stoit_index];
-                            let fraction_mapped = reads_mapped.num_mapped_reads as f32
-                                / reads_mapped.num_reads as f32;
-                            coverage_multipliers[*i] = Some(fraction_mapped);
-                        }
+                        coverage_totals[i] = Some(total_coverage);
                     }
-                    // Calculate RPKM total for TPM calculation
-                    match tpm_column {
-                        None => {}
-                        Some(i) => {
-                            let mut total_coverage = 0.0;
-                            for coverage_set in current_stoit_coverages {
-                                total_coverage += coverage_set[i]
-                            }
-                            coverage_totals[i] = Some(total_coverage);
-                        }
-                    }
-                    debug!("Found coverage totals: {coverage_totals:?}");
+                }
+                debug!("Found coverage totals: {coverage_totals:?}");
 
-                    // Print unmapped entries at the top
-                    let stoit = &stoit_names[current_stoit_index];
-                    if !columns_to_normalise.is_empty() {
-                        write!(print_stream, "{stoit}\tunmapped").unwrap();
-                        for _ in 0..num_extra_entry_columns {
-                            write!(print_stream, "\t").unwrap();
-                        }
-                        for (i, column) in columns_to_normalise.iter().enumerate() {
-                            if i == 0 {
-                                for _ in 0..*column {
-                                    write!(print_stream, "\tNA").unwrap();
-                                }
-                            } else {
-                                for _ in (columns_to_normalise[i - 1] + 1)..*column {
-                                    write!(print_stream, "\tNA").unwrap();
-                                }
+                // Print unmapped entries at the top
+                let stoit = &stoit_names[current_stoit_index];
+                if !columns_to_normalise.is_empty() {
+                    write!(print_stream, "{stoit}\tunmapped").unwrap();
+                    for _ in 0..num_extra_entry_columns {
+                        write!(print_stream, "\t").unwrap();
+                    }
+                    for (i, column) in columns_to_normalise.iter().enumerate() {
+                        if i == 0 {
+                            for _ in 0..*column {
+                                write!(print_stream, "\tNA").unwrap();
                             }
+                        } else {
+                            for _ in (columns_to_normalise[i - 1] + 1)..*column {
+                                write!(print_stream, "\tNA").unwrap();
+                            }
+                        }
+                        write!(
+                            print_stream,
+                            "\t{}",
+                            100.0 * (1.0 - (coverage_multipliers[*column].unwrap()))
+                        )
+                        .unwrap();
+                    }
+                    for _ in
+                        (columns_to_normalise[columns_to_normalise.len() - 1] + 1)..*num_coverages
+                    {
+                        write!(print_stream, "\tNA").unwrap();
+                    }
+                    writeln!(print_stream).unwrap();
+                }
+
+                // Print the actual coverage values
+                let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
+                for entry_i in observed_entry_indices(entry_names) {
+                    let coverages = cursor.coverages_for(entry_i).unwrap_or(&zeros);
+                    write!(
+                        print_stream,
+                        "{}\t{}",
+                        stoit,
+                        match &entry_names[entry_i] {
+                            Some(s) => s.trim_end_matches('\r'),
+                            None => {
+                                error!("Didn't find entry name string as expected");
+                                process::exit(1);
+                            }
+                        }
+                    )
+                    .unwrap();
+
+                    for i in 0..*num_coverages {
+                        if columns_to_normalise.contains(&i) {
                             write!(
                                 print_stream,
                                 "\t{}",
-                                100.0 * (1.0 - (coverage_multipliers[*column].unwrap()))
+                                coverages[i] * 100.0 * coverage_multipliers[i].unwrap()
+                                    / coverage_totals[i].unwrap()
                             )
                             .unwrap();
-                        }
-                        for _ in (columns_to_normalise[columns_to_normalise.len() - 1] + 1)
-                            ..*num_coverages
-                        {
-                            write!(print_stream, "\tNA").unwrap();
-                        }
-                        writeln!(print_stream).unwrap();
-                    }
-
-                    // Print the actual coverage values
-                    for (entry_i, coverages) in current_stoit_entry_indices
-                        .iter()
-                        .zip(current_stoit_coverages.iter())
-                    {
-                        write!(
-                            print_stream,
-                            "{}\t{}",
-                            stoit,
-                            match &entry_names[*entry_i] {
-                                Some(s) => s.trim_end_matches('\r'),
-                                None => {
-                                    error!("Didn't find entry name string as expected");
-                                    process::exit(1);
+                        } else if rpkm_column == Some(i) {
+                            debug!(
+                                "Writing RPKM with coverage {} and reads_mapped_per_sample {:?}",
+                                coverages[i], reads_mapped_per_sample
+                            );
+                            let num_mapped_reads = reads_mapped_per_sample.unwrap()
+                                [current_stoit_index]
+                                .num_mapped_reads;
+                            write!(
+                                print_stream,
+                                "\t{}",
+                                match num_mapped_reads == 0 {
+                                    true => 0.0,
+                                    false => coverages[i] / num_mapped_reads as f32,
                                 }
-                            }
-                        )
-                        .unwrap();
-
-                        for i in 0..*num_coverages {
-                            if columns_to_normalise.contains(&i) {
-                                write!(
-                                    print_stream,
-                                    "\t{}",
-                                    coverages[i] * 100.0 * coverage_multipliers[i].unwrap()
-                                        / coverage_totals[i].unwrap()
-                                )
-                                .unwrap();
-                            } else if rpkm_column == Some(i) {
-                                debug!("Writing RPKM with coverage {} and reads_mapped_per_sample {:?}",
-                                    coverages[i], reads_mapped_per_sample);
-                                let num_mapped_reads = reads_mapped_per_sample.unwrap()
-                                    [current_stoit_index]
-                                    .num_mapped_reads;
-                                write!(
-                                    print_stream,
-                                    "\t{}",
-                                    match num_mapped_reads == 0 {
-                                        true => 0.0,
-                                        false => coverages[i] / num_mapped_reads as f32,
-                                    }
-                                )
-                                .unwrap();
-                            } else if tpm_column == Some(i) {
-                                debug!(
-                                    "Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
-                                    coverages[i], reads_mapped_per_sample
-                                );
-                                let num_mapped_reads = reads_mapped_per_sample.unwrap()
-                                    [current_stoit_index]
-                                    .num_mapped_reads;
-                                write!(
-                                    print_stream,
-                                    "\t{}",
-                                    match num_mapped_reads == 0 {
-                                        true => 0.0,
-                                        // TPM can be calculated from RPKM - see
-                                        // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
-                                        false =>
-                                            (coverages[i].ln() - coverage_totals[i].unwrap().ln())
-                                                .exp()
-                                                as f64
-                                                * (10u64.pow(6) as f64),
-                                    }
-                                )
-                                .unwrap();
-                            } else {
-                                write!(print_stream, "\t{}", coverages[i]).unwrap();
-                            }
+                            )
+                            .unwrap();
+                        } else if tpm_column == Some(i) {
+                            debug!(
+                                "Writing TPM with coverage {} and reads_mapped_per_sample {:?}",
+                                coverages[i], reads_mapped_per_sample
+                            );
+                            let num_mapped_reads = reads_mapped_per_sample.unwrap()
+                                [current_stoit_index]
+                                .num_mapped_reads;
+                            write!(
+                                print_stream,
+                                "\t{}",
+                                match num_mapped_reads == 0 {
+                                    true => 0.0,
+                                    // TPM can be calculated from RPKM - see
+                                    // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
+                                    false =>
+                                        (coverages[i].ln() - coverage_totals[i].unwrap().ln()).exp()
+                                            as f64
+                                            * (10u64.pow(6) as f64),
+                                }
+                            )
+                            .unwrap();
+                        } else {
+                            write!(print_stream, "\t{}", coverages[i]).unwrap();
                         }
-                        writeln!(print_stream).unwrap();
                     }
-                };
-            for entry_and_coverages in iterator {
-                if current_stoit_index != entry_and_coverages.stoit_index {
-                    print_previous_stoit(
-                        &current_stoit_coverages,
-                        &current_stoit_entry_indices,
-                        current_stoit_index,
-                    );
-                    current_stoit_coverages = vec![];
-                    current_stoit_entry_indices = vec![];
-                    current_stoit_index = entry_and_coverages.stoit_index;
+                    writeln!(print_stream).unwrap();
                 }
-                current_stoit_coverages.push(entry_and_coverages.coverages);
-                current_stoit_entry_indices.push(entry_and_coverages.entry_index);
             }
-            print_previous_stoit(
-                &current_stoit_coverages,
-                &current_stoit_entry_indices,
-                current_stoit_index,
-            );
         }
         _ => unreachable!(),
     }
@@ -377,7 +356,7 @@ pub fn print_dense_cached_coverage_taker(
         CoverageTakerType::CachedSingleFloatCoverageTaker {
             stoit_names,
             entry_names,
-            coverages: _,
+            coverages,
             current_stoit_index: _,
             current_entry_index: _,
             num_coverages,
@@ -407,7 +386,6 @@ pub fn print_dense_cached_coverage_taker(
             };
 
             // Print unmapped entries at the top if needed
-            let mut stoit_by_entry_by_coverage: Vec<Vec<EntryAndCoverages>> = vec![];
             if !columns_to_normalise.is_empty() {
                 write!(print_stream, "unmapped").unwrap();
                 // When entries carry extra leading columns (e.g. contig/genome
@@ -446,55 +424,53 @@ pub fn print_dense_cached_coverage_taker(
                 writeln!(print_stream).unwrap();
             }
 
-            // Iterate over all entries for one stoit, and then entries for the next,
-            // etc. Since we print all entries for each stoit first, because I'm too
-            // lazy to re-write the iterator to be stoit by entry.
-            let iterator = cached_coverage_taker.generate_iterator();
+            let zeros = vec![0.0; *num_coverages];
+
             // Coverage total for each stoit for each coverage type
             let mut coverage_totals: Vec<Vec<Option<f32>>> =
                 vec![vec!(None; *num_coverages); stoit_names.len()];
-            for ecs in iterator {
-                for i in columns_to_normalise {
-                    coverage_totals[ecs.stoit_index][*i] =
-                        match coverage_totals[ecs.stoit_index][*i] {
-                            Some(total) => Some(total + ecs.coverages[*i]),
-                            None => Some(ecs.coverages[*i]),
+            for (stoit_i, stoit_coverages) in coverages.iter().enumerate() {
+                let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
+                for entry_i in observed_entry_indices(entry_names) {
+                    let coverages = cursor.coverages_for(entry_i).unwrap_or(&zeros);
+                    for i in columns_to_normalise {
+                        coverage_totals[stoit_i][*i] = match coverage_totals[stoit_i][*i] {
+                            Some(total) => Some(total + coverages[*i]),
+                            None => Some(coverages[*i]),
                         }
-                }
-                match tpm_column {
-                    None => {}
-                    Some(i) => {
-                        coverage_totals[ecs.stoit_index][i] =
-                            match coverage_totals[ecs.stoit_index][i] {
-                                Some(total) => Some(total + ecs.coverages[i]),
-                                None => Some(ecs.coverages[i]),
+                    }
+                    match tpm_column {
+                        None => {}
+                        Some(i) => {
+                            coverage_totals[stoit_i][i] = match coverage_totals[stoit_i][i] {
+                                Some(total) => Some(total + coverages[i]),
+                                None => Some(coverages[i]),
                             }
+                        }
                     }
                 }
-
-                // If first entry in stoit, make room
-                if stoit_by_entry_by_coverage.len() <= ecs.stoit_index {
-                    stoit_by_entry_by_coverage.push(vec![]);
-                }
-                stoit_by_entry_by_coverage[ecs.stoit_index].push(ecs);
             }
-            debug!("stoit_by_entry_by_coverage: {stoit_by_entry_by_coverage:?}");
             debug!("Coverage multipliers: {coverage_multipliers:?}");
 
-            // Print out coverages iterating over entry IDs.
-            for my_entry_i in 0..(stoit_by_entry_by_coverage[0].len()) {
+            // Print out coverages iterating over entry IDs. Every entry
+            // observed in any stoit is printed, with zeros for stoits that
+            // have no record of it.
+            let mut cursors: Vec<StoitCoverageCursor> = coverages
+                .iter()
+                .map(|stoit| StoitCoverageCursor::new(stoit, *num_coverages))
+                .collect();
+            for entry_i in observed_entry_indices(entry_names) {
                 write!(
                     print_stream,
                     "{}",
-                    entry_names[stoit_by_entry_by_coverage[0][my_entry_i].entry_index]
+                    entry_names[entry_i]
                         .as_ref()
                         .unwrap()
                         .trim_end_matches('\r')
                 )
                 .unwrap();
-                for (stoit_i, stoit_entries) in stoit_by_entry_by_coverage.iter().enumerate() {
-                    let ecs = &stoit_entries[my_entry_i];
-                    let coverages = &ecs.coverages;
+                for (stoit_i, cursor) in cursors.iter_mut().enumerate() {
+                    let coverages = cursor.coverages_for(entry_i).unwrap_or(&zeros);
                     for (i, cov) in coverages.iter().enumerate() {
                         if columns_to_normalise.contains(&i) {
                             write!(
@@ -504,7 +480,7 @@ pub fn print_dense_cached_coverage_taker(
                                     // Divide first because then there are fewer
                                     // rounding errors, particularly when
                                     // coverage == coverage_total
-                                    /coverage_totals[ecs.stoit_index][i].unwrap()
+                                    /coverage_totals[stoit_i][i].unwrap()
                                     * 100.0
                                     * coverage_multipliers[stoit_i]
                             )
@@ -541,7 +517,7 @@ pub fn print_dense_cached_coverage_taker(
                                     // https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/
                                     false =>
                                         (coverages[i].ln()
-                                            - coverage_totals[ecs.stoit_index][i].unwrap().ln())
+                                            - coverage_totals[stoit_i][i].unwrap().ln())
                                         .exp()
                                             * (10u64.pow(6) as f32),
                                 }

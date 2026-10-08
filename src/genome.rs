@@ -1779,13 +1779,10 @@ mod tests {
             } => {
                 assert_eq!(vec!("dummy"), stoit_names);
                 assert_eq!(vec!(Some("genome1".to_string())), entry_names);
-                assert_eq!(
-                    vec!(vec!(CoverageEntry {
-                        entry_index: 0,
-                        coverage: 22010.0
-                    })),
-                    coverages
-                )
+                assert_eq!(1, coverages.len());
+                assert_eq!(1, coverages[0].len());
+                assert_eq!(0, coverages[0].entry_index(0));
+                assert_eq!(&[22010.0][..], coverages[0].coverages(0, 1));
             }
             _ => panic!(),
         }
