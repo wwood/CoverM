@@ -309,6 +309,28 @@ fn read_mapping_params_section() -> Section {
                 .long("--single")
                 .help("Unpaired FASTA/Q files(s) for mapping. These may be gzipped or not."),
         )
+        .option(Opt::new("PATH").long("--read1-list").help(
+            "File containing a list of forward FASTA/Q files for mapping, \
+        one per line. Must be used with --read2-list, which must list the \
+        corresponding reverse read files in the same order.",
+        ))
+        .option(Opt::new("PATH").long("--read2-list").help(
+            "File containing a list of reverse FASTA/Q files for mapping, \
+        one per line. Must be used with --read1-list.",
+        ))
+        .option(Opt::new("PATH").long("--coupled-list").help(
+            "File containing a list of read pairs for mapping, one pair per \
+        line, with the forward and reverse FASTA/Q files separated by a tab \
+        i.e. <sample1_R1.fq.gz><TAB><sample1_R2.fq.gz>.",
+        ))
+        .option(Opt::new("PATH").long("--interleaved-list").help(
+            "File containing a list of interleaved FASTA/Q files for mapping, \
+        one per line.",
+        ))
+        .option(Opt::new("PATH").long("--single-list").help(
+            "File containing a list of unpaired FASTA/Q files for mapping, \
+        one per line.",
+        ))
 }
 
 fn add_help_options(manual: Manual) -> Manual {
@@ -1722,6 +1744,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1740,6 +1766,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1756,6 +1786,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1771,6 +1805,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -1786,9 +1824,50 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "interleaved",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("read1-list")
+                        .long("read1-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read2-list")
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("read2-list")
+                        .long("read2-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read1-list")
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("coupled-list")
+                        .long("coupled-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("interleaved-list")
+                        .long("interleaved-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("single-list")
+                        .long("single-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
                         .conflicts_with("bam-files"),
                 )
                 .arg(
@@ -2309,6 +2388,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -2325,6 +2408,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -2341,6 +2428,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -2356,6 +2447,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
@@ -2371,9 +2466,50 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "interleaved",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ])
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("read1-list")
+                        .long("read1-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read2-list")
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("read2-list")
+                        .long("read2-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read1-list")
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("coupled-list")
+                        .long("coupled-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("interleaved-list")
+                        .long("interleaved-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .conflicts_with("bam-files"),
+                )
+                .arg(
+                    Arg::new("single-list")
+                        .long("single-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
                         .conflicts_with("bam-files"),
                 )
                 .arg(
@@ -2730,6 +2866,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -2744,6 +2884,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "coupled",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -2758,6 +2902,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "interleaved",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -2771,6 +2919,10 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "single",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ]),
@@ -2784,9 +2936,45 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                             "read1",
                             "coupled",
                             "interleaved",
+                            "read1-list",
+                            "coupled-list",
+                            "interleaved-list",
+                            "single-list",
                             "full-help",
                             "full-help-roff",
                         ]),
+                )
+                .arg(
+                    Arg::new("read1-list")
+                        .long("read1-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read2-list"),
+                )
+                .arg(
+                    Arg::new("read2-list")
+                        .long("read2-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..)
+                        .requires("read1-list"),
+                )
+                .arg(
+                    Arg::new("coupled-list")
+                        .long("coupled-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
+                )
+                .arg(
+                    Arg::new("interleaved-list")
+                        .long("interleaved-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
+                )
+                .arg(
+                    Arg::new("single-list")
+                        .long("single-list")
+                        .action(clap::ArgAction::Append)
+                        .num_args(1..),
                 )
                 .arg(
                     Arg::new("reference")
