@@ -1947,16 +1947,10 @@ fn build_cache_name_iter(m: &clap::ArgMatches) -> Option<std::vec::IntoIter<Stri
             .map(|s| s.to_string())
             .collect();
 
-        let single_count = m.get_many::<String>("single").map(|v| v.len()).unwrap_or(0);
-        let read1_count = m.get_many::<String>("read1").map(|v| v.len()).unwrap_or(0);
-        let coupled_count = m
-            .get_many::<String>("coupled")
-            .map(|v| v.len() / 2)
-            .unwrap_or(0);
-        let interleaved_count = m
-            .get_many::<String>("interleaved")
-            .map(|v| v.len())
-            .unwrap_or(0);
+        let single_count = read_paths_from_clap(m, "single").len();
+        let read1_count = read_paths_from_clap(m, "read1").len();
+        let coupled_count = read_paths_from_clap(m, "coupled").len() / 2;
+        let interleaved_count = read_paths_from_clap(m, "interleaved").len();
         let expected = single_count + read1_count + coupled_count + interleaved_count;
         if names.len() != expected {
             error!(

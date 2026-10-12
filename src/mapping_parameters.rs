@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::process;
 
 use tempfile::NamedTempFile;
@@ -11,6 +13,58 @@ pub enum ReadFormat {
     Coupled,
     Interleaved,
     Single,
+}
+
+/// Return the read file paths specified directly with `arg_id` (e.g.
+/// "single"), followed by those listed in files given with `<arg_id>-list`,
+/// one per line. For "coupled", each line of a list file must contain a
+/// forward and reverse path separated by a tab, and both are returned in
+/// order, as if they were specified with --coupled.
+pub fn read_paths_from_clap<'a>(m: &'a clap::ArgMatches, arg_id: &str) -> Vec<&'a str> {
+    let mut paths: Vec<&'a str> = match m.get_many::<String>(arg_id) {
+        Some(values) => values.map(|s| s.as_str()).collect(),
+        None => vec![],
+    };
+    let list_arg_id = format!("{arg_id}-list");
+    if let Some(list_files) = m.get_many::<String>(&list_arg_id) {
+        for list_file in list_files {
+            let file = File::open(list_file).unwrap_or_else(|e| {
+                error!("Failed to open --{list_arg_id} file '{list_file}': {e}");
+                process::exit(1);
+            });
+            for (i, line) in BufReader::new(file).lines().enumerate() {
+                let line = line.unwrap_or_else(|e| {
+                    error!("Failed to read --{list_arg_id} file '{list_file}': {e}");
+                    process::exit(1);
+                });
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let fields: Vec<&str> = line.split('\t').map(|f| f.trim()).collect();
+                let expected_fields = if arg_id == "coupled" { 2 } else { 1 };
+                if fields.len() != expected_fields || fields.iter().any(|f| f.is_empty()) {
+                    error!(
+                        "Line {} of --{list_arg_id} file '{list_file}' should contain {}, \
+                        but found '{line}'",
+                        i + 1,
+                        if expected_fields == 2 {
+                            "a forward and reverse read path separated by a tab"
+                        } else {
+                            "a single read path"
+                        }
+                    );
+                    process::exit(1);
+                }
+                // Leak so the paths live as long as those from clap. These are
+                // read once at startup, so the memory cost is negligible.
+                for field in fields {
+                    paths.push(field.to_string().leak());
+                }
+            }
+        }
+    }
+    paths
 }
 
 #[derive(Debug)]
@@ -33,25 +87,15 @@ impl<'a> MappingParameters<'a> {
     ) -> MappingParameters<'a> {
         let mut read1: Vec<_> = vec![];
         let mut read2: Vec<_> = vec![];
-        let mut interleaved: Vec<_> = vec![];
-        let mut unpaired: Vec<_> = vec![];
 
-        if m.contains_id("read1") {
-            read1 = m
-                .get_many::<String>("read1")
-                .unwrap()
-                .map(|s| s.as_str())
-                .collect();
-            read2 = m
-                .get_many::<String>("read2")
-                .unwrap()
-                .map(|s| s.as_str())
-                .collect();
+        if m.contains_id("read1") || m.contains_id("read1-list") {
+            read1 = read_paths_from_clap(m, "read1");
+            read2 = read_paths_from_clap(m, "read2");
             if read1.len() != read2.len() {
                 error!(
-                    "When specifying paired reads with the -1 and -2 flags, \
-                        there must be equal numbers specified. Instead found \
-                        {} and {} respectively",
+                    "When specifying paired reads with the -1 and -2 flags \
+                        (or --read1-list and --read2-list), there must be equal \
+                        numbers specified. Instead found {} and {} respectively",
                     read1.len(),
                     read2.len()
                 );
@@ -60,13 +104,9 @@ impl<'a> MappingParameters<'a> {
         }
 
         // Parse --coupled
-        if m.contains_id("coupled") {
-            let coupled: Vec<_> = m
-                .get_many::<String>("coupled")
-                .unwrap()
-                .map(|s| s.as_str())
-                .collect();
-            if coupled.len() % 2 != 0 {
+        if m.contains_id("coupled") || m.contains_id("coupled-list") {
+            let coupled = read_paths_from_clap(m, "coupled");
+            if !coupled.len().is_multiple_of(2) {
                 error!(
                     "The --coupled flag must be set with pairs of read \
                      sets, but an odd number ({}) was specified",
@@ -82,20 +122,8 @@ impl<'a> MappingParameters<'a> {
             }
         }
 
-        if m.contains_id("interleaved") {
-            interleaved = m
-                .get_many::<String>("interleaved")
-                .unwrap()
-                .map(|s| s.as_str())
-                .collect();
-        }
-        if m.contains_id("single") {
-            unpaired = m
-                .get_many::<String>("single")
-                .unwrap()
-                .map(|s| s.as_str())
-                .collect();
-        }
+        let interleaved = read_paths_from_clap(m, "interleaved");
+        let unpaired = read_paths_from_clap(m, "single");
 
         if is_long_read_only_preset(mapping_program) {
             if !read1.is_empty() || !interleaved.is_empty() {

@@ -487,6 +487,365 @@ mod tests {
             .unwrap();
     }
 
+    fn write_read_list(dir: &tempfile::TempDir, name: &str, contents: &str) -> String {
+        let path = dir.path().join(name);
+        std::fs::write(&path, contents).unwrap();
+        path.to_str().unwrap().to_string()
+    }
+
+    #[test]
+    fn test_single_list_input() {
+        let td = tempfile::TempDir::new().unwrap();
+        // Blank lines are ignored
+        let list = write_read_list(&td, "single.txt", "tests/data/bad_reads.interleaved.fq\n\n");
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "minimap2-sr",
+                "--output-format",
+                "sparse",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single-list",
+                &list,
+                "--contig-end-exclusion",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .is("Sample\tContig\tMean\n\
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_single_and_single_list_input_combined() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "single.txt",
+            "tests/data/bad_reads.all.interleaved.fa\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "minimap2-sr",
+                "--output-format",
+                "sparse",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--single",
+                "tests/data/bad_reads.interleaved.fq",
+                "--single-list",
+                &list,
+                "--contig-end-exclusion",
+                "0",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n")
+            .stdout()
+            .contains("2seqs.fasta/bad_reads.all.interleaved.fa\tseq1\t")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_interleaved_list_input() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "interleaved.txt",
+            "tests/data/bad_reads.interleaved.fq\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--mapper",
+                "minimap2-sr",
+                "--contig-end-exclusion",
+                "0",
+                "-r",
+                "tests/data/2seqs.fasta",
+                "--output-format",
+                "sparse",
+                "--interleaved-list",
+                &list,
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "2seqs.fasta/bad_reads.interleaved.fq\tseq1\t0.899\n\
+                 2seqs.fasta/bad_reads.interleaved.fq\tseq2\t0",
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_read1_read2_list_input() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list1 = write_read_list(
+            &td,
+            "read1.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\n",
+        );
+        let list2 = write_read_list(
+            &td,
+            "read2.txt",
+            "tests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--read1-list",
+                &list1,
+                "--read2-list",
+                &list2,
+                "--output-format",
+                "sparse",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.4117647\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_genome_read1_read2_list_input() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list1 = write_read_list(
+            &td,
+            "read1.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\n",
+        );
+        let list2 = write_read_list(
+            &td,
+            "read2.txt",
+            "tests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--output-format",
+                "sparse",
+                "--read1-list",
+                &list1,
+                "--read2-list",
+                &list2,
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-s",
+                "~",
+                "-p",
+                "minimap2-sr",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2\t")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_read1_list_without_read2_list_fails() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list1 = write_read_list(
+            &td,
+            "read1.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--read1-list",
+                &list1,
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .fails()
+            .unwrap();
+    }
+
+    #[test]
+    fn test_read1_read2_list_unequal_lengths_fails() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list1 = write_read_list(
+            &td,
+            "read1.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\n\
+             tests/data/reads_for_seq1_and_seq2.1.fq.gz\n",
+        );
+        let list2 = write_read_list(
+            &td,
+            "read2.txt",
+            "tests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--read1-list",
+                &list1,
+                "--read2-list",
+                &list2,
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .fails()
+            .stderr()
+            .contains("there must be equal")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_coupled_list_input() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "coupled.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\ttests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled-list",
+                &list,
+                "--output-format",
+                "sparse",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .succeeds()
+            .stdout()
+            .contains("7seqs.fna/reads_for_seq1_and_seq2.1.fq.gz\tgenome2~seq1\t1.4117647\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_coupled_list_malformed_line_fails() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "coupled.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled-list",
+                &list,
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .fails()
+            .stderr()
+            .contains("Line 1 of --coupled-list file")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_missing_read_list_file_fails() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--single-list",
+                "tests/data/does_not_exist.txt",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ])
+            .fails()
+            .stderr()
+            .contains("Failed to open --single-list file")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_read_list_conflicts_with_bam_files() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(&td, "single.txt", "tests/data/bad_reads.interleaved.fq\n");
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--bam-files",
+                "tests/data/2seqs.bad_read.1.bam",
+                "--single-list",
+                &list,
+            ])
+            .fails()
+            .unwrap();
+    }
+
+    #[test]
+    fn test_coupled_list_cache_bam_files_names() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "coupled.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\ttests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        let name = td.path().join("cached.bam");
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled-list",
+                &list,
+                "--output-format",
+                "sparse",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+                "--cache-unfiltered-bam-files",
+                name.to_str().unwrap(),
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(name.is_file());
+    }
+
+    #[test]
+    fn test_make_coupled_list() {
+        let td = tempfile::TempDir::new().unwrap();
+        let list = write_read_list(
+            &td,
+            "coupled.txt",
+            "tests/data/reads_for_seq1_and_seq2.1.fq.gz\ttests/data/reads_for_seq1_and_seq2.2.fq.gz\n",
+        );
+        Assert::main_binary()
+            .with_args(&[
+                "make",
+                "--coupled-list",
+                &list,
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--output-directory",
+                td.path().join("out").to_str().unwrap(),
+                "-p",
+                "minimap2-sr",
+            ])
+            .succeeds()
+            .unwrap();
+        assert!(td
+            .path()
+            .join("out")
+            .join("7seqs.fna.reads_for_seq1_and_seq2.1.fq.gz.bam")
+            .is_file());
+    }
+
     #[test]
     fn test_cache_bam_files() {
         let td = tempfile::TempDir::new().unwrap();
