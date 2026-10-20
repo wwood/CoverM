@@ -118,6 +118,13 @@ impl CoveragePrinter {
                 }
             }
         }
+        // Output to a file is buffered, so the last writes only reach the disk
+        // here; a failure (e.g. a full disk) must not leave a truncated file
+        // behind a successful exit.
+        if let Err(e) = print_stream.flush() {
+            error!("Failed to write output: {e}");
+            process::exit(1);
+        }
     }
 
     pub fn print_headers(

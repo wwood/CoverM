@@ -79,7 +79,10 @@ impl FlagFilter {
 }
 
 pub struct OutputWriter {
-    pub output_file: Option<Arc<std::sync::Mutex<std::fs::File>>>,
+    // Buffered: output is written in many small pieces (one per field), and an
+    // unbuffered File turns each into a write syscall. Flushed, with errors
+    // checked, by CoveragePrinter::finalise_printing.
+    pub output_file: Option<Arc<std::sync::Mutex<std::io::BufWriter<std::fs::File>>>>,
 }
 
 impl OutputWriter {
@@ -95,9 +98,9 @@ impl OutputWriter {
                     info!("Writing output to file: {file_path}");
                     OutputWriter {
                         output_file: Some(Arc::new(std::sync::Mutex::new(
-                            std::fs::File::create(path).unwrap_or_else(|_| {
-                                panic!("Failed to create output file: {}", file_path)
-                            }),
+                            std::io::BufWriter::new(std::fs::File::create(path).unwrap_or_else(
+                                |_| panic!("Failed to create output file: {}", file_path),
+                            )),
                         ))),
                     }
                 }
