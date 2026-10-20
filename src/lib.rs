@@ -80,7 +80,8 @@ impl FlagFilter {
 
 pub struct OutputWriter {
     // Buffered: output is written in many small pieces (one per field), and an
-    // unbuffered File turns each into a write syscall.
+    // unbuffered File turns each into a write syscall. Flushed, with errors
+    // checked, by CoveragePrinter::finalise_printing.
     pub output_file: Option<Arc<std::sync::Mutex<std::io::BufWriter<std::fs::File>>>>,
 }
 
@@ -123,20 +124,6 @@ impl std::io::Write for OutputWriter {
         match &mut self.output_file {
             None => std::io::stdout().flush(),
             Some(f) => f.lock().expect("failed to unlock output file").flush(),
-        }
-    }
-}
-
-impl Drop for OutputWriter {
-    // BufWriter flushes when dropped but ignores errors, so flush here and
-    // report a failed final write (e.g. a full disk) instead of truncating silently.
-    fn drop(&mut self) {
-        if let Some(f) = &self.output_file {
-            if let Ok(mut f) = f.lock() {
-                if let Err(e) = std::io::Write::flush(&mut *f) {
-                    error!("Failed to flush output file: {e}");
-                }
-            }
         }
     }
 }
