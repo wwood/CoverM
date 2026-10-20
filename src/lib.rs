@@ -79,7 +79,9 @@ impl FlagFilter {
 }
 
 pub struct OutputWriter {
-    pub output_file: Option<Arc<std::sync::Mutex<std::fs::File>>>,
+    // Buffered: output is written in many small pieces (one per field), and an
+    // unbuffered File turns each into a write syscall.
+    pub output_file: Option<Arc<std::sync::Mutex<std::io::BufWriter<std::fs::File>>>>,
 }
 
 impl OutputWriter {
@@ -95,9 +97,9 @@ impl OutputWriter {
                     info!("Writing output to file: {file_path}");
                     OutputWriter {
                         output_file: Some(Arc::new(std::sync::Mutex::new(
-                            std::fs::File::create(path).unwrap_or_else(|_| {
-                                panic!("Failed to create output file: {}", file_path)
-                            }),
+                            std::io::BufWriter::new(std::fs::File::create(path).unwrap_or_else(
+                                |_| panic!("Failed to create output file: {}", file_path),
+                            )),
                         ))),
                     }
                 }
@@ -121,6 +123,20 @@ impl std::io::Write for OutputWriter {
         match &mut self.output_file {
             None => std::io::stdout().flush(),
             Some(f) => f.lock().expect("failed to unlock output file").flush(),
+        }
+    }
+}
+
+impl Drop for OutputWriter {
+    // BufWriter flushes when dropped but ignores errors, so flush here and
+    // report a failed final write (e.g. a full disk) instead of truncating silently.
+    fn drop(&mut self) {
+        if let Some(f) = &self.output_file {
+            if let Ok(mut f) = f.lock() {
+                if let Err(e) = std::io::Write::flush(&mut *f) {
+                    error!("Failed to flush output file: {e}");
+                }
+            }
         }
     }
 }
