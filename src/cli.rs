@@ -208,7 +208,9 @@ fn add_thresholding_options(manual: Manual) -> Manual {
                     .long("--min-read-percent-identity")
                     .help(&format!(
                         "Exclude reads by overall percent \
-        identity e.g. 95 for 95%. {}",
+        identity e.g. 95 for 95%. Reads at exactly the threshold \
+        are kept ({}). {}",
+                        &monospace_roff(">="),
                         default_roff("0")
                     )),
             )
@@ -965,7 +967,11 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each contig in base pairs"],
                     &[&monospace_roff("count"), "Number of reads aligned to each contig. Note that supplementary alignments are not counted."],
-                    &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165. Reads below 97% identity are excluded unless --min-read-percent-identity is given."],
+                    &[&monospace_roff("metabat"), &format!("(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165. By default, reads with identity not strictly greater than 97% are excluded, matching MetaBAT's {}. A given {} uses CoverM's {} instead, so {} is not identical to the default.",
+                        &monospace_roff(">"),
+                        &monospace_roff("--min-read-percent-identity"),
+                        &monospace_roff(">="),
+                        &monospace_roff("97"))],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
                     &[&monospace_roff("anir"), "Average BLAST-like identity of mapped reads"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],

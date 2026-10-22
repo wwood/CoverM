@@ -1980,6 +1980,29 @@ k141_2005182	225	6.04	6.04	1.12",
     }
 
     #[test]
+    fn test_metabat_given_97_uses_greater_or_equal() {
+        // A given 97 uses CoverM's >=, unlike the metabat default which
+        // approximates MetaBAT's > via 0.97001. Same BAM is 1.9333 by default.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "metabat",
+                "--min-read-percent-identity",
+                "97",
+                "-b",
+                "tests/data/k141_2005182.head11.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "contigName	contigLen	totalAvgDepth	k141_2005182.head11.bam	k141_2005182.head11.bam-var
+k141_2005182	225	2.9333	2.9333	0.0631",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_deletions_count_towards_perc_id() {
         Assert::main_binary()
             .with_args(&[
