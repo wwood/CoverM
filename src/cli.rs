@@ -965,7 +965,7 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("variance"), "Variance of coverage depths"],
                     &[&monospace_roff("length"), "Length of each contig in base pairs"],
                     &[&monospace_roff("count"), "Number of reads aligned to each contig. Note that supplementary alignments are not counted."],
-                    &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165"],
+                    &[&monospace_roff("metabat"), "(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165. Reads below 97% identity are excluded unless --min-read-percent-identity is given."],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
                     &[&monospace_roff("anir"), "Average BLAST-like identity of mapped reads"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],

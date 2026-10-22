@@ -1679,13 +1679,23 @@ impl FilterParameters {
 
     pub fn add_metabat_filtering_if_required(&mut self, m: &clap::ArgMatches) {
         if doing_metabat(m) {
-            info!(
-                "Setting single read percent identity threshold at 0.97 for \
-                 MetaBAT adjusted coverage, and not filtering out supplementary, \
-                 secondary and improper pair alignments"
-            );
-            // we use >= where metabat uses >. Gah.
-            self.min_percent_identity_single = 0.97001;
+            // A threshold given with --min-read-percent-identity is kept; the
+            // 97% default only replaces an unset one.
+            if m.contains_id("min-read-percent-identity") {
+                info!(
+                    "Using the given single read percent identity threshold for \
+                     MetaBAT adjusted coverage, and not filtering out supplementary, \
+                     secondary and improper pair alignments"
+                );
+            } else {
+                info!(
+                    "Setting single read percent identity threshold at 0.97 for \
+                     MetaBAT adjusted coverage, and not filtering out supplementary, \
+                     secondary and improper pair alignments"
+                );
+                // we use >= where metabat uses >. Gah.
+                self.min_percent_identity_single = 0.97001;
+            }
             self.flag_filters.include_improper_pairs = true;
             self.flag_filters.include_supplementary = true;
             self.flag_filters.include_secondary = true;
