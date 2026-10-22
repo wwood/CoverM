@@ -1957,6 +1957,29 @@ k141_2005182	225	1.9333	1.9333	0.0631",
     }
 
     #[test]
+    fn test_metabat_given_percent_identity_is_kept() {
+        // Reads below 97% identity, excluded by the metabat default, pass a
+        // given 90% threshold.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-m",
+                "metabat",
+                "--min-read-percent-identity",
+                "90",
+                "-b",
+                "tests/data/k141_2005182.head11.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .contains(
+                "contigName	contigLen	totalAvgDepth	k141_2005182.head11.bam	k141_2005182.head11.bam-var
+k141_2005182	225	6.04	6.04	1.12",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn test_deletions_count_towards_perc_id() {
         Assert::main_binary()
             .with_args(&[
