@@ -1679,16 +1679,32 @@ impl FilterParameters {
 
     pub fn add_metabat_filtering_if_required(&mut self, m: &clap::ArgMatches) {
         if doing_metabat(m) {
-            info!(
-                "Setting single read percent identity threshold at 0.97 for \
-                 MetaBAT adjusted coverage, and not filtering out supplementary, \
-                 secondary and improper pair alignments"
-            );
-            // we use >= where metabat uses >. Gah.
-            self.min_percent_identity_single = 0.97001;
-            self.flag_filters.include_improper_pairs = true;
-            self.flag_filters.include_supplementary = true;
+            // A threshold given with --min-read-percent-identity is kept; the
+            // 97% default only replaces an unset one.
+            if m.contains_id("min-read-percent-identity") {
+                info!(
+                    "Using the given single read percent identity threshold of {} for \
+                     MetaBAT adjusted coverage",
+                    self.min_percent_identity_single
+                );
+            } else {
+                // we use >= where metabat uses >. Gah.
+                self.min_percent_identity_single = 0.97001;
+                info!(
+                    "Setting single read percent identity threshold at 0.97 for \
+                     MetaBAT adjusted coverage"
+                );
+            }
+            // Improper pair and supplementary alignments are already included
+            // unless the user asked otherwise with --proper-pairs-only or
+            // --exclude-supplementary, which are respected. Secondary
+            // alignments are excluded by default, so include them here.
             self.flag_filters.include_secondary = true;
+            info!(
+                "For MetaBAT adjusted coverage, including secondary alignments; \
+                 supplementary alignments included: {}; improper pair alignments included: {}",
+                self.flag_filters.include_supplementary, self.flag_filters.include_improper_pairs
+            );
         }
     }
 
