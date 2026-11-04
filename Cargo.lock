@@ -426,6 +426,7 @@ dependencies = [
  "csv",
  "env_logger 0.11.11",
  "galah",
+ "hts-sys",
  "lazy_static",
  "log",
  "needletail",
