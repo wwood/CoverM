@@ -18,6 +18,7 @@ edition = "2015"
 [dependencies]
 bio = "2.0.*"
 rust-htslib = { version="0.46.*", default-features = false } # On some systems, https://github.com/rust-bio/rust-htslib/issues/434 bites, so restrict to 0.46
+hts-sys = { version = "=2.2.0", default-features = false } # Pin transitive dep: hts-sys 2.2.0's prebuilt bindings match rust-htslib 0.46.0; newer hts-sys releases regenerate bindings out of sync (rust-bio/hts-sys#12), breaking the build (see GH issue #311)
 clap = { version="4.*", features = ["cargo"] } # cargo feature required for crate_version!
 clap_complete = "4.*"
 log = "0.4.*"
