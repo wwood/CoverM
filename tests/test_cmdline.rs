@@ -1776,6 +1776,71 @@ genome6	0",
     }
 
     #[test]
+    fn test_bam_from_stdin_pipe() {
+        // A BAM given as a pipe can only be read once, so the startup
+        // readability check must not consume it before it is processed.
+        let bam = "tests/data/7seqs.reads_for_seq1_and_seq2.bam";
+        let expected = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args(["contig", "-b", bam])
+            .output()
+            .unwrap();
+        assert!(expected.status.success());
+
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args(["contig", "-b", "/dev/stdin"])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdin = child.stdin.take().unwrap();
+        let bam_bytes = std::fs::read(bam).unwrap();
+        let writer = std::thread::spawn(move || {
+            // coverm may exit early on failure, so ignore broken pipes here.
+            let _ = stdin.write_all(&bam_bytes);
+        });
+        let output = child.wait_with_output().unwrap();
+        writer.join().unwrap();
+        assert!(
+            output.status.success(),
+            "coverm failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Only the sample name in the header line differs.
+        let expected = String::from_utf8(expected.stdout).unwrap();
+        let from_pipe = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(
+            expected.lines().skip(1).collect::<Vec<_>>(),
+            from_pipe.lines().skip(1).collect::<Vec<_>>()
+        );
+        assert!(from_pipe.starts_with("Contig\tstdin Mean\n"));
+    }
+
+    #[test]
+    fn test_invalid_bam_rejected_before_processing() {
+        // BAM files are opened lazily when their sample is processed, but an
+        // unreadable BAM should still fail at startup, before earlier samples
+        // are processed.
+        let td = tempfile::TempDir::new().unwrap();
+        let fake_bam = td.path().join("fake.bam");
+        std::fs::write(&fake_bam, "not a BAM file\n").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                fake_bam.to_str().unwrap(),
+            ])
+            .fails()
+            .stderr()
+            .contains("Unable to open BAM file")
+            .stderr()
+            .doesnt_contain("In sample")
+            .unwrap();
+    }
+
+    #[test]
     fn test_minibwa_pregenerated_index() {
         // Copy the reference to a temp dir so the generated index files (.l2b,
         // .mbw) don't race with other tests that also use tests/data/7seqs.fna.
