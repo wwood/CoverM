@@ -2157,6 +2157,106 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
     }
 
     #[test]
+    fn test_no_zeros_metabat_contig_missing_from_first_sample() {
+        // The first sample has no reads for genome5~seq2, so its length must
+        // come from the second sample. This used to panic.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--no-zeros",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1.bam",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\t\
+                7seqs.reads_for_seq1_and_seq2.bam\t7seqs.reads_for_seq1_and_seq2.bam-var\n\
+                genome2~seq1\t1000\t1.3847\t1.3576\t0.9132\t1.4118\t1.3049\n\
+                genome5~seq2\t1000\t0.6218\t0\t0\t1.2435\t0.6862\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_tpm_differing_contigs_dense_and_sparse() {
+        let args = [
+            "contig",
+            "--no-zeros",
+            "-m",
+            "mean",
+            "tpm",
+            "-b",
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        Assert::main_binary()
+            .with_args(&args)
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig\t7seqs.reads_for_seq1 Mean\t7seqs.reads_for_seq1 TPM\t\
+                7seqs.reads_for_seq1_and_seq2 Mean\t7seqs.reads_for_seq1_and_seq2 TPM\n\
+                genome2~seq1\t1.3576471\t1000000\t1.4117647\t500000\n\
+                genome5~seq2\t0\t0\t1.2435294\t500000\n",
+            )
+            .unwrap();
+        let mut sparse_args = args.to_vec();
+        sparse_args.extend(["--output-format", "sparse"]);
+        Assert::main_binary()
+            .with_args(&sparse_args)
+            .succeeds()
+            .stdout()
+            .is("Sample\tContig\tMean\tTPM\n\
+                7seqs.reads_for_seq1\tgenome2~seq1\t1.3576471\t1000000\n\
+                7seqs.reads_for_seq1\tgenome5~seq2\t0\t0\n\
+                7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t500000\n\
+                7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t500000\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_nothing_passes_filters() {
+        // No contig has any coverage that passes the filters. This used to
+        // panic for dense and metabat output; now only the header is printed.
+        let bams = [
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        for (methods, header) in [
+            (
+                vec!["mean"],
+                "Contig\t7seqs.reads_for_seq1 Mean\t7seqs.reads_for_seq1_and_seq2 Mean\n",
+            ),
+            (
+                vec!["metabat"],
+                "contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\t\
+                7seqs.reads_for_seq1_and_seq2.bam\t7seqs.reads_for_seq1_and_seq2.bam-var\n",
+            ),
+        ] {
+            let mut args = vec![
+                "contig",
+                "--no-zeros",
+                "--min-read-aligned-length",
+                "100000",
+                "-b",
+            ];
+            args.extend(bams);
+            args.push("-m");
+            args.extend(methods);
+            Assert::main_binary()
+                .with_args(&args)
+                .succeeds()
+                .stdout()
+                .is(header)
+                .unwrap();
+        }
+    }
+
+    #[test]
     fn test_no_zeroes_missing_column_bug_separator() {
         Assert::main_binary()
             .with_args(&[

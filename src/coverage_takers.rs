@@ -88,6 +88,7 @@ impl CoverageTaker for CoverageTakerType {
                 // one to match it, since stoits usually have the same entries.
                 let expected_num_entries = match coverages.last_mut() {
                     Some(previous) => {
+                        previous.debug_assert_complete(*num_coverages);
                         previous.shrink_to_fit();
                         previous.len()
                     }
@@ -125,7 +126,7 @@ impl CoverageTaker for CoverageTakerType {
                 ref mut coverages,
                 ref current_stoit_index,
                 ref mut current_entry_index,
-                ..
+                num_coverages,
             } => {
                 debug!("Starting an entry with ID {entry_order_id} and name {entry_name}");
                 // if the first time this entry has been seen, record its name.
@@ -154,7 +155,9 @@ impl CoverageTaker for CoverageTakerType {
                     }
                     None => unreachable!(),
                 }
-                coverages[current_stoit_index.unwrap()].push_entry(entry_order_id);
+                let stoit = &mut coverages[current_stoit_index.unwrap()];
+                stoit.debug_assert_complete(*num_coverages);
+                stoit.push_entry(entry_order_id);
                 *current_entry_index = Some(entry_order_id);
             }
         }
@@ -268,6 +271,16 @@ impl StoitCoverages {
             }
         }
         self.num_entries += 1;
+    }
+
+    /// Each recorded entry must have exactly num_coverages values, otherwise
+    /// every later entry's values would be read at the wrong offset.
+    fn debug_assert_complete(&self, num_coverages: usize) {
+        debug_assert_eq!(
+            self.values.len(),
+            self.num_entries * num_coverages,
+            "Each entry must have exactly {num_coverages} coverage values"
+        );
     }
 
     fn shrink_to_fit(&mut self) {
@@ -632,5 +645,16 @@ mod tests {
         let mut s = StoitCoverages::default();
         s.push_entry(0);
         s.push_entry(0);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "exactly 2 coverage values")]
+    fn test_cached_taker_rejects_missing_coverage_value() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.start_entry(1, "contig2");
     }
 }

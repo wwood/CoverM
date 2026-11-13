@@ -83,11 +83,17 @@ impl CoveragePrinter {
                         let mut entry_coverages: Vec<&[f32]> = Vec::with_capacity(cursors.len());
                         for entry_i in observed_entry_indices(entry_names) {
                             entry_coverages.clear();
-                            entry_coverages.extend(
-                                cursors
-                                    .iter_mut()
-                                    .map(|cursor| cursor.coverages_for(entry_i).unwrap_or(&zeros)),
-                            );
+                            // The contig length is taken from the first stoit
+                            // with a record of this contig, since with
+                            // --no-zeros the earlier stoits may have none.
+                            let mut contig_length = None;
+                            for cursor in cursors.iter_mut() {
+                                let c = cursor.coverages_for(entry_i);
+                                if contig_length.is_none() {
+                                    contig_length = c.map(|c| c[0]);
+                                }
+                                entry_coverages.push(c.unwrap_or(&zeros));
+                            }
                             // Calculate the total average across each sample.
                             let mut total_depth = 0.0;
                             for c in entry_coverages.iter() {
@@ -97,7 +103,7 @@ impl CoveragePrinter {
                                 print_stream,
                                 "{}\t{}\t{}",
                                 entry_names[entry_i].as_ref().unwrap(),
-                                entry_coverages[0][0],
+                                contig_length.unwrap_or(0.0),
                                 // Not sure how to not have trailing zeroes with the formating specification
                                 (total_depth as f64 * 10000.0 / coverages.len() as f64).round()
                                     / 10000.0
@@ -660,6 +666,46 @@ mod tests {
             "contigName\tcontigLen\ttotalAvgDepth\tstoit1.bam\tstoit1.bam-var\tstoit2.bam\tstoit2.bam-var\n\
              contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
              contig2\t1025\t12.1\t2.1\t2.2\t22.1\t22.2\n",
+             std::fs::read_to_string(tf.path()).unwrap());
+    }
+
+    #[test]
+    fn test_metabat_mode_printer_missing_from_first_stoit() {
+        // With --no-zeros a stoit may have no record of a contig. The contig
+        // length must then come from a stoit that does.
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(3);
+
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1024.0);
+        c.add_single_coverage(1.1);
+        c.add_single_coverage(1.2);
+
+        c.start_stoit("stoit2");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1024.0);
+        c.add_single_coverage(21.1);
+        c.add_single_coverage(21.2);
+        c.start_entry(1, "contig2");
+        c.add_single_coverage(1025.0);
+        c.add_single_coverage(22.1);
+        c.add_single_coverage(22.2);
+
+        let tf: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
+        let t = tf.path().to_str().unwrap();
+        let mut metabat = CoveragePrinter::MetabatAdjustedCoveragePrinter;
+        metabat.finalise_printing(
+            &c,
+            &mut OutputWriter::generate(Some(t)),
+            None,
+            &vec![],
+            None,
+            None,
+        );
+        assert_eq!(
+            "contigName\tcontigLen\ttotalAvgDepth\tstoit1.bam\tstoit1.bam-var\tstoit2.bam\tstoit2.bam-var\n\
+             contig1\t1024\t11.1\t1.1\t1.2\t21.1\t21.2\n\
+             contig2\t1025\t11.05\t0\t0\t22.1\t22.2\n",
              std::fs::read_to_string(tf.path()).unwrap());
     }
 
