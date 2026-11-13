@@ -1776,6 +1776,29 @@ genome6	0",
     }
 
     #[test]
+    fn test_invalid_bam_rejected_before_processing() {
+        // BAM files are opened lazily when their sample is processed, but an
+        // unreadable BAM should still fail at startup, before earlier samples
+        // are processed.
+        let td = tempfile::TempDir::new().unwrap();
+        let fake_bam = td.path().join("fake.bam");
+        std::fs::write(&fake_bam, "not a BAM file\n").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                fake_bam.to_str().unwrap(),
+            ])
+            .fails()
+            .stderr()
+            .contains("Unable to open BAM file")
+            .stderr()
+            .doesnt_contain("In sample")
+            .unwrap();
+    }
+
+    #[test]
     fn test_minibwa_pregenerated_index() {
         // Copy the reference to a temp dir so the generated index files (.l2b,
         // .mbw) don't race with other tests that also use tests/data/7seqs.fna.

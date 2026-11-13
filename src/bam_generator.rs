@@ -154,9 +154,11 @@ fn open_bam_file(path: &str) -> bam::Reader {
     bam::Reader::from_path(path).unwrap_or_else(|_| panic!("Unable to find BAM file {}", path))
 }
 
-/// Fail early if a BAM file cannot be opened, before processing any sample.
+/// Fail early if a BAM file cannot be opened or its header cannot be parsed,
+/// before processing any sample. The reader, and so the header, is dropped
+/// straight away so that headers are not all held in memory at once.
 fn check_bam_file_readable(path: &str) {
-    if let Err(e) = std::fs::File::open(path) {
+    if let Err(e) = bam::Reader::from_path(path) {
         error!("Unable to open BAM file {path}: {e}");
         process::exit(1);
     }
