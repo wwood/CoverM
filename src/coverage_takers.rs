@@ -244,6 +244,17 @@ impl StoitCoverages {
     }
 
     fn push_entry(&mut self, entry_index: usize) {
+        // Printing walks each stoit with a StoitCoverageCursor, which relies
+        // on entries being recorded in strictly increasing order. Fail loudly
+        // rather than print coverages against the wrong entry.
+        if !self.is_empty() {
+            let previous = self.entry_index(self.num_entries - 1);
+            assert!(
+                entry_index > previous,
+                "Coverage entries must be recorded in increasing order, but entry {entry_index} \
+                followed entry {previous}. Please report this as a bug in CoverM."
+            );
+        }
         let entry_index_u32 = u32::try_from(entry_index)
             .expect("Too many reference sequences / genomes to cache coverage values");
         match self.entry_indices {
@@ -604,5 +615,22 @@ mod tests {
             vec![0, 1, 4, 5],
             (0..4).map(|i| s.entry_index(i)).collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "increasing order")]
+    fn test_stoit_coverages_rejects_out_of_order_entry() {
+        let mut s = StoitCoverages::default();
+        s.push_entry(0);
+        s.push_entry(4);
+        s.push_entry(2);
+    }
+
+    #[test]
+    #[should_panic(expected = "increasing order")]
+    fn test_stoit_coverages_rejects_repeated_entry() {
+        let mut s = StoitCoverages::default();
+        s.push_entry(0);
+        s.push_entry(0);
     }
 }
