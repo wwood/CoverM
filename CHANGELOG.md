@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Open input BAM files (`-b`) only when their sample is processed, so their headers are not all held in memory at once. Each BAM file's header is still read at startup to catch invalid input early. Library API: `generate_named_bam_readers_from_bam_files` and `generate_filtered_bam_readers_from_bam_files` now return `BamFileNamedReaderGenerator` and `FilteredBamReaderGenerator`.
+
 ## Version 0.8.0
 
 - Add strobealign-aemb, rammap and minibwa as mappers. Thanks @PoisonAlien for your suggestion
