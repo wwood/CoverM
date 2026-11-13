@@ -57,6 +57,7 @@ fn main() {
             let m = matches.subcommand_matches("genome").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, genome_full_help());
             set_log_level(m, true);
+            set_samtools_sort_memory_if_specified(m);
             manually_check_args_at_runtime(m);
             print_stream = OutputWriter::generate(m.get_one::<String>("output-file").map(|x| &**x));
 
@@ -474,6 +475,7 @@ fn main() {
             let m = matches.subcommand_matches("contig").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, contig_full_help());
             set_log_level(m, true);
+            set_samtools_sort_memory_if_specified(m);
             manually_check_args_at_runtime(m);
             let print_zeros = !m.get_flag("no-zeros");
 
@@ -665,6 +667,7 @@ fn main() {
             let m = matches.subcommand_matches("make").unwrap();
             bird_tool_utils::clap_utils::print_full_help_if_needed(m, make_full_help());
             set_log_level(m, true);
+            set_samtools_sort_memory_if_specified(m);
             manually_check_args_at_runtime(m);
 
             let mapping_program = parse_mapping_program(m);
@@ -1625,6 +1628,12 @@ fn run_genome<
         estimators_and_taker.rpkm_column,
         estimators_and_taker.tpm_column,
     );
+}
+
+fn set_samtools_sort_memory_if_specified(m: &clap::ArgMatches) {
+    if let Some(memory) = m.get_one::<String>("sort-memory") {
+        coverm::bam_generator::set_samtools_sort_memory(memory);
+    }
 }
 
 fn doing_metabat(m: &clap::ArgMatches) -> bool {

@@ -2,6 +2,7 @@ use std;
 use std::io::Read;
 use std::process;
 use std::sync::atomic::{compiler_fence, Ordering};
+use std::sync::OnceLock;
 
 use filter::*;
 use mapping_index_maintenance::MappingIndex;
@@ -353,6 +354,22 @@ impl NamedBamReader for StreamingNamedBamReader {
     }
 }
 
+static SAMTOOLS_SORT_MEMORY: OnceLock<String> = OnceLock::new();
+
+/// Set the memory per thread used by samtools sort (its -m) in all mapping
+/// commands run by this process. Only the first call has an effect.
+pub fn set_samtools_sort_memory(memory: &str) {
+    let _ = SAMTOOLS_SORT_MEMORY.set(memory.to_string());
+}
+
+/// samtools sort arguments setting memory per thread, if one was set.
+pub fn samtools_sort_memory_arg() -> String {
+    match SAMTOOLS_SORT_MEMORY.get() {
+        Some(memory) => format!("-m {memory} "),
+        None => String::new(),
+    }
+}
+
 pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<BamFileNamedReader> {
     bam_paths
         .iter()
@@ -445,7 +462,7 @@ pub fn generate_named_bam_readers_from_reads(
     let cmd_string = format!(
         "set -e -o pipefail; \
          {} 2>{} \
-         | samtools sort -T '{}' -l0 -@ {} 2>{} \
+         | samtools sort {}-T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping program
         mapping_command,
@@ -454,6 +471,7 @@ pub fn generate_named_bam_readers_from_reads(
             .to_str()
             .expect("Failed to convert tempfile path to str"),
         // samtools
+        samtools_sort_memory_arg(),
         bwa_sort_prefix
             .path()
             .to_str()
@@ -839,7 +857,7 @@ pub fn generate_bam_maker_generator_from_reads(
     let cmd_string = format!(
         "set -e -o pipefail; \
          {} 2>{} \
-         | samtools sort -T '{}' -l0 -@ {} 2>{} \
+         | samtools sort {}-T '{}' -l0 -@ {} 2>{} \
          | samtools view {} -b -@ {} -o '{}' 2>{}",
         // Mapping program
         mapping_command,
@@ -848,6 +866,7 @@ pub fn generate_bam_maker_generator_from_reads(
             .to_str()
             .expect("Failed to convert tempfile path to str"),
         // samtools
+        samtools_sort_memory_arg(),
         bwa_sort_prefix
             .path()
             .to_str()

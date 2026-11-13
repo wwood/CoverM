@@ -386,7 +386,8 @@ where
         // Temp files now sorted and stored in tempdir
         let sort_command_string = format!(
             "set -e -o pipefail; \
-             samtools sort -l0 {} -o {} -T {} -@ {}",
+             samtools sort {}-l0 {} -o {} -T {} -@ {}",
+            samtools_sort_memory_arg(),
             sort_input_fifo_path
                 .to_str()
                 .expect("Failed to convert sort tempfile input path to str"),
@@ -633,7 +634,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
     let cmd_string = format!(
         "set -e -o pipefail; \
          {} 2>{}\
-         | samtools sort -n -T '{}' -l0 -@ {} 2>{} \
+         | samtools sort -n {}-T '{}' -l0 -@ {} 2>{} \
          {}",
         // Mapping
         mapping_command,
@@ -642,6 +643,7 @@ pub fn generate_named_sharded_bam_readers_from_reads(
             .to_str()
             .expect("Failed to convert tempfile path to str"),
         // samtools
+        samtools_sort_memory_arg(),
         bwa_sort_prefix
             .path()
             .to_str()
