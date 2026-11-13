@@ -370,15 +370,31 @@ fn sort_memory_help() -> String {
 
 /// Validate a samtools sort -m memory size, e.g. 500M or 2G.
 fn parse_sort_memory(value: &str) -> Result<String, String> {
+    let invalid = || format!("'{value}' is not a valid memory size, expected e.g. 500M or 2G");
     let digits = value.trim_end_matches(['K', 'k', 'M', 'm', 'G', 'g']);
-    let suffix_len = value.len() - digits.len();
-    if !digits.is_empty() && suffix_len <= 1 && digits.chars().all(|c| c.is_ascii_digit()) {
-        Ok(value.to_string())
-    } else {
-        Err(format!(
-            "'{value}' is not a valid memory size, expected e.g. 500M or 2G"
-        ))
+    let multiplier: u64 = match &value[digits.len()..] {
+        "" => 1,
+        "K" | "k" => 1 << 10,
+        "M" | "m" => 1 << 20,
+        "G" | "g" => 1 << 30,
+        _ => return Err(invalid()),
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return Err(invalid());
     }
+    let bytes = digits
+        .parse::<u64>()
+        .ok()
+        .and_then(|n| n.checked_mul(multiplier))
+        .ok_or_else(invalid)?;
+    // Smaller values make samtools sort write a very large number of
+    // temporary files, or fail outright.
+    if bytes < 1 << 20 {
+        return Err(format!(
+            "'{value}' is too small a memory size for samtools sort, use at least 1M"
+        ));
+    }
+    Ok(value.to_string())
 }
 
 fn add_help_options_to_section(section: Section) -> Section {
@@ -3256,4 +3272,24 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 
     app = galah::cluster_argument_parsing::add_cluster_subcommand(app);
     app
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_sort_memory() {
+        for valid in ["1M", "500M", "768m", "2G", "1g", "4096K", "1048576"] {
+            assert_eq!(Ok(valid.to_string()), parse_sort_memory(valid));
+        }
+        for invalid in [
+            "", "M", "0", "2", "10K", "1023K", "0G", "2GB", "1.5G", "-1G", "G2", "lots",
+        ] {
+            assert!(
+                parse_sort_memory(invalid).is_err(),
+                "'{invalid}' should be rejected"
+            );
+        }
+    }
 }

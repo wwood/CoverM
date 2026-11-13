@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `--sort-memory` to set the memory per thread used by `samtools sort` when mapping reads.
+
 ## Version 0.8.0
 
 - Add strobealign-aemb, rammap and minibwa as mappers. Thanks @PoisonAlien for your suggestion

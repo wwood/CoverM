@@ -487,6 +487,62 @@ mod tests {
             .unwrap();
     }
 
+    #[test]
+    fn test_sort_memory() {
+        let run = |extra: &[&str]| {
+            let mut args = vec![
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "-p",
+                "minimap2-sr",
+            ];
+            args.extend(extra);
+            let output = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+                .args(&args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "coverm failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            (
+                String::from_utf8(output.stdout).unwrap(),
+                String::from_utf8(output.stderr).unwrap(),
+            )
+        };
+        let (default_stdout, _) = run(&[]);
+        let (stdout, stderr) = run(&["--sort-memory", "100M", "-v"]);
+        assert_eq!(default_stdout, stdout);
+        assert!(
+            stderr.contains("samtools sort -m 100M "),
+            "samtools sort was not given -m 100M: {stderr}"
+        );
+    }
+
+    #[test]
+    fn test_sort_memory_too_small_rejected() {
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--coupled",
+                "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
+                "tests/data/reads_for_seq1_and_seq2.2.fq.gz",
+                "--reference",
+                "tests/data/7seqs.fna",
+                "--sort-memory",
+                "10K",
+            ])
+            .fails()
+            .stderr()
+            .contains("use at least 1M")
+            .unwrap();
+    }
+
     fn write_read_list(dir: &tempfile::TempDir, name: &str, contents: &str) -> String {
         let path = dir.path().join(name);
         std::fs::write(&path, contents).unwrap();
