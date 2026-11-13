@@ -1,5 +1,4 @@
-use std;
-use std::fmt;
+use std::convert::TryFrom;
 use std::io::Write;
 use std::process;
 
@@ -18,8 +17,8 @@ pub enum CoverageTakerType {
     CachedSingleFloatCoverageTaker {
         stoit_names: Vec<String>,
         entry_names: Vec<Option<String>>,
-        // list of per-stoit lists of recorded coverages
-        coverages: Vec<Vec<CoverageEntry>>,
+        // per-stoit recorded coverages
+        coverages: Vec<StoitCoverages>,
         current_stoit_index: Option<usize>,
         current_entry_index: Option<usize>,
         num_coverages: usize, // number of different coverage calculations
@@ -35,12 +34,6 @@ pub trait CoverageTaker {
     // hack to have it in this generalised trait, really.
     fn add_coverage_entry(&mut self, num_reads: usize, num_bases: u64);
     fn finish_entry(&mut self);
-}
-
-#[derive(PartialEq, Debug)]
-pub struct CoverageEntry {
-    pub entry_index: usize,
-    pub coverage: f32,
 }
 
 impl CoverageTakerType {
@@ -89,10 +82,23 @@ impl CoverageTaker for CoverageTakerType {
                 ref mut coverages,
                 ref mut current_stoit_index,
                 current_entry_index: _,
-                ..
+                num_coverages,
             } => {
+                // Release over-allocation from the previous stoit, and size this
+                // one to match it, since stoits usually have the same entries.
+                let expected_num_entries = match coverages.last_mut() {
+                    Some(previous) => {
+                        previous.debug_assert_complete(*num_coverages);
+                        previous.shrink_to_fit();
+                        previous.len()
+                    }
+                    None => 0,
+                };
                 stoit_names.push(stoit_name.to_owned());
-                coverages.push(vec![]);
+                coverages.push(StoitCoverages::with_capacity(
+                    expected_num_entries,
+                    *num_coverages,
+                ));
                 *current_stoit_index = Some(stoit_names.len() - 1);
             }
         }
@@ -117,10 +123,10 @@ impl CoverageTaker for CoverageTakerType {
             CoverageTakerType::CachedSingleFloatCoverageTaker {
                 stoit_names: _,
                 ref mut entry_names,
-                coverages: _,
-                current_stoit_index: _,
+                ref mut coverages,
+                ref current_stoit_index,
                 ref mut current_entry_index,
-                ..
+                num_coverages,
             } => {
                 debug!("Starting an entry with ID {entry_order_id} and name {entry_name}");
                 // if the first time this entry has been seen, record its name.
@@ -149,6 +155,9 @@ impl CoverageTaker for CoverageTakerType {
                     }
                     None => unreachable!(),
                 }
+                let stoit = &mut coverages[current_stoit_index.unwrap()];
+                stoit.debug_assert_complete(*num_coverages);
+                stoit.push_entry(entry_order_id);
                 *current_entry_index = Some(entry_order_id);
             }
         }
@@ -173,12 +182,10 @@ impl CoverageTaker for CoverageTakerType {
                 entry_names: _,
                 ref mut coverages,
                 ref current_stoit_index,
-                ref current_entry_index,
                 ..
-            } => coverages[current_stoit_index.unwrap()].push(CoverageEntry {
-                entry_index: current_entry_index.unwrap(),
-                coverage,
-            }),
+            } => coverages[current_stoit_index.unwrap()]
+                .values
+                .push(coverage),
         }
     }
 
@@ -218,167 +225,151 @@ impl CoverageTaker for CoverageTakerType {
     }
 }
 
-#[derive(PartialEq, Debug)]
-pub struct EntryAndCoverages {
-    pub entry_index: usize,
-    pub stoit_index: usize,
-    pub coverages: Vec<f32>,
+/// Coverages recorded for one stoit by a CachedSingleFloatCoverageTaker,
+/// stored as `num_coverages` consecutive f32 values per recorded entry. While
+/// entries arrive as 0, 1, 2, .. (the usual case when zero coverage entries
+/// are printed) their indices are implicit, so only the values are stored. A
+/// u32 index per entry is kept once an entry is skipped.
+#[derive(PartialEq, Debug, Default)]
+pub struct StoitCoverages {
+    entry_indices: Option<Vec<u32>>,
+    num_entries: usize,
+    values: Vec<f32>,
 }
 
-pub struct CoverageTakerTypeIterator<'a> {
-    coverage_taker_type: &'a CoverageTakerType,
-    // indices for iterating
-    iter_next_entry_indices: Vec<usize>, // indexes into coverages[stoit]
-    iter_current_stoit_index: usize,     // indexes into coverages
-    iter_last_entry_order_index: Option<usize>, // index into entry_names
-}
+impl StoitCoverages {
+    fn with_capacity(num_entries: usize, num_coverages: usize) -> StoitCoverages {
+        StoitCoverages {
+            entry_indices: None,
+            num_entries: 0,
+            values: Vec::with_capacity(num_entries * num_coverages),
+        }
+    }
 
-impl std::fmt::Debug for CoverageTakerTypeIterator<'_> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("CoverageTakerTypeIterator")
-            .field("iter_next_entry_indices", &self.iter_next_entry_indices)
-            .field("iter_current_stoit_index", &self.iter_current_stoit_index)
-            .field(
-                "iter_last_entry_order_index",
-                &self.iter_last_entry_order_index,
-            )
-            .finish()
+    fn push_entry(&mut self, entry_index: usize) {
+        // Printing walks each stoit with a StoitCoverageCursor, which relies
+        // on entries being recorded in strictly increasing order. Fail loudly
+        // rather than print coverages against the wrong entry.
+        if !self.is_empty() {
+            let previous = self.entry_index(self.num_entries - 1);
+            assert!(
+                entry_index > previous,
+                "Coverage entries must be recorded in increasing order, but entry {entry_index} \
+                followed entry {previous}. Please report this as a bug in CoverM."
+            );
+        }
+        let entry_index_u32 = u32::try_from(entry_index)
+            .expect("Too many reference sequences / genomes to cache coverage values");
+        match self.entry_indices {
+            Some(ref mut indices) => indices.push(entry_index_u32),
+            None => {
+                if entry_index != self.num_entries {
+                    let mut indices: Vec<u32> = (0..self.num_entries as u32).collect();
+                    indices.push(entry_index_u32);
+                    self.entry_indices = Some(indices);
+                }
+            }
+        }
+        self.num_entries += 1;
+    }
+
+    /// Each recorded entry must have exactly num_coverages values, otherwise
+    /// every later entry's values would be read at the wrong offset.
+    fn debug_assert_complete(&self, num_coverages: usize) {
+        debug_assert_eq!(
+            self.values.len(),
+            self.num_entries * num_coverages,
+            "Each entry must have exactly {num_coverages} coverage values"
+        );
+    }
+
+    fn shrink_to_fit(&mut self) {
+        self.values.shrink_to_fit();
+        if let Some(ref mut indices) = self.entry_indices {
+            indices.shrink_to_fit();
+        }
+    }
+
+    /// Number of entries recorded for this stoit.
+    pub fn len(&self) -> usize {
+        self.num_entries
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.num_entries == 0
+    }
+
+    /// The entry index of the i'th recorded entry.
+    pub fn entry_index(&self, i: usize) -> usize {
+        match &self.entry_indices {
+            Some(indices) => indices[i] as usize,
+            None => i,
+        }
+    }
+
+    /// The coverage values of the i'th recorded entry.
+    pub fn coverages(&self, i: usize, num_coverages: usize) -> &[f32] {
+        &self.values[i * num_coverages..(i + 1) * num_coverages]
     }
 }
 
-impl<'a> CoverageTakerType {
-    pub fn generate_iterator(&'a self) -> CoverageTakerTypeIterator<'a> {
-        match self {
-            CoverageTakerType::CachedSingleFloatCoverageTaker { stoit_names, .. } => {
-                CoverageTakerTypeIterator {
-                    coverage_taker_type: self,
-                    iter_next_entry_indices: vec![0; stoit_names.len()], // indexes into coverages[stoit]
-                    iter_current_stoit_index: 0,                         // indexes into coverages
-                    iter_last_entry_order_index: None,                   // index into entry_names
-                }
-            }
-            _ => unreachable!(),
+/// Walks the entries recorded for one stoit in entry order, returning the
+/// coverages for each requested entry, or None if the stoit has no record of
+/// it (i.e. its coverages are all zero). Requested entry indices must be
+/// increasing.
+pub struct StoitCoverageCursor<'a> {
+    stoit: &'a StoitCoverages,
+    num_coverages: usize,
+    next: usize,
+}
+
+impl<'a> StoitCoverageCursor<'a> {
+    pub fn new(stoit: &'a StoitCoverages, num_coverages: usize) -> StoitCoverageCursor<'a> {
+        StoitCoverageCursor {
+            stoit,
+            num_coverages,
+            next: 0,
+        }
+    }
+
+    pub fn coverages_for(&mut self, entry_index: usize) -> Option<&'a [f32]> {
+        while self.next < self.stoit.len() && self.stoit.entry_index(self.next) < entry_index {
+            self.next += 1;
+        }
+        if self.next < self.stoit.len() && self.stoit.entry_index(self.next) == entry_index {
+            self.next += 1;
+            Some(self.stoit.coverages(self.next - 1, self.num_coverages))
+        } else {
+            None
         }
     }
 }
 
-impl Iterator for CoverageTakerTypeIterator<'_> {
-    type Item = EntryAndCoverages;
-
-    fn next(&mut self) -> Option<EntryAndCoverages> {
-        match self.coverage_taker_type {
-            CoverageTakerType::CachedSingleFloatCoverageTaker {
-                ref stoit_names,
-                entry_names: _,
-                ref coverages,
-                current_stoit_index: _,
-                current_entry_index: _,
-                ref num_coverages,
-            } => {
-                while self.iter_current_stoit_index <= stoit_names.len() {
-                    let mut lowest_entry_order = None;
-                    // Search for the lowest entry_index amongst the head of the
-                    // queues of entries for each stoit
-                    for (stoit_i, coverage_i) in (self.iter_next_entry_indices).iter().enumerate() {
-                        // if there are not more entries in this stoit, do nothing
-                        if *coverage_i < coverages[stoit_i].len() {
-                            // if current lowest is None or higher than current, update
-                            let current_coverage_entry = &coverages[stoit_i][*coverage_i];
-                            if self.iter_last_entry_order_index.is_none()
-                                || current_coverage_entry.entry_index
-                                    > self.iter_last_entry_order_index.unwrap()
-                            {
-                                match lowest_entry_order {
-                                    None => {
-                                        lowest_entry_order =
-                                            Some(current_coverage_entry.entry_index);
-                                    }
-                                    Some(old_best_entry_order) => {
-                                        if current_coverage_entry.entry_index < old_best_entry_order
-                                        {
-                                            // new winner
-                                            lowest_entry_order =
-                                                Some(current_coverage_entry.entry_index);
-                                        }
-                                        // else must be the same or a loser, do nothing
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Winning entry picked, update state and return it
-                    match lowest_entry_order {
-                        Some(lowest_entry_i) => {
-                            let mut chosen_stoit_entry_id =
-                                self.iter_next_entry_indices[self.iter_current_stoit_index];
-                            let potential_next_stoit_list =
-                                &coverages[self.iter_current_stoit_index];
-                            let struct_to_return = if chosen_stoit_entry_id
-                                >= potential_next_stoit_list.len()
-                                || potential_next_stoit_list[chosen_stoit_entry_id].entry_index
-                                    != lowest_entry_i
-                            {
-                                // There are no more coverages from this stoit,
-                                // now we are just returning zeroes to fill out
-                                // the larger matrix.
-                                Some(EntryAndCoverages {
-                                    entry_index: lowest_entry_i,
-                                    stoit_index: self.iter_current_stoit_index,
-                                    coverages: vec![0.0; *num_coverages],
-                                })
-                            } else {
-                                let mut to_return = vec![];
-                                // collect the coverages to return from the
-                                // stoit currently being iterated.
-                                for _ in 0..*num_coverages {
-                                    to_return.push(
-                                        potential_next_stoit_list[chosen_stoit_entry_id].coverage,
-                                    );
-                                    chosen_stoit_entry_id += 1;
-                                }
-
-                                Some(EntryAndCoverages {
-                                    entry_index: lowest_entry_i,
-                                    stoit_index: self.iter_current_stoit_index,
-                                    coverages: to_return,
-                                })
-                            };
-
-                            // update the pointers for each stoit
-                            #[allow(clippy::needless_range_loop)]
-                            for stoit_i in 0..stoit_names.len() {
-                                if coverages[stoit_i].len() > self.iter_next_entry_indices[stoit_i]
-                                    && coverages[stoit_i][self.iter_next_entry_indices[stoit_i]]
-                                        .entry_index
-                                        == lowest_entry_i
-                                {
-                                    self.iter_next_entry_indices[stoit_i] += *num_coverages
-                                }
-                            }
-                            self.iter_last_entry_order_index = Some(lowest_entry_i);
-                            return struct_to_return;
-                        }
-                        None => {
-                            // all coverages from the current stoit have been returned
-                            self.iter_current_stoit_index += 1;
-                            if self.iter_current_stoit_index >= stoit_names.len() {
-                                return None; // Finished all iteration now.
-                            }
-                            self.iter_next_entry_indices = vec![0; stoit_names.len()];
-                            self.iter_last_entry_order_index = None;
-                        }
-                    }
-                }
-                None
-            }
-            _ => unreachable!(),
-        }
-    }
+/// Indices of entries observed in any stoit, in increasing order. These are
+/// the rows printed from a CachedSingleFloatCoverageTaker, with zeros filled in
+/// for stoits which have no record of a given entry.
+pub fn observed_entry_indices(entry_names: &[Option<String>]) -> impl Iterator<Item = usize> + '_ {
+    entry_names
+        .iter()
+        .enumerate()
+        .filter(|(_, name)| name.is_some())
+        .map(|(i, _)| i)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn recorded(stoit: &StoitCoverages, num_coverages: usize) -> Vec<(usize, Vec<f32>)> {
+        (0..stoit.len())
+            .map(|i| {
+                (
+                    stoit.entry_index(i),
+                    stoit.coverages(i, num_coverages).to_vec(),
+                )
+            })
+            .collect()
+    }
 
     #[test]
     fn test_cached_hello_world() {
@@ -398,19 +389,10 @@ mod tests {
             } => {
                 assert_eq!(vec!("stoit1".to_string()), stoit_names);
                 assert_eq!(vec!(Some("contig1".to_string())), entry_names);
-                assert_eq!(
-                    vec![vec![
-                        CoverageEntry {
-                            entry_index: 0,
-                            coverage: 1.1
-                        },
-                        CoverageEntry {
-                            entry_index: 0,
-                            coverage: 1.2
-                        }
-                    ]],
-                    coverages
-                );
+                assert_eq!(1, coverages.len());
+                assert_eq!(vec![(0, vec![1.1, 1.2])], recorded(&coverages[0], 2));
+                // Contiguous entries do not need their indices stored
+                assert_eq!(None, coverages[0].entry_indices);
                 assert_eq!(0, current_stoit_index.unwrap());
                 assert_eq!(0, current_entry_index.unwrap());
                 assert_eq!(2, num_coverages);
@@ -459,45 +441,12 @@ mod tests {
                     entry_names
                 );
                 assert_eq!(
-                    vec![
-                        vec![
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 1.1
-                            },
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 1.2
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 2.1
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 2.2
-                            },
-                        ],
-                        vec![
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 10.1
-                            },
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 10.2
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 20.1
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 20.2
-                            },
-                        ]
-                    ],
-                    coverages
+                    vec![(0, vec![1.1, 1.2]), (3, vec![2.1, 2.2])],
+                    recorded(&coverages[0], 2)
+                );
+                assert_eq!(
+                    vec![(0, vec![10.1, 10.2]), (3, vec![20.1, 20.2])],
+                    recorded(&coverages[1], 2)
                 );
                 assert_eq!(1, current_stoit_index.unwrap());
                 assert_eq!(3, current_entry_index.unwrap());
@@ -551,53 +500,16 @@ mod tests {
                     entry_names
                 );
                 assert_eq!(
+                    vec![(0, vec![1.1, 1.2]), (3, vec![2.1, 2.2])],
+                    recorded(&coverages[0], 2)
+                );
+                assert_eq!(
                     vec![
-                        vec![
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 1.1
-                            },
-                            CoverageEntry {
-                                entry_index: 0,
-                                coverage: 1.2
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 2.1
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 2.2
-                            },
-                        ],
-                        vec![
-                            CoverageEntry {
-                                entry_index: 1,
-                                coverage: 10.1
-                            },
-                            CoverageEntry {
-                                entry_index: 1,
-                                coverage: 10.2
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 20.1
-                            },
-                            CoverageEntry {
-                                entry_index: 3,
-                                coverage: 20.2
-                            },
-                            CoverageEntry {
-                                entry_index: 5,
-                                coverage: 20.1
-                            },
-                            CoverageEntry {
-                                entry_index: 5,
-                                coverage: 20.2
-                            },
-                        ]
+                        (1, vec![10.1, 10.2]),
+                        (3, vec![20.1, 20.2]),
+                        (5, vec![20.1, 20.2])
                     ],
-                    coverages
+                    recorded(&coverages[1], 2)
                 );
                 assert_eq!(1, current_stoit_index.unwrap());
                 assert_eq!(5, current_entry_index.unwrap());
@@ -607,7 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cached_next() {
+    fn test_cached_cursor_fills_zeros() {
         let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
@@ -628,78 +540,42 @@ mod tests {
         c.add_single_coverage(20.1);
         c.add_single_coverage(20.2);
 
-        let mut it = c.generate_iterator();
+        match c {
+            CoverageTakerType::CachedSingleFloatCoverageTaker {
+                entry_names,
+                coverages,
+                ..
+            } => {
+                let rows: Vec<usize> = observed_entry_indices(&entry_names).collect();
+                assert_eq!(vec![0, 1, 3, 5], rows);
 
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 0,
-                stoit_index: 0,
-                coverages: vec![1.1, 1.2]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 1,
-                stoit_index: 0,
-                coverages: vec![0.0, 0.0]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 3,
-                stoit_index: 0,
-                coverages: vec![2.1, 2.2]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 5,
-                stoit_index: 0,
-                coverages: vec![0.0, 0.0]
-            }),
-            it.next()
-        );
+                let mut cursor = StoitCoverageCursor::new(&coverages[0], 2);
+                let got: Vec<Option<&[f32]>> =
+                    rows.iter().map(|e| cursor.coverages_for(*e)).collect();
+                assert_eq!(
+                    vec![Some(&[1.1, 1.2][..]), None, Some(&[2.1, 2.2][..]), None],
+                    got
+                );
 
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 0,
-                stoit_index: 1,
-                coverages: vec![0.0, 0.0]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 1,
-                stoit_index: 1,
-                coverages: vec![10.1, 10.2]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 3,
-                stoit_index: 1,
-                coverages: vec![20.1, 20.2]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 5,
-                stoit_index: 1,
-                coverages: vec![20.1, 20.2]
-            }),
-            it.next()
-        );
-        assert_eq!(None, it.next());
+                let mut cursor = StoitCoverageCursor::new(&coverages[1], 2);
+                let got: Vec<Option<&[f32]>> =
+                    rows.iter().map(|e| cursor.coverages_for(*e)).collect();
+                assert_eq!(
+                    vec![
+                        None,
+                        Some(&[10.1, 10.2][..]),
+                        Some(&[20.1, 20.2][..]),
+                        Some(&[20.1, 20.2][..])
+                    ],
+                    got
+                );
+            }
+            _ => panic!(),
+        }
     }
 
     #[test]
-    fn test_cached_next_one_coverage() {
+    fn test_cached_cursor_one_coverage() {
         let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(1);
         c.start_stoit("stoit1");
         c.start_entry(0, "contig1");
@@ -715,75 +591,70 @@ mod tests {
         c.start_entry(5, "contig5");
         c.add_single_coverage(20.1);
 
-        let mut it = c.generate_iterator();
+        match c {
+            CoverageTakerType::CachedSingleFloatCoverageTaker {
+                entry_names,
+                coverages,
+                ..
+            } => {
+                let rows: Vec<usize> = observed_entry_indices(&entry_names).collect();
+                let mut cursor = StoitCoverageCursor::new(&coverages[0], 1);
+                let got: Vec<f32> = rows
+                    .iter()
+                    .map(|e| cursor.coverages_for(*e).map_or(0.0, |c| c[0]))
+                    .collect();
+                assert_eq!(vec![1.1, 0.0, 2.1, 0.0], got);
+                let mut cursor = StoitCoverageCursor::new(&coverages[1], 1);
+                let got: Vec<f32> = rows
+                    .iter()
+                    .map(|e| cursor.coverages_for(*e).map_or(0.0, |c| c[0]))
+                    .collect();
+                assert_eq!(vec![0.0, 10.1, 20.1, 20.1], got);
+            }
+            _ => panic!(),
+        }
+    }
 
-        println!("it: {it:?}");
+    #[test]
+    fn test_stoit_coverages_becomes_sparse() {
+        let mut s = StoitCoverages::default();
+        s.push_entry(0);
+        s.push_entry(1);
+        assert_eq!(None, s.entry_indices);
+        s.push_entry(4);
+        assert_eq!(Some(vec![0, 1, 4]), s.entry_indices);
+        s.push_entry(5);
         assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 0,
-                stoit_index: 0,
-                coverages: vec![1.1]
-            }),
-            it.next()
+            vec![0, 1, 4, 5],
+            (0..4).map(|i| s.entry_index(i)).collect::<Vec<_>>()
         );
-        println!("it: {it:?}");
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 1,
-                stoit_index: 0,
-                coverages: vec![0.0]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 3,
-                stoit_index: 0,
-                coverages: vec![2.1]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 5,
-                stoit_index: 0,
-                coverages: vec![0.0]
-            }),
-            it.next()
-        );
+    }
 
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 0,
-                stoit_index: 1,
-                coverages: vec![0.0]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 1,
-                stoit_index: 1,
-                coverages: vec![10.1]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 3,
-                stoit_index: 1,
-                coverages: vec![20.1]
-            }),
-            it.next()
-        );
-        assert_eq!(
-            Some(EntryAndCoverages {
-                entry_index: 5,
-                stoit_index: 1,
-                coverages: vec![20.1]
-            }),
-            it.next()
-        );
-        assert_eq!(None, it.next());
+    #[test]
+    #[should_panic(expected = "increasing order")]
+    fn test_stoit_coverages_rejects_out_of_order_entry() {
+        let mut s = StoitCoverages::default();
+        s.push_entry(0);
+        s.push_entry(4);
+        s.push_entry(2);
+    }
+
+    #[test]
+    #[should_panic(expected = "increasing order")]
+    fn test_stoit_coverages_rejects_repeated_entry() {
+        let mut s = StoitCoverages::default();
+        s.push_entry(0);
+        s.push_entry(0);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "exactly 2 coverage values")]
+    fn test_cached_taker_rejects_missing_coverage_value() {
+        let mut c = CoverageTakerType::new_cached_single_float_coverage_taker(2);
+        c.start_stoit("stoit1");
+        c.start_entry(0, "contig1");
+        c.add_single_coverage(1.1);
+        c.start_entry(1, "contig2");
     }
 }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Reduce memory use and speed up printing of dense, metabat, and normalised (e.g. TPM) output by storing cached coverages compactly. Library API: `generate_iterator`, `CoverageEntry` and `EntryAndCoverages` are replaced by `StoitCoverages`, `StoitCoverageCursor` and `observed_entry_indices`.
+- Fix panics with `--no-zeros` when no contig passes the filters, and with metabat output when the first sample lacks reads for a contig.
+
 ## Version 0.8.0
 
 - Add strobealign-aemb, rammap and minibwa as mappers. Thanks @PoisonAlien for your suggestion
