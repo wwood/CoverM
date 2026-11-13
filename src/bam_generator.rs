@@ -151,16 +151,35 @@ impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReaderGenerator
 }
 
 fn open_bam_file(path: &str) -> bam::Reader {
-    bam::Reader::from_path(path).unwrap_or_else(|_| panic!("Unable to find BAM file {}", path))
+    match bam::Reader::from_path(path) {
+        Ok(reader) => reader,
+        Err(e) => {
+            error!("Unable to open BAM file {path}: {e}");
+            process::exit(1);
+        }
+    }
 }
 
 /// Fail early if a BAM file cannot be opened or its header cannot be parsed,
 /// before processing any sample. The reader, and so the header, is dropped
 /// straight away so that headers are not all held in memory at once.
+///
+/// Only regular files are opened here. A pipe or other stream (e.g. -b
+/// /dev/stdin or process substitution) can only be read once, so it is just
+/// checked to exist and is left to be opened when its sample is processed.
 fn check_bam_file_readable(path: &str) {
-    if let Err(e) = bam::Reader::from_path(path) {
-        error!("Unable to open BAM file {path}: {e}");
-        process::exit(1);
+    match std::fs::metadata(path) {
+        Ok(metadata) if metadata.is_file() => {
+            if let Err(e) = bam::Reader::from_path(path) {
+                error!("Unable to open BAM file {path}: {e}");
+                process::exit(1);
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            error!("Unable to open BAM file {path}: {e}");
+            process::exit(1);
+        }
     }
 }
 
