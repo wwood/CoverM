@@ -1850,10 +1850,15 @@ genome6	0",
         let ref_str = ref_path.to_str().unwrap();
 
         // Generate the index at runtime so the format always matches the installed minibwa version
-        std::process::Command::new("minibwa")
+        let out = std::process::Command::new("minibwa")
             .args(["index", ref_str, ref_str])
-            .status()
-            .expect("Failed to generate minibwa index");
+            .output()
+            .expect("Failed to run minibwa index generation");
+        assert!(
+            out.status.success(),
+            "minibwa index generation failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
 
         Assert::main_binary()
             .with_args(&[
@@ -4486,14 +4491,19 @@ genome6~random_sequence_length_11003	0	0	0
     #[test]
     fn test_strobealign_pregenerated_index() {
         // Generate the index at runtime so the format always matches the installed strobealign version
-        std::process::Command::new("strobealign")
+        let out = std::process::Command::new("strobealign")
             .args([
                 "-i",
                 "tests/data/7seqs.fna",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
             ])
-            .status()
-            .expect("Failed to generate strobealign index");
+            .output()
+            .expect("Failed to run strobealign index generation");
+        assert!(
+            out.status.success(),
+            "strobealign index generation failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
 
         Assert::main_binary()
             .with_args(&[
