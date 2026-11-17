@@ -49,9 +49,15 @@ lazy_static! {
             dereplication_large_contigs_argument: "dereplication-large-contigs".to_string(),
             dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
             dereplication_low_memory_argument: "dereplication-low-memory".to_string(),
+            dereplication_skip_sanitize_headers_argument: "dereplication-skip-sanitise-headers"
+                .to_string(),
+            dereplication_both_min_aligned_fraction_argument:
+                "dereplication-both-min-aligned-fraction".to_string(),
             dereplication_reference_genomes_argument: "dereplication-reference-genomes".to_string(),
             dereplication_reference_genomes_list_argument: "dereplication-reference-genomes-list"
                 .to_string(),
+            dereplication_skip_input_dereplication_argument:
+                "dereplication-skip-input-dereplication".to_string(),
             dereplication_output_cluster_definition_file: "dereplication-output-cluster-definition"
                 .to_string(),
             dereplication_output_representative_fasta_directory:
@@ -1506,6 +1512,21 @@ fn add_dereplication_arguments(command: Command) -> Command {
                 .conflicts_with("dereplication-reference-genomes"),
         )
         .arg(
+            Arg::new("dereplication-both-min-aligned-fraction")
+                .long("dereplication-both-min-aligned-fraction")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-skip-sanitise-headers")
+                .long("dereplication-skip-sanitise-headers")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("dereplication-skip-input-dereplication")
+                .long("dereplication-skip-input-dereplication")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             Arg::new("dereplication-output-cluster-definition")
                 .long("dereplication-output-cluster-definition"),
         )
@@ -2304,6 +2325,21 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .long("dereplication-reference-genomes-list")
                         .conflicts_with("dereplication-low-memory")
                         .conflicts_with("dereplication-reference-genomes"),
+                )
+                .arg(
+                    Arg::new("dereplication-both-min-aligned-fraction")
+                        .long("dereplication-both-min-aligned-fraction")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("dereplication-skip-sanitise-headers")
+                        .long("dereplication-skip-sanitise-headers")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("dereplication-skip-input-dereplication")
+                        .long("dereplication-skip-input-dereplication")
+                        .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
                     Arg::new("dereplication-output-cluster-definition")
