@@ -327,7 +327,7 @@ mod tests {
             "7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.0,0,false)],
             false,
             false);
     }
@@ -338,7 +338,7 @@ mod tests {
             "7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11000\t0\n7seqs.reads_for_seq1_and_seq2\tgenome1~random_sequence_length_11010\t0\n7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome3~random_sequence_length_11001\t0\n7seqs.reads_for_seq1_and_seq2\tgenome4~random_sequence_length_11002\t0\n7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2\n7seqs.reads_for_seq1_and_seq2\tgenome6~random_sequence_length_11003\t0\n",
             generate_named_bam_readers_from_bam_files(
                 vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.0,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.0,0,false)],
             true,
             false);
     }

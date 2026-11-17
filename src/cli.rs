@@ -69,7 +69,7 @@ fn bioconda_mappers_note() -> String {
         "Note that the bioconda package of CoverM only installs the default mappers \
         (strobealign, minimap2 and bwa). Other mappers, such as bwa-mem2, minibwa and \
         rammap, must be installed separately, e.g. '{}'.",
-        &monospace_roff("conda install -c bioconda minibwa")
+        monospace_roff("conda install -c bioconda minibwa")
     )
 }
 
@@ -95,27 +95,27 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     ],
                     &[
                         &monospace_roff("minimap2-sr"),
-                        &format!("minimap2 with '{}' option", &monospace_roff("-x sr"))
+                        &format!("minimap2 with '{}' option", monospace_roff("-x sr"))
                     ],
                     &[
                         &monospace_roff("minimap2-lr-hq"),
-                        &format!("minimap2 with '{}' option (recommended for Oxford Nanopore R10+ reads)", &monospace_roff("-x lr:hq"))
+                        &format!("minimap2 with '{}' option (recommended for Oxford Nanopore R10+ reads)", monospace_roff("-x lr:hq"))
                     ],
                     &[
                         &monospace_roff("minimap2-ont"),
-                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-ont"))
+                        &format!("minimap2 with '{}' option", monospace_roff("-x map-ont"))
                     ],
                     &[
                         &monospace_roff("minimap2-pb"),
-                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-pb"))
+                        &format!("minimap2 with '{}' option", monospace_roff("-x map-pb"))
                     ],
                     &[
                         &monospace_roff("minimap2-hifi"),
-                        &format!("minimap2 with '{}' option", &monospace_roff("-x map-hifi"))
+                        &format!("minimap2 with '{}' option", monospace_roff("-x map-hifi"))
                     ],
                     &[
                         &monospace_roff("minimap2-no-preset"),
-                        &format!("minimap2 with no '{}' option", &monospace_roff("-x"))
+                        &format!("minimap2 with no '{}' option", monospace_roff("-x"))
                     ],
                     &[
                         &monospace_roff("minibwa"),
@@ -123,27 +123,27 @@ fn add_mapping_options(manual: Manual) -> Manual {
                     ],
                     &[
                         &monospace_roff("rammap-sr"),
-                        &format!("rammap (a minimap2-compatible aligner) with '{}' option", &monospace_roff("-x sr"))
+                        &format!("rammap (a minimap2-compatible aligner) with '{}' option", monospace_roff("-x sr"))
                     ],
                     &[
                         &monospace_roff("rammap-lr-hq"),
-                        &format!("rammap with '{}' option", &monospace_roff("-x lr:hq"))
+                        &format!("rammap with '{}' option", monospace_roff("-x lr:hq"))
                     ],
                     &[
                         &monospace_roff("rammap-ont"),
-                        &format!("rammap with '{}' option", &monospace_roff("-x map-ont"))
+                        &format!("rammap with '{}' option", monospace_roff("-x map-ont"))
                     ],
                     &[
                         &monospace_roff("rammap-pb"),
-                        &format!("rammap with '{}' option", &monospace_roff("-x map-pb"))
+                        &format!("rammap with '{}' option", monospace_roff("-x map-pb"))
                     ],
                     &[
                         &monospace_roff("rammap-hifi"),
-                        &format!("rammap with '{}' option", &monospace_roff("-x map-hifi"))
+                        &format!("rammap with '{}' option", monospace_roff("-x map-hifi"))
                     ],
                     &[
                         &monospace_roff("rammap-no-preset"),
-                        &format!("rammap with no '{}' option", &monospace_roff("-x"))
+                        &format!("rammap with no '{}' option", monospace_roff("-x"))
                     ],
                 ]),
                 bioconda_mappers_note()
@@ -155,7 +155,7 @@ fn add_mapping_options(manual: Manual) -> Manual {
         has security implications if untrusted input \
         is specified. '{}' is always specified to minimap2. \
         [default: none]",
-                &monospace_roff("-a")
+                monospace_roff("-a")
             )))
             .flag(Flag::new().long("--minimap2-reference-is-index").help(
                 "Treat reference as a minimap2 database, not as a FASTA file. [default: not set]",
@@ -183,7 +183,7 @@ fn add_mapping_options(manual: Manual) -> Manual {
         that usage of this parameter has security \
         implications if untrusted input is specified. '{}' \
         is always specified to rammap. [default: none]",
-                &monospace_roff("-x sr -a")
+                monospace_roff("-x sr -a")
             )))
             .flag(Flag::new().long("--strobealign-use-index").help(
                 "Use a pregenerated index (one that has been created with 'strobealign --create-index'). The --reference option should be specified as the original FASTA file i.e. 'ref.fna' not 'ref.fna.r100.sti' [default: not set]",
@@ -211,12 +211,12 @@ fn add_thresholding_options(manual: Manual) -> Manual {
         identity e.g. 95 for 95%. Reads at exactly the threshold \
         are kept ({}). {} With {} in {} the default is {} \
         (see the {} method); a given value is used as is.",
-                        &monospace_roff(">="),
+                        monospace_roff(">="),
                         default_roff("0"),
-                        &monospace_roff("--methods metabat"),
-                        &monospace_roff("coverm contig"),
-                        &monospace_roff("97"),
-                        &monospace_roff("metabat")
+                        monospace_roff("--methods metabat"),
+                        monospace_roff("coverm contig"),
+                        monospace_roff("97"),
+                        monospace_roff("metabat")
                     )),
             )
             .option(
@@ -670,44 +670,41 @@ pub fn makedb_full_help() -> Manual {
                             &["name", "description"],
                             &[
                                 &monospace_roff("minimap2-sr"),
-                                &format!(
-                                    "minimap2 index built with '{}'",
-                                    &monospace_roff("-x sr")
-                                )
+                                &format!("minimap2 index built with '{}'", monospace_roff("-x sr"))
                             ],
                             &[
                                 &monospace_roff("minimap2-lr-hq"),
                                 &format!(
                                     "minimap2 index built with '{}'",
-                                    &monospace_roff("-x lr:hq")
+                                    monospace_roff("-x lr:hq")
                                 )
                             ],
                             &[
                                 &monospace_roff("minimap2-ont"),
                                 &format!(
                                     "minimap2 index built with '{}'",
-                                    &monospace_roff("-x map-ont")
+                                    monospace_roff("-x map-ont")
                                 )
                             ],
                             &[
                                 &monospace_roff("minimap2-pb"),
                                 &format!(
                                     "minimap2 index built with '{}'",
-                                    &monospace_roff("-x map-pb")
+                                    monospace_roff("-x map-pb")
                                 )
                             ],
                             &[
                                 &monospace_roff("minimap2-hifi"),
                                 &format!(
                                     "minimap2 index built with '{}'",
-                                    &monospace_roff("-x map-hifi")
+                                    monospace_roff("-x map-hifi")
                                 )
                             ],
                             &[
                                 &monospace_roff("minimap2-no-preset"),
                                 &format!(
                                     "minimap2 index built with no '{}' option",
-                                    &monospace_roff("-x")
+                                    monospace_roff("-x")
                                 )
                             ],
                             &[&monospace_roff("bwa-mem"), "BWA index (bwa index)"],
@@ -720,43 +717,43 @@ pub fn makedb_full_help() -> Manual {
                                 &monospace_roff("rammap-sr"),
                                 &format!(
                                     "rammap index ('{}'), built with the '{}' preset",
-                                    &monospace_roff("rammap --dump-index"),
-                                    &monospace_roff("-x sr")
+                                    monospace_roff("rammap --dump-index"),
+                                    monospace_roff("-x sr")
                                 ),
                             ],
                             &[
                                 &monospace_roff("rammap-lr-hq"),
                                 &format!(
                                     "rammap index built with the '{}' preset",
-                                    &monospace_roff("-x lr:hq")
+                                    monospace_roff("-x lr:hq")
                                 ),
                             ],
                             &[
                                 &monospace_roff("rammap-ont"),
                                 &format!(
                                     "rammap index built with the '{}' preset",
-                                    &monospace_roff("-x map-ont")
+                                    monospace_roff("-x map-ont")
                                 ),
                             ],
                             &[
                                 &monospace_roff("rammap-pb"),
                                 &format!(
                                     "rammap index built with the '{}' preset",
-                                    &monospace_roff("-x map-pb")
+                                    monospace_roff("-x map-pb")
                                 ),
                             ],
                             &[
                                 &monospace_roff("rammap-hifi"),
                                 &format!(
                                     "rammap index built with the '{}' preset",
-                                    &monospace_roff("-x map-hifi")
+                                    monospace_roff("-x map-hifi")
                                 ),
                             ],
                             &[
                                 &monospace_roff("rammap-no-preset"),
                                 &format!(
                                     "rammap index built with no '{}' option",
-                                    &monospace_roff("-x")
+                                    monospace_roff("-x")
                                 ),
                             ],
                             &[
@@ -765,7 +762,7 @@ pub fn makedb_full_help() -> Manual {
                             "strobealign index (strobealign --create-index). The reference \
                             FASTA is copied into the output directory alongside the index, \
                             since strobealign requires it at mapping time. Use it via '{}'",
-                            &monospace_roff("--strobealign-use-index")
+                            monospace_roff("--strobealign-use-index")
                         )
                             ],
                         ]),
@@ -961,11 +958,11 @@ pub fn contig_full_help() -> Manual {
                     &["method","description"],
                     &[&monospace_roff("mean"), "(default) Average number of aligned reads overlapping each position on the contig"],
                     &[&monospace_roff("trimmed_mean"), &format!("Average number of aligned reads overlapping each position after removing the most deeply and shallow-ly covered positions. See {}/{} to adjust.",
-                        &monospace_roff("--trim-min"),
-                        &monospace_roff("--trim-max"))],
+                        monospace_roff("--trim-min"),
+                        monospace_roff("--trim-max"))],
                     &[&monospace_roff("strobealign-aemb"), 
                         &format!("Mean coverage as estimated by strobealign --aemb, which is faster than the {} method, giving similar but not identical values. See https://github.com/ksahlin/strobealign for details. Cannot currently be used with other methods.",
-                        &monospace_roff("mean"))],
+                        monospace_roff("mean"))],
                     &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
                     &[&monospace_roff("covered_fraction"), "Proportion of bases covered by 1 or more reads"],
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],
@@ -973,12 +970,12 @@ pub fn contig_full_help() -> Manual {
                     &[&monospace_roff("length"), "Length of each contig in base pairs"],
                     &[&monospace_roff("count"), "Number of reads aligned to each contig. Note that supplementary alignments are not counted."],
                     &[&monospace_roff("metabat"), &format!("(\"MetaBAT adjusted coverage\") Coverage as defined in Kang et al 2015 https://doi.org/10.7717/peerj.1165. By default, reads with identity not strictly greater than 97% are excluded, matching MetaBAT's {}. A given {} uses CoverM's {} instead, so {} is not identical to the default. This method includes secondary alignments, and by default improper pair and supplementary alignments too; use {} or {} to exclude the latter two.",
-                        &monospace_roff(">"),
-                        &monospace_roff("--min-read-percent-identity"),
-                        &monospace_roff(">="),
-                        &monospace_roff("97"),
-                        &monospace_roff("--proper-pairs-only"),
-                        &monospace_roff("--exclude-supplementary"))],
+                        monospace_roff(">"),
+                        monospace_roff("--min-read-percent-identity"),
+                        monospace_roff(">="),
+                        monospace_roff("97"),
+                        monospace_roff("--proper-pairs-only"),
+                        monospace_roff("--exclude-supplementary"))],
                     &[&monospace_roff("reads_per_base"), "Number of reads aligned divided by the length of the contig"],
                     &[&monospace_roff("anir"), "Average BLAST-like identity of mapped reads"],
                     &[&monospace_roff("rpkm"), "Reads mapped per kilobase of contig, per million mapped reads"],
@@ -1254,8 +1251,8 @@ pub fn genome_full_help() -> Manual {
                     &[&monospace_roff("relative_abundance"), "(default) Percentage relative abundance of each genome, and the unmapped read percentage"],
                     &[&monospace_roff("mean"), "Average number of aligned reads overlapping each position on the genome"],
                     &[&monospace_roff("trimmed_mean"), &format!("Average number of aligned reads overlapping each position after removing the most deeply and shallow-ly covered positions. See {}/{} to adjust.",
-                        &monospace_roff("--trim-min"),
-                        &monospace_roff("--trim-max"))],    
+                        monospace_roff("--trim-min"),
+                        monospace_roff("--trim-max"))],    
                     &[&monospace_roff("coverage_histogram"), "Histogram of coverage depths"],
                     &[&monospace_roff("covered_fraction"), "Proportion of bases covered by 1 or more reads"],
                     &[&monospace_roff("covered_bases"), "Number of bases covered by 1 or more reads"],

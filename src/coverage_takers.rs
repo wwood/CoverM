@@ -88,7 +88,6 @@ impl CoverageTaker for CoverageTakerType {
                 entry_names: _,
                 ref mut coverages,
                 ref mut current_stoit_index,
-                current_entry_index: _,
                 ..
             } => {
                 stoit_names.push(stoit_name.to_owned());
