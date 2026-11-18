@@ -378,7 +378,7 @@ fn print_last_genomes<T: CoverageTaker>(
                 debug!(
                     "Found coverage {} for genome {} i.e. coverage estimator {}",
                     coverage,
-                    &str::from_utf8(last_genome_name).unwrap(),
+                    str::from_utf8(last_genome_name).unwrap(),
                     i
                 );
 
@@ -610,7 +610,7 @@ pub fn mosdepth_genome_coverage<
                             "Filling unobserved from {} to {} for {}",
                             last_tid,
                             tid,
-                            &str::from_utf8(last_genome.unwrap()).unwrap()
+                            str::from_utf8(last_genome.unwrap()).unwrap()
                         );
                         unobserved_contig_length_and_first_tid
                             .unobserved_contig_lengths
@@ -1286,7 +1286,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/2seqs.reads_for_seq1_and_seq2.bam"]),
             b'e',
             true,
-            &mut vec!(CoverageEstimator::new_estimator_pileup_counts(0.0,0)),
+            &mut vec![CoverageEstimator::new_estimator_pileup_counts(0.0,0)],
             false,
             false);
     }
@@ -1313,7 +1313,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             b'~',
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.1,0,false)],
             false,
             false);
 
@@ -1322,7 +1322,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             b'~',
             false,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.1,0,false)],
             false,
             false);
     }
@@ -1337,7 +1337,7 @@ mod tests {
                 &NoExclusionGenomeFilter{}),
             b'~',
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.1,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.1,0,false)],
             false,
             false);
     }
@@ -1377,7 +1377,7 @@ mod tests {
             generate_named_bam_readers_from_bam_files(vec!["tests/data/7seqs.reads_for_seq1_and_seq2.bam"]),
             b'~',
             true,
-            &mut vec!(CoverageEstimator::new_estimator_mean(0.759,0,false)),
+            &mut vec![CoverageEstimator::new_estimator_mean(0.759,0,false)],
             false,
             false);
     }
@@ -1646,12 +1646,12 @@ mod tests {
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
             b'~',
             true,
-            &mut vec!(
+            &mut vec![
                 CoverageEstimator::new_estimator_mean(0.0,0,false),
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0)
-            ),
+            ],
             false,
             false);
     }
@@ -1664,12 +1664,12 @@ mod tests {
                 vec!["tests/data/7seqs.reads_for_seq1.bam"]),
             b'~',
             true,
-            &mut vec!(
+            &mut vec![
                 // covered fraction is 0.727, so go lower so trimmed mean is 0,
                 // mean > 0.
                 CoverageEstimator::new_estimator_trimmed_mean(0.0,0.05,0.0,0),
                 CoverageEstimator::new_estimator_mean(0.0,0,false),
-            ),
+            ],
             false,
             false);
     }
@@ -1779,13 +1779,10 @@ mod tests {
             } => {
                 assert_eq!(vec!("dummy"), stoit_names);
                 assert_eq!(vec!(Some("genome1".to_string())), entry_names);
-                assert_eq!(
-                    vec!(vec!(CoverageEntry {
-                        entry_index: 0,
-                        coverage: 22010.0
-                    })),
-                    coverages
-                )
+                assert_eq!(1, coverages.len());
+                assert_eq!(1, coverages[0].len());
+                assert_eq!(0, coverages[0].entry_index(0));
+                assert_eq!(&[22010.0][..], coverages[0].coverages(0, 1));
             }
             _ => panic!(),
         }

@@ -960,7 +960,8 @@ mod tests {
     fn test_unwriteable_cache_bam_files() {
         let td = tempfile::TempDir::new().unwrap();
         let dir = td.path().to_path_buf();
-        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        let original_perms = std::fs::metadata(&dir).unwrap().permissions();
+        let mut perms = original_perms.clone();
         perms.set_readonly(true);
         std::fs::set_permissions(&dir, perms).unwrap();
 
@@ -978,9 +979,7 @@ mod tests {
             .fails()
             .unwrap();
 
-        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
-        perms.set_readonly(false);
-        std::fs::set_permissions(&dir, perms).unwrap();
+        std::fs::set_permissions(&dir, original_perms).unwrap();
     }
 
     #[test]
@@ -1832,6 +1831,71 @@ genome6	0",
     }
 
     #[test]
+    fn test_bam_from_stdin_pipe() {
+        // A BAM given as a pipe can only be read once, so the startup
+        // readability check must not consume it before it is processed.
+        let bam = "tests/data/7seqs.reads_for_seq1_and_seq2.bam";
+        let expected = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args(["contig", "-b", bam])
+            .output()
+            .unwrap();
+        assert!(expected.status.success());
+
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+            .args(["contig", "-b", "/dev/stdin"])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdin = child.stdin.take().unwrap();
+        let bam_bytes = std::fs::read(bam).unwrap();
+        let writer = std::thread::spawn(move || {
+            // coverm may exit early on failure, so ignore broken pipes here.
+            let _ = stdin.write_all(&bam_bytes);
+        });
+        let output = child.wait_with_output().unwrap();
+        writer.join().unwrap();
+        assert!(
+            output.status.success(),
+            "coverm failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Only the sample name in the header line differs.
+        let expected = String::from_utf8(expected.stdout).unwrap();
+        let from_pipe = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(
+            expected.lines().skip(1).collect::<Vec<_>>(),
+            from_pipe.lines().skip(1).collect::<Vec<_>>()
+        );
+        assert!(from_pipe.starts_with("Contig\tstdin Mean\n"));
+    }
+
+    #[test]
+    fn test_invalid_bam_rejected_before_processing() {
+        // BAM files are opened lazily when their sample is processed, but an
+        // unreadable BAM should still fail at startup, before earlier samples
+        // are processed.
+        let td = tempfile::TempDir::new().unwrap();
+        let fake_bam = td.path().join("fake.bam");
+        std::fs::write(&fake_bam, "not a BAM file\n").unwrap();
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+                fake_bam.to_str().unwrap(),
+            ])
+            .fails()
+            .stderr()
+            .contains("Unable to open BAM file")
+            .stderr()
+            .doesnt_contain("In sample")
+            .unwrap();
+    }
+
+    #[test]
     fn test_minibwa_pregenerated_index() {
         // Copy the reference to a temp dir so the generated index files (.l2b,
         // .mbw) don't race with other tests that also use tests/data/7seqs.fna.
@@ -1841,10 +1905,15 @@ genome6	0",
         let ref_str = ref_path.to_str().unwrap();
 
         // Generate the index at runtime so the format always matches the installed minibwa version
-        std::process::Command::new("minibwa")
+        let out = std::process::Command::new("minibwa")
             .args(["index", ref_str, ref_str])
-            .status()
-            .expect("Failed to generate minibwa index");
+            .output()
+            .expect("Failed to run minibwa index generation");
+        assert!(
+            out.status.success(),
+            "minibwa index generation failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
 
         Assert::main_binary()
             .with_args(&[
@@ -2209,6 +2278,195 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
             .contains("reads_for_seq1_and_seq2.1.fq.gz	seq1	0	1.4117647	0.669")
             .stdout()
             .contains("reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_metabat_contig_missing_from_first_sample() {
+        // The first sample has no reads for genome5~seq2, so its length must
+        // come from the second sample. This used to panic.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--no-zeros",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1.bam",
+                "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\t\
+                7seqs.reads_for_seq1_and_seq2.bam\t7seqs.reads_for_seq1_and_seq2.bam-var\n\
+                genome2~seq1\t1000\t1.3847\t1.3576\t0.9132\t1.4118\t1.3049\n\
+                genome5~seq2\t1000\t0.6218\t0\t0\t1.2435\t0.6862\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_tpm_differing_contigs_dense_and_sparse() {
+        let args = [
+            "contig",
+            "--no-zeros",
+            "-m",
+            "mean",
+            "tpm",
+            "-b",
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        Assert::main_binary()
+            .with_args(&args)
+            .succeeds()
+            .stdout()
+            .is(
+                "Contig\t7seqs.reads_for_seq1 Mean\t7seqs.reads_for_seq1 TPM\t\
+                7seqs.reads_for_seq1_and_seq2 Mean\t7seqs.reads_for_seq1_and_seq2 TPM\n\
+                genome2~seq1\t1.3576471\t1000000\t1.4117647\t500000\n\
+                genome5~seq2\t0\t0\t1.2435294\t500000\n",
+            )
+            .unwrap();
+        let mut sparse_args = args.to_vec();
+        sparse_args.extend(["--output-format", "sparse"]);
+        Assert::main_binary()
+            .with_args(&sparse_args)
+            .succeeds()
+            .stdout()
+            .is("Sample\tContig\tMean\tTPM\n\
+                7seqs.reads_for_seq1\tgenome2~seq1\t1.3576471\t1000000\n\
+                7seqs.reads_for_seq1\tgenome5~seq2\t0\t0\n\
+                7seqs.reads_for_seq1_and_seq2\tgenome2~seq1\t1.4117647\t500000\n\
+                7seqs.reads_for_seq1_and_seq2\tgenome5~seq2\t1.2435294\t500000\n")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_no_zeros_nothing_passes_filters() {
+        // No contig has any coverage that passes the filters. This used to
+        // panic for dense and metabat output; now only the header is printed.
+        let bams = [
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        for (methods, header) in [
+            (
+                vec!["mean"],
+                "Contig\t7seqs.reads_for_seq1 Mean\t7seqs.reads_for_seq1_and_seq2 Mean\n",
+            ),
+            (
+                vec!["metabat"],
+                "contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\t\
+                7seqs.reads_for_seq1_and_seq2.bam\t7seqs.reads_for_seq1_and_seq2.bam-var\n",
+            ),
+            (
+                vec!["tpm"],
+                "Contig\t7seqs.reads_for_seq1 TPM\t7seqs.reads_for_seq1_and_seq2 TPM\n",
+            ),
+            (
+                vec!["rpkm"],
+                "Contig\t7seqs.reads_for_seq1 RPKM\t7seqs.reads_for_seq1_and_seq2 RPKM\n",
+            ),
+        ] {
+            let mut args = vec![
+                "contig",
+                "--no-zeros",
+                "--min-read-aligned-length",
+                "100000",
+                "-b",
+            ];
+            args.extend(bams);
+            args.push("-m");
+            args.extend(methods);
+            Assert::main_binary()
+                .with_args(&args)
+                .succeeds()
+                .stdout()
+                .is(header)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_no_zeros_nothing_passes_filters_genome_relative_abundance() {
+        // No genome has any coverage that passes the filters, so every read is
+        // unmapped. Sparse output used to print the 'unmapped' row only for
+        // the first sample; it must be printed for each sample, as in dense
+        // output.
+        let bams = [
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        for (methods, output_format, expected) in [
+            (
+                vec!["relative_abundance"],
+                "dense",
+                "Genome\t7seqs.reads_for_seq1 Relative Abundance (%)\t\
+                7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n\
+                unmapped\t100\t100\n",
+            ),
+            (
+                vec!["relative_abundance"],
+                "sparse",
+                "Sample\tGenome\tRelative Abundance (%)\n\
+                7seqs.reads_for_seq1\tunmapped\t100\n\
+                7seqs.reads_for_seq1_and_seq2\tunmapped\t100\n",
+            ),
+            (
+                vec![
+                    "mean",
+                    "relative_abundance",
+                    "trimmed_mean",
+                    "covered_fraction",
+                ],
+                "sparse",
+                "Sample\tGenome\tMean\tRelative Abundance (%)\tTrimmed Mean\tCovered Fraction\n\
+                7seqs.reads_for_seq1\tunmapped\tNA\t100\tNA\tNA\n\
+                7seqs.reads_for_seq1_and_seq2\tunmapped\tNA\t100\tNA\tNA\n",
+            ),
+        ] {
+            let mut args = vec![
+                "genome",
+                "-s",
+                "~",
+                "--no-zeros",
+                "--min-read-aligned-length",
+                "100000",
+                "--output-format",
+                output_format,
+                "-b",
+            ];
+            args.extend(bams);
+            args.push("-m");
+            args.extend(methods);
+            Assert::main_binary()
+                .with_args(&args)
+                .succeeds()
+                .stdout()
+                .is(expected)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_no_zeros_metabat_single_sample() {
+        // This used to panic even without any filtering.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--no-zeros",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\n\
+                genome2~seq1\t1000\t1.3576\t1.3576\t0.9132\n")
             .unwrap();
     }
 
@@ -4477,14 +4735,19 @@ genome6~random_sequence_length_11003	0	0	0
     #[test]
     fn test_strobealign_pregenerated_index() {
         // Generate the index at runtime so the format always matches the installed strobealign version
-        std::process::Command::new("strobealign")
+        let out = std::process::Command::new("strobealign")
             .args([
                 "-i",
                 "tests/data/7seqs.fna",
                 "tests/data/reads_for_seq1_and_seq2.1.fq.gz",
             ])
-            .status()
-            .expect("Failed to generate strobealign index");
+            .output()
+            .expect("Failed to run strobealign index generation");
+        assert!(
+            out.status.success(),
+            "strobealign index generation failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
 
         Assert::main_binary()
             .with_args(&[
