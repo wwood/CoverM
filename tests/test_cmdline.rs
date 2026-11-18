@@ -2306,6 +2306,14 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\t\
                 7seqs.reads_for_seq1_and_seq2.bam\t7seqs.reads_for_seq1_and_seq2.bam-var\n",
             ),
+            (
+                vec!["tpm"],
+                "Contig\t7seqs.reads_for_seq1 TPM\t7seqs.reads_for_seq1_and_seq2 TPM\n",
+            ),
+            (
+                vec!["rpkm"],
+                "Contig\t7seqs.reads_for_seq1 RPKM\t7seqs.reads_for_seq1_and_seq2 RPKM\n",
+            ),
         ] {
             let mut args = vec![
                 "contig",
@@ -2324,6 +2332,87 @@ reads_for_seq1_and_seq2.1.fq.gz	seq2	0	1.2435294	0.849",
                 .is(header)
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn test_no_zeros_nothing_passes_filters_genome_relative_abundance() {
+        // No genome has any coverage that passes the filters, so every read is
+        // unmapped. Sparse output used to print the 'unmapped' row only for
+        // the first sample; it must be printed for each sample, as in dense
+        // output.
+        let bams = [
+            "tests/data/7seqs.reads_for_seq1.bam",
+            "tests/data/7seqs.reads_for_seq1_and_seq2.bam",
+        ];
+        for (methods, output_format, expected) in [
+            (
+                vec!["relative_abundance"],
+                "dense",
+                "Genome\t7seqs.reads_for_seq1 Relative Abundance (%)\t\
+                7seqs.reads_for_seq1_and_seq2 Relative Abundance (%)\n\
+                unmapped\t100\t100\n",
+            ),
+            (
+                vec!["relative_abundance"],
+                "sparse",
+                "Sample\tGenome\tRelative Abundance (%)\n\
+                7seqs.reads_for_seq1\tunmapped\t100\n\
+                7seqs.reads_for_seq1_and_seq2\tunmapped\t100\n",
+            ),
+            (
+                vec![
+                    "mean",
+                    "relative_abundance",
+                    "trimmed_mean",
+                    "covered_fraction",
+                ],
+                "sparse",
+                "Sample\tGenome\tMean\tRelative Abundance (%)\tTrimmed Mean\tCovered Fraction\n\
+                7seqs.reads_for_seq1\tunmapped\tNA\t100\tNA\tNA\n\
+                7seqs.reads_for_seq1_and_seq2\tunmapped\tNA\t100\tNA\tNA\n",
+            ),
+        ] {
+            let mut args = vec![
+                "genome",
+                "-s",
+                "~",
+                "--no-zeros",
+                "--min-read-aligned-length",
+                "100000",
+                "--output-format",
+                output_format,
+                "-b",
+            ];
+            args.extend(bams);
+            args.push("-m");
+            args.extend(methods);
+            Assert::main_binary()
+                .with_args(&args)
+                .succeeds()
+                .stdout()
+                .is(expected)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_no_zeros_metabat_single_sample() {
+        // This used to panic even without any filtering.
+        Assert::main_binary()
+            .with_args(&[
+                "contig",
+                "--no-zeros",
+                "-m",
+                "metabat",
+                "-b",
+                "tests/data/7seqs.reads_for_seq1.bam",
+            ])
+            .succeeds()
+            .stdout()
+            .is("contigName\tcontigLen\ttotalAvgDepth\t\
+                7seqs.reads_for_seq1.bam\t7seqs.reads_for_seq1.bam-var\n\
+                genome2~seq1\t1000\t1.3576\t1.3576\t0.9132\n")
+            .unwrap();
     }
 
     #[test]
