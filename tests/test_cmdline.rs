@@ -904,7 +904,8 @@ mod tests {
     fn test_unwriteable_cache_bam_files() {
         let td = tempfile::TempDir::new().unwrap();
         let dir = td.path().to_path_buf();
-        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
+        let original_perms = std::fs::metadata(&dir).unwrap().permissions();
+        let mut perms = original_perms.clone();
         perms.set_readonly(true);
         std::fs::set_permissions(&dir, perms).unwrap();
 
@@ -922,9 +923,7 @@ mod tests {
             .fails()
             .unwrap();
 
-        let mut perms = std::fs::metadata(&dir).unwrap().permissions();
-        perms.set_readonly(false);
-        std::fs::set_permissions(&dir, perms).unwrap();
+        std::fs::set_permissions(&dir, original_perms).unwrap();
     }
 
     #[test]
