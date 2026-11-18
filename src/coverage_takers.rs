@@ -350,12 +350,19 @@ impl<'a> StoitCoverageCursor<'a> {
 /// Indices of entries observed in any stoit, in increasing order. These are
 /// the rows printed from a CachedSingleFloatCoverageTaker, with zeros filled in
 /// for stoits which have no record of a given entry.
-pub fn observed_entry_indices(entry_names: &[Option<String>]) -> impl Iterator<Item = usize> + '_ {
+///
+/// entry_names is sized to the largest entry index seen, so it can be much
+/// longer than the number of observed entries (e.g. with --no-zeros when only
+/// a few high-index references have coverage). Collect these once and reuse
+/// them across stoits and columns rather than rescanning entry_names each time.
+pub fn observed_entry_indices(entry_names: &[Option<String>]) -> Vec<u32> {
     entry_names
         .iter()
         .enumerate()
         .filter(|(_, name)| name.is_some())
-        .map(|(i, _)| i)
+        // Entry indices were already checked to fit in a u32 when cached.
+        .map(|(i, _)| i as u32)
+        .collect()
 }
 
 #[cfg(test)]
@@ -548,7 +555,10 @@ mod tests {
                 coverages,
                 ..
             } => {
-                let rows: Vec<usize> = observed_entry_indices(&entry_names).collect();
+                let rows: Vec<usize> = observed_entry_indices(&entry_names)
+                    .into_iter()
+                    .map(|e| e as usize)
+                    .collect();
                 assert_eq!(vec![0, 1, 3, 5], rows);
 
                 let mut cursor = StoitCoverageCursor::new(&coverages[0], 2);
@@ -599,7 +609,10 @@ mod tests {
                 coverages,
                 ..
             } => {
-                let rows: Vec<usize> = observed_entry_indices(&entry_names).collect();
+                let rows: Vec<usize> = observed_entry_indices(&entry_names)
+                    .into_iter()
+                    .map(|e| e as usize)
+                    .collect();
                 let mut cursor = StoitCoverageCursor::new(&coverages[0], 1);
                 let got: Vec<f32> = rows
                     .iter()

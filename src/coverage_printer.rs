@@ -80,8 +80,9 @@ impl CoveragePrinter {
                             .iter()
                             .map(|stoit| StoitCoverageCursor::new(stoit, *num_coverages))
                             .collect();
+                        let observed = observed_entry_indices(entry_names);
                         let mut entry_coverages: Vec<&[f32]> = Vec::with_capacity(cursors.len());
-                        for entry_i in observed_entry_indices(entry_names) {
+                        for entry_i in observed.iter().map(|&e| e as usize) {
                             entry_coverages.clear();
                             // The contig length is taken from the first stoit
                             // with a record of this contig, since with
@@ -198,6 +199,7 @@ pub fn print_sparse_cached_coverage_taker(
                 .map(|name| name.matches('\t').count())
                 .unwrap_or(0);
             let zeros = vec![0.0; *num_coverages];
+            let observed = observed_entry_indices(entry_names);
 
             // Print the relative abundance of each genome, with an
             // 'unmapped' entry for reads that don't map. Every entry observed
@@ -211,7 +213,7 @@ pub fn print_sparse_cached_coverage_taker(
                 for i in columns_to_normalise {
                     let mut total_coverage = 0.0;
                     let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
-                    for entry_i in observed_entry_indices(entry_names) {
+                    for entry_i in observed.iter().map(|&e| e as usize) {
                         total_coverage += cursor.coverages_for(entry_i).unwrap_or(&zeros)[*i]
                     }
                     coverage_totals[*i] = Some(total_coverage);
@@ -229,7 +231,7 @@ pub fn print_sparse_cached_coverage_taker(
                     Some(i) => {
                         let mut total_coverage = 0.0;
                         let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
-                        for entry_i in observed_entry_indices(entry_names) {
+                        for entry_i in observed.iter().map(|&e| e as usize) {
                             total_coverage += cursor.coverages_for(entry_i).unwrap_or(&zeros)[i]
                         }
                         coverage_totals[i] = Some(total_coverage);
@@ -271,7 +273,7 @@ pub fn print_sparse_cached_coverage_taker(
 
                 // Print the actual coverage values
                 let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
-                for entry_i in observed_entry_indices(entry_names) {
+                for entry_i in observed.iter().map(|&e| e as usize) {
                     let coverages = cursor.coverages_for(entry_i).unwrap_or(&zeros);
                     write!(
                         print_stream,
@@ -431,13 +433,14 @@ pub fn print_dense_cached_coverage_taker(
             }
 
             let zeros = vec![0.0; *num_coverages];
+            let observed = observed_entry_indices(entry_names);
 
             // Coverage total for each stoit for each coverage type
             let mut coverage_totals: Vec<Vec<Option<f32>>> =
                 vec![vec!(None; *num_coverages); stoit_names.len()];
             for (stoit_i, stoit_coverages) in coverages.iter().enumerate() {
                 let mut cursor = StoitCoverageCursor::new(stoit_coverages, *num_coverages);
-                for entry_i in observed_entry_indices(entry_names) {
+                for entry_i in observed.iter().map(|&e| e as usize) {
                     let coverages = cursor.coverages_for(entry_i).unwrap_or(&zeros);
                     for i in columns_to_normalise {
                         coverage_totals[stoit_i][*i] = match coverage_totals[stoit_i][*i] {
@@ -465,7 +468,7 @@ pub fn print_dense_cached_coverage_taker(
                 .iter()
                 .map(|stoit| StoitCoverageCursor::new(stoit, *num_coverages))
                 .collect();
-            for entry_i in observed_entry_indices(entry_names) {
+            for entry_i in observed.iter().map(|&e| e as usize) {
                 write!(
                     print_stream,
                     "{}",
