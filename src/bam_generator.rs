@@ -133,14 +133,63 @@ impl NamedBamReader for BamFileNamedReader {
     }
 }
 
-impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReader {
+/// Opens a BAM file only when its sample is processed, so that the headers of
+/// all input BAM files are not held in memory at once.
+pub struct BamFileNamedReaderGenerator {
+    stoit_name: String,
+    path: String,
+}
+
+impl NamedBamReaderGenerator<BamFileNamedReader> for BamFileNamedReaderGenerator {
     fn start(self) -> BamFileNamedReader {
         BamFileNamedReader {
             stoit_name: self.stoit_name,
-            bam_reader: self.bam_reader,
+            bam_reader: open_bam_file(&self.path),
             num_detected_primary_alignments: 0,
         }
     }
+}
+
+fn open_bam_file(path: &str) -> bam::Reader {
+    match bam::Reader::from_path(path) {
+        Ok(reader) => reader,
+        Err(e) => {
+            error!("Unable to open BAM file {path}: {e}");
+            process::exit(1);
+        }
+    }
+}
+
+/// Fail early if a BAM file cannot be opened or its header cannot be parsed,
+/// before processing any sample. The reader, and so the header, is dropped
+/// straight away so that headers are not all held in memory at once.
+///
+/// Only regular files are opened here. A pipe or other stream (e.g. -b
+/// /dev/stdin or process substitution) can only be read once, so it is just
+/// checked to exist and is left to be opened when its sample is processed.
+fn check_bam_file_readable(path: &str) {
+    match std::fs::metadata(path) {
+        Ok(metadata) if metadata.is_file() => {
+            if let Err(e) = bam::Reader::from_path(path) {
+                error!("Unable to open BAM file {path}: {e}");
+                process::exit(1);
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            error!("Unable to open BAM file {path}: {e}");
+            process::exit(1);
+        }
+    }
+}
+
+fn stoit_name_from_bam_path(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
+        .to_string()
 }
 
 pub struct StreamingNamedBamReader {
@@ -353,19 +402,17 @@ impl NamedBamReader for StreamingNamedBamReader {
     }
 }
 
-pub fn generate_named_bam_readers_from_bam_files(bam_paths: Vec<&str>) -> Vec<BamFileNamedReader> {
+pub fn generate_named_bam_readers_from_bam_files(
+    bam_paths: Vec<&str>,
+) -> Vec<BamFileNamedReaderGenerator> {
     bam_paths
         .iter()
-        .map(|path| BamFileNamedReader {
-            stoit_name: std::path::Path::new(path)
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
-                .to_string(),
-            bam_reader: bam::Reader::from_path(path)
-                .unwrap_or_else(|_| panic!("Unable to find BAM file {}", path)),
-            num_detected_primary_alignments: 0,
+        .map(|path| {
+            check_bam_file_readable(path);
+            BamFileNamedReaderGenerator {
+                stoit_name: stoit_name_from_bam_path(path),
+                path: path.to_string(),
+            }
         })
         .collect()
 }
@@ -550,11 +597,37 @@ impl NamedBamReader for FilteredBamReader {
     }
 }
 
-impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReader {
+/// Opens and filters a BAM file only when its sample is processed, so that the
+/// headers of all input BAM files are not held in memory at once.
+pub struct FilteredBamReaderGenerator {
+    stoit_name: String,
+    path: String,
+    flag_filters: FlagFilter,
+    min_aligned_length_single: u32,
+    min_percent_identity_single: f32,
+    min_aligned_percent_single: f32,
+    min_mapq: u8,
+    min_aligned_length_pair: u32,
+    min_percent_identity_pair: f32,
+    min_aligned_percent_pair: f32,
+}
+
+impl NamedBamReaderGenerator<FilteredBamReader> for FilteredBamReaderGenerator {
     fn start(self) -> FilteredBamReader {
         FilteredBamReader {
+            filtered_stream: ReferenceSortedBamFilter::new(
+                open_bam_file(&self.path),
+                self.flag_filters,
+                self.min_aligned_length_single,
+                self.min_percent_identity_single,
+                self.min_aligned_percent_single,
+                self.min_mapq,
+                self.min_aligned_length_pair,
+                self.min_percent_identity_pair,
+                self.min_aligned_percent_pair,
+                true,
+            ),
             stoit_name: self.stoit_name,
-            filtered_stream: self.filtered_stream,
         }
     }
 }
@@ -570,25 +643,15 @@ pub fn generate_filtered_bam_readers_from_bam_files(
     min_aligned_length_pair: u32,
     min_percent_identity_pair: f32,
     min_aligned_percent_pair: f32,
-) -> Vec<FilteredBamReader> {
-    let mut generators: Vec<FilteredBamReader> = vec![];
-
-    for path in bam_paths {
-        let filtered: FilteredBamReader;
-        let stoit_name = std::path::Path::new(path)
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .expect("failure to convert bam file name to stoit name - UTF8 error maybe?")
-            .to_string();
-        let reader = bam::Reader::from_path(path)
-            .unwrap_or_else(|_| panic!("Unable to find BAM file {}", path));
-
-        filtered = FilteredBamReader {
-            stoit_name,
-            filtered_stream: ReferenceSortedBamFilter::new(
-                reader,
-                flag_filters.clone(),
+) -> Vec<FilteredBamReaderGenerator> {
+    bam_paths
+        .iter()
+        .map(|path| {
+            check_bam_file_readable(path);
+            FilteredBamReaderGenerator {
+                stoit_name: stoit_name_from_bam_path(path),
+                path: path.to_string(),
+                flag_filters: flag_filters.clone(),
                 min_aligned_length_single,
                 min_percent_identity_single,
                 min_aligned_percent_single,
@@ -596,14 +659,9 @@ pub fn generate_filtered_bam_readers_from_bam_files(
                 min_aligned_length_pair,
                 min_percent_identity_pair,
                 min_aligned_percent_pair,
-                true,
-            ),
-        };
-
-        generators.push(filtered)
-    }
-
-    generators
+            }
+        })
+        .collect()
 }
 
 pub struct StreamingFilteredNamedBamReader {

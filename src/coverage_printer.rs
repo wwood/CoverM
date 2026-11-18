@@ -67,7 +67,7 @@ impl CoveragePrinter {
                         ..
                     } => {
                         for stoit in stoit_names.iter() {
-                            write!(print_stream, "\t{}.bam\t{}.bam-var", &stoit, &stoit).unwrap();
+                            write!(print_stream, "\t{}.bam\t{}.bam-var", stoit, stoit).unwrap();
                         }
                         writeln!(print_stream).unwrap();
 

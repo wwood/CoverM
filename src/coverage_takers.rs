@@ -81,8 +81,8 @@ impl CoverageTaker for CoverageTakerType {
                 entry_names: _,
                 ref mut coverages,
                 ref mut current_stoit_index,
-                current_entry_index: _,
                 num_coverages,
+                ..
             } => {
                 // Release over-allocation from the previous stoit, and size this
                 // one to match it, since stoits usually have the same entries.
@@ -254,8 +254,10 @@ impl StoitCoverages {
             let previous = self.entry_index(self.num_entries - 1);
             assert!(
                 entry_index > previous,
-                "Coverage entries must be recorded in increasing order, but entry {entry_index} \
-                followed entry {previous}. Please report this as a bug in CoverM."
+                "Coverage entries must be recorded in increasing order, but entry {} \
+                followed entry {}. Please report this as a bug in CoverM.",
+                entry_index,
+                previous
             );
         }
         let entry_index_u32 = u32::try_from(entry_index)

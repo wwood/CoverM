@@ -4,6 +4,7 @@
 
 - Reduce memory use and speed up printing of dense, metabat, and normalised (e.g. TPM) output by storing cached coverages compactly. Library API: `generate_iterator`, `CoverageEntry` and `EntryAndCoverages` are replaced by `StoitCoverages`, `StoitCoverageCursor` and `observed_entry_indices`.
 - Fix panics with `--no-zeros` when no contig passes the filters, and with metabat output when the first sample lacks reads for a contig.
+- Open input BAM files (`-b`) only when their sample is processed, so their headers are not all held in memory at once. Each BAM file's header is still read at startup to catch invalid input early. Library API: `generate_named_bam_readers_from_bam_files` and `generate_filtered_bam_readers_from_bam_files` now return `BamFileNamedReaderGenerator` and `FilteredBamReaderGenerator`. Thanks @akiledal
 
 ## Version 0.8.0
 

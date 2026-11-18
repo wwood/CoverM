@@ -270,7 +270,7 @@ where
             match self.previous_read_records {
                 None => unreachable!(),
                 Some(ref prev) => {
-                    debug!("previous tid {}", &prev[winning_index].tid());
+                    debug!("previous tid {}", prev[winning_index].tid());
                     ReadSortedShardedBamReader::<T>::clone_record_into(
                         &prev[winning_index],
                         to_return,
@@ -396,7 +396,7 @@ where
             sort_temp_fifo_path
                 .to_str()
                 .expect("Failed to convert sort tempfile tempfile path to str"),
-            &self.sort_threads,
+            self.sort_threads,
             //sort_log_file.path().to_str()
             //   .expect("Failed to convert tempfile log path to str")
         );
@@ -415,7 +415,7 @@ where
             // Write in a scope so writer drops before we start reading from the sort.
             debug!(
                 "Opening BAM writer to {}",
-                &sort_input_fifo_path.to_str().unwrap()
+                sort_input_fifo_path.to_str().unwrap()
             );
             let mut writer = bam::Writer::from_path(
                 &sort_input_fifo_path,

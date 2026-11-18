@@ -372,12 +372,12 @@ pub fn check_reference_existence(reference_path: &str, mapping_program: &Mapping
     if !ref_path.exists() {
         panic!(
             "The reference specified '{}' does not appear to exist",
-            &reference_path
+            reference_path
         );
     } else if !ref_path.is_file() {
         panic!(
             "The reference specified '{}' should be a file, not e.g. a directory",
-            &reference_path
+            reference_path
         );
     }
 }
