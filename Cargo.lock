@@ -739,8 +739,9 @@ dependencies = [
 
 [[package]]
 name = "galah"
-version = "0.6.4"
-source = "git+https://github.com/wwood/galah#64e8f10c5da8e9933a1528b991dc3c27ade44d91"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754f94697f0cf36aeec019a9f5a14d8b4e6b6defbd8c65eedf30cf8fe11cbbc2"
 dependencies = [
  "ansi_term",
  "bird_tool_utils",

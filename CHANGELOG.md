@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Use galah 0.7 from crates.io instead of the git version, and build the `--dereplication-*` arguments with galah's shared argument builders rather than copies. Dereplication option descriptions in `--full-help` now refer to the `--dereplication-*` names (e.g. `--dereplication-small-contigs`) instead of galah's own. `--dereplication-small-contigs`/`--dereplication-large-contigs` now require `--dereplication-cluster-contigs`, and are mutually exclusive
 - Reduce memory use and speed up printing of dense, metabat, and normalised (e.g. TPM) output by storing cached coverages compactly. Library API: `generate_iterator`, `CoverageEntry` and `EntryAndCoverages` are replaced by `StoitCoverages`, `StoitCoverageCursor` and `observed_entry_indices`. Thanks @akiledal
 - Fix panics with `--no-zeros` when no contig passes the filters, and with metabat output when the first sample lacks reads for a contig. Thanks @akiledal
 - Open input BAM files (`-b`) only when their sample is processed, so their headers are not all held in memory at once. Each BAM file's header is still read at startup to catch invalid input early. Library API: `generate_named_bam_readers_from_bam_files` and `generate_filtered_bam_readers_from_bam_files` now return `BamFileNamedReaderGenerator` and `FilteredBamReaderGenerator`. Thanks @akiledal
