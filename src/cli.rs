@@ -34,40 +34,30 @@ const DEFAULT_MAKEDB_MAPPING_SOFTWARE: &str = "minimap2-sr";
 
 lazy_static! {
     pub static ref COVERM_CLUSTER_COMMAND_DEFINITION: GalahClustererCommandDefinition = {
-        galah::cluster_argument_parsing::GalahClustererCommandDefinition {
-            dereplication_ani_argument: "dereplication-ani".to_string(),
-            dereplication_prethreshold_ani_argument: "dereplication-prethreshold-ani".to_string(),
-            dereplication_quality_formula_argument: "dereplication-quality-formula".to_string(),
-            dereplication_run_checkm2_argument: "run-checkm2".to_string(),
-            dereplication_checkm2_db_path_argument: "checkm2-db-path".to_string(),
-            dereplication_precluster_method_argument: "dereplication-precluster-method".to_string(),
-            dereplication_cluster_method_argument: "dereplication-cluster-method".to_string(),
-            dereplication_aligned_fraction_argument: "dereplication-aligned-fraction".to_string(),
-            dereplication_small_genomes_argument: "dereplication-small-genomes".to_string(),
-            dereplication_cluster_contigs_argument: "dereplication-cluster-contigs".to_string(),
-            dereplication_small_contigs_argument: "dereplication-small-contigs".to_string(),
-            dereplication_large_contigs_argument: "dereplication-large-contigs".to_string(),
-            dereplication_fraglen_argument: "dereplication-fragment-length".to_string(),
-            dereplication_low_memory_argument: "dereplication-low-memory".to_string(),
-            dereplication_skip_sanitize_headers_argument: "dereplication-skip-sanitise-headers"
-                .to_string(),
-            dereplication_both_min_aligned_fraction_argument:
-                "dereplication-both-min-aligned-fraction".to_string(),
-            dereplication_reference_genomes_argument: "dereplication-reference-genomes".to_string(),
-            dereplication_reference_genomes_list_argument: "dereplication-reference-genomes-list"
-                .to_string(),
-            dereplication_skip_input_dereplication_argument:
-                "dereplication-skip-input-dereplication".to_string(),
-            dereplication_output_cluster_definition_file: "dereplication-output-cluster-definition"
-                .to_string(),
-            dereplication_output_representative_fasta_directory:
-                "dereplication-output-representative-fasta-directory".to_string(),
-            dereplication_output_representative_fasta_directory_copy:
-                "dereplication-output-representative-fasta-directory-copy".to_string(),
-            dereplication_output_representative_list: "dereplication-output-representative-list"
-                .to_string(),
-        }
+        let mut definition = GalahClustererCommandDefinition::with_prefix("dereplication-");
+        // Names which predate with_prefix and differ from galah's names plus a prefix
+        definition.dereplication_prethreshold_ani_argument =
+            "dereplication-prethreshold-ani".to_string();
+        definition.dereplication_aligned_fraction_argument =
+            "dereplication-aligned-fraction".to_string();
+        definition
     };
+}
+
+/// Add galah's clustering and output arguments (`--dereplication-*`) to a command.
+fn add_galah_clap_args(command: Command) -> Command {
+    let definition: &'static GalahClustererCommandDefinition = &COVERM_CLUSTER_COMMAND_DEFINITION;
+    galah::cluster_argument_parsing::add_dereplication_output_clap_args(
+        galah::cluster_argument_parsing::add_dereplication_clustering_clap_args(
+            command, definition,
+        )
+        // Keep paths containing spaces intact, as before using galah's argument builders
+        .mut_arg(
+            definition.dereplication_reference_genomes_argument.as_str(),
+            |a| a.value_delimiter(None),
+        ),
+        definition,
+    )
 }
 
 fn bioconda_mappers_note() -> String {
@@ -914,6 +904,7 @@ pub fn makedb_full_help() -> Manual {
     derep_section =
         galah::cluster_argument_parsing::add_dereplication_filtering_parameters_to_section(
             derep_section,
+            &COVERM_CLUSTER_COMMAND_DEFINITION,
         );
     derep_section =
         galah::cluster_argument_parsing::add_dereplication_clustering_parameters_to_section(
@@ -1269,6 +1260,7 @@ pub fn genome_full_help() -> Manual {
     derep_section =
         galah::cluster_argument_parsing::add_dereplication_filtering_parameters_to_section(
             derep_section,
+            &COVERM_CLUSTER_COMMAND_DEFINITION,
         );
     derep_section =
         galah::cluster_argument_parsing::add_dereplication_clustering_parameters_to_section(
@@ -1470,130 +1462,12 @@ pub fn genome_full_help() -> Manual {
 /// options offered by `coverm genome`. These operate on the set of genomes given
 /// via `--genome-fasta-*`, so they conflict with a pre-built `--reference`.
 fn add_dereplication_arguments(command: Command) -> Command {
-    command
+    add_galah_clap_args(command)
         .arg(
             Arg::new("dereplicate")
                 .long("dereplicate")
                 .conflicts_with("reference")
                 .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-ani")
-                .long("dereplication-ani")
-                .value_parser(clap::value_parser!(f32))
-                .default_value(galah::DEFAULT_ANI),
-        )
-        .arg(
-            Arg::new("dereplication-prethreshold-ani")
-                .long("dereplication-prethreshold-ani")
-                .value_parser(clap::value_parser!(f32))
-                .default_value(galah::DEFAULT_PRETHRESHOLD_ANI),
-        )
-        .arg(
-            Arg::new("dereplication-quality-formula")
-                .long("dereplication-quality-formula")
-                .value_parser([
-                    "completeness-4contamination",
-                    "completeness-5contamination",
-                    "Parks2020_reduced",
-                    "dRep",
-                ])
-                .default_value(galah::DEFAULT_QUALITY_FORMULA),
-        )
-        .arg(
-            Arg::new("dereplication-precluster-method")
-                .long("dereplication-precluster-method")
-                .value_parser(galah::PRECLUSTER_METHODS)
-                .default_value(galah::DEFAULT_PRECLUSTER_METHOD),
-        )
-        .arg(
-            Arg::new("dereplication-cluster-method")
-                .long("dereplication-cluster-method")
-                .value_parser(galah::CLUSTER_METHODS)
-                .default_value(galah::DEFAULT_CLUSTER_METHOD),
-        )
-        .arg(
-            Arg::new("dereplication-aligned-fraction")
-                .long("dereplication-aligned-fraction")
-                .default_value(galah::DEFAULT_ALIGNED_FRACTION)
-                .value_parser(clap::value_parser!(f32)),
-        )
-        .arg(
-            Arg::new("dereplication-small-genomes")
-                .long("dereplication-small-genomes")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-cluster-contigs")
-                .long("dereplication-cluster-contigs")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-small-contigs")
-                .long("dereplication-small-contigs")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-large-contigs")
-                .long("dereplication-large-contigs")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-fragment-length")
-                .long("dereplication-fragment-length")
-                .default_value(galah::DEFAULT_FRAGMENT_LENGTH)
-                .value_parser(clap::value_parser!(u32)),
-        )
-        .arg(
-            Arg::new("dereplication-low-memory")
-                .long("dereplication-low-memory")
-                .action(clap::ArgAction::SetTrue)
-                .conflicts_with("dereplication-reference-genomes")
-                .conflicts_with("dereplication-reference-genomes-list"),
-        )
-        .arg(
-            Arg::new("dereplication-reference-genomes")
-                .long("dereplication-reference-genomes")
-                .num_args(1..)
-                .conflicts_with("dereplication-low-memory")
-                .conflicts_with("dereplication-reference-genomes-list"),
-        )
-        .arg(
-            Arg::new("dereplication-reference-genomes-list")
-                .long("dereplication-reference-genomes-list")
-                .conflicts_with("dereplication-low-memory")
-                .conflicts_with("dereplication-reference-genomes"),
-        )
-        .arg(
-            Arg::new("dereplication-both-min-aligned-fraction")
-                .long("dereplication-both-min-aligned-fraction")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-skip-sanitise-headers")
-                .long("dereplication-skip-sanitise-headers")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-skip-input-dereplication")
-                .long("dereplication-skip-input-dereplication")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("dereplication-output-cluster-definition")
-                .long("dereplication-output-cluster-definition"),
-        )
-        .arg(
-            Arg::new("dereplication-output-representative-fasta-directory")
-                .long("dereplication-output-representative-fasta-directory"),
-        )
-        .arg(
-            Arg::new("dereplication-output-representative-fasta-directory-copy")
-                .long("dereplication-output-representative-fasta-directory-copy"),
-        )
-        .arg(
-            Arg::new("dereplication-output-representative-list")
-                .long("dereplication-output-representative-list"),
         )
         .arg(
             Arg::new("checkm-tab-table")
@@ -1613,12 +1487,6 @@ fn add_dereplication_arguments(command: Command) -> Command {
         )
         .arg(Arg::new("min-completeness").long("min-completeness"))
         .arg(Arg::new("max-contamination").long("max-contamination"))
-        .arg(
-            Arg::new("run-checkm2")
-                .long("run-checkm2")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(Arg::new("checkm2-db-path").long("checkm2-db-path"))
 }
 
 pub fn build_cli() -> Command {
@@ -1783,7 +1651,7 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
 ",
         )
         .arg_required_else_help(true)
-        .subcommand(
+        .subcommand(add_galah_clap_args(
             add_clap_verbosity_flags(Command::new("genome"))
                 .about("Calculate coverage of genomes")
                 .override_help(GENOME_HELP.as_str())
@@ -2298,124 +2166,6 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                         .action(clap::ArgAction::SetTrue),
                 )
                 .arg(
-                    Arg::new("dereplication-ani")
-                        .long("dereplication-ani")
-                        .value_parser(clap::value_parser!(f32))
-                        .default_value(galah::DEFAULT_ANI),
-                )
-                .arg(
-                    Arg::new("dereplication-prethreshold-ani")
-                        .long("dereplication-prethreshold-ani")
-                        .value_parser(clap::value_parser!(f32))
-                        .default_value(galah::DEFAULT_PRETHRESHOLD_ANI),
-                )
-                .arg(
-                    Arg::new("dereplication-quality-formula")
-                        .long("dereplication-quality-formula")
-                        .value_parser([
-                            "completeness-4contamination",
-                            "completeness-5contamination",
-                            "Parks2020_reduced",
-                            "dRep",
-                        ])
-                        .default_value(galah::DEFAULT_QUALITY_FORMULA),
-                )
-                .arg(
-                    Arg::new("dereplication-precluster-method")
-                        .long("dereplication-precluster-method")
-                        .value_parser(galah::PRECLUSTER_METHODS)
-                        .default_value(galah::DEFAULT_PRECLUSTER_METHOD),
-                )
-                .arg(
-                    Arg::new("dereplication-cluster-method")
-                        .long("dereplication-cluster-method")
-                        .value_parser(galah::CLUSTER_METHODS)
-                        .default_value(galah::DEFAULT_CLUSTER_METHOD),
-                )
-                .arg(
-                    Arg::new("dereplication-aligned-fraction")
-                        .long("dereplication-aligned-fraction")
-                        .default_value(galah::DEFAULT_ALIGNED_FRACTION)
-                        .value_parser(clap::value_parser!(f32)),
-                )
-                .arg(
-                    Arg::new("dereplication-small-genomes")
-                        .long("dereplication-small-genomes")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-cluster-contigs")
-                        .long("dereplication-cluster-contigs")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-small-contigs")
-                        .long("dereplication-small-contigs")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-large-contigs")
-                        .long("dereplication-large-contigs")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-fragment-length")
-                        .long("dereplication-fragment-length")
-                        .default_value(galah::DEFAULT_FRAGMENT_LENGTH)
-                        .value_parser(clap::value_parser!(u32)),
-                )
-                .arg(
-                    Arg::new("dereplication-low-memory")
-                        .long("dereplication-low-memory")
-                        .action(clap::ArgAction::SetTrue)
-                        .conflicts_with("dereplication-reference-genomes")
-                        .conflicts_with("dereplication-reference-genomes-list"),
-                )
-                .arg(
-                    Arg::new("dereplication-reference-genomes")
-                        .long("dereplication-reference-genomes")
-                        .num_args(1..)
-                        .conflicts_with("dereplication-low-memory")
-                        .conflicts_with("dereplication-reference-genomes-list"),
-                )
-                .arg(
-                    Arg::new("dereplication-reference-genomes-list")
-                        .long("dereplication-reference-genomes-list")
-                        .conflicts_with("dereplication-low-memory")
-                        .conflicts_with("dereplication-reference-genomes"),
-                )
-                .arg(
-                    Arg::new("dereplication-both-min-aligned-fraction")
-                        .long("dereplication-both-min-aligned-fraction")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-skip-sanitise-headers")
-                        .long("dereplication-skip-sanitise-headers")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-skip-input-dereplication")
-                        .long("dereplication-skip-input-dereplication")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("dereplication-output-cluster-definition")
-                        .long("dereplication-output-cluster-definition"),
-                )
-                .arg(
-                    Arg::new("dereplication-output-representative-fasta-directory")
-                        .long("dereplication-output-representative-fasta-directory"),
-                )
-                .arg(
-                    Arg::new("dereplication-output-representative-fasta-directory-copy")
-                        .long("dereplication-output-representative-fasta-directory-copy"),
-                )
-                .arg(
-                    Arg::new("dereplication-output-representative-list")
-                        .long("dereplication-output-representative-list"),
-                )
-                .arg(
                     Arg::new("checkm-tab-table")
                         .long("checkm-tab-table")
                         .conflicts_with("reference")
@@ -2447,14 +2197,8 @@ Ben J. Woodcroft <benjwoodcroft near gmail.com>
                                                                            // immediately obvious how to implement this, so instead
                                                                            // we manually check at runtime.
                 )
-                .arg(Arg::new("max-contamination").long("max-contamination"))
-                .arg(
-                    Arg::new("run-checkm2")
-                        .long("run-checkm2")
-                        .action(clap::ArgAction::SetTrue),
-                )
-                .arg(Arg::new("checkm2-db-path").long("checkm2-db-path")),
-        )
+                .arg(Arg::new("max-contamination").long("max-contamination")),
+        ))
         .subcommand(
             add_clap_verbosity_flags(Command::new("contig"))
                 .about("Calculate coverage of contigs")
