@@ -3576,6 +3576,59 @@ genome6~random_sequence_length_11003	0	0	0
     }
 
     #[test]
+    fn test_dereplication_help_uses_prefixed_names() {
+        // Galah's help text cross-references other arguments by name. These must
+        // be CoverM's prefixed names, not galah's own.
+        for subcommand in ["genome", "makedb"] {
+            let output = std::process::Command::new(env!("CARGO_BIN_EXE_coverm"))
+                .args([subcommand, "--full-help-roff"])
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            // ROFF escapes hyphens
+            let help = String::from_utf8(output.stdout)
+                .unwrap()
+                .replace("\\-", "-");
+            for galah_name in [
+                "--small-contigs",
+                "--large-contigs",
+                "--min-aligned-fraction",
+                "--reference-genomes",
+                "--reference-genomes-list",
+                "--cluster-contigs",
+            ] {
+                assert!(
+                    !help.contains(galah_name),
+                    "{} help refers to galah-style {}",
+                    subcommand,
+                    galah_name
+                );
+            }
+            assert!(help
+                .contains("either --dereplication-small-contigs or --dereplication-large-contigs"));
+            assert!(help.contains("--dereplication-aligned-fraction"));
+        }
+    }
+
+    #[test]
+    fn test_dereplication_small_contigs_requires_cluster_contigs() {
+        Assert::main_binary()
+            .with_args(&[
+                "genome",
+                "--genome-fasta-files",
+                "tests/data/set1/1mbp.fna",
+                "--single",
+                "tests/data/set1/1read.actually_fasta.fq",
+                "--dereplicate",
+                "--dereplication-small-contigs",
+            ])
+            .fails()
+            .stderr()
+            .contains("--dereplication-cluster-contigs")
+            .unwrap();
+    }
+
+    #[test]
     fn test_dereplicate_output_clusters() {
         let tf_clusters: tempfile::NamedTempFile = tempfile::NamedTempFile::new().unwrap();
         let t_clusters = tf_clusters.path().to_str().unwrap();
